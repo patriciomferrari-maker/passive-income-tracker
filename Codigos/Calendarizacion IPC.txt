@@ -1,0 +1,127 @@
+// ===================================================================
+// 0. CONFIGURACIÓN ÚNICA DEL CALENDARIO IPC
+// ===================================================================
+
+/**
+ * ⚠️ REEMPLAZAR: ID del calendario donde se crearán los eventos del IPC.
+ * Debe ser el ID del calendario de Google (ej: tu.email@gmail.com o un ID de grupo).
+ */
+const CALENDAR_ID_IPC = "1ffeb27c4a9515826a453bc449dddc9a236362116422567e7a601bcd1b5f7708@group.calendar.google.com"; 
+const IPC_EVENT_TITLE = "Ya se encuentra publicado el dato de Inflaciòn";
+
+
+// ===================================================================
+// 1. FUNCIONES DE INTERFAZ Y DISPARADOR
+// ===================================================================
+
+/**
+ * Crea un menú dedicado SOLO para la calendarización del IPC.
+ * Esta es una función simple onOpen (no requiere disparador instalable).
+ */
+function onOpenIPC() {
+  SpreadsheetApp.getUi()
+      .createMenu('📈 Calendarizar IPC')
+      .addItem('Ejecutar Calendarización IPC Manualmente', 'calendarizarDatoIPC')
+      .addToUi();
+}
+
+/**
+ * Función que se ejecuta automáticamente al editar la hoja "Dato IPC".
+ * ⚠️ DEBE CONFIGURARSE UN DISPARADOR INSTALABLE (TRIGGER) 'Al editarse' para esta función (onEditIPC).
+ * @param {GoogleAppsScript.Events.SheetsOnEdit} e Evento de edición.
+ */
+function onEditIPC(e) {
+  if (!e || !e.source) return;
+  
+  const sheetName = e.source.getActiveSheet().getName();
+
+  if (sheetName === "Dato IPC") {
+    calendarizarDatoIPC(); 
+    
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+        'Calendarización de IPC actualizada.', 
+        'Actualización Automática IPC', 3
+    );
+  }
+}
+
+// ===================================================================
+// 2. LÓGICA DE CALENDARIZACIÓN DE IPC (CON NOTIFICACIÓN)
+// ===================================================================
+
+/**
+ * Lee las fechas de la Columna B de la hoja "Dato IPC", LIMPIA todos los eventos
+ * anteriores con el mismo título y crea los nuevos eventos a las 16:00 hs con una alerta.
+ */
+function calendarizarDatoIPC() {
+  // 1. Verificación de ID y Hoja
+  if (typeof CALENDAR_ID_IPC === 'undefined' || !CALENDAR_ID_IPC || CALENDAR_ID_IPC === "") {
+    SpreadsheetApp.getUi().alert("❌ ERROR: La constante CALENDAR_ID_IPC no está definida o está vacía.");
+    return;
+  }
+  
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName("Dato IPC");
+  
+  if (!sh) {
+    SpreadsheetApp.getUi().alert(`❌ ERROR: La hoja "Dato IPC" no fue encontrada.`);
+    return;
+  }
+  
+  // 2. Obtención del Calendario y definición de rango de búsqueda
+  let calendar;
+  try {
+      calendar = CalendarApp.getCalendarById(CALENDAR_ID_IPC);
+  } catch (e) {
+      SpreadsheetApp.getUi().alert("❌ ERROR: No se pudo conectar al calendario IPC. Verifique el ID.");
+      return;
+  }
+ 
+  const today = new Date();
+  // Busca eventos futuros hasta 5 años
+  const nextFiveYears = new Date(today.getFullYear() + 5, today.getMonth(), today.getDate()); 
+  
+  // 3. LIMPIEZA GARANTIZADA de eventos anteriores
+  const eventsToDelete = calendar.getEvents(today, nextFiveYears, {search: IPC_EVENT_TITLE});
+  
+  eventsToDelete.forEach(event => {
+    // Solo borra eventos que coinciden EXACTAMENTE con el título.
+    if (event.getTitle() === IPC_EVENT_TITLE) {
+      event.deleteEvent();
+    }
+  });
+
+  // 4. Iteración y creación de nuevos eventos
+  const dateRange = sh.getRange('B2:B' + sh.getLastRow()).getValues(); 
+  let eventsCreated = 0;
+  
+  dateRange.forEach(row => {
+    const dateValue = row[0];
+    
+    if (dateValue instanceof Date && !isNaN(dateValue)) {
+      
+      // Creamos la fecha y hora de inicio a las 16:00 (4 PM)
+      const eventStart = new Date(dateValue.getFullYear(), dateValue.getMonth(), dateValue.getDate(), 16, 0, 0);
+      
+      // Hora de finalización (30 minutos después)
+      const eventEnd = new Date(eventStart.getTime() + (30 * 60 * 1000));
+      
+      // Solo calendarizamos eventos que están en el futuro
+      if (eventStart.getTime() > today.getTime()) {
+           // 🔑 CREACIÓN DEL EVENTO Y ALMACENAMIENTO
+           const event = calendar.createEvent(IPC_EVENT_TITLE, eventStart, eventEnd);
+           
+           // AÑADIR RECORDATORIO: 0 minutos antes (A las 16:00 hs)
+           event.addPopupReminder(0); 
+           
+           eventsCreated++;
+      }
+    }
+  });
+
+  // 5. Mensaje de resultado 
+  // arguments.length === 0 indica que fue llamado manualmente (no por un evento 'e')
+  if (eventsCreated > 0 && arguments.length === 0) { 
+    SpreadsheetApp.getUi().alert(`✅ Se han calendarizado ${eventsCreated} eventos de IPC.`);
+  }
+}

@@ -1,0 +1,72 @@
+
+import { prisma } from '@/lib/prisma';
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+    try {
+        const now = new Date();
+
+        const allContracts = await prisma.contract.findMany({
+            include: {
+                property: true
+            }
+        });
+
+        const activeContracts = allContracts.filter(c => {
+            const start = new Date(c.startDate);
+            const end = new Date(start);
+            end.setMonth(end.getMonth() + c.durationMonths);
+            return start <= now && end >= now;
+        });
+
+        const lastIPC = await prisma.economicIndicator.findFirst({
+            where: { type: 'IPC' },
+            orderBy: { date: 'desc' }
+        });
+
+        // Use the last IPC date as the cutoff. If no IPC data, fallback to today.
+        const cutoffDate = lastIPC ? lastIPC.date : new Date();
+
+        const dashboardData = await Promise.all(activeContracts.map(async (contract) => {
+            const cashflows = await prisma.rentalCashflow.findMany({
+                where: {
+                    contractId: contract.id
+                },
+                orderBy: {
+                    date: 'asc'
+                }
+            });
+
+            // Filter cashflows to only show data up to the last known IPC date
+            // This prevents plotting future projected months where Inf/Dev data is missing/flat
+            const filteredCashflows = cashflows.filter(cf => cf.date <= cutoffDate);
+
+            const chartData = filteredCashflows.map(cf => ({
+                date: cf.date.toISOString(),
+                monthLabel: new Date(cf.date).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }),
+                amountUSD: cf.amountUSD || 0,
+                amountARS: cf.amountARS || 0, // Needed for Total Income calculation if we want ARS too
+                inflationAccum: (cf.inflationAccum || 0) * 100,
+                devaluationAccum: (cf.devaluationAccum || 0) * 100
+            }));
+
+            return {
+                contractId: contract.id,
+                propertyName: contract.property.name,
+                tenantName: contract.tenantName,
+                currency: contract.currency,
+                initialRent: contract.initialRent,
+                startDate: contract.startDate,
+                durationMonths: contract.durationMonths,
+                adjustmentType: contract.adjustmentType,
+                adjustmentFrequency: contract.adjustmentFrequency,
+                chartData
+            };
+        }));
+
+        return NextResponse.json(dashboardData);
+    } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 });
+    }
+}

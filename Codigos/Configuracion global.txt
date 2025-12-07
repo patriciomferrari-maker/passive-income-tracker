@@ -1,0 +1,5 @@
+// Este archivo contiene todas las constantes globales para el proyecto.
+
+const CALENDAR_ID = "1ffeb27c4a9515826a453bc449dddc9a236362116422567e7a601bcd1b5f7708@group.calendar.google.com"; 
+
+// Aquí puedes poner otras constantes (ej: SPREADSHEET_ID, etc.)

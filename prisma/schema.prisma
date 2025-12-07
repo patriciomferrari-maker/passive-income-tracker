@@ -1,0 +1,280 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+}
+
+// =================================================================
+// REAL ESTATE (ALQUILERES)
+// =================================================================
+
+model Property {
+  id        String     @id @default(cuid())
+  name      String
+  address   String?
+  contracts Contract[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Contract {
+  id                  String           @id @default(cuid())
+  propertyId          String
+  property            Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  tenantName          String?
+  startDate           DateTime         // Fecha de concertación
+  durationMonths      Int              @default(12) // Plazo en meses
+  
+  initialRent         Float            // Alquiler inicial
+  currency            String           @default("ARS") // ARS, USD
+  
+  adjustmentType      String           @default("IPC") // IPC, NONE
+  adjustmentFrequency Int              @default(12) // Meses entre ajustes (6, 12, etc.)
+  
+  rentalCashflows     RentalCashflow[]
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  
+  @@index([propertyId])
+}
+
+model RentalCashflow {
+  id                String    @id @default(cuid())
+  contractId        String
+  contract          Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  
+  date              DateTime  // Fecha de pago
+  monthIndex        Int       // Mes #1, #2, etc.
+  
+  amountARS         Float?    // Valor en ARS
+  amountUSD         Float?    // Valor en USD
+  
+  ipcMonthly        Float?    // IPC del mes
+  ipcAccumulated    Float?    // IPC acumulado período ajuste
+  tc                Float?    // Tipo de cambio del mes
+  tcBase            Float?    // TC base del contrato
+  tcClosingMonth    Float?    // TC cierre mes para cálculos
+  
+  inflationAccum    Float?    // Inflación acumulada total
+  devaluationAccum  Float?    // Devaluación acumulada total
+  
+  createdAt         DateTime  @default(now())
+  
+  @@index([contractId])
+  @@index([date])
+}
+
+// =================================================================
+// INVESTMENTS (ONs & TREASURIES)
+// =================================================================
+
+model Investment {
+  id           String        @id @default(cuid())
+  ticker       String        @unique
+  name         String
+  type         String        // ON, TREASURY, CEDEAR, etc.
+  currency     String        @default("USD")
+  
+  // Contractual details for ONs/Treasuries
+  emissionDate DateTime?     // Fecha de emisión
+  couponRate   Float?        // Annual interest rate (e.g. 0.08 for 8%)
+  frequency    Int?          // Payment frequency in months (e.g. 6 for semiannual)
+  maturityDate DateTime?
+  amortization String?       // BULLET, PERSONALIZADA
+  
+  transactions            Transaction[]
+  cashflows               Cashflow[]
+  amortizationSchedules   AmortizationSchedule[]
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model AmortizationSchedule {
+  id           String     @id @default(cuid())
+  investmentId String
+  investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  
+  paymentDate  DateTime
+  percentage   Float      // Percentage of capital to amortize (0.0 to 1.0)
+  
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  @@unique([investmentId, paymentDate])
+}
+
+model Transaction {
+  id           String     @id @default(cuid())
+  investmentId String
+  investment   Investment @relation(fields: [investmentId], references: [id])
+  
+  date         DateTime
+  type         String     // BUY, SELL
+  
+  quantity     Float
+  price        Float
+  commission   Float      @default(0)
+  totalAmount  Float      // quantity * price + commission (usually negative for buys)
+  currency     String
+  
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+// =================================================================
+// CASHFLOW (PROJECTIONS & ACTUALS)
+// =================================================================
+
+model Cashflow {
+  id           String      @id @default(cuid())
+  
+  // For investments only (ONs and Treasuries)
+  investmentId String
+  investment   Investment  @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  
+  date         DateTime
+  amount       Float
+  currency     String
+  
+  type         String      // INTEREST, AMORTIZATION
+  status       String      @default("PROJECTED") // PROJECTED, PAID
+  
+  description  String?     // Extra details (e.g. "Cuota 1/12")
+  capitalResidual Float?    // Remaining capital after this cashflow
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  @@index([investmentId])
+  @@index([date])
+}
+
+// =================================================================
+// ECONOMIC DATA
+// =================================================================
+
+model EconomicIndicator {
+  id        String   @id @default(cuid())
+  type      String   // IPC, TC_USD_ARS, etc.
+  date      DateTime
+  value     Float
+  
+  buyRate   Float?   // Tipo de cambio comprador
+  sellRate  Float?   // Tipo de cambio vendedor
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, date]) // Prevent duplicate entries for same month/day
+}
+
+// =================================================================
+// DEBT TRACKER (PRESTAMOS/DEUDAS)
+// =================================================================
+
+model Debt {
+  id            String    @id @default(cuid())
+  debtorName    String    // Nombre del deudor
+  startDate     DateTime  // Fecha de inicio de la deuda
+  initialAmount Float     // Monto inicial
+  currency      String    @default("USD") // Moneda (USD, ARS)
+  status        String    @default("ACTIVE") // ACTIVE, PAID
+  details       String?   // Detalle / Concepto
+
+
+  payments      DebtPayment[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model DebtPayment {
+  id          String   @id @default(cuid())
+  debtId      String
+  debt        Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  
+  date        DateTime // Fecha del pago
+  amount      Float    // Monto pagado
+  type        String   @default("PAYMENT") // PAYMENT, INCREASE
+  description String?  // Concepto (e.g. "Pago parcial 1")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([debtId])
+}
+
+// =================================================================
+// BANK INVESTMENTS (PF, FCI, CAJA)
+// =================================================================
+
+model BankOperation {
+  id            String   @id @default(cuid())
+  type          String   // 'FCI', 'PLAZO_FIJO', 'CAJA_SEGURIDAD'
+  alias         String?  // Name (e.g. "FCI Money Market", "PF Banco N")
+  
+  amount        Float    // Invested Amount or Current Value
+  currency      String   @default("ARS")
+
+  // Plazo Fijo Specifics
+  startDate     DateTime? // Fecha Constitución
+  durationDays  Int?      // Plazo (días)
+  tna           Float?    // Tasa Nominal Anual (%)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// =================================================================
+// COSTA ESMERALDA (BEACH HOUSE)
+// =================================================================
+
+model CostaCategory {
+  id        String @id @default(cuid())
+  name      String // e.g. "Alquiler", "Mantenimiento", "Expensas"
+  type      String // INCOME, EXPENSE
+  
+  transactions CostaTransaction[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CostaTransaction {
+  id          String   @id @default(cuid())
+  date        DateTime // Fecha del movimiento
+  type        String   // INCOME, EXPENSE
+  description String?
+  amount      Float
+  currency    String   @default("USD")
+
+  // Category Link
+  categoryId  String?
+  category    CostaCategory? @relation(fields: [categoryId], references: [id])
+
+  // Rental Specifics (Only for INCOME/RENTAL)
+  rentalCheckIn  DateTime?
+  rentalCheckOut DateTime?
+  contractUrl    String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CostaNote {
+  id        String   @id @default(cuid())
+  content   String
+  category  String   // 'FIX', 'BRING'
+  status    String   @default("PENDING") // PENDING, DONE
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

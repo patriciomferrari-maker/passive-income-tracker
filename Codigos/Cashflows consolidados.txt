@@ -1,0 +1,334 @@
+// ===================================================================
+// 0. CONFIGURACIÓN GLOBAL
+// ===================================================================
+
+/**
+ * ⚠️ REEMPLAZAR el valor de la constante CALENDAR_ID con el ID
+ * de tu calendario de Google donde deseas que se creen los eventos.
+ * Si esta línea existe en CUALQUIER otro archivo de script, elimínala de allí.
+ */
+// Ejemplo: const CALENDAR_ID = "tu.email@gmail.com";
+
+
+// ===================================================================
+// 1. FUNCIONES DE INTERFAZ Y DISPARADOR
+// ===================================================================
+
+/**
+ * Crea el menú personalizado. Esta función debe ser usada como un
+ * DISPARADOR INSTALABLE (no como un Simple Trigger onOpen).
+ */
+function crearMenuPersonalizado() {
+  SpreadsheetApp.getUi()
+      .createMenu('💵 Cashflow Consolidado')
+      .addItem('Ejecutar SOLO CONSOLIDACIÓN (Actualiza hoja)', 'generarCashflowConsolidado')
+      .addItem('Ejecutar CONSOLIDACIÓN Y CALENDARIO MENSUAL', 'ejecutarConsolidacionYCalendario')
+      .addToUi();
+}
+
+/**
+ * Función auxiliar que ejecuta la consolidación y la calendarización detallada.
+ */
+function ejecutarConsolidacionYCalendario() {
+  generarCashflowConsolidado();
+  calendarizarFlujoMensual();
+}
+
+/**
+ * Función que se ejecuta automáticamente al editar las hojas fuente (Disparador 'Al editar').
+ * SOLO ejecuta la consolidación RÁPIDA.
+ * @param {GoogleAppsScript.Events.SheetsOnEdit} e Evento de edición.
+ */
+function onEditWrapper(e) {
+  if (!e || !e.source) return;
+  
+  const targetSheets = [
+    "Calendario Consolidado Treasuries", 
+    "Calendario Consolidado ON", 
+    "Cashflow Alquileres"
+  ];
+  
+  const sheetName = e.source.getActiveSheet().getName();
+  
+  if (targetSheets.includes(sheetName)) {
+    Utilities.sleep(500); // Esperar medio segundo para que la edición se refleje.
+    generarCashflowConsolidado();
+    
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+        'Consolidación de Flujos RÁPIDA finalizada.', 
+        'Actualización Automática', 3
+    );
+  }
+}
+
+// ===================================================================
+// 2. LÓGICA CENTRAL: FUNCIÓN DE CONSOLIDACIÓN
+// ===================================================================
+
+/**
+ * Lee las hojas fuente, calcula Año/Mes y consolida todos los flujos de INGRESOS.
+ * Columnas de salida: Fecha, Año, Mes, Origen, Detalle, Tipo Flujo, Moneda, Monto Total
+ */
+function generarCashflowConsolidado() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  const consolidatedHeader = ["Fecha", "Año", "Mes", "Origen", "Detalle", "Tipo Flujo", "Moneda", "Monto Total"];
+  let consolidatedRows = [];
+
+  // --- 2.1 Lectura de Cashflow Alquileres (Incluye ARS y USD consolidados en Columna L) ---
+  try {
+    const sheetAlq = ss.getSheetByName("Cashflow Alquileres");
+    
+    if (!sheetAlq) {
+        Logger.log("ERROR: La hoja 'Cashflow Alquileres' NO fue encontrada.");
+    } else if (sheetAlq.getLastRow() > 1) {
+      
+      const data = sheetAlq.getRange(2, 1, sheetAlq.getLastRow() - 1, 12).getValues();
+      
+      data.forEach(row => {
+        const fecha = row[0];        // Columna A
+        const detallePropiedad = row[2];  // Columna C (Propiedad/Detalle)
+        const montoUSD = row[11];        // Columna L (Valor USD - Monto Total)
+        
+        let validDate = fecha;
+        
+        // Intento de conversión de fecha
+        if (typeof fecha === 'string' && fecha) {
+            try { validDate = new Date(fecha); } catch(e) { validDate = null; }
+        }
+        
+        // VALIDACIÓN: Fecha válida y Monto Positivo en USD
+        if (validDate instanceof Date && !isNaN(validDate) && Number(montoUSD) > 0) {
+          
+          // Cálculo de Año y Mes
+          const anio = validDate.getFullYear();
+          const mes = validDate.getMonth() + 1; // getMonth() es 0-based
+
+          consolidatedRows.push([
+            validDate,                    // Fecha
+            anio,                         // AÑO
+            mes,                          // MES
+            "Alquileres",                 // Origen
+            (detallePropiedad || "").toString(),  // Detalle (Columna C)
+            "Alquiler mensual",                   // Tipo de Flujo
+            "USD",                                // Moneda (Consolidada)
+            Number(montoUSD)                      // Monto Total (Columna L)
+          ]);
+        }
+      });
+    }
+  } catch (e) {
+    Logger.log("Error general leyendo Cashflow Alquileres: " + e.toString());
+  }
+
+  // --- 2.2 Lectura de Calendario Consolidado Treasuries ---
+  consolidatedRows = consolidatedRows.concat(
+    leerFlujoCalendario(ss, "Calendario Consolidado Treasuries", "Treasuries", "Treasury")
+  );
+
+  // --- 2.3 Lectura de Calendario Consolidado ON ---
+  consolidatedRows = consolidatedRows.concat(
+    leerFlujoCalendario(ss, "Calendario Consolidado ON", "Obligaciones Negociables", "ON")
+  );
+
+
+  // --- 2.4 Ordenamiento y Escritura ---
+  if (consolidatedRows.length > 0) {
+    // Ordenar por Fecha (Columna 0)
+    consolidatedRows.sort((a, b) => a[0].getTime() - b[0].getTime());
+  }
+
+  const outputSheetName = "Cashflows Consolidados";
+  const outputSheet = ss.getSheetByName(outputSheetName) || ss.insertSheet(outputSheetName);
+  outputSheet.clear({ contentsOnly: true });
+
+  const rowsToWrite = [consolidatedHeader].concat(consolidatedRows);
+  
+  if (rowsToWrite.length > 1) {
+    const numCols = rowsToWrite[0].length;
+    outputSheet.getRange(1, 1, rowsToWrite.length, numCols).setValues(rowsToWrite);
+    // Aplicar formato de fecha y número
+    outputSheet.getRange(2, 1, rowsToWrite.length - 1, 1).setNumberFormat("yyyy-mm-dd");
+    outputSheet.getRange(2, numCols, rowsToWrite.length - 1, 1).setNumberFormat("#,##0.00");
+  } else {
+    outputSheet.getRange(1, 1, 1, consolidatedHeader.length).setValues([consolidatedHeader]);
+  }
+}
+
+// ===================================================================
+// 3. FUNCIÓN AUXILIAR DE LECTURA (PARA ON y TREASURIES)
+// ===================================================================
+
+/**
+ * Lee datos de las hojas Calendario Consolidado y reordena la salida.
+ */
+function leerFlujoCalendario(ss, sheetName, origen, detallePrefix) {
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+
+  // Se leen 5 columnas: [0]Fecha, [1]Moneda, [2]Total Interés, [3]Total Capital, [4]Total Flujo
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues();
+  const outputRows = [];
+
+  data.forEach(row => {
+    const [fecha, moneda, totalInt, totalCap, totalFlujo] = row;
+    if (!(fecha instanceof Date) || isNaN(fecha) || Number(totalFlujo) === 0) return;
+
+    // Cálculo de Año y Mes
+    const anio = fecha.getFullYear();
+    const mes = fecha.getMonth() + 1; // getMonth() es 0-based
+
+    if (Number(totalInt) !== 0) {
+      const baseRow = [fecha, anio, mes];
+      outputRows.push(baseRow.concat([
+        origen, // Origen
+        `${detallePrefix} (Interés)`, // Detalle
+        "Pago Interés", // Tipo Flujo
+        moneda, // Moneda
+        Number(totalInt) // Monto Total
+      ]));
+    }
+    
+    if (Number(totalCap) !== 0) {
+      const baseRow = [fecha, anio, mes];
+      outputRows.push(baseRow.concat([
+        origen, // Origen
+        `${detallePrefix} (Amortización)`, // Detalle
+        "Pago Capital", // Tipo Flujo
+        moneda, // Moneda
+        Number(totalCap) // Monto Total
+      ]));
+    }
+  });
+
+  return outputRows;
+}
+
+// ===================================================================
+// 4. FUNCIÓN DE CALENDARIZACIÓN DETALLADA (CORREGIDA)
+// ===================================================================
+
+/**
+ * Lee el flujo de caja consolidado, agrupa por origen y mes,
+ * y crea un evento de calendario con el total y un desglose de cada flujo.
+ */
+function calendarizarFlujoMensual() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName("Cashflows Consolidados");
+  
+  // Verificación crítica del CALENDAR_ID
+  if (!sh || sh.getLastRow() < 2 || typeof CALENDAR_ID === 'undefined' || CALENDAR_ID.includes("TU_ID_DE_CALENDARIO_AQUÍ")) {
+      SpreadsheetApp.getUi().alert("❌ ERROR CRÍTICO: Debe configurar la constante CALENDAR_ID al inicio del script.");
+      return;
+  }
+
+  let calendar;
+  try {
+    calendar = CalendarApp.getCalendarById(CALENDAR_ID);
+  } catch (e) {
+    SpreadsheetApp.getUi().alert("❌ ERROR de Calendario: No se pudo encontrar el calendario con el ID especificado.");
+    return;
+  }
+  
+  const today = new Date();
+  // Busca eventos futuros hasta 5 años
+  const nextFiveYears = new Date(today.getFullYear() + 5, today.getMonth(), today.getDate()); 
+  const searchKey = 'Ingresos esperados totales: ';
+  
+  // 1. Limpieza de eventos anteriores (para evitar duplicados)
+  // Limpiamos solo los eventos creados por este script
+  const eventsToDelete = calendar.getEvents(today, nextFiveYears, {search: searchKey});
+  eventsToDelete.forEach(event => {
+    if (event.getTitle().includes(searchKey)) {
+      event.deleteEvent();
+    }
+  });
+
+  // [0]Fecha, [1]Año, [2]Mes, [3]Origen, [4]Detalle, [7]Monto Total
+  const data = sh.getRange(2, 1, sh.getLastRow() - 1, 8).getValues();
+  const aggregatedFlows = {}; // Key: "YYYY-MM"
+
+  // 2. Agregación de datos por mes y origen
+  data.forEach(row => {
+    const [fecha, anio, mes, origen, detalle, , , montoTotal] = row;
+    
+    // Solo procesar meses futuros o el mes actual (Noviembre 2025 o posterior)
+    if (!(fecha instanceof Date) || isNaN(fecha) || new Date(fecha.getFullYear(), fecha.getMonth(), 1).getTime() < new Date(today.getFullYear(), today.getMonth(), 1).getTime()) return;
+
+    const key = `${anio}-${mes}`;
+
+    if (!aggregatedFlows[key]) {
+      aggregatedFlows[key] = {
+        date: new Date(anio, mes - 1, 1), // Primer día del mes
+        total: 0,
+        groups: {} // Key: Origen
+      };
+    }
+    
+    const monto = Number(montoTotal);
+    if (monto > 0) {
+        aggregatedFlows[key].total += monto;
+        
+        if (!aggregatedFlows[key].groups[origen]) {
+          aggregatedFlows[key].groups[origen] = {
+            subtotal: 0,
+            items: []
+          };
+        }
+        
+        aggregatedFlows[key].groups[origen].subtotal += monto;
+        aggregatedFlows[key].groups[origen].items.push({
+          detalle: detalle,
+          monto: monto
+        });
+    }
+  });
+  
+  // 3. Creación de eventos
+  let eventCount = 0;
+  for (const key in aggregatedFlows) {
+    const flow = aggregatedFlows[key];
+    if (flow.total <= 0) continue;
+    
+    // 3a. Formato de Título
+    const formattedTotal = flow.total.toLocaleString('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+    const title = `${searchKey}${formattedTotal}`; 
+    
+    // 3b. Contenido de la Descripción
+    let description = "💰 **DESGLOSE DE INGRESOS ESPERADOS DEL MES:**\n\n";
+    
+    for (const origen in flow.groups) {
+      const group = flow.groups[origen];
+      const formattedSubtotal = group.subtotal.toLocaleString('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+      
+      description += `**--- ${origen} [SUBTOTAL: ${formattedSubtotal}] ---**\n`;
+      
+      group.items.forEach(item => {
+        const formattedItemMonto = item.monto.toLocaleString('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+        description += `  • ${item.detalle}: ${formattedItemMonto}\n`;
+      });
+      description += "\n"; 
+    }
+    
+    description += "\n*Moneda consolidada: USD. Detalle completo en la hoja 'Cashflows Consolidados'.*";
+    
+    // 3c. Creación del Evento (Primer día del mes a las 9:00 AM, duración 30 min)
+    const eventDate = flow.date;
+    const startTime = new Date(eventDate.setHours(9, 0, 0, 0));
+    const endTime = new Date(eventDate.setHours(9, 30, 0, 0)); 
+
+    // 🔑 CREACIÓN DEL EVENTO Y ALERTA/NOTIFICACIÓN 
+    const event = calendar.createEvent(title, startTime, endTime, {
+      description: description
+    });
+    
+    // Añadir Recordatorio Pop-up: 0 minutos antes (A las 9:00 AM del primer día del mes)
+    event.addPopupReminder(0); 
+
+    eventCount++;
+  }
+  
+  if (eventCount > 0) {
+    SpreadsheetApp.getActiveSpreadsheet().toast(`✅ Se crearon ${eventCount} resúmenes mensuales detallados en el calendario.`, 'Calendarización Mensual', 5);
+  }
+}
