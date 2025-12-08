@@ -72,7 +72,8 @@ export async function register(prevState: string | undefined, formData: FormData
         // Ideally we redirect, but for actions we might return undefined or throw redirect
     } catch (error) {
         console.error("Registration error:", error);
-        return "Error al crear el usuario.";
+        console.error("Registration error:", error);
+        return `Error: ${(error as any)?.message || 'Unknown error'}`;
     }
 
     redirect('/login?registered=true');
