@@ -91,7 +91,7 @@ export async function GET(req: Request) {
                 const recipientEmail = settings?.notificationEmails || user.email;
 
                 // Check schedule
-                if (force || (day === reportDay && hour === reportHour)) {
+                if (force || (day === reportDay)) {
                     userResult.skipped = false;
 
                     // Generate User-Specific Snapshot Data
