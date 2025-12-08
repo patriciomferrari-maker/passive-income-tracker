@@ -75,6 +75,11 @@ export default function HomePage() {
           <div className="text-center py-10">
             <div className="text-red-400 mb-2">Error loading dashboard data</div>
             <div className="text-slate-500 text-sm">Please check the configuration</div>
+            {stats && 'details' in stats && (
+              <div className="mt-4 p-4 bg-red-950/50 rounded text-left mx-auto max-w-lg overflow-auto">
+                <p className="font-mono text-xs text-red-200 whitespace-pre-wrap">{(stats as any).details}</p>
+              </div>
+            )}
           </div>
         )}
 
