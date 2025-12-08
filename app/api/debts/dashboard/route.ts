@@ -1,9 +1,14 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
+        const userId = await getUserId();
         const allDebts = await prisma.debt.findMany({
+            where: { userId },
             include: {
                 payments: true
             }
@@ -62,6 +67,6 @@ export async function GET() {
 
     } catch (error) {
         console.error('Error fetching debt dashboard:', error);
-        return NextResponse.json({ error: 'Failed to fetch dashboard' }, { status: 500 });
+        return unauthorized();
     }
 }

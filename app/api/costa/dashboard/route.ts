@@ -1,9 +1,13 @@
+import { prisma } from '@/lib/prisma';
+import { NextResponse } from 'next/server';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-// ...
-
+const FETCH_TC = 1130; // Hardcoded fallback or fetch from DB if available
 
 export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
         const userId = await getUserId();
@@ -18,7 +22,6 @@ export async function GET() {
 
         const now = new Date();
         const currentYear = now.getFullYear();
-        const currentMonthKey = format(now, 'yyyy-MM');
 
         // Helper to convert to USD
         const toUSD = (amount: number, currency: string) => {
@@ -33,7 +36,6 @@ export async function GET() {
         const expenseCategoriesLastMonth = new Map<string, number>();
 
         // Find "Last Month" with data. 
-        // We look for the most recent month that has expenses.
         let lastExpenseMonthKey = '';
         const distinctExpenseMonths = new Set<string>();
 
@@ -56,7 +58,7 @@ export async function GET() {
             }
         });
 
-        // Last Month Expenses (using the identified last active month for expenses)
+        // Last Month Expenses
         let lastMonthExpensesUSD = 0;
         let lastMonthName = '';
 
@@ -100,7 +102,6 @@ export async function GET() {
             .slice(-12) // Last 12 months
             .map(([key, vals]) => {
                 const [y, m] = key.split('-');
-                // Create date using local time constructor to ensure 'format' doesn't shift it
                 const date = new Date(parseInt(y), parseInt(m) - 1);
                 return {
                     month: format(date, 'MMM yyyy', { locale: es }),
@@ -118,7 +119,7 @@ export async function GET() {
             stats: {
                 yearlyRentalIncomeUSD: Math.round(yearlyRentalIncomeUSD),
                 lastMonthExpenses: Math.round(lastMonthExpensesUSD),
-                lastMonthName, // ADDED
+                lastMonthName,
                 averageMonthlyExpenses: Math.round(averageMonthlyExpenses),
                 pendingFixes,
                 pendingItems

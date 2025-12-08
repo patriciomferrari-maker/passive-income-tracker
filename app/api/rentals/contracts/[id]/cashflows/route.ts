@@ -1,24 +1,35 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const userId = await getUserId();
         const { id } = await params;
 
-        // 1. Fetch Contract to get start date and currency
+        // 1. Fetch Contract to get start date and currency, AND verify ownership
         const contract = await prisma.contract.findUnique({
             where: { id },
             select: {
                 startDate: true,
-                currency: true
+                currency: true,
+                property: {
+                    select: { userId: true }
+                }
             }
         });
 
         if (!contract) {
             return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
+        }
+
+        if (contract.property.userId !== userId) {
+            return unauthorized();
         }
 
         // 2. Fetch Cashflows
@@ -31,13 +42,12 @@ export async function GET(
         if (contract.currency === 'ARS' && cashflows.length > 0) {
             // Determine date range for rates: 1 month before start date -> last cashflow date
             const startDate = new Date(contract.startDate);
-            const firstDate = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth() - 1, 1));
+            const firstDate = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() - 1, 1));
 
             const lastCashflowDate = new Date(cashflows[cashflows.length - 1].date);
             const lastDate = new Date(lastCashflowDate);
             lastDate.setMonth(lastDate.getMonth() + 1);
 
-            // Fetch Contract details needed for adjustment
             const fullContract = await prisma.contract.findUnique({
                 where: { id },
                 select: {
@@ -101,7 +111,7 @@ export async function GET(
             let accumIPC_Period = 1.0;
             let accumIPC_Total = 1.0;
             const adjFreq = fullContract?.adjustmentFrequency || 12;
-            let inflationValid = true; // Tracks if we have continuous data
+            let inflationValid = true;
 
             // Enrich cashflows
             const enrichedCashflows = cashflows.map((cf, index) => {
@@ -112,13 +122,10 @@ export async function GET(
                 // 1. Check for Rent Adjustment (Start of new period)
                 if (fullContract?.adjustmentType === 'IPC' && index > 0 && index % adjFreq === 0) {
                     currentRent = currentRent * accumIPC_Period;
-                    // Reset period accumulator
                     accumIPC_Period = 1.0;
                 }
 
                 // 2. Capture 'Total Inflation' BEFORE current month accumulation
-                // User Req: "Always start at 0%".
-                // If valid chain broken, stop showing.
                 const displayInflationTotal = inflationValid ? (accumIPC_Total - 1) : null;
 
                 // 3. Fetch IPC for THIS CASHFLOW MONTH
@@ -133,11 +140,8 @@ export async function GET(
                     accumIPC_Period *= multiplier;
                     accumIPC_Total *= multiplier;
 
-                    // User Req: "Period starts with IPC".
-                    // So display POST-multiplication value for Period.
                     displayIPCAccum = accumIPC_Period - 1;
                 } else {
-                    // Break the chain for FUTURE months (and this one's period accum)
                     inflationValid = false;
                 }
 
@@ -148,13 +152,10 @@ export async function GET(
                 }
 
                 // 6. USD Conversion
-                // TC Rule: Immediate Previous Day to Cashflow Date
                 const targetTCDate = new Date(cfDate);
                 targetTCDate.setDate(targetTCDate.getDate() - 1);
 
-                // Check if target date is beyond known data
                 const isTCFuture = targetTCDate > maxTCDate;
-
                 const currentTC = isTCFuture ? null : getClosestRate(targetTCDate, ratesTC);
 
                 let amountUSD = cf.amountUSD;
@@ -169,30 +170,42 @@ export async function GET(
                         devaluationAccum = 0;
                     }
                 } else if (isTCFuture) {
-                    // Reset calculations if no TC data
                     amountUSD = null;
                     devaluationAccum = null;
                 }
 
+                // Force Noon UTC to avoid client-side timezone shifts
+                const safeDate = new Date(Date.UTC(year, month, 1, 12, 0, 0)).toISOString();
+
                 return {
                     ...cf,
+                    date: safeDate,
                     amountARS,
                     amountUSD,
                     devaluationAccum,
                     tc: currentTC,
                     tcBase: baseTC,
                     ipcMonthly: ipcValue,
-                    ipcAccumulated: displayIPCAccum,        // Post-Accum (M1 = IPC)
-                    inflationAccum: displayInflationTotal   // Pre-Accum (M1 = 0%)
+                    ipcAccumulated: displayIPCAccum,
+                    inflationAccum: displayInflationTotal
                 };
             });
 
             return NextResponse.json(enrichedCashflows);
         }
 
-        return NextResponse.json(cashflows);
+        // Non-ARS flows: Just fix dates
+        const fixedDateCashflows = cashflows.map(cf => {
+            const d = new Date(cf.date);
+            return {
+                ...cf,
+                date: new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 12, 0, 0)).toISOString()
+            };
+        });
+
+        return NextResponse.json(fixedDateCashflows);
     } catch (error) {
         console.error('Error fetching contract cashflows:', error);
-        return NextResponse.json({ error: 'Failed to fetch cashflows' }, { status: 500 });
+        return unauthorized();
     }
 }
