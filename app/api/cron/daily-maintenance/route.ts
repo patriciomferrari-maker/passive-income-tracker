@@ -69,15 +69,19 @@ export async function GET(req: Request) {
         const force = url.searchParams.get('force') === 'true'; // Allow manual testing
         const now = new Date();
         const day = now.getDate();
+        const startOfHour = new Date(now);
+        startOfHour.setMinutes(0, 0, 0);
+        const hour = now.getUTCHours(); // Use UTC for server consistency
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
 
         const settings = await prisma.appSettings.findFirst();
         const reportDay = settings?.reportDay || 1;
+        const reportHour = settings?.reportHour ?? 10; // Default 10 UTC
         const recipientEmail = settings?.notificationEmails || process.env.RECIPIENT_EMAIL || 'patriciomferrari@gmail.com';
 
-        // Check if today is the day (or forced)
-        if (force || day === reportDay) {
+        // Check if today is the day AND current hour is the configured hour (or forced)
+        if (force || (day === reportDay && hour === reportHour)) {
             results.report.skipped = false;
 
             // Generate Snapshot Data
@@ -151,7 +155,7 @@ export async function GET(req: Request) {
                 results.report.message = 'Missing RESEND_API_KEY or Recipient Email';
             }
         } else {
-            results.report.message = `Skipped Report: Today is day ${day}, configured for ${reportDay}`;
+            results.report.message = `Skipped Report: Now (Day ${day}, Hour ${hour} UTC). Configured (Day ${reportDay}, Hour ${reportHour} UTC)`;
         }
 
     } catch (error: any) {

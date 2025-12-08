@@ -11,7 +11,8 @@ export async function GET() {
                 data: {
                     id: "settings", // Enforce single row
                     notificationEmails: "",
-                    reportDay: 1
+                    reportDay: 1,
+                    reportHour: 10
                 }
             });
         }
@@ -25,23 +26,28 @@ export async function GET() {
 export async function PUT(req: Request) {
     try {
         const body = await req.json();
-        const { notificationEmails, reportDay } = body;
+        const { notificationEmails, reportDay, reportHour } = body;
 
         // Validation
         if (reportDay < 1 || reportDay > 28) {
             return NextResponse.json({ error: 'Day must be between 1 and 28' }, { status: 400 });
+        }
+        if (reportHour !== undefined && (reportHour < 0 || reportHour > 23)) {
+            return NextResponse.json({ error: 'Hour must be between 0 and 23' }, { status: 400 });
         }
 
         const settings = await prisma.appSettings.upsert({
             where: { id: "settings" },
             update: {
                 notificationEmails,
-                reportDay
+                reportDay,
+                reportHour: reportHour || 10
             },
             create: {
                 id: "settings",
                 notificationEmails,
-                reportDay
+                reportDay,
+                reportHour: reportHour || 10
             }
         });
 

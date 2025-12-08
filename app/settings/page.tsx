@@ -16,6 +16,7 @@ export default function SettingsPage() {
 
     const [emails, setEmails] = useState("");
     const [reportDay, setReportDay] = useState("1");
+    const [reportHour, setReportHour] = useState("10");
 
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -26,6 +27,7 @@ export default function SettingsPage() {
                 if (data.notificationEmails !== undefined) {
                     setEmails(data.notificationEmails);
                     setReportDay(data.reportDay.toString());
+                    setReportHour((data.reportHour ?? 10).toString());
                 }
             })
             .catch(err => {
@@ -44,7 +46,8 @@ export default function SettingsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     notificationEmails: emails,
-                    reportDay: parseInt(reportDay)
+                    reportDay: parseInt(reportDay),
+                    reportHour: parseInt(reportHour)
                 })
             });
 
@@ -128,6 +131,30 @@ export default function SettingsPage() {
                             </SelectContent>
                         </Select>
                         <p className="text-xs text-slate-500">El reporte se ejecutará automáticamente este día de cada mes.</p>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label>Hora del Reporte (UTC)</Label>
+                        <div className="flex items-center gap-4">
+                            <Select value={reportHour} onValueChange={setReportHour}>
+                                <SelectTrigger className="w-[180px] bg-slate-950 border-slate-700 text-white">
+                                    <SelectValue placeholder="Seleccionar hora" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-slate-800 text-white h-60">
+                                    {Array.from({ length: 24 }, (_, i) => i).map(hour => (
+                                        <SelectItem key={hour} value={hour.toString()}>
+                                            {hour.toString().padStart(2, '0')}:00 UTC
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <span className="text-sm text-slate-400">
+                                (≈ {(parseInt(reportHour) - 3 + 24) % 24}:00 Hora Arg)
+                            </span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                            La hora es en UTC. Argentina suele ser UTC-3.
+                        </p>
                     </div>
 
                     <div className="flex justify-between pt-4 border-t border-slate-800">

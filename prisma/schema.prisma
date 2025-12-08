@@ -309,6 +309,7 @@ model AppSettings {
   
   notificationEmails String   @default("") // Comma separated emails
   reportDay          Int      @default(1)  // Day of month to run report (1-28)
+  reportHour         Int      @default(10) // Hour of day (0-23) UTC. Default 10 UTC = 7 AM ART
   
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
