@@ -1,16 +1,23 @@
 
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
+        const userId = await getUserId();
         const now = new Date();
 
-        // Fetch all properties to calculate occupancy
-        const totalPropertiesCount = await prisma.property.count();
+        // Fetch all properties to calculate occupancy (filtered by User)
+        const totalPropertiesCount = await prisma.property.count({
+            where: { userId }
+        });
 
-        // Fetch all contracts to calculate active status and historical aggregation
+        // Fetch all contracts to calculate active status and historical aggregation (filtered by User's properties)
         const allContracts = await prisma.contract.findMany({
+            where: { property: { userId } },
             include: {
                 property: true
             }
@@ -35,11 +42,12 @@ export async function GET() {
         const activeCount = activeContracts.length;
         const occupancyRate = totalPropertiesCount > 0 ? (activeCount / totalPropertiesCount) * 100 : 0;
 
-        // Fetch ALL cashflows for aggregation (we want history of EVERYTHING, even closed contracts, if we want a true global history)
-        // Or should we only show history of *currently active*? 
-        // "Dashboard Consolidado" usually implies "My Portfolio History".
-        // Let's fetch all cashflows for all contracts.
+        // Fetch ALL cashflows for aggregation
+        // We must filter by contracts that belong to the user
         const allCashflows = await prisma.rentalCashflow.findMany({
+            where: {
+                contract: { property: { userId } }
+            },
             orderBy: { date: 'asc' }
         });
 
@@ -81,18 +89,9 @@ export async function GET() {
                 contractCount: d.count
             }));
 
-        // Current Monthly Revenue (Estimate based on latest month in history or active contracts?)
-        // Better: Sum of the *latest* cashflow for each *active* contract.
-        // Or simply the last point in the aggregated chart?
-        // The last point in aggregated chart might be incomplete if we are mid-month.
-        // Let's use the sum of "current rent" of active contracts.
-        // We need the *latest* cashflow for each active contract to know its current rent.
-
         let currentMonthlyRevenueUSD = 0;
 
         for (const contract of activeContracts) {
-            // Find the cashflow for the current month (or latest available)
-            // Actually, we can just find the cashflow corresponding to "now" or the most recent one.
             const latestCf = await prisma.rentalCashflow.findFirst({
                 where: {
                     contractId: contract.id,
@@ -104,12 +103,9 @@ export async function GET() {
             if (latestCf) {
                 currentMonthlyRevenueUSD += latestCf.amountUSD || 0;
             } else {
-                // Fallback to initial rent? or 0.
                 if (contract.currency === 'USD') {
                     currentMonthlyRevenueUSD += contract.initialRent;
                 }
-                // If ARS, difficult to guess without exchange rate. Ignore or use initial converted?
-                // Let's stick to 0 to be safe/conservative.
             }
         }
 
@@ -132,6 +128,6 @@ export async function GET() {
 
     } catch (error) {
         console.error('Error fetching global dashboard data:', error);
-        return NextResponse.json({ error: 'Failed to fetch global dashboard data' }, { status: 500 });
+        return unauthorized();
     }
 }

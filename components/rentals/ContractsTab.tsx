@@ -226,6 +226,7 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                                         <th className="text-center py-3 px-4 text-slate-300">Duración</th>
                                         <th className="text-right py-3 px-4 text-slate-300">Monto</th>
                                         <th className="text-center py-3 px-4 text-slate-300">Ajuste</th>
+                                        <th className="text-center py-3 px-4 text-slate-300">Contrato</th>
                                         <th className="text-right py-3 px-4 text-slate-300">Acciones</th>
                                     </tr>
                                 </thead>
@@ -246,19 +247,23 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                                             <td className="py-3 px-4 text-center text-slate-400">
                                                 {contract.adjustmentType} ({contract.adjustmentFrequency}m)
                                             </td>
+                                            <td className="py-3 px-4 text-center">
+                                                {contract.documentUrl ? (
+                                                    <a
+                                                        href={contract.documentUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center text-emerald-400 hover:text-emerald-300"
+                                                        title="Ver Contrato"
+                                                    >
+                                                        <FileText size={16} className="mr-1" /> Ver
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-slate-600">-</span>
+                                                )}
+                                            </td>
                                             <td className="py-3 px-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    {contract.documentUrl && (
-                                                        <a
-                                                            href={contract.documentUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="p-2 text-emerald-400 hover:bg-emerald-500/10 rounded mr-1"
-                                                            title="Ver Contrato"
-                                                        >
-                                                            <FileText size={16} />
-                                                        </a>
-                                                    )}
                                                     <button
                                                         onClick={() => handleEdit(contract)}
                                                         className="p-2 text-blue-400 hover:bg-blue-500/10 rounded"

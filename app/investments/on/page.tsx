@@ -45,7 +45,7 @@ export default function ONManagementPage() {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${activeTab === tab.id
-                                    ? 'bg-purple-600 text-white shadow-lg'
+                                    ? 'bg-blue-600 text-white shadow-lg'
                                     : 'bg-white/10 text-slate-300 hover:bg-white/20'
                                     }`}
                             >

@@ -29,7 +29,7 @@ export default function CostaEsmeraldaPage() {
                     <TabsList className="bg-slate-900 border-slate-800">
                         <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                         <TabsTrigger value="cashflow">Cashflow</TabsTrigger>
-                        <TabsTrigger value="rentals">Alquileres (Ingresos)</TabsTrigger>
+                        <TabsTrigger value="rentals">Alquileres</TabsTrigger>
                         <TabsTrigger value="expenses">Gastos</TabsTrigger>
                         <TabsTrigger value="notes">Anotaciones</TabsTrigger>
                         <TabsTrigger value="config">Configuración</TabsTrigger>

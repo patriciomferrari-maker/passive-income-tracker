@@ -1,10 +1,18 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        // Get all rental cashflows (consolidated)
+        const userId = await getUserId();
+
+        // Get all rental cashflows (consolidated) filtered by User's contracts
         const cashflows = await prisma.rentalCashflow.findMany({
+            where: {
+                contract: { property: { userId } }
+            },
             include: {
                 contract: {
                     select: {
@@ -26,7 +34,7 @@ export async function GET() {
         const lastDate = new Date(cashflows[cashflows.length - 1].date);
 
         // Buffer for rates (previous month needed for first calc)
-        const rateStartDate = new Date(Date.UTC(firstDate.getFullYear(), firstDate.getMonth() - 1, 1));
+        const rateStartDate = new Date(Date.UTC(firstDate.getUTCFullYear(), firstDate.getUTCMonth() - 1, 1));
         const rateEndDate = new Date(lastDate);
         rateEndDate.setMonth(rateEndDate.getMonth() + 1);
 
@@ -55,13 +63,12 @@ export async function GET() {
             return bestRate;
         };
 
-        // Aggregate by month
+        // Aggregate by month using UTC to avoid timezone shifts
         const aggregated = cashflows.reduce((acc, cf) => {
             const date = new Date(cf.date);
-            // Use day 1 for grouping keys to ensure clean buckets
-            // But keep the Date object for sorting/display
-            const year = date.getFullYear();
-            const month = date.getMonth();
+            // Use UTC methods
+            const year = date.getUTCFullYear();
+            const month = date.getUTCMonth();
             const monthKey = `${year}-${String(month + 1).padStart(2, '0')}-01`;
 
             if (!acc[monthKey]) {
@@ -103,6 +110,6 @@ export async function GET() {
         return NextResponse.json(Object.values(aggregated));
     } catch (error) {
         console.error('Error fetching consolidated cashflows:', error);
-        return NextResponse.json({ error: 'Failed to fetch cashflows' }, { status: 500 });
+        return unauthorized();
     }
 }
