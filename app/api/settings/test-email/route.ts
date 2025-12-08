@@ -6,19 +6,22 @@ import { headers } from 'next/headers';
 // In a real app with Auth, we would check session here.
 // Since we don't have auth yet, this is "public" but obscure.
 
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+
 export async function POST() {
     try {
-        // We invoke the cron logic internally or duplicate it? 
-        // Invoking via HTTP requires the SECRET, which we have in env.
+        let userId: string;
+        try {
+            userId = await getUserId();
+        } catch {
+            return unauthorized();
+        }
 
         const cronSecret = process.env.CRON_SECRET;
         const appUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
 
-        // Call the cron endpoint with "force=true" query param or similar to bypass date check?
-        // Or just rely on the cron endpoint logic to detect "simulation"?
-        // Let's modify the cron endpoint first to support a "force" parameter.
-
-        const response = await fetch(`${appUrl}/api/cron/monthly-report?force=true`, {
+        // Call the daily maintenance endpoint forcing execution for THIS user only
+        const response = await fetch(`${appUrl}/api/cron/daily-maintenance?force=true&userId=${userId}`, {
             headers: {
                 'Authorization': `Bearer ${cronSecret}`
             }

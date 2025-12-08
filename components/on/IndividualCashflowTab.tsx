@@ -279,7 +279,7 @@ export function IndividualCashflowTab() {
     const mergedData = getMergedData();
 
     return (
-        <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+        <Card className="bg-slate-950 border-slate-800">
             <CardHeader>
                 <CardTitle className="text-white flex items-center justify-between flex-wrap gap-4">
                     <div className="flex items-center gap-4">

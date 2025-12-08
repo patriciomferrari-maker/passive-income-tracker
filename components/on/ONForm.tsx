@@ -218,7 +218,7 @@ export function ONForm({ onClose, onSave, initialData }: ONFormProps) {
                                         type="button"
                                         onClick={addScheduleRow}
                                         size="sm"
-                                        className="bg-purple-600 hover:bg-purple-700"
+                                        className="bg-blue-600 hover:bg-blue-700"
                                     >
                                         <Plus className="h-4 w-4 mr-1" />
                                         Agregar Fecha
@@ -288,7 +288,7 @@ export function ONForm({ onClose, onSave, initialData }: ONFormProps) {
                             <Button
                                 type="submit"
                                 disabled={loading}
-                                className="flex-1 bg-purple-600 hover:bg-purple-700"
+                                className="flex-1 bg-blue-600 hover:bg-blue-700"
                             >
                                 {loading ? 'Guardando...' : 'Guardar ON'}
                             </Button>

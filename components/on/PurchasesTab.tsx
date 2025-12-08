@@ -183,7 +183,7 @@ export function PurchasesTab() {
 
     return (
         <>
-            <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+            <Card className="bg-slate-950 border-slate-800">
                 <CardHeader>
                     <CardTitle className="text-white flex items-center justify-between">
                         Registro de Compras
@@ -208,14 +208,14 @@ export function PurchasesTab() {
                             )}
                             <Button
                                 onClick={() => setShowImport(true)}
-                                className="bg-blue-600 hover:bg-blue-700"
+                                className="bg-slate-700 hover:bg-slate-600 text-white"
                             >
                                 <Upload className="h-4 w-4 mr-2" />
                                 Importar CSV
                             </Button>
                             <Button
                                 onClick={() => setShowForm(true)}
-                                className="bg-purple-600 hover:bg-purple-700"
+                                className="bg-blue-600 hover:bg-blue-700"
                             >
                                 <Plus className="h-4 w-4 mr-2" />
                                 Nueva Compra
@@ -265,7 +265,7 @@ export function PurchasesTab() {
                                             <td className="py-3 px-4">
                                                 <button
                                                     onClick={() => toggleSelection(tx.id)}
-                                                    className={`hover:text-white ${selectedIds.includes(tx.id) ? 'text-purple-400' : 'text-slate-500'}`}
+                                                    className={`hover:text-white ${selectedIds.includes(tx.id) ? 'text-blue-400' : 'text-slate-500'}`}
                                                 >
                                                     {selectedIds.includes(tx.id) ? (
                                                         <CheckSquare size={18} />
@@ -404,7 +404,7 @@ export function PurchasesTab() {
                                     <Button
                                         type="submit"
                                         disabled={submitting}
-                                        className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                                     >
                                         {submitting ? 'Guardando...' : 'Guardar'}
                                     </Button>

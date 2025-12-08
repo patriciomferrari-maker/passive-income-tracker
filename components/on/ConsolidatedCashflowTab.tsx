@@ -106,7 +106,7 @@ export function ConsolidatedCashflowTab() {
     return (
         <div className="space-y-6">
             {/* Chart */}
-            <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+            <Card className="bg-slate-950 border-slate-800">
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <CardTitle className="text-white">Proyección de Cobros Mensual</CardTitle>
@@ -165,7 +165,7 @@ export function ConsolidatedCashflowTab() {
             </Card>
 
             {/* Table Grouped by Year */}
-            <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+            <Card className="bg-slate-950 border-slate-800">
                 <CardHeader>
                     <CardTitle className="text-white">Detalle de Cobros por Año</CardTitle>
                 </CardHeader>

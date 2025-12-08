@@ -211,7 +211,7 @@ export function BulkImportDialog({ onClose, onSuccess }: { onClose: () => void; 
                             type="file"
                             accept=".csv"
                             onChange={handleFileChange}
-                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-purple-600 file:text-white hover:file:bg-purple-700"
+                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700"
                         />
                     </div>
 
@@ -304,7 +304,7 @@ export function BulkImportDialog({ onClose, onSuccess }: { onClose: () => void; 
                             <Button
                                 onClick={handleImport}
                                 disabled={importing || preview.length === 0}
-                                className="flex-1 bg-purple-600 hover:bg-purple-700"
+                                className="flex-1 bg-blue-600 hover:bg-blue-700"
                             >
                                 {importing ? 'Importando...' : `Importar ${preview.length} compras`}
                             </Button>

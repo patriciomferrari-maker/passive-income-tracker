@@ -94,7 +94,7 @@ export function ConfigurationTab() {
 
     return (
         <>
-            <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+            <Card className="bg-slate-950 border-slate-800">
                 <CardHeader>
                     <CardTitle className="text-white flex items-center justify-between">
                         ONs Configuradas
@@ -103,7 +103,7 @@ export function ConfigurationTab() {
                                 setEditingON(null);
                                 setShowForm(true);
                             }}
-                            className="bg-purple-600 hover:bg-purple-700"
+                            className="bg-blue-600 hover:bg-blue-700"
                         >
                             <Plus className="h-4 w-4 mr-2" />
                             Nueva ON

@@ -74,9 +74,12 @@ export async function GET(req: Request) {
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
 
-        // Iterate over all users with settings
+        const targetUserId = url.searchParams.get('userId');
+
+        // Iterate over all users with settings (or specific user)
         // Include appSettings to get reporting preferences
         const users = await prisma.user.findMany({
+            where: targetUserId ? { id: targetUserId } : undefined,
             include: { appSettings: true }
         });
 
