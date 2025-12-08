@@ -70,7 +70,15 @@ export default function HomePage() {
           </div>
         )}
 
-        {!loading && (
+        {/* Error State */}
+        {!loading && (!stats || 'error' in stats) && (
+          <div className="text-center py-10">
+            <div className="text-red-400 mb-2">Error loading dashboard data</div>
+            <div className="text-slate-500 text-sm">Please check the configuration</div>
+          </div>
+        )}
+
+        {!loading && stats && !('error' in stats) && (
           <div className="max-w-4xl mx-auto space-y-12">
             {/* 1. Global Dashboard Access (Hero Card - Top) */}
             <DashboardCard
@@ -135,6 +143,7 @@ export default function HomePage() {
                     totalValue={stats.bank?.totalUSD || 0}
                     currency="USD"
                   />
+                  {/* Costa Card */}
                   <DashboardCard
                     title="Costa Esmeralda"
                     description="Alquileres y Mantenimiento"

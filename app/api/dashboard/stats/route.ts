@@ -128,8 +128,15 @@ export async function GET() {
                 }))
             }
         });
-    } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
-        return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
+    } catch (error: any) {
+        console.error('CRITICAL ERROR in /api/dashboard/stats:', error);
+        // Log more details if available
+        if (error.code) console.error('Error Code:', error.code);
+        if (error.meta) console.error('Error Meta:', error.meta);
+
+        return NextResponse.json(
+            { error: 'Failed to fetch stats', details: String(error) },
+            { status: 500 }
+        );
     }
 }
