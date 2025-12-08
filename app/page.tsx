@@ -1,8 +1,10 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import { DashboardCard } from '@/components/DashboardCard';
-import { Loader2, Clock } from 'lucide-react';
+import { signOutAction } from '@/app/lib/actions';
+import { Loader2, Clock, Menu } from 'lucide-react';
 import { FlagARG, FlagUSA } from '@/components/ui/CountryFlags';
 
 interface DashboardStats {
@@ -57,10 +59,18 @@ export default function HomePage() {
     <div className="min-h-screen bg-slate-950">
       <div className="container mx-auto px-4 py-8 max-w-7xl space-y-8">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 relative">
           <h1 className="text-4xl font-bold text-white mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
             Passive Income Tracker
           </h1>
+
+          <div className="absolute right-0 top-0 hidden md:block">
+            <form action={signOutAction}>
+              <button type="submit" className="text-sm text-slate-500 hover:text-red-400 transition-colors border border-slate-800 px-3 py-1 rounded-md hover:border-red-400">
+                Cerrar Sesión
+              </button>
+            </form>
+          </div>
         </div>
 
         {/* Loading State */}
@@ -93,8 +103,6 @@ export default function HomePage() {
               href="/dashboard"
               enabled={true}
             />
-
-            {/* Quick Stats Row Removed - Moved to Dashboard Global */}
 
             {/* 2. Portfolio Cards (Grid - Bottom) */}
             {stats && (
@@ -148,6 +156,7 @@ export default function HomePage() {
                     totalValue={stats.bank?.totalUSD || 0}
                     currency="USD"
                   />
+
                   {/* Costa Card */}
                   <DashboardCard
                     title="Costa Esmeralda"
@@ -157,6 +166,15 @@ export default function HomePage() {
                     count={0}
                     totalValue={0}
                     currency="USD"
+                  />
+
+                  {/* Settings Card */}
+                  <DashboardCard
+                    title="Configuración"
+                    description="Reportes y Alertas"
+                    icon="⚙️"
+                    href="/settings"
+                    enabled={true}
                   />
                 </div>
               </div>

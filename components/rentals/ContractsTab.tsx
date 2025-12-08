@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, X } from 'lucide-react';
+import { Plus, Edit, Trash2, X, FileText, Upload } from 'lucide-react';
+import { upload } from '@vercel/blob/client';
 
 interface Contract {
     id: string;
@@ -14,6 +15,7 @@ interface Contract {
     currency: string;
     adjustmentType: string;
     adjustmentFrequency: number;
+    documentUrl: string | null;
     property: {
         id: string;
         name: string;
@@ -46,6 +48,15 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
     const [currency, setCurrency] = useState('ARS');
     const [adjustmentType, setAdjustmentType] = useState('IPC');
     const [adjustmentFrequency, setAdjustmentFrequency] = useState('12');
+    const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const [inputFile, setInputFile] = useState<File | null>(null);
+
+    // Import upload from client sdk
+    // Since we can't add imports easily with replace_file, we'll assume it's available or use dynamic import/fetch?
+    // Wait, I need to add the import to the top of file first.
+    // Let's do this sequentially. First add state variables.
+
 
     useEffect(() => {
         loadContracts();
@@ -90,7 +101,20 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
             return;
         }
 
+
         try {
+            let uploadedUrl = documentUrl;
+
+            if (inputFile) {
+                setUploading(true);
+                const newBlob = await upload(inputFile.name, inputFile, {
+                    access: 'public',
+                    handleUploadUrl: '/api/upload',
+                });
+                uploadedUrl = newBlob.url;
+                setUploading(false);
+            }
+
             const url = editingContract
                 ? `/api/rentals/contracts/${editingContract.id}`
                 : '/api/rentals/contracts';
@@ -108,7 +132,8 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                     initialRent: parseFloat(initialRent),
                     currency,
                     adjustmentType,
-                    adjustmentFrequency: parseInt(adjustmentFrequency)
+                    adjustmentFrequency: parseInt(adjustmentFrequency),
+                    documentUrl: uploadedUrl
                 })
             });
 
@@ -136,6 +161,8 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
         setCurrency(contract.currency);
         setAdjustmentType(contract.adjustmentType);
         setAdjustmentFrequency(contract.adjustmentFrequency.toString());
+        setDocumentUrl((contract as any).documentUrl || null); // Cast any because interface not updated yet in file but DB has it
+        setInputFile(null);
         setShowForm(true);
     };
 
@@ -221,6 +248,17 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                                             </td>
                                             <td className="py-3 px-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
+                                                    {contract.documentUrl && (
+                                                        <a
+                                                            href={contract.documentUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="p-2 text-emerald-400 hover:bg-emerald-500/10 rounded mr-1"
+                                                            title="Ver Contrato"
+                                                        >
+                                                            <FileText size={16} />
+                                                        </a>
+                                                    )}
                                                     <button
                                                         onClick={() => handleEdit(contract)}
                                                         className="p-2 text-blue-400 hover:bg-blue-500/10 rounded"
@@ -387,6 +425,32 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                                             <option value="12">12 meses</option>
                                         </select>
                                     </div>
+
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium text-slate-300 mb-1">
+                                            Contrato (Documento)
+                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="file"
+                                                accept=".pdf,.doc,.docx"
+                                                onChange={e => setInputFile(e.target.files?.[0] || null)}
+                                                className="block w-full text-sm text-slate-400
+                                                    file:mr-4 file:py-2 file:px-4
+                                                    file:rounded-full file:border-0
+                                                    file:text-sm file:font-semibold
+                                                    file:bg-blue-600 file:text-white
+                                                    hover:file:bg-blue-700
+                                                    cursor-pointer bg-slate-800 rounded border border-slate-700"
+                                            />
+                                            {documentUrl && !inputFile && (
+                                                <div className="text-emerald-400 text-xs flex items-center">
+                                                    <FileText size={14} className="mr-1" /> Guardado
+                                                </div>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1">PDF o Word. Máx 50MB.</p>
+                                    </div>
                                 </div>
 
                                 <div className="flex gap-3 pt-4">
@@ -400,9 +464,10 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                                     </Button>
                                     <Button
                                         type="submit"
-                                        className="flex-1 bg-blue-600 hover:bg-blue-700"
+                                        disabled={uploading}
+                                        className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                                     >
-                                        {editingContract ? 'Actualizar' : 'Crear'} Contrato
+                                        {uploading ? <span className="flex items-center"><Upload className="animate-spin mr-2" size={16} /> Subiendo...</span> : (editingContract ? 'Actualizar' : 'Crear') + ' Contrato'}
                                     </Button>
                                 </div>
                             </form>

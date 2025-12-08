@@ -6,8 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Plus, Trash2, Link as LinkIcon, Pencil, X, Loader2 } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, Link as LinkIcon, Pencil, X, Loader2, Upload, FileText } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { upload } from '@vercel/blob/client';
 
 interface TransactionsTabProps {
     type: 'INCOME' | 'EXPENSE'; // Controls Mode
@@ -32,6 +33,10 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
     const [checkIn, setCheckIn] = useState('');
     const [checkOut, setCheckOut] = useState('');
     const [contractUrl, setContractUrl] = useState('');
+
+    // Upload State
+    const [inputFile, setInputFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     const loadData = async () => {
         setLoading(true);
@@ -69,10 +74,8 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
     // Grouping Logic
     const groupedTransactions: { [key: string]: any[] } = {};
     filteredTransactions.forEach(t => {
-        // Ensure date is treated as local date (append T00:00:00 to force local time interpretation in Date constructor if it's YYYY-MM-DD)
-        // Or better: manual parse
         const [y, m, d] = new Date(t.date).toISOString().split('T')[0].split('-').map(Number);
-        const localDate = new Date(y, m - 1, d); // Construct date in local timezone
+        const localDate = new Date(y, m - 1, d);
 
         const dateKey = format(localDate, 'MMMM yyyy', { locale: es });
         if (!groupedTransactions[dateKey]) groupedTransactions[dateKey] = [];
@@ -90,6 +93,7 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
         setCheckIn(trx.rentalCheckIn ? new Date(trx.rentalCheckIn).toISOString().split('T')[0] : '');
         setCheckOut(trx.rentalCheckOut ? new Date(trx.rentalCheckOut).toISOString().split('T')[0] : '');
         setContractUrl(trx.contractUrl || '');
+        setInputFile(null);
         // Scroll to form (optional)
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -108,6 +112,7 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
         setCheckIn('');
         setCheckOut('');
         setContractUrl('');
+        setInputFile(null);
     };
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -140,6 +145,18 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
         setIsSubmitting(true);
 
         try {
+            // Upload Logic
+            let finalContractUrl = contractUrl;
+            if (inputFile) {
+                setIsUploading(true);
+                const newBlob = await upload(inputFile.name, inputFile, {
+                    access: 'public',
+                    handleUploadUrl: '/api/upload',
+                });
+                finalContractUrl = newBlob.url;
+                setIsUploading(false);
+            }
+
             // If Rental, override date with checkIn
             const finalDate = (isRental && checkIn) ? checkIn : date;
 
@@ -155,7 +172,7 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
                 categoryId,
                 rentalCheckIn: (type === 'INCOME' && categoryId && checkIn) ? checkIn : null,
                 rentalCheckOut: (type === 'INCOME' && categoryId && checkOut) ? checkOut : null,
-                contractUrl: (type === 'INCOME' && categoryId) ? contractUrl : null
+                contractUrl: (type === 'INCOME' && categoryId) ? finalContractUrl : null
             };
 
             const res = await fetch(url, {
@@ -183,6 +200,7 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
             alert(`Ocurrió un error: ${error.message}`);
         } finally {
             setIsSubmitting(false);
+            setIsUploading(false);
         }
     };
 
@@ -231,16 +249,29 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
                                         <Input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} className="bg-slate-900 h-9 text-sm text-white border-slate-700" />
                                     </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <Label className="text-xs text-slate-400">Link Contrato (Opcional)</Label>
-                                    <div className="flex items-center gap-2">
-                                        <LinkIcon size={14} className="text-blue-400" />
+                                <div className="space-y-2">
+                                    <Label className="text-xs text-slate-400">Contrato (Documento)</Label>
+                                    <div className="space-y-2">
                                         <Input
-                                            value={contractUrl}
-                                            onChange={e => setContractUrl(e.target.value)}
-                                            className="bg-slate-900 h-8 text-xs text-white border-slate-700 placeholder:text-slate-600"
-                                            placeholder="https://drive.google.com/..."
+                                            type="file"
+                                            accept=".pdf,.doc,.docx"
+                                            onChange={e => setInputFile(e.target.files?.[0] || null)}
+                                            className="block w-full text-xs text-slate-400
+                                                file:mr-4 file:py-1 file:px-2
+                                                file:rounded-full file:border-0
+                                                file:text-xs file:font-semibold
+                                                file:bg-blue-600 file:text-white
+                                                hover:file:bg-blue-700
+                                                cursor-pointer bg-slate-900 h-10 border-slate-700 pt-1.5"
                                         />
+                                        {contractUrl && !inputFile && (
+                                            <div className="flex items-center gap-2 bg-emerald-950/30 p-2 rounded border border-emerald-900/50">
+                                                <FileText size={14} className="text-emerald-400" />
+                                                <a href={contractUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-400 hover:underline truncate">
+                                                    Ver contrato actual
+                                                </a>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -253,7 +284,7 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
                                     <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-slate-800 border-slate-700 text-white" />
                                 </div>
                             )}
-                            <div className={`space-y-2 ${isRental ? 'col-span-2' : ''}`}> {/* Expand Currency if date hidden, or maybe move amount here? Just keep Currency. */}
+                            <div className={`space-y-2 ${isRental ? 'col-span-2' : ''}`}>
                                 <Label>Moneda</Label>
                                 <Select value={currency} onValueChange={setCurrency}>
                                     <SelectTrigger className="bg-slate-800 border-slate-700 text-white"><SelectValue /></SelectTrigger>
@@ -276,9 +307,9 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
                         </div>
 
                         <div className="pt-4 flex justify-end">
-                            <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white w-full md:w-auto">
-                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {editingId ? 'Actualizar' : 'Guardar'}
+                            <Button type="submit" disabled={isSubmitting || isUploading} className="bg-blue-600 hover:bg-blue-700 text-white w-full md:w-auto">
+                                {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {isUploading ? 'Subiendo...' : (editingId ? 'Actualizar' : 'Guardar')}
                             </Button>
                         </div>
                     </form>
@@ -339,8 +370,8 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
                                                 <div className="flex flex-col">
                                                     <span className="font-medium text-white">{t.category?.name || '-'}</span>
                                                     {t.contractUrl && (type === 'INCOME') && (
-                                                        <a href={t.contractUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:underline flex items-center gap-1 mt-1">
-                                                            <LinkIcon size={10} /> Ver Contrato
+                                                        <a href={t.contractUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-emerald-400 hover:underline flex items-center gap-1 mt-1">
+                                                            <FileText size={10} /> Ver Contrato
                                                         </a>
                                                     )}
                                                 </div>
@@ -358,7 +389,7 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
                                                             ? Math.ceil((new Date(t.rentalCheckOut).getTime() - new Date(t.rentalCheckIn).getTime()) / (1000 * 60 * 60 * 24))
                                                             : '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-center text-slate-400 text-xs"> {/* Centered */}
+                                                    <TableCell className="text-center text-slate-400 text-xs">
                                                         {t.rentalCheckIn && t.rentalCheckOut
                                                             ? (() => {
                                                                 const days = Math.ceil((new Date(t.rentalCheckOut).getTime() - new Date(t.rentalCheckIn).getTime()) / (1000 * 60 * 60 * 24));

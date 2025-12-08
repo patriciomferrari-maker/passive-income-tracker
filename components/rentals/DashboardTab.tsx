@@ -75,8 +75,21 @@ export function DashboardTab({ showValues }: DashboardTabProps) {
         loadResult();
     }, []);
 
+    const activeContracts = useMemo(() => {
+        const now = new Date();
+        return contractsData.filter(c => {
+            const start = new Date(c.startDate);
+            const end = new Date(start);
+            end.setMonth(end.getMonth() + c.durationMonths);
+            // Check if active (allowing some grace period or exact?) User said "vigente".
+            // Let's say active if today <= end date. Even if start date is future? Maybe.
+            // Usually "Active" means start <= now <= end.
+            return now >= start && now <= end;
+        });
+    }, [contractsData]);
+
     const summaryMetrics = useMemo(() => {
-        if (contractsData.length === 0) return null;
+        if (activeContracts.length === 0) return null;
 
         const now = new Date();
 
@@ -84,7 +97,7 @@ export function DashboardTab({ showValues }: DashboardTabProps) {
         let totalUSD = 0;
         let totalARS = 0;
 
-        contractsData.forEach(c => {
+        activeContracts.forEach(c => {
             const current = c.chartData.find(d => {
                 const date = new Date(d.date);
                 return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
@@ -102,7 +115,7 @@ export function DashboardTab({ showValues }: DashboardTabProps) {
         });
 
         // 2. Next Expiration
-        const expirations = contractsData.map(c => {
+        const expirations = activeContracts.map(c => {
             const start = new Date(c.startDate);
             const end = new Date(start);
             end.setMonth(end.getMonth() + c.durationMonths);
@@ -122,7 +135,7 @@ export function DashboardTab({ showValues }: DashboardTabProps) {
         }
 
         // 3. Next Adjustment
-        const upcomingAdjustments = contractsData.map(c => {
+        const upcomingAdjustments = activeContracts.map(c => {
             if (c.adjustmentType !== 'IPC') return null;
 
             const start = new Date(c.startDate);
@@ -155,10 +168,10 @@ export function DashboardTab({ showValues }: DashboardTabProps) {
             totalARS,
             nextExpiration,
             nextAdjustment,
-            count: contractsData.length
+            count: activeContracts.length
         };
 
-    }, [contractsData]);
+    }, [activeContracts]);
 
 
     const CustomTooltip = ({ active, payload, label }: any) => {
@@ -394,7 +407,7 @@ export function DashboardTab({ showValues }: DashboardTabProps) {
 
             {/* Individual Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {contractsData.map((contract) => {
+                {activeContracts.map((contract) => {
                     const lastInf = [...contract.chartData].reverse().find(d => d.inflationAccum !== 0)?.inflationAccum ?? 0;
                     const lastDev = [...contract.chartData].reverse().find(d => d.devaluationAccum !== 0)?.devaluationAccum ?? 0;
 

@@ -45,7 +45,8 @@ export async function PUT(
             initialRent,
             currency,
             adjustmentType,
-            adjustmentFrequency
+            adjustmentFrequency,
+            documentUrl
         } = body;
 
         const contract = await prisma.contract.update({
@@ -57,7 +58,8 @@ export async function PUT(
                 initialRent: parseFloat(initialRent),
                 currency,
                 adjustmentType,
-                adjustmentFrequency: parseInt(adjustmentFrequency)
+                adjustmentFrequency: parseInt(adjustmentFrequency),
+                documentUrl
             }
         });
 

@@ -35,6 +35,7 @@ model Contract {
   
   initialRent         Float            // Alquiler inicial
   currency            String           @default("ARS") // ARS, USD
+  documentUrl         String?          // URL del contrato (Word/PDF)
   
   adjustmentType      String           @default("IPC") // IPC, NONE
   adjustmentFrequency Int              @default(12) // Meses entre ajustes (6, 12, etc.)
@@ -277,4 +278,38 @@ model CostaNote {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// =================================================================
+// MONTHLY SUMMARIES (SNAPSHOTS)
+// =================================================================
+
+model MonthlySummary {
+  id               String   @id @default(cuid())
+  month            Int
+  year             Int
+  
+  totalNetWorthUSD Float
+  totalIncomeUSD   Float    // Active Rental Income + Projected Interest
+  
+  snapshotData     Json     // Detailed breakdown (Bank, Rentals, Investments)
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([month, year])
+}
+
+// =================================================================
+// APP SETTINGS
+// =================================================================
+
+model AppSettings {
+  id                 String   @id @default("settings") // Single row pattern
+  
+  notificationEmails String   @default("") // Comma separated emails
+  reportDay          Int      @default(1)  // Day of month to run report (1-28)
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }

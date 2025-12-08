@@ -36,7 +36,8 @@ export async function POST(request: Request) {
             initialRent,
             currency,
             adjustmentType,
-            adjustmentFrequency
+            adjustmentFrequency,
+            documentUrl
         } = body;
 
         const contract = await prisma.contract.create({
@@ -48,7 +49,8 @@ export async function POST(request: Request) {
                 initialRent: parseFloat(initialRent),
                 currency,
                 adjustmentType,
-                adjustmentFrequency: parseInt(adjustmentFrequency)
+                adjustmentFrequency: parseInt(adjustmentFrequency),
+                documentUrl
             }
         });
 
