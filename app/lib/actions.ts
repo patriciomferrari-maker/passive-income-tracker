@@ -53,18 +53,21 @@ export async function register(prevState: string | undefined, formData: FormData
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        await prisma.user.create({
+        const newUser = await prisma.user.create({
             data: {
                 name,
                 email,
                 password: hashedPassword,
                 role: 'user', // Default role
-                appSettings: {
-                    create: {
-                        reportDay: 1,
-                        reportHour: 10
-                    }
-                }
+            }
+        });
+
+        // Create default settings separately to avoid nested transaction issues
+        await prisma.appSettings.create({
+            data: {
+                userId: newUser.id,
+                reportDay: 1,
+                reportHour: 10
             }
         });
 

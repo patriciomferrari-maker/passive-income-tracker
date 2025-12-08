@@ -305,8 +305,8 @@ model CostaCategory {
 
 model CostaTransaction {
   id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   date        DateTime // Fecha del movimiento
   type        String   // INCOME, EXPENSE
@@ -331,8 +331,8 @@ model CostaTransaction {
 
 model CostaNote {
   id        String   @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   content   String
   category  String   // 'FIX', 'BRING'
@@ -372,7 +372,7 @@ model MonthlySummary {
 // =================================================================
 
 model AppSettings {
-  id                 String   @id @default("settings") 
+  id                 String   @id @default(cuid()) 
   userId             String   // Multi-user settings now!
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
