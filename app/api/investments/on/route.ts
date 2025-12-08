@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 // GET all ONs
+export const dynamic = 'force-dynamic';
 export async function GET() {
     try {
         const userId = await getUserId();

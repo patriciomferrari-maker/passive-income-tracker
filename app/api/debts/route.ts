@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
+export const dynamic = 'force-dynamic';
 export async function GET() {
     try {
         const userId = await getUserId();

@@ -1,18 +1,20 @@
-import { prisma } from '@/lib/prisma';
-import { NextResponse } from 'next/server';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+
+// ...
 
 
-// Mock Exchange Rate fallback if API fails or for simplicity
-const FETCH_TC = 1200; // Example Blue Rate
-
+export const dynamic = 'force-dynamic';
 export async function GET() {
     try {
+        const userId = await getUserId();
+
         const transactions = await prisma.costaTransaction.findMany({
+            where: { userId },
             include: { category: true }
         });
-        const notes = await prisma.costaNote.findMany();
+        const notes = await prisma.costaNote.findMany({
+            where: { userId }
+        });
 
         const now = new Date();
         const currentYear = now.getFullYear();

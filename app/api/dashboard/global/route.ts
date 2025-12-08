@@ -41,6 +41,7 @@ function calculateXIRR(values: number[], dates: Date[], guess = 0.1): number {
     return isNaN(rate) ? 0 : rate;
 }
 
+export const dynamic = 'force-dynamic';
 export async function GET() {
     try {
         const userId = await getUserId();
