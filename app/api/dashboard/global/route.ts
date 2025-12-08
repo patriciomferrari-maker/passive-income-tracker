@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { startOfMonth, subMonths, format, endOfMonth, addMonths, isBefore, isAfter, startOfDay, differenceInMonths, differenceInDays, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 // XIRR Implementation (Newton-Raphson)
 function calculateXIRR(values: number[], dates: Date[], guess = 0.1): number {
@@ -42,6 +43,7 @@ function calculateXIRR(values: number[], dates: Date[], guess = 0.1): number {
 
 export async function GET() {
     try {
+        const userId = await getUserId();
         const today = new Date();
 
         // 0. Latest Valid IPC Date (History Limit)
@@ -64,6 +66,7 @@ export async function GET() {
         // 1. Fetch History Cashflows (Interest Only, No Debt)
         const historyCashflows = await prisma.cashflow.findMany({
             where: {
+                investment: { userId },
                 date: { gte: historyStart, lte: historyEnd },
                 type: 'INTEREST',
             },
@@ -73,6 +76,7 @@ export async function GET() {
         // 2. Fetch Rental Income (History)
         const rentalCashflows = await prisma.rentalCashflow.findMany({
             where: {
+                contract: { property: { userId } },
                 date: { gte: historyStart, lte: historyEnd }
             },
             select: { date: true, amountUSD: true }
@@ -83,6 +87,7 @@ export async function GET() {
         // A. Total Investment & TIR Data
         const investments = await prisma.investment.findMany({
             where: {
+                userId,
                 OR: [{ type: 'ON' }, { type: 'TREASURY' }]
             },
             include: {
@@ -164,18 +169,19 @@ export async function GET() {
 
         // B. Next Events
         const nextInterestON = await prisma.cashflow.findFirst({
-            where: { date: { gt: today }, type: 'INTEREST', investment: { type: 'ON' } },
+            where: { investment: { userId, type: 'ON' }, date: { gt: today }, type: 'INTEREST' },
             orderBy: { date: 'asc' },
             include: { investment: { select: { name: true } } }
         });
 
         const nextInterestTreasury = await prisma.cashflow.findFirst({
-            where: { date: { gt: today }, type: 'INTEREST', investment: { type: 'TREASURY' } },
+            where: { investment: { userId, type: 'TREASURY' }, date: { gt: today }, type: 'INTEREST' },
             orderBy: { date: 'asc' },
             include: { investment: { select: { name: true } } }
         });
 
         const contracts = await prisma.contract.findMany({
+            where: { property: { userId } },
             select: { startDate: true, adjustmentFrequency: true, durationMonths: true, property: { select: { name: true } }, adjustmentType: true }
         });
 
@@ -207,7 +213,10 @@ export async function GET() {
         });
 
         // C. Debt Details
-        const debts = await prisma.debt.findMany({ include: { payments: true } });
+        const debts = await prisma.debt.findMany({
+            where: { userId },
+            include: { payments: true }
+        });
         let totalDebtPending = 0;
         const debtDetails = debts.map(d => {
             let total = d.initialAmount;
@@ -219,7 +228,9 @@ export async function GET() {
         }).filter(d => d.pending > 1);
 
         // D. Bank Data (NEW)
-        const bankOperations = await prisma.bankOperation.findMany();
+        const bankOperations = await prisma.bankOperation.findMany({
+            where: { userId }
+        });
 
         // 1. Total Bank USD
         const totalBankUSD = bankOperations
@@ -331,6 +342,7 @@ export async function GET() {
         // --- PROJECTION CART DATA (Gapless) ---
         const projectedCashflows = await prisma.cashflow.findMany({
             where: {
+                investment: { userId },
                 date: { gte: projectionStart, lte: projectionEnd }
             },
             include: { investment: { select: { type: true } } }
@@ -397,6 +409,6 @@ export async function GET() {
 
     } catch (error) {
         console.error('Error fetching global dashboard data:', error);
-        return NextResponse.json({ error: 'Failed to fetch global stats' }, { status: 500 });
+        return unauthorized();
     }
 }

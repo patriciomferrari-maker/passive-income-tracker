@@ -1,9 +1,12 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 export async function GET() {
     try {
+        const userId = await getUserId();
         const operations = await prisma.bankOperation.findMany({
+            where: { userId },
             orderBy: { createdAt: 'desc' }
         });
 
@@ -34,17 +37,19 @@ export async function GET() {
 
     } catch (error) {
         console.error('Error fetching bank operations:', error);
-        return NextResponse.json({ error: 'Failed to fetch operations' }, { status: 500 });
+        return unauthorized();
     }
 }
 
 export async function POST(request: Request) {
     try {
+        const userId = await getUserId();
         const body = await request.json();
         const { type, alias, amount, currency, startDate, durationDays, tna } = body;
 
         const newOp = await prisma.bankOperation.create({
             data: {
+                userId,
                 type,
                 alias,
                 amount: parseFloat(amount),
@@ -58,6 +63,6 @@ export async function POST(request: Request) {
         return NextResponse.json(newOp);
     } catch (error) {
         console.error('Error creating bank operation:', error);
-        return NextResponse.json({ error: 'Failed to create operation' }, { status: 500 });
+        return unauthorized();
     }
 }

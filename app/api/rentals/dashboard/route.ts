@@ -1,12 +1,16 @@
-
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 export async function GET() {
     try {
+        const userId = await getUserId();
         const now = new Date();
 
         const allContracts = await prisma.contract.findMany({
+            where: {
+                property: { userId } // Filter strictly by user's properties
+            },
             include: {
                 property: true
             }
@@ -67,6 +71,6 @@ export async function GET() {
         return NextResponse.json(dashboardData);
     } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 });
+        return unauthorized();
     }
 }

@@ -8,7 +8,7 @@ export const authConfig = {
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
-            const isOnDashboard = nextUrl.pathname !== '/login'; // Protect everything except login
+            const isOnDashboard = nextUrl.pathname !== '/login' && nextUrl.pathname !== '/register'; // Protect everything except login and register
 
             if (isOnDashboard) {
                 if (isLoggedIn) return true;

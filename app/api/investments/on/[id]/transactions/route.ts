@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { generateInvestmentCashflow, saveInvestmentCashflows } from '@/lib/investments';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 // GET transactions for an ON
 export async function GET(
@@ -8,7 +9,15 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const userId = await getUserId();
         const { id } = await params;
+
+        // Verify ownership first
+        const investment = await prisma.investment.findFirst({
+            where: { id, userId }
+        });
+        if (!investment) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
         const transactions = await prisma.transaction.findMany({
             where: {
                 investmentId: id,
@@ -20,7 +29,7 @@ export async function GET(
         return NextResponse.json(transactions);
     } catch (error) {
         console.error('Error fetching transactions:', error);
-        return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
+        return unauthorized();
     }
 }
 
@@ -30,7 +39,15 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const userId = await getUserId();
         const { id } = await params;
+
+        // Verify ownership
+        const investment = await prisma.investment.findFirst({
+            where: { id, userId }
+        });
+        if (!investment) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
         const body = await request.json();
         const { date, quantity, price, commission } = body;
 
@@ -56,6 +73,6 @@ export async function POST(
         return NextResponse.json(transaction);
     } catch (error) {
         console.error('Error creating transaction:', error);
-        return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500 });
+        return unauthorized();
     }
 }

@@ -4,8 +4,9 @@
 import { useEffect, useState } from 'react';
 import { DashboardCard } from '@/components/DashboardCard';
 import { signOutAction } from '@/app/lib/actions';
-import { Loader2, Clock, Menu } from 'lucide-react';
+import { Loader2, Clock, Menu, Settings, LogOut } from 'lucide-react';
 import { FlagARG, FlagUSA } from '@/components/ui/CountryFlags';
+import Link from 'next/link';
 
 interface DashboardStats {
   on: {
@@ -64,10 +65,13 @@ export default function HomePage() {
             Passive Income Tracker
           </h1>
 
-          <div className="absolute right-0 top-0 hidden md:block">
+          <div className="absolute right-0 top-0 flex items-center gap-4">
+            <Link href="/settings" className="text-slate-500 hover:text-blue-400 transition-colors">
+              <Settings size={20} />
+            </Link>
             <form action={signOutAction}>
-              <button type="submit" className="text-sm text-slate-500 hover:text-red-400 transition-colors border border-slate-800 px-3 py-1 rounded-md hover:border-red-400">
-                Cerrar Sesión
+              <button type="submit" className="text-slate-500 hover:text-red-400 transition-colors pt-1">
+                <LogOut size={20} />
               </button>
             </form>
           </div>
@@ -168,14 +172,7 @@ export default function HomePage() {
                     currency="USD"
                   />
 
-                  {/* Settings Card */}
-                  <DashboardCard
-                    title="Configuración"
-                    description="Reportes y Alertas"
-                    icon="⚙️"
-                    href="/settings"
-                    enabled={true}
-                  />
+
                 </div>
               </div>
             )}

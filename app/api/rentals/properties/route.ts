@@ -1,9 +1,12 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 export async function GET() {
     try {
+        const userId = await getUserId();
         const properties = await prisma.property.findMany({
+            where: { userId },
             include: {
                 contracts: {
                     select: {
@@ -32,17 +35,19 @@ export async function GET() {
         return NextResponse.json(properties);
     } catch (error) {
         console.error('Error fetching properties:', error);
-        return NextResponse.json({ error: 'Failed to fetch properties' }, { status: 500 });
+        return unauthorized();
     }
 }
 
 export async function POST(request: Request) {
     try {
+        const userId = await getUserId();
         const body = await request.json();
         const { name, address } = body;
 
         const property = await prisma.property.create({
             data: {
+                userId,
                 name,
                 address: address || null
             }
@@ -51,6 +56,6 @@ export async function POST(request: Request) {
         return NextResponse.json(property);
     } catch (error) {
         console.error('Error creating property:', error);
-        return NextResponse.json({ error: 'Failed to create property' }, { status: 500 });
+        return unauthorized();
     }
 }

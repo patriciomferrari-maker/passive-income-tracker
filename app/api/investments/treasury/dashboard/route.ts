@@ -1,12 +1,15 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { calculateXIRR } from '@/lib/financial';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 export async function GET() {
     try {
+        const userId = await getUserId();
         // Get all Treasury investments that have at least one transaction (purchase)
         const investments = await prisma.investment.findMany({
             where: {
+                userId, // Filter by User
                 type: 'TREASURY',
                 transactions: {
                     some: {
@@ -148,6 +151,6 @@ export async function GET() {
         });
     } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 });
+        return unauthorized();
     }
 }

@@ -1,16 +1,19 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 export async function GET(request: Request) {
     try {
+        const userId = await getUserId();
         const { searchParams } = new URL(request.url);
-        const type = searchParams.get('type') || 'ON'; // Default to ON for backward compatibility
+        const type = searchParams.get('type') || 'ON'; // Default to ON
 
         // Only get cashflows for investments that have at least one transaction
         const cashflows = await prisma.cashflow.findMany({
             where: {
                 status: 'PROJECTED',
                 investment: {
+                    userId, // Filter by User
                     type: type,
                     transactions: {
                         some: {}
@@ -45,6 +48,6 @@ export async function GET(request: Request) {
         return NextResponse.json(Object.values(aggregated));
     } catch (error) {
         console.error('Error fetching consolidated cashflows:', error);
-        return NextResponse.json({ error: 'Failed to fetch cashflows' }, { status: 500 });
+        return unauthorized();
     }
 }

@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Mail, Save, Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader2, Mail, Save, Send, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
@@ -83,7 +84,12 @@ export default function SettingsPage() {
 
     return (
         <div className="container mx-auto p-4 md:p-8 max-w-4xl space-y-8">
-            <h1 className="text-3xl font-bold text-white mb-6">Configuración</h1>
+            <div className="flex items-center gap-4 mb-6">
+                <Link href="/" className="text-slate-500 hover:text-white transition-colors">
+                    <ArrowLeft size={24} />
+                </Link>
+                <h1 className="text-3xl font-bold text-white">Configuración</h1>
+            </div>
 
             <Card className="bg-slate-900 border-slate-800 text-slate-100">
                 <CardHeader>

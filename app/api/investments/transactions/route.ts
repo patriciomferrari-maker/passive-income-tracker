@@ -1,22 +1,21 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 // GET all transactions, optionally filtered by type
 export async function GET(request: Request) {
     try {
+        const userId = await getUserId();
         const { searchParams } = new URL(request.url);
         const type = searchParams.get('type');
 
-        const whereClause = type
-            ? { investment: { type } }
-            : {}; // If no type specified, return all? Or default to ON? Let's default to all or handle logic.
-        // Existing logic was hardcoded to ON. Let's make it dynamic.
-
-        // If type is provided, use it. If not, maybe we should return all or default to ON for backward compatibility if needed?
-        // But better to be explicit.
-
         const transactions = await prisma.transaction.findMany({
-            where: type ? { investment: { type } } : { investment: { type: 'ON' } }, // Default to ON to match previous behavior if no param
+            where: {
+                investment: {
+                    userId, // Filter by User
+                    ...(type && { type }) // Optional Type Filter
+                }
+            },
             include: {
                 investment: {
                     select: {
@@ -32,6 +31,6 @@ export async function GET(request: Request) {
         return NextResponse.json(transactions);
     } catch (error) {
         console.error('Error fetching transactions:', error);
-        return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
+        return unauthorized();
     }
 }

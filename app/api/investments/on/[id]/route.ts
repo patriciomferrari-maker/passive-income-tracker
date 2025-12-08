@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { generateInvestmentCashflow, saveInvestmentCashflows } from '@/lib/investments';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 // GET specific ON
 export async function GET(
@@ -8,9 +9,10 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const userId = await getUserId();
         const { id } = await params;
-        const investment = await prisma.investment.findUnique({
-            where: { id },
+        const investment = await prisma.investment.findFirst({
+            where: { id, userId },
             include: {
                 amortizationSchedules: {
                     orderBy: { paymentDate: 'asc' }
@@ -28,7 +30,7 @@ export async function GET(
         return NextResponse.json(investment);
     } catch (error) {
         console.error('Error fetching ON:', error);
-        return NextResponse.json({ error: 'Failed to fetch ON' }, { status: 500 });
+        return unauthorized();
     }
 }
 
@@ -38,9 +40,14 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const userId = await getUserId();
         const { id } = await params;
         const body = await request.json();
         const { name, emissionDate, couponRate, frequency, maturityDate, amortization, amortizationSchedules } = body;
+
+        // Verify ownership first
+        const existing = await prisma.investment.findFirst({ where: { id, userId } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
         // Delete existing schedules if switching to/from PERSONALIZADA
         if (amortization) {
@@ -77,7 +84,7 @@ export async function PUT(
         return NextResponse.json(investment);
     } catch (error) {
         console.error('Error updating ON:', error);
-        return NextResponse.json({ error: 'Failed to update ON' }, { status: 500 });
+        return unauthorized();
     }
 }
 
@@ -87,7 +94,12 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const userId = await getUserId();
         const { id } = await params;
+
+        // Verify ownership
+        const existing = await prisma.investment.findFirst({ where: { id, userId } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
         // Delete related records first to avoid foreign key constraint violations
         // Delete cashflows
@@ -113,6 +125,6 @@ export async function DELETE(
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error deleting ON:', error);
-        return NextResponse.json({ error: 'Failed to delete ON' }, { status: 500 });
+        return unauthorized();
     }
 }

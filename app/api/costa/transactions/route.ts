@@ -1,27 +1,32 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 export async function GET() {
     try {
+        const userId = await getUserId();
         const transactions = await prisma.costaTransaction.findMany({
+            where: { userId },
             include: { category: true },
             orderBy: { date: 'desc' }
         });
         return NextResponse.json(transactions);
     } catch (error) {
         console.error("GET Trx Error:", error);
-        return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
+        return unauthorized();
     }
 }
 
 
 export async function POST(request: Request) {
     try {
+        const userId = await getUserId();
         const body = await request.json();
         const { date, type, description, amount, currency, categoryId, rentalCheckIn, rentalCheckOut, contractUrl } = body;
 
         const newTrx = await prisma.costaTransaction.create({
             data: {
+                userId,
                 date: new Date(date),
                 type,
                 description,
@@ -36,16 +41,21 @@ export async function POST(request: Request) {
         return NextResponse.json(newTrx);
     } catch (error) {
         console.error("POST Trx Error Details:", error);
-        return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to create transaction' }, { status: 500 });
+        return unauthorized();
     }
 }
 
 export async function PUT(request: Request) {
     try {
+        const userId = await getUserId();
         const body = await request.json();
         const { id, date, type, description, amount, currency, categoryId, rentalCheckIn, rentalCheckOut, contractUrl } = body;
 
         if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+
+        // Ownership check
+        const existing = await prisma.costaTransaction.findFirst({ where: { id, userId } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
         const updatedTrx = await prisma.costaTransaction.update({
             where: { id },
@@ -64,19 +74,24 @@ export async function PUT(request: Request) {
         return NextResponse.json(updatedTrx);
     } catch (error) {
         console.error("PUT Trx Error Details:", error);
-        return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to update transaction' }, { status: 500 });
+        return unauthorized();
     }
 }
 
 export async function DELETE(request: Request) {
     try {
+        const userId = await getUserId();
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
         if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
+        // Ownership check
+        const existing = await prisma.costaTransaction.findFirst({ where: { id, userId } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
         await prisma.costaTransaction.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
-        return NextResponse.json({ error: 'Failed to delete transaction' }, { status: 500 });
+        return unauthorized();
     }
 }

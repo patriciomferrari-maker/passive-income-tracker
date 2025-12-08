@@ -1,12 +1,18 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
     try {
+        const userId = await getUserId();
         const params = await props.params;
         const id = params.id;
         const body = await request.json();
         const { type, alias, amount, currency, startDate, durationDays, tna } = body;
+
+        // Verify ownership
+        const existing = await prisma.bankOperation.findFirst({ where: { id, userId } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
         const updatedOp = await prisma.bankOperation.update({
             where: { id },
@@ -24,18 +30,24 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
         return NextResponse.json(updatedOp);
     } catch (error) {
         console.error('Error updating bank operation:', error);
-        return NextResponse.json({ error: 'Failed to update operation' }, { status: 500 });
+        return unauthorized();
     }
 }
 
 export async function DELETE(request: Request, props: { params: Promise<{ id: string }> }) {
     try {
+        const userId = await getUserId();
         const params = await props.params;
         const id = params.id;
+
+        // Verify ownership
+        const existing = await prisma.bankOperation.findFirst({ where: { id, userId } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
         await prisma.bankOperation.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error deleting bank operation:', error);
-        return NextResponse.json({ error: 'Failed to delete operation' }, { status: 500 });
+        return unauthorized();
     }
 }

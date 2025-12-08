@@ -12,16 +12,47 @@ datasource db {
 }
 
 // =================================================================
+// USERS & AUTH
+// =================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Hashed
+  name      String?
+  role      String   @default("USER") // USER, ADMIN
+  
+  // Relations
+  properties      Property[]
+  investments     Investment[]
+  debts           Debt[]
+  bankOperations  BankOperation[]
+  costaCategories CostaCategory[]
+  costaTransactions CostaTransaction[]
+  costaNotes      CostaNote[]
+  monthlySummaries MonthlySummary[]
+  appSettings     AppSettings[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =================================================================
 // REAL ESTATE (ALQUILERES)
 // =================================================================
 
 model Property {
   id        String     @id @default(cuid())
+  userId    String     // Owner
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   name      String
   address   String?
   contracts Contract[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  
+  @@index([userId])
 }
 
 model Contract {
@@ -79,7 +110,10 @@ model RentalCashflow {
 
 model Investment {
   id           String        @id @default(cuid())
-  ticker       String        @unique
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  ticker       String
   name         String
   type         String        // ON, TREASURY, CEDEAR, etc.
   currency     String        @default("USD")
@@ -97,6 +131,9 @@ model Investment {
 
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+
+  @@unique([userId, ticker]) // Tickers unique per User, not global
+  @@index([userId])
 }
 
 model AmortizationSchedule {
@@ -163,6 +200,7 @@ model Cashflow {
 // ECONOMIC DATA
 // =================================================================
 
+// ECONOMIC DATA IS GLOBAL (SHARED)
 model EconomicIndicator {
   id        String   @id @default(cuid())
   type      String   // IPC, TC_USD_ARS, etc.
@@ -184,6 +222,9 @@ model EconomicIndicator {
 
 model Debt {
   id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   debtorName    String    // Nombre del deudor
   startDate     DateTime  // Fecha de inicio de la deuda
   initialAmount Float     // Monto inicial
@@ -195,6 +236,8 @@ model Debt {
   payments      DebtPayment[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
 }
 
 model DebtPayment {
@@ -219,6 +262,9 @@ model DebtPayment {
 
 model BankOperation {
   id            String   @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   type          String   // 'FCI', 'PLAZO_FIJO', 'CAJA_SEGURIDAD'
   alias         String?  // Name (e.g. "FCI Money Market", "PF Banco N")
   
@@ -232,6 +278,8 @@ model BankOperation {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // =================================================================
@@ -240,6 +288,9 @@ model BankOperation {
 
 model CostaCategory {
   id        String @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   name      String // e.g. "Alquiler", "Mantenimiento", "Expensas"
   type      String // INCOME, EXPENSE
   
@@ -247,10 +298,16 @@ model CostaCategory {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
+
 
 model CostaTransaction {
   id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   date        DateTime // Fecha del movimiento
   type        String   // INCOME, EXPENSE
   description String?
@@ -268,16 +325,23 @@ model CostaTransaction {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
 }
 
 model CostaNote {
   id        String   @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   content   String
   category  String   // 'FIX', 'BRING'
   status    String   @default("PENDING") // PENDING, DONE
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  @@index([userId])
 }
 
 // =================================================================
@@ -286,6 +350,9 @@ model CostaNote {
 
 model MonthlySummary {
   id               String   @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   month            Int
   year             Int
   
@@ -297,7 +364,7 @@ model MonthlySummary {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  @@unique([month, year])
+  @@unique([userId, month, year])
 }
 
 // =================================================================
@@ -305,7 +372,9 @@ model MonthlySummary {
 // =================================================================
 
 model AppSettings {
-  id                 String   @id @default("settings") // Single row pattern
+  id                 String   @id @default("settings") 
+  userId             String   // Multi-user settings now!
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   notificationEmails String   @default("") // Comma separated emails
   reportDay          Int      @default(1)  // Day of month to run report (1-28)
@@ -313,4 +382,6 @@ model AppSettings {
   
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+  @@unique([userId]) // One settings profile per user
 }

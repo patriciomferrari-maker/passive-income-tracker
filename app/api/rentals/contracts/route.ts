@@ -1,10 +1,17 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { generateContractCashflows } from '@/lib/rentals';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 export async function GET() {
     try {
+        const userId = await getUserId();
         const contracts = await prisma.contract.findMany({
+            where: {
+                property: {
+                    userId // Filter by property ownership
+                }
+            },
             include: {
                 property: true
             },
@@ -21,12 +28,13 @@ export async function GET() {
             console.error('Error details:', error.message);
             console.error('Stack:', error.stack);
         }
-        return NextResponse.json({ error: 'Failed to fetch contracts' }, { status: 500 });
+        return unauthorized();
     }
 }
 
 export async function POST(request: Request) {
     try {
+        const userId = await getUserId();
         const body = await request.json();
         const {
             propertyId,
@@ -39,6 +47,12 @@ export async function POST(request: Request) {
             adjustmentFrequency,
             documentUrl
         } = body;
+
+        // Verify property ownership
+        const property = await prisma.property.findFirst({
+            where: { id: propertyId, userId }
+        });
+        if (!property) return NextResponse.json({ error: 'Property not found' }, { status: 404 });
 
         const contract = await prisma.contract.create({
             data: {
@@ -63,6 +77,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ contract, cashflowsGenerated: cashflows.length });
     } catch (error) {
         console.error('Error creating contract:', error);
-        return NextResponse.json({ error: 'Failed to create contract' }, { status: 500 });
+        return unauthorized();
     }
 }

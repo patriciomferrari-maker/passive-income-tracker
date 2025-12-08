@@ -1,15 +1,20 @@
-
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 export async function GET() {
     try {
-        let settings = await prisma.appSettings.findFirst();
+        const userId = await getUserId();
+
+        let settings = await prisma.appSettings.findUnique({
+            where: { userId }
+        });
+
         if (!settings) {
-            // Default settings
+            // Create default settings for this user if not exist
             settings = await prisma.appSettings.create({
                 data: {
-                    id: "settings", // Enforce single row
+                    userId,
                     notificationEmails: "",
                     reportDay: 1,
                     reportHour: 10
@@ -17,14 +22,14 @@ export async function GET() {
             });
         }
         return NextResponse.json(settings);
-    } catch (error) {
-        console.error('Settings GET Error:', error);
-        return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });
+    } catch (e) {
+        return unauthorized();
     }
 }
 
 export async function PUT(req: Request) {
     try {
+        const userId = await getUserId();
         const body = await req.json();
         const { notificationEmails, reportDay, reportHour } = body;
 
@@ -37,14 +42,14 @@ export async function PUT(req: Request) {
         }
 
         const settings = await prisma.appSettings.upsert({
-            where: { id: "settings" },
+            where: { userId },
             update: {
                 notificationEmails,
                 reportDay,
                 reportHour: reportHour || 10
             },
             create: {
-                id: "settings",
+                userId,
                 notificationEmails,
                 reportDay,
                 reportHour: reportHour || 10
@@ -52,8 +57,7 @@ export async function PUT(req: Request) {
         });
 
         return NextResponse.json(settings);
-    } catch (error) {
-        console.error('Settings PUT Error:', error);
-        return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 });
+    } catch (e) {
+        return unauthorized();
     }
 }

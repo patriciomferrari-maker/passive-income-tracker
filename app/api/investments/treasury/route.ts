@@ -1,11 +1,13 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 // GET all US Treasuries
 export async function GET() {
     try {
+        const userId = await getUserId();
         const investments = await prisma.investment.findMany({
-            where: { type: 'TREASURY' },
+            where: { type: 'TREASURY', userId },
             include: {
                 amortizationSchedules: {
                     orderBy: { paymentDate: 'asc' }
@@ -21,18 +23,20 @@ export async function GET() {
         return NextResponse.json(investments);
     } catch (error) {
         console.error('Error fetching Treasuries:', error);
-        return NextResponse.json({ error: 'Failed to fetch Treasuries' }, { status: 500 });
+        return unauthorized();
     }
 }
 
 // POST create new Treasury
 export async function POST(request: Request) {
     try {
+        const userId = await getUserId();
         const body = await request.json();
         const { ticker, name, emissionDate, couponRate, frequency, maturityDate } = body;
 
         const investment = await prisma.investment.create({
             data: {
+                userId,
                 ticker,
                 name,
                 type: 'TREASURY',
@@ -48,6 +52,6 @@ export async function POST(request: Request) {
         return NextResponse.json(investment);
     } catch (error) {
         console.error('Error creating Treasury:', error);
-        return NextResponse.json({ error: 'Failed to create Treasury' }, { status: 500 });
+        return unauthorized();
     }
 }

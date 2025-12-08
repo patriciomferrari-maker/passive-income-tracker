@@ -1,11 +1,13 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 // GET all ONs
 export async function GET() {
     try {
+        const userId = await getUserId();
         const investments = await prisma.investment.findMany({
-            where: { type: 'ON' },
+            where: { type: 'ON', userId },
             include: {
                 amortizationSchedules: {
                     orderBy: { paymentDate: 'asc' }
@@ -21,18 +23,20 @@ export async function GET() {
         return NextResponse.json(investments);
     } catch (error) {
         console.error('Error fetching ONs:', error);
-        return NextResponse.json({ error: 'Failed to fetch ONs' }, { status: 500 });
+        return unauthorized();
     }
 }
 
 // POST create new ON
 export async function POST(request: Request) {
     try {
+        const userId = await getUserId();
         const body = await request.json();
         const { ticker, name, emissionDate, couponRate, frequency, maturityDate, amortization, amortizationSchedules } = body;
 
         const investment = await prisma.investment.create({
             data: {
+                userId,
                 ticker,
                 name,
                 type: 'ON',
@@ -57,6 +61,6 @@ export async function POST(request: Request) {
         return NextResponse.json(investment);
     } catch (error) {
         console.error('Error creating ON:', error);
-        return NextResponse.json({ error: 'Failed to create ON' }, { status: 500 });
+        return unauthorized();
     }
 }

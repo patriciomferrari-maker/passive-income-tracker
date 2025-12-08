@@ -1,11 +1,14 @@
 
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 export async function POST(request: Request): Promise<NextResponse> {
     const body = (await request.json()) as HandleUploadBody;
 
     try {
+        await getUserId(); // Verify auth
+
         const jsonResponse = await handleUpload({
             body,
             request,

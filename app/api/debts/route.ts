@@ -1,9 +1,12 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 export async function GET() {
     try {
+        const userId = await getUserId();
         const debts = await prisma.debt.findMany({
+            where: { userId },
             include: {
                 payments: true
             },
@@ -35,17 +38,19 @@ export async function GET() {
         return NextResponse.json(debtsWithBalance);
     } catch (error) {
         console.error('Error fetching debts:', error);
-        return NextResponse.json({ error: 'Failed to fetch debts' }, { status: 500 });
+        return unauthorized();
     }
 }
 
 export async function POST(request: Request) {
     try {
+        const userId = await getUserId();
         const body = await request.json();
         const { debtorName, startDate, initialAmount, currency, details } = body;
 
         const newDebt = await prisma.debt.create({
             data: {
+                userId,
                 debtorName,
                 startDate: new Date(startDate),
                 initialAmount,
@@ -57,12 +62,13 @@ export async function POST(request: Request) {
 
         return NextResponse.json(newDebt);
     } catch (error) {
-        return NextResponse.json({ error: 'Failed to create debt' }, { status: 500 });
+        return unauthorized();
     }
 }
 
 export async function DELETE(request: Request) {
     try {
+        const userId = await getUserId();
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
 
@@ -70,8 +76,11 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Debt ID required' }, { status: 400 });
         }
 
+        // Verify ownership
+        const existing = await prisma.debt.findFirst({ where: { id, userId } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
         // Delete payments first (cascade usually handles this but good to be safe/explicit if not configured)
-        // Prisma schema usually cascades if configured, but let's just delete the Debt.
         await prisma.debtPayment.deleteMany({
             where: { debtId: id }
         });
@@ -83,6 +92,6 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error deleting debt:', error);
-        return NextResponse.json({ error: 'Failed to delete debt' }, { status: 500 });
+        return unauthorized();
     }
 }
