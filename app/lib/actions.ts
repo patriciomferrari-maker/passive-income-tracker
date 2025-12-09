@@ -67,7 +67,8 @@ export async function register(prevState: string | undefined, formData: FormData
             data: {
                 userId: newUser.id,
                 reportDay: 1,
-                reportHour: 10
+                reportHour: 10,
+                enabledSections: formData.get('sections') as string || ''
             }
         });
 

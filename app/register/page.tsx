@@ -52,6 +52,38 @@ export default function RegisterPage() {
                                 className="bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
                             />
                         </div>
+
+                        <div className="space-y-3 pt-2">
+                            <label className="text-sm font-medium text-slate-300">¿Qué secciones deseas ver?</label>
+                            <div className="grid grid-cols-1 gap-2">
+                                {[
+                                    { id: 'on', label: 'Cartera Argentina (ONs)' },
+                                    { id: 'treasury', label: 'Cartera USA (Treasuries)' },
+                                    { id: 'rentals', label: 'Alquileres' },
+                                    { id: 'debts', label: 'Deudas' },
+                                    { id: 'bank', label: 'Banco' }
+                                ].map((section) => (
+                                    <div key={section.id} className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id={section.id}
+                                            name="sections_checkbox"
+                                            value={section.id}
+                                            defaultChecked
+                                            className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-green-600 focus:ring-green-600"
+                                        />
+                                        <label
+                                            htmlFor={section.id}
+                                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-300"
+                                        >
+                                            {section.label}
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+                            <input type="hidden" name="sections" id="sections-input" />
+                            <Script />
+                        </div>
                         <RegisterButton />
 
                         {errorMessage && (
@@ -81,5 +113,28 @@ function RegisterButton() {
         <Button className="w-full bg-green-600 hover:bg-green-700" aria-disabled={pending}>
             {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Registrarse"}
         </Button>
+    );
+}
+
+function Script() {
+    return (
+        <script dangerouslySetInnerHTML={{
+            __html: `
+                const checkboxes = document.querySelectorAll('input[name="sections_checkbox"]');
+                const hiddenInput = document.getElementById('sections-input');
+                
+                function updateSections() {
+                    const selected = Array.from(checkboxes)
+                        .filter(cb => cb.checked)
+                        .map(cb => cb.value)
+                        .join(',');
+                    hiddenInput.value = selected;
+                }
+
+                checkboxes.forEach(cb => cb.addEventListener('change', updateSections));
+                // Init
+                updateSections();
+            `
+        }} />
     );
 }

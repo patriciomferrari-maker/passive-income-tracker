@@ -8,6 +8,12 @@ export async function GET() {
     try {
         const userId = await getUserId();
 
+        // Get User Settings
+        const settings = await prisma.appSettings.findUnique({
+            where: { userId }
+        });
+        const enabledSections = settings?.enabledSections ? settings.enabledSections.split(',') : [];
+
         // Get ON stats
         const onInvestments = await prisma.investment.findMany({
             where: { type: 'ON', userId },
@@ -95,6 +101,7 @@ export async function GET() {
         }).filter(pf => pf.daysLeft >= 0).sort((a, b) => a.daysLeft - b.daysLeft);
 
         return NextResponse.json({
+            enabledSections,
             on: {
                 count: onCount,
                 totalInvested: onTotalInvested

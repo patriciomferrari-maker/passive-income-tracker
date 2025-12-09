@@ -34,6 +34,7 @@ interface DashboardStats {
       alias: string;
     }>;
   };
+  enabledSections?: string[];
 }
 
 export default function HomePage() {
@@ -112,67 +113,90 @@ export default function HomePage() {
             {stats && (
               <div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <DashboardCard
-                    title="Cartera Argentina"
-                    description="Obligaciones Negociables"
-                    icon={<FlagARG className="w-12 h-8 rounded shadow-sm" />}
-                    href="/investments/on"
-                    count={stats.on.count}
-                    totalValue={stats.on.totalInvested}
-                    currency="USD"
-                  />
+                  {/* Helper to check visibility */}
+                  {(() => {
+                    const sections = stats.enabledSections || [];
+                    const showAll = sections.length === 0; // Legacy users or no selection
 
-                  <DashboardCard
-                    title="Cartera USA"
-                    description="US Treasuries"
-                    icon={<FlagUSA className="w-12 h-8 rounded shadow-sm" />}
-                    href="/investments/treasury"
-                    count={stats.treasury.count}
-                    totalValue={stats.treasury.totalInvested}
-                    currency="USD"
-                  />
+                    const shouldShow = (id: string) => showAll || sections.includes(id);
 
-                  <DashboardCard
-                    title="Alquileres"
-                    description="Propiedades en renta"
-                    icon="🏢"
-                    href="/alquileres"
-                    count={stats.rentals?.count || 0}
-                    totalValue={stats.rentals?.totalValue || 0}
-                    currency="USD"
-                  />
+                    return (
+                      <>
+                        {shouldShow('on') && (
+                          <DashboardCard
+                            title="Cartera Argentina"
+                            description="Obligaciones Negociables"
+                            icon={<FlagARG className="w-12 h-8 rounded shadow-sm" />}
+                            href="/investments/on"
+                            count={stats.on.count}
+                            totalValue={stats.on.totalInvested}
+                            currency="USD"
+                          />
+                        )}
 
-                  <DashboardCard
-                    title="Deudas a Cobrar"
-                    description="Prestamos y cuentas"
-                    icon="💸"
-                    href="/deudas"
-                    count={stats.debts?.count || 0}
-                    totalValue={stats.debts?.totalPending || 0}
-                    currency="USD"
-                  />
-                  <DashboardCard
-                    title="Banco"
-                    description="Cantidad de inversiones"
-                    icon="🏦"
-                    href="/bank-investments"
-                    count={stats.bank?.nextMaturitiesPF?.length || 0}
-                    totalValue={stats.bank?.totalUSD || 0}
-                    currency="USD"
-                  />
+                        {shouldShow('treasury') && (
+                          <DashboardCard
+                            title="Cartera USA"
+                            description="US Treasuries"
+                            icon={<FlagUSA className="w-12 h-8 rounded shadow-sm" />}
+                            href="/investments/treasury"
+                            count={stats.treasury.count}
+                            totalValue={stats.treasury.totalInvested}
+                            currency="USD"
+                          />
+                        )}
 
-                  {/* Costa Card */}
-                  <DashboardCard
-                    title="Costa Esmeralda"
-                    description="Alquileres y Mantenimiento"
-                    icon="🏖️"
-                    href="/costa-esmeralda"
-                    count={0}
-                    totalValue={0}
-                    currency="USD"
-                  />
+                        {shouldShow('rentals') && (
+                          <DashboardCard
+                            title="Alquileres"
+                            description="Propiedades en renta"
+                            icon="🏢"
+                            href="/alquileres"
+                            count={stats.rentals?.count || 0}
+                            totalValue={stats.rentals?.totalValue || 0}
+                            currency="USD"
+                          />
+                        )}
 
+                        {shouldShow('debts') && (
+                          <DashboardCard
+                            title="Deudas a Cobrar"
+                            description="Prestamos y cuentas"
+                            icon="💸"
+                            href="/deudas"
+                            count={stats.debts?.count || 0}
+                            totalValue={stats.debts?.totalPending || 0}
+                            currency="USD"
+                          />
+                        )}
 
+                        {shouldShow('bank') && (
+                          <DashboardCard
+                            title="Banco"
+                            description="Cantidad de inversiones"
+                            icon="🏦"
+                            href="/bank-investments"
+                            count={stats.bank?.nextMaturitiesPF?.length || 0}
+                            totalValue={stats.bank?.totalUSD || 0}
+                            currency="USD"
+                          />
+                        )}
+
+                        {/* Costa Card - Only show if specifically allowed (which is never for new users currently) OR legacy (showAll) */}
+                        {showAll && (
+                          <DashboardCard
+                            title="Costa Esmeralda"
+                            description="Alquileres y Mantenimiento"
+                            icon="🏖️"
+                            href="/costa-esmeralda"
+                            count={0}
+                            totalValue={0}
+                            currency="USD"
+                          />
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
