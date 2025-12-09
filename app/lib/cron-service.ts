@@ -161,10 +161,10 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
 
                     // --- KEY DATES (Calculations) ---
 
-                    let nextRentalExpiration: { date: Date; property: string } | null = null;
+                    let nextRentalExpiration: { date: Date; property: string; monthsTo: number } | null = null;
                     let minDiffExp = Infinity;
 
-                    let nextRentalAdjustment: { date: Date; property: string } | null = null;
+                    let nextRentalAdjustment: { date: Date; property: string; monthsTo: number } | null = null;
                     let minDiffAdj = Infinity;
 
                     contracts.forEach(c => {
@@ -174,7 +174,11 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             const diff = expDate.getTime() - now.getTime();
                             if (diff < minDiffExp) {
                                 minDiffExp = diff;
-                                nextRentalExpiration = { date: expDate, property: c.property.name };
+                                nextRentalExpiration = {
+                                    date: expDate,
+                                    property: c.property.name,
+                                    monthsTo: differenceInMonths(expDate, now)
+                                };
                             }
                         }
 
@@ -188,7 +192,11 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             const diff = nextAdjDate.getTime() - now.getTime();
                             if (diff < minDiffAdj) {
                                 minDiffAdj = diff;
-                                nextRentalAdjustment = { date: nextAdjDate, property: c.property.name };
+                                nextRentalAdjustment = {
+                                    date: nextAdjDate,
+                                    property: c.property.name,
+                                    monthsTo: differenceInMonths(nextAdjDate, now)
+                                };
                             }
                         }
                     });

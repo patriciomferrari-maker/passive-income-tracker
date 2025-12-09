@@ -21,7 +21,7 @@ interface MonthlyReportData {
     dashboardUrl: string;
 
     // Header Metrics
-    totalDebtPending: number; // Was totalNetWorth
+    totalDebtPending: number;
     totalArg: number;
     totalUSA: number;
 
@@ -30,8 +30,8 @@ interface MonthlyReportData {
 
     // Highlights
     rentalEvents: {
-        nextExpiration?: { date: Date; property: string } | null;
-        nextAdjustment?: { date: Date; property: string } | null;
+        nextExpiration?: { date: Date; property: string; monthsTo: number } | null;
+        nextAdjustment?: { date: Date; property: string; monthsTo: number } | null;
     };
 
     nextPFMaturity?: { date: Date; bank: string; amount: number } | null;
@@ -45,25 +45,32 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
         rentalEvents, nextPFMaturity
     } = data;
 
-    // Sort by date (showing entire month as requested)
+    // Sort by date
     const sortedMaturities = [...maturities].sort((a, b) => a.date.getTime() - b.date.getTime());
 
     const renderRows = (items: MaturityItem[]) => {
         if (items.length === 0) return '<tr><td colspan="3" style="padding: 12px; text-align: center; color: #64748b;">No hay movimientos este mes.</td></tr>';
 
-        return items.map(item => `
+        return items.map(item => {
+            const isUSA = item.type === 'TREASURY';
+            const locationTag = isUSA
+                ? '<span style="background-color: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">USA</span>'
+                : '<span style="background-color: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">ARG</span>';
+
+            return `
             <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 12px 0; color: #334155;">
                     ${format(item.date, 'dd/MM', { locale: es })}
                 </td>
                 <td style="padding: 12px 0; color: #0f172a; font-weight: 500;">
-                    ${item.description}
+                    <div>${item.description}</div>
+                    <div style="margin-top: 4px;">${locationTag}</div>
                 </td>
                 <td style="padding: 12px 0; text-align: right; color: #0f172a; font-weight: 600;">
                     ${formatCurrency(item.amount, item.currency)}
                 </td>
             </tr>
-        `).join('');
+        `}).join('');
     };
 
     const renderTotal = (items: MaturityItem[]) => {
@@ -157,7 +164,9 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                             <td style="padding-bottom: 8px; color: #64748b; font-size: 12px;">Próximo Ajuste</td>
                             <td style="padding-bottom: 8px; color: #0f172a; font-weight: 500; text-align: right;">
                                 ${format(rentalEvents.nextAdjustment.date, 'dd/MM/yyyy')} 
-                                <span style="display:block; color: #64748b; font-size: 11px;">${rentalEvents.nextAdjustment.property}</span>
+                                <span style="display:block; color: #64748b; font-size: 11px;">
+                                    ${rentalEvents.nextAdjustment.property} (${rentalEvents.nextAdjustment.monthsTo} meses)
+                                </span>
                             </td>
                         </tr>
                         ` : ''}
@@ -167,7 +176,9 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                             <td style="padding-bottom: 0px; color: #64748b; font-size: 12px;">Vencimiento Contrato</td>
                             <td style="padding-bottom: 0px; color: #0f172a; font-weight: 500; text-align: right;">
                                 ${format(rentalEvents.nextExpiration.date, 'dd/MM/yyyy')}
-                                <span style="display:block; color: #64748b; font-size: 11px;">${rentalEvents.nextExpiration.property}</span>
+                                <span style="display:block; color: #64748b; font-size: 11px;">
+                                    ${rentalEvents.nextExpiration.property} (Faltan ${rentalEvents.nextExpiration.monthsTo} meses)
+                                </span>
                             </td>
                         </tr>
                         ` : ''}
@@ -179,7 +190,6 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 </div>
             </div>
             
-            <!-- 4. Next PF Maturity (Optional) -->
             ${nextPFMaturity ? `
             <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
                 <div style="background-color: #f8fafc; padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
