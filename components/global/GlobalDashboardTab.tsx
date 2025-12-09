@@ -164,6 +164,9 @@ export function GlobalDashboardTab() {
                 <div>
                     <h2 className="text-2xl font-bold text-white">Dashboard Consolidado</h2>
                     <p className="text-slate-400">Visión unificada de activos y eventos</p>
+                    <div className="text-xs text-slate-600 mt-1">
+                        Debug: Sections=[{stats.enabledSections?.join(', ')}] Raw="{stats.debug?.raw}"
+                    </div>
                 </div>
                 <button
                     onClick={togglePrivacy}
