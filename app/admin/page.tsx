@@ -190,7 +190,7 @@ function getMonthName(month: number) {
 }
 
 function PriceList({ prices }: { prices: any[] }) {
-    if (!prices || prices.length === 0) return <span className="text-xs text-yellow-500">No se encontraron inversiones con Ticker.</span>;
+    if (!prices || prices.length === 0) return <span className="text-xs text-yellow-500">No se encontraron títulos cargados para obtener el valor.</span>;
 
     return (
         <div className="bg-slate-950 p-4 rounded-md border border-slate-800">

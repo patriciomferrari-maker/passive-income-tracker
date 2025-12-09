@@ -121,56 +121,42 @@ export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
             ticker: { not: '' },
             type: { in: ['ON', 'CEDEAR'] },
             ...(userId ? { userId } : {})
-        }
-    });
-
-    console.log(`[updateONs] Found ${investments.length} investments.`);
-
-    if (investments.length === 0) {
-        // Return debug info to UI to see why it failed
-        return [{ ticker: 'DEBUG', price: 0, currency: 'DBG', error: `Found 0. User: ${userId}`, source: 'IOL' }];
-    }
-
-    for (const inv of investments) {
-        let price = null;
-        let currency = null;
-        let source: 'YAHOO' | 'IOL' = 'IOL';
         let error = '';
 
-        // Force Ticker to end in 'D' for USD Price (User Request)
-        // e.g. RUCDO -> RUCDD
-        let searchTicker = inv.ticker;
-        if (!searchTicker.endsWith('D') && searchTicker.length > 0) {
-            searchTicker = searchTicker.slice(0, -1) + 'D';
-        }
+            // Force Ticker to end in 'D' for USD Price (User Request)
+            // e.g. RUCDO -> RUCDD
+            let searchTicker = inv.ticker;
+            if(!searchTicker.endsWith('D') && searchTicker.length > 0) {
+                searchTicker = searchTicker.slice(0, -1) + 'D';
+}
 
-        // Strategy 1: IOL Scraping (Primary request)
-        const iolData = await fetchIOLPrice(searchTicker);
-        if (iolData) {
-            price = iolData.price;
-            currency = iolData.currency;
-        }
+// Strategy 1: IOL Scraping (Primary request)
+const iolData = await fetchIOLPrice(searchTicker);
+if (iolData) {
+    price = iolData.price;
+    currency = iolData.currency;
+}
 
-        // Strategy 2: Yahoo Finance (Fallback)
-        if (!price) {
-            try {
-                source = 'YAHOO';
-                const quote = await yahooFinance.quote(searchTicker);
-                if (quote && quote.regularMarketPrice) {
-                    price = quote.regularMarketPrice;
-                    currency = quote.currency || inv.currency;
-                }
-            } catch (e) { /* Ignore */ }
+// Strategy 2: Yahoo Finance (Fallback)
+if (!price) {
+    try {
+        source = 'YAHOO';
+        const quote = await yahooFinance.quote(searchTicker);
+        if (quote && quote.regularMarketPrice) {
+            price = quote.regularMarketPrice;
+            currency = quote.currency || inv.currency;
         }
+    } catch (e) { /* Ignore */ }
+}
 
-        if (price) {
-            await savePrice(inv.id, price, currency || 'USD');
-            results.push({ ticker: inv.ticker, price, currency, source });
-        } else {
-            results.push({ ticker: inv.ticker, price: null, currency: null, error: 'Not found via IOL or Yahoo', source });
-        }
+if (price) {
+    await savePrice(inv.id, price, currency || 'USD');
+    results.push({ ticker: inv.ticker, price, currency, source });
+} else {
+    results.push({ ticker: inv.ticker, price: null, currency: null, error: 'Not found via IOL or Yahoo', source });
+}
     }
-    return results;
+return results;
 }
 
 // Helper to save to DB
