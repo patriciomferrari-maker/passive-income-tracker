@@ -51,65 +51,32 @@ export default function AdminPage() {
             <h1 className="text-4xl font-bold mb-8 text-center text-slate-50">Panel de Administración</h1>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-                {/* Prices Card */}
-                <Card className="bg-slate-900 border-slate-800 md:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="text-slate-100 flex items-center justify-between text-lg">
-                            Precios de Inversiones
-                            <Button
-                                onClick={() => runAction('UPDATE_PRICES')}
-                                disabled={!!loading}
-                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8"
-                            >
-                                {loading === 'UPDATE_PRICES' ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
-                                Actualizar Precios
-                            </Button>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-slate-400 text-xs mb-4">
-                            Actualiza los precios de las inversiones configuradas en la base de datos.
-                        </p>
-                        {result?.prices && <PriceList prices={result.prices} />}
-                        {result?.error && (
-                            <div className="bg-red-900/20 p-4 rounded-md border border-red-800 text-red-400 text-sm flex items-center">
-                                <AlertCircle className="w-4 h-4 mr-2" />
-                                {result.error}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
 
-                {/* IPC Card */}
-                <Card className="bg-slate-900 border-slate-800 md:col-span-2 lg:col-span-1">
+
+                {/* ONs Card - PRIMARY FOCUS */}
+                <Card className="bg-slate-900 border-slate-800 md:col-span-2 lg:col-span-3">
                     <CardHeader>
                         <CardTitle className="text-slate-100 flex items-center justify-between text-lg">
-                            Inflación (IPC)
-                            <Button
-                                onClick={() => runAction('UPDATE_IPC')}
+                            Obligaciones Negociables (IOL)
+                            <Button 
+                                onClick={() => runAction('UPDATE_ONS')} 
                                 disabled={!!loading}
-                                className="bg-purple-600 hover:bg-purple-700 text-white text-xs h-8"
+                                className="bg-green-600 hover:bg-green-700 text-white text-xs h-8"
                             >
-                                {loading === 'UPDATE_IPC' ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
-                                Consultar
+                                {loading === 'UPDATE_ONS' ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <RefreshCw className="mr-2 h-3 w-3"/>}
+                                Actualizar ONs (Scraping)
                             </Button>
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p className="text-slate-400 text-xs mb-4">
-                            Fuente: API Datos Argentina (datos.gob.ar).
+                            Obtiene precios de InvertirOnline (usando Ticker sin .BA).
                         </p>
-                        {result?.ipc && (
-                            <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
-                                {result.ipc.error ? (
-                                    <p className="text-red-400 text-sm">{result.ipc.error}</p>
-                                ) : (
-                                    <div>
-                                        <p className="text-slate-400 text-xs">Fecha: <span className="text-slate-200">{new Date(result.ipc.date).toLocaleDateString()}</span></p>
-                                        <p className="text-slate-400 text-xs">Valor: <span className="text-slate-200 font-bold">{result.ipc.value}</span></p>
-                                    </div>
-                                )}
-                            </div>
+                        {result?.prices && loading !== 'UPDATE_ONS' && (
+                            <PriceList prices={result.prices} />
+                        )}
+                        {result?.error && (
+                            <div className="text-red-400 mt-2">{result.error}</div>
                         )}
                     </CardContent>
                 </Card>
