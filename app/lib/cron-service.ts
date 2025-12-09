@@ -1,6 +1,10 @@
 
+
 import { prisma } from '@/lib/prisma';
 import { Resend } from 'resend';
+import { generateMonthlyReportEmail } from '@/app/lib/email-template';
+import { startOfMonth, endOfMonth, isSameMonth } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 // Helper to format currency
 const formatUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -70,10 +74,15 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
     // --- PART 2: MONTHLY REPORTS (Per User) ---
     try {
         const now = new Date();
+        const monthStart = startOfMonth(now);
+        const monthEnd = endOfMonth(now);
+
         const day = now.getDate();
         const hour = now.getUTCHours(); // Use UTC for server consistency
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
+
+        const monthName = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(now);
 
         // Iterate over all users with settings (or specific user)
         // Include appSettings to get reporting preferences
@@ -96,10 +105,11 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                 if (force || (day === reportDay)) {
                     userResult.skipped = false;
 
-                    // Generate User-Specific Snapshot Data
+                    // 1. Bank Data (Liquidity & PFs)
                     const bankOps = await prisma.bankOperation.findMany({ where: { userId: user.id } });
                     const bankTotalUSD = bankOps.filter(op => op.currency === 'USD').reduce((sum, op) => sum + op.amount, 0);
 
+                    // 2. Investment Totals
                     const investments = await prisma.investment.findMany({
                         where: { userId: user.id },
                         include: { transactions: true }
@@ -109,6 +119,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         return sum + Math.abs(invested);
                     }, 0);
 
+                    // 3. Rental Income (Active Contracts)
                     const contracts = await prisma.contract.findMany({
                         where: { property: { userId: user.id } }
                     });
@@ -120,6 +131,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     });
                     const monthlyRentalIncomeUSD = activeContracts.reduce((sum, c) => sum + (c.currency === 'USD' ? c.initialRent : 0), 0);
 
+                    // 4. Debt Totals
                     const debts = await prisma.debt.findMany({
                         where: { userId: user.id },
                         include: { payments: true }
@@ -130,6 +142,67 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     }, 0);
 
                     const totalNetWorthUSD = bankTotalUSD + investmentsTotalUSD + debtTotalPendingUSD;
+
+                    // --- DETAILED MATURITIES FETCHING (NEW) ---
+                    const maturities = [];
+
+                    // A. Investment Cashflows (This Month)
+                    const monthCashflows = await prisma.cashflow.findMany({
+                        where: {
+                            investment: { userId: user.id },
+                            date: { gte: monthStart, lte: monthEnd },
+                            status: 'PROJECTED' // Only show what is coming or due, typically. Or allow PAID if reviewing.
+                        },
+                        include: { investment: true }
+                    });
+
+                    monthCashflows.forEach(cf => {
+                        maturities.push({
+                            date: cf.date,
+                            description: `${cf.investment.name} (${cf.type})`,
+                            amount: cf.amount,
+                            currency: cf.currency,
+                            type: cf.investment.type === 'ON' ? 'ON' : 'TREASURY'
+                        });
+                    });
+
+                    // B. Fixed Term (Plazo Fijo) Maturities (This Month)
+                    const pfs = bankOps.filter(op => op.type === 'PLAZO_FIJO' && op.startDate);
+                    pfs.forEach(pf => {
+                        const start = new Date(pf.startDate!);
+                        const end = new Date(start);
+                        end.setDate(start.getDate() + (pf.durationDays || 30));
+
+                        if (isSameMonth(end, now)) {
+                            // Calc Interest approx
+                            const interest = (pf.amount * (pf.tna || 0) / 100) * ((pf.durationDays || 30) / 365);
+                            maturities.push({
+                                date: end,
+                                description: `${pf.alias || 'Plazo Fijo'} (Vencimiento)`,
+                                amount: pf.amount + interest,
+                                currency: pf.currency,
+                                type: 'PF'
+                            });
+                        }
+                    });
+
+                    // C. Rental Collections (Assume Day 1 to 10 typically, or just list active contracts)
+                    // For now, let's list active rentals as "Collection" for today or Day 10.
+                    activeContracts.forEach(c => {
+                        // Assume collection date is roughly today or standardized.
+                        // Let's use the report date (today) for simplicity or the 5th.
+                        const collectionDate = new Date(now.getFullYear(), now.getMonth(), 5);
+                        // Only show if collection date is future or recent?
+                        maturities.push({
+                            date: collectionDate, // Or today
+                            description: `Alquiler: ${c.tenantName || 'Inquilino'}`,
+                            amount: c.initialRent,
+                            currency: c.currency,
+                            type: 'RENTAL'
+                        });
+                    });
+
+                    // --- END DETAILS ---
 
                     // Save Snapshot (User Specific)
                     await prisma.monthlySummary.upsert({
@@ -147,32 +220,26 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         }
                     });
 
-                    // Send Email
+                    // Send HTML Email
                     if (process.env.RESEND_API_KEY && recipientEmail) {
+                        const htmlContent = generateMonthlyReportEmail({
+                            userName: user.name || 'Usuario',
+                            month: monthName,
+                            year: year.toString(),
+                            totalNetWorth: totalNetWorthUSD,
+                            monthlyIncome: monthlyRentalIncomeUSD,
+                            maturities: maturities as any
+                        });
+
                         const resend = new Resend(process.env.RESEND_API_KEY);
                         await resend.emails.send({
                             from: 'Passive Income Tracker <onboarding@resend.dev>',
                             to: recipientEmail.split(',').map((e: string) => e.trim()),
-                            subject: `Resumen Mensual: ${month}/${year}`,
-                            html: `
-                                <h1>Resumen Mensual - ${month}/${year}</h1>
-                                <p>Hola ${user.name || 'Usuario'}, aquí tienes el estado actual de tus inversiones:</p>
-                                <table style="width: 100%; border-collapse: collapse;">
-                                    <tr style="border-bottom: 1px solid #ddd;">
-                                        <td style="padding: 10px;"><strong>Patrimonio Total</strong></td>
-                                        <td style="padding: 10px; text-align: right; color: #10b981; font-size: 18px;"><strong>${formatUSD(totalNetWorthUSD)}</strong></td>
-                                    </tr>
-                                    <tr><td>Banco / Liquidez</td><td style="text-align: right;">${formatUSD(bankTotalUSD)}</td></tr>
-                                    <tr><td>Inversiones</td><td style="text-align: right;">${formatUSD(investmentsTotalUSD)}</td></tr>
-                                    <tr><td>Deudas a Cobrar</td><td style="text-align: right;">${formatUSD(debtTotalPendingUSD)}</td></tr>
-                                </table>
-                                <br/>
-                                <h3>Renta Estimada</h3>
-                                <p>Alquileres Activos: <strong>${formatUSD(monthlyRentalIncomeUSD)}</strong></p>
-                            `
+                            subject: `Resumen Mensual: ${monthName} ${year}`,
+                            html: htmlContent
                         });
                         userResult.success = true;
-                        userResult.message = `Email sent to ${recipientEmail}`;
+                        userResult.message = `Enhanced Email sent to ${recipientEmail}`;
                     } else {
                         userResult.success = false;
                         userResult.message = 'Missing RESEND_API_KEY or Recipient Email';
