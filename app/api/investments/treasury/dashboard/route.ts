@@ -40,6 +40,8 @@ export async function GET() {
         let interesACobrar = 0;
 
         investments.forEach(inv => {
+            if (inv.transactions.length === 0) return;
+
             inv.cashflows.forEach(cf => {
                 const cfDate = new Date(cf.date);
                 const isPast = cfDate <= today;
