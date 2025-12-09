@@ -77,7 +77,7 @@ export function GlobalDashboardTab() {
 
     const loadStats = async () => {
         try {
-            const res = await fetch('/api/dashboard/global');
+            const res = await fetch('/api/dashboard/global', { cache: 'no-store' });
             const data = await res.json();
             setStats(data);
         } catch (error) {
