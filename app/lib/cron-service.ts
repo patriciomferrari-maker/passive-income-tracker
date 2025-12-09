@@ -1,9 +1,8 @@
 
-
 import { prisma } from '@/lib/prisma';
 import { Resend } from 'resend';
 import { generateMonthlyReportEmail } from '@/app/lib/email-template';
-import { startOfMonth, endOfMonth, isSameMonth } from 'date-fns';
+import { startOfMonth, endOfMonth, isSameMonth, addMonths, isBefore, isAfter, differenceInMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 // Helper to format currency
@@ -19,10 +18,6 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
     };
 
     // --- PART 1: ECONOMICS (Global - Run once) ---
-    // Only run economics if NOT targeting a specific user (global run) OR if forced? 
-    // Actually, usually we want economics to run globally. 
-    // But if testing email for one user, we probably don't care about economics update, but it doesn't hurt.
-    // Let's keep it simple: run it always unless we want to optimize later.
     try {
         // 1. Dolar Blue
         try {
@@ -78,14 +73,12 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
         const monthEnd = endOfMonth(now);
 
         const day = now.getDate();
-        const hour = now.getUTCHours(); // Use UTC for server consistency
+        const hour = now.getUTCHours();
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
 
         const monthName = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(now);
 
-        // Iterate over all users with settings (or specific user)
-        // Include appSettings to get reporting preferences
         const users = await prisma.user.findMany({
             where: targetUserId ? { id: targetUserId } : undefined,
             include: { appSettings: true }
@@ -95,33 +88,48 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
             const userResult = { userId: user.id, email: user.email, success: false, message: '', skipped: true };
 
             try {
-                // Use first settings or defaults
                 const settings = user.appSettings[0];
                 const reportDay = settings?.reportDay ?? 1;
                 const reportHour = settings?.reportHour ?? 10;
                 const recipientEmail = settings?.notificationEmails || user.email;
 
-                // Check schedule
                 if (force || (day === reportDay)) {
                     userResult.skipped = false;
 
-                    // 1. Bank Data (Liquidity & PFs)
+                    // 1. Bank
                     const bankOps = await prisma.bankOperation.findMany({ where: { userId: user.id } });
                     const bankTotalUSD = bankOps.filter(op => op.currency === 'USD').reduce((sum, op) => sum + op.amount, 0);
 
-                    // 2. Investment Totals
+                    // 2. Investments (Split Arg/USA)
                     const investments = await prisma.investment.findMany({
                         where: { userId: user.id },
                         include: { transactions: true }
                     });
-                    const investmentsTotalUSD = investments.reduce((sum, inv) => {
-                        const invested = inv.transactions.reduce((tSum, t) => tSum + t.totalAmount, 0);
-                        return sum + Math.abs(invested);
-                    }, 0);
 
-                    // 3. Rental Income (Active Contracts)
+                    let investmentsTotalUSD = 0;
+                    let totalArg = 0; // ONs
+                    let totalUSA = 0; // Treasuries/Stocks
+
+                    investments.forEach(inv => {
+                        const invested = inv.transactions.reduce((tSum, t) => tSum + t.totalAmount, 0);
+                        const currentValue = Math.abs(invested); // Simplified valuation
+
+                        investmentsTotalUSD += currentValue;
+
+                        if (inv.type === 'ON' || inv.type === 'CEDEAR') {
+                            totalArg += currentValue;
+                        } else if (inv.type === 'TREASURY' || inv.type === 'ETF' || inv.type === 'STOCK') {
+                            totalUSA += currentValue;
+                        } else {
+                            // Fallback
+                            totalArg += currentValue;
+                        }
+                    });
+
+                    // 3. Rentals
                     const contracts = await prisma.contract.findMany({
-                        where: { property: { userId: user.id } }
+                        where: { property: { userId: user.id } },
+                        include: { property: true }
                     });
                     const activeContracts = contracts.filter(c => {
                         const start = new Date(c.startDate);
@@ -131,7 +139,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     });
                     const monthlyRentalIncomeUSD = activeContracts.reduce((sum, c) => sum + (c.currency === 'USD' ? c.initialRent : 0), 0);
 
-                    // 4. Debt Totals
+                    // 4. Debts
                     const debts = await prisma.debt.findMany({
                         where: { userId: user.id },
                         include: { payments: true }
@@ -143,15 +151,72 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
 
                     const totalNetWorthUSD = bankTotalUSD + investmentsTotalUSD + debtTotalPendingUSD;
 
-                    // --- DETAILED MATURITIES FETCHING (NEW) ---
-                    const maturities = [];
+                    // --- KEY DATES (Calculations) ---
 
-                    // A. Investment Cashflows (This Month)
+                    // A. Next Rental Expiration
+                    let nextRentalExpiration: { date: Date; property: string } | null = null;
+                    let minDiffExp = Infinity;
+
+                    // B. Next Rental Adjustment
+                    let nextRentalAdjustment: { date: Date; property: string } | null = null;
+                    let minDiffAdj = Infinity;
+
+                    contracts.forEach(c => {
+                        // Expiration
+                        const expDate = addMonths(new Date(c.startDate), c.durationMonths);
+                        if (isAfter(expDate, now)) {
+                            const diff = expDate.getTime() - now.getTime();
+                            if (diff < minDiffExp) {
+                                minDiffExp = diff;
+                                nextRentalExpiration = { date: expDate, property: c.property.name };
+                            }
+                        }
+
+                        // Adjustment
+                        if (c.adjustmentType !== 'NONE') {
+                            let nextAdjDate = new Date(c.startDate);
+                            while (isBefore(nextAdjDate, now) || nextAdjDate.getTime() === now.getTime()) {
+                                nextAdjDate = addMonths(nextAdjDate, c.adjustmentFrequency);
+                            }
+                            // Only if within reasonable timeframe (e.g. next year)
+                            const diff = nextAdjDate.getTime() - now.getTime();
+                            if (diff < minDiffAdj) {
+                                minDiffAdj = diff;
+                                nextRentalAdjustment = { date: nextAdjDate, property: c.property.name };
+                            }
+                        }
+                    });
+
+                    // C. Next PF Maturity (Global)
+                    let nextPFMaturity: { date: Date; bank: string; amount: number } | null = null;
+                    let minDiffPF = Infinity;
+
+                    const pfs = bankOps.filter(op => op.type === 'PLAZO_FIJO' && op.startDate);
+                    pfs.forEach(pf => {
+                        const start = new Date(pf.startDate!);
+                        const end = new Date(start);
+                        end.setDate(start.getDate() + (pf.durationDays || 30));
+
+                        // IF it is future
+                        if (isAfter(end, now)) {
+                            const diff = end.getTime() - now.getTime();
+                            if (diff < minDiffPF) {
+                                minDiffPF = diff;
+                                const interest = (pf.amount * (pf.tna || 0) / 100) * ((pf.durationDays || 30) / 365);
+                                nextPFMaturity = { date: end, bank: pf.alias || 'Plazo Fijo', amount: pf.amount + interest };
+                            }
+                        }
+                    });
+
+                    // --- DETAILED MATURITIES ---
+                    const maturities: any[] = [];
+
+                    // 1. Current Month Cashflows
                     const monthCashflows = await prisma.cashflow.findMany({
                         where: {
                             investment: { userId: user.id },
                             date: { gte: monthStart, lte: monthEnd },
-                            status: 'PROJECTED' // Only show what is coming or due, typically. Or allow PAID if reviewing.
+                            status: 'PROJECTED'
                         },
                         include: { investment: true }
                     });
@@ -159,26 +224,24 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     monthCashflows.forEach(cf => {
                         maturities.push({
                             date: cf.date,
-                            description: `${cf.investment.name} (${cf.type})`,
+                            description: `${cf.investment.name} (${cf.type === 'INTEREST' ? 'Int' : 'Amort'})`,
                             amount: cf.amount,
                             currency: cf.currency,
                             type: cf.investment.type === 'ON' ? 'ON' : 'TREASURY'
                         });
                     });
 
-                    // B. Fixed Term (Plazo Fijo) Maturities (This Month)
-                    const pfs = bankOps.filter(op => op.type === 'PLAZO_FIJO' && op.startDate);
+                    // 2. Current Month PF Maturities
                     pfs.forEach(pf => {
                         const start = new Date(pf.startDate!);
                         const end = new Date(start);
                         end.setDate(start.getDate() + (pf.durationDays || 30));
 
                         if (isSameMonth(end, now)) {
-                            // Calc Interest approx
                             const interest = (pf.amount * (pf.tna || 0) / 100) * ((pf.durationDays || 30) / 365);
                             maturities.push({
                                 date: end,
-                                description: `${pf.alias || 'Plazo Fijo'} (Vencimiento)`,
+                                description: `PF ${pf.alias}`,
                                 amount: pf.amount + interest,
                                 currency: pf.currency,
                                 type: 'PF'
@@ -186,36 +249,29 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         }
                     });
 
-                    // C. Rental Collections (Assume Day 1 to 10 typically, or just list active contracts)
-                    // For now, let's list active rentals as "Collection" for today or Day 10.
+                    // 3. Monthly Rental
                     activeContracts.forEach(c => {
-                        // Assume collection date is roughly today or standardized.
-                        // Let's use the report date (today) for simplicity or the 5th.
-                        const collectionDate = new Date(now.getFullYear(), now.getMonth(), 5);
-                        // Only show if collection date is future or recent?
-                        maturities.push({
-                            date: collectionDate, // Or today
-                            description: `Alquiler: ${c.tenantName || 'Inquilino'}`,
-                            amount: c.initialRent,
-                            currency: c.currency,
-                            type: 'RENTAL'
-                        });
+                        const collectionDate = new Date(now.getFullYear(), now.getMonth(), 5); // Approx
+                        if (!isBefore(collectionDate, now)) { // Only show if future or "active"
+                            maturities.push({
+                                date: collectionDate, // Or today
+                                description: `Alquiler ${c.property.name || ''}`,
+                                amount: c.initialRent,
+                                currency: c.currency,
+                                type: 'RENTAL'
+                            });
+                        }
                     });
 
-                    // --- END DETAILS ---
-
-                    // Save Snapshot (User Specific)
+                    // Save Snapshot
                     await prisma.monthlySummary.upsert({
-                        where: {
-                            userId_month_year: { userId: user.id, month, year }
-                        },
+                        where: { userId_month_year: { userId: user.id, month, year } },
                         update: {
                             totalNetWorthUSD, totalIncomeUSD: monthlyRentalIncomeUSD,
                             snapshotData: { bank: bankTotalUSD, investments: investmentsTotalUSD, debts: debtTotalPendingUSD, rentalsIncome: monthlyRentalIncomeUSD }
                         },
                         create: {
-                            userId: user.id,
-                            month, year, totalNetWorthUSD, totalIncomeUSD: monthlyRentalIncomeUSD,
+                            userId: user.id, month, year, totalNetWorthUSD, totalIncomeUSD: monthlyRentalIncomeUSD,
                             snapshotData: { bank: bankTotalUSD, investments: investmentsTotalUSD, debts: debtTotalPendingUSD, rentalsIncome: monthlyRentalIncomeUSD }
                         }
                     });
@@ -227,8 +283,13 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             month: monthName,
                             year: year.toString(),
                             totalNetWorth: totalNetWorthUSD,
+                            totalArg: totalArg,
+                            totalUSA: totalUSA,
                             monthlyIncome: monthlyRentalIncomeUSD,
-                            maturities: maturities as any
+                            maturities: maturities,
+                            nextRentalExpiration,
+                            nextRentalAdjustment,
+                            nextPFMaturity
                         });
 
                         const resend = new Resend(process.env.RESEND_API_KEY);
