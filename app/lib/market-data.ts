@@ -123,7 +123,13 @@ export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
             ...(userId ? { userId } : {})
         }
     });
+
     console.log(`[updateONs] Found ${investments.length} investments.`);
+
+    if (investments.length === 0) {
+        // Return debug info to UI to see why it failed
+        return [{ ticker: 'DEBUG', price: 0, currency: 'DBG', error: `Found 0. User: ${userId}`, source: 'IOL' }];
+    }
 
     for (const inv of investments) {
         let price = null;
