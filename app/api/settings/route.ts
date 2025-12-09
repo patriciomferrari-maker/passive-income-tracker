@@ -20,13 +20,12 @@ export async function GET() {
                     reportHour: 10,
                     enabledSections: ""
                 }
-            }
             });
-    }
+        }
         return NextResponse.json(settings);
-} catch (e) {
-    return unauthorized();
-}
+    } catch (e) {
+        return unauthorized();
+    }
 }
 
 export async function PUT(req: Request) {
