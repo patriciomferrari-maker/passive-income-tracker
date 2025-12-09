@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { calculateXIRR } from '@/lib/financial';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
         const userId = await getUserId();
@@ -55,7 +57,10 @@ export async function GET() {
         // Get próximo pago (next payment)
         const allFutureCashflows = investments.flatMap(inv =>
             inv.cashflows
-                .filter(cf => new Date(cf.date) > today)
+                .filter(cf => {
+                    const hasTransactions = inv.transactions.length > 0;
+                    return hasTransactions && new Date(cf.date) > today;
+                })
                 .map(cf => ({
                     date: cf.date,
                     amount: cf.amount,
@@ -103,7 +108,9 @@ export async function GET() {
                 percentage: capitalInvertido > 0 ? (invested / capitalInvertido) * 100 : 0,
                 tir: tir ? tir * 100 : 0
             };
-        }).filter(item => item.invested > 0);
+        });
+        // Removed filter to show 0-invested items in breakdown
+        // .filter(item => item.invested > 0);
 
         // Calculate Consolidated TIR (XIRR)
         const allAmounts: number[] = [];

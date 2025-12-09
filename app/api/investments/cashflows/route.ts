@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
     try {
         const userId = await getUserId();
@@ -14,10 +16,7 @@ export async function GET(request: Request) {
                 status: 'PROJECTED',
                 investment: {
                     userId, // Filter by User
-                    type: type,
-                    transactions: {
-                        some: {}
-                    }
+                    type: type
                 }
             },
             orderBy: { date: 'asc' }

@@ -76,11 +76,10 @@ export function IndividualCashflowTab() {
         try {
             const res = await fetch('/api/investments/treasury');
             const data = await res.json();
-            const treasuriesWithPurchases = data.filter((t: any) => t._count && t._count.transactions > 0);
-            setTreasuries(treasuriesWithPurchases);
+            setTreasuries(data);
 
-            if (treasuriesWithPurchases.length > 0 && !selectedTreasury) {
-                setSelectedTreasury(treasuriesWithPurchases[0].id);
+            if (data.length > 0 && !selectedTreasury) {
+                setSelectedTreasury(data[0].id);
             }
         } catch (error) {
             console.error('Error loading Treasuries:', error);
@@ -235,8 +234,8 @@ export function IndividualCashflowTab() {
                                                 {item.type === 'AMORTIZATION' && <ArrowDownCircle size={16} className="text-blue-400" />}
 
                                                 <span className={`px-2 py-1 rounded text-xs ${item.type === 'BUY' ? 'bg-purple-500/20 text-purple-300' :
-                                                        item.type === 'INTEREST' ? 'bg-green-500/20 text-green-300' :
-                                                            'bg-blue-500/20 text-blue-300'
+                                                    item.type === 'INTEREST' ? 'bg-green-500/20 text-green-300' :
+                                                        'bg-blue-500/20 text-blue-300'
                                                     }`}>
                                                     {item.type === 'BUY' ? 'COMPRA' :
                                                         item.type === 'INTEREST' ? 'INTERÉS' : 'AMORTIZACIÓN'}
@@ -245,7 +244,7 @@ export function IndividualCashflowTab() {
                                             </div>
                                         </td>
                                         <td className={`py-3 px-4 text-right font-mono ${item.amount > 0 ? 'text-green-400' :
-                                                item.amount < 0 ? 'text-red-400' : 'text-white'
+                                            item.amount < 0 ? 'text-red-400' : 'text-white'
                                             }`}>
                                             {formatMoney(item.amount)}
                                         </td>
