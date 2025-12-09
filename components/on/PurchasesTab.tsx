@@ -298,8 +298,8 @@ export function PurchasesTab() {
                                             <td className="py-3 px-4 text-right font-mono text-slate-300">
                                                 {tx.investment.lastPrice ? formatMoney(tx.investment.lastPrice) : '-'}
                                             </td>
-                                            <td className={`py-3 px-4 text-right font-mono font-bold ${(tx.investment.lastPrice ? (tx.quantity * (tx.investment.lastPrice - tx.price) - tx.commission) : 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                {tx.investment.lastPrice ? formatMoney(tx.quantity * (tx.investment.lastPrice - tx.price) - tx.commission) : '-'}
+                                            <td className={`py-3 px-4 text-right font-mono font-bold ${(tx.investment.lastPrice ? (tx.quantity * ((tx.investment.lastPrice / 100) - tx.price) - tx.commission) : 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                {tx.investment.lastPrice ? formatMoney(tx.quantity * ((tx.investment.lastPrice / 100) - tx.price) - tx.commission) : '-'}
                                             </td>
                                             <td className="py-3 px-4 text-right">
                                                 <button
