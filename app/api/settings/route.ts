@@ -17,21 +17,23 @@ export async function GET() {
                     userId,
                     notificationEmails: "",
                     reportDay: 1,
-                    reportHour: 10
+                    reportHour: 10,
+                    enabledSections: ""
                 }
+            }
             });
-        }
-        return NextResponse.json(settings);
-    } catch (e) {
-        return unauthorized();
     }
+        return NextResponse.json(settings);
+} catch (e) {
+    return unauthorized();
+}
 }
 
 export async function PUT(req: Request) {
     try {
         const userId = await getUserId();
         const body = await req.json();
-        const { notificationEmails, reportDay, reportHour } = body;
+        const { notificationEmails, reportDay, reportHour, enabledSections } = body;
 
         // Validation
         if (reportDay < 1 || reportDay > 28) {
@@ -46,13 +48,15 @@ export async function PUT(req: Request) {
             update: {
                 notificationEmails,
                 reportDay,
-                reportHour: reportHour || 10
+                reportHour: reportHour || 10,
+                enabledSections: enabledSections || ''
             },
             create: {
                 userId,
                 notificationEmails,
                 reportDay,
-                reportHour: reportHour || 10
+                reportHour: reportHour || 10,
+                enabledSections: enabledSections || ''
             }
         });
 

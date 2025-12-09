@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Mail, Save, Send, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, Mail, Save, Send, CheckCircle, AlertCircle, ArrowLeft, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
 
 export default function SettingsPage() {
@@ -18,6 +18,7 @@ export default function SettingsPage() {
     const [emails, setEmails] = useState("");
     const [reportDay, setReportDay] = useState("1");
     const [reportHour, setReportHour] = useState("10");
+    const [enabledSections, setEnabledSections] = useState<string[]>([]);
 
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -29,6 +30,7 @@ export default function SettingsPage() {
                     setEmails(data.notificationEmails);
                     setReportDay(data.reportDay.toString());
                     setReportHour((data.reportHour ?? 10).toString());
+                    setEnabledSections(data.enabledSections ? data.enabledSections.split(',') : []);
                 }
             })
             .catch(err => {
@@ -48,7 +50,8 @@ export default function SettingsPage() {
                 body: JSON.stringify({
                     notificationEmails: emails,
                     reportDay: parseInt(reportDay),
-                    reportHour: parseInt(reportHour)
+                    reportHour: parseInt(reportHour),
+                    enabledSections: enabledSections.join(',')
                 })
             });
 
