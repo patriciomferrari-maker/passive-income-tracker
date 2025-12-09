@@ -44,6 +44,7 @@ interface GlobalStats {
         currency: string;
     }[];
     enabledSections: string[];
+    debug?: { userId: string, raw: string | null };
 }
 
 export function GlobalDashboardTab() {

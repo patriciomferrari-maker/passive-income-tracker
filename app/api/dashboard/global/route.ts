@@ -408,7 +408,9 @@ export async function GET() {
             history,
             composition,
             projected,
-            debtDetails
+            debtDetails,
+            enabledSections,
+            debug: { userId, raw: settings?.enabledSections }
         });
 
     } catch (error) {
