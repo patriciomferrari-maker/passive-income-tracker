@@ -166,6 +166,48 @@ export default function SettingsPage() {
                         </p>
                     </div>
 
+                    <div className="pt-6 border-t border-slate-800">
+                        <div className="flex items-center gap-2 mb-4">
+                            <LayoutDashboard className="h-5 w-5 text-blue-400" />
+                            <h3 className="text-lg font-semibold text-white">Secciones Visibles</h3>
+                        </div>
+                        <p className="text-sm text-slate-400 mb-4">
+                            Elige qué tarjetas ver en el Dashboard principal.
+                        </p>
+
+                        <div className="grid grid-cols-1 gap-3">
+                            {[
+                                { id: 'on', label: 'Cartera Argentina (ONs)' },
+                                { id: 'treasury', label: 'Cartera USA (Treasuries)' },
+                                { id: 'rentals', label: 'Alquileres' },
+                                { id: 'debts', label: 'Deudas' },
+                                { id: 'bank', label: 'Banco' }
+                            ].map((section) => (
+                                <div key={section.id} className="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        id={`setting-${section.id}`}
+                                        checked={enabledSections.includes(section.id)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setEnabledSections([...enabledSections, section.id]);
+                                            } else {
+                                                setEnabledSections(enabledSections.filter(id => id !== section.id));
+                                            }
+                                        }}
+                                        className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-green-600 focus:ring-green-600"
+                                    />
+                                    <label
+                                        htmlFor={`setting-${section.id}`}
+                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-300"
+                                    >
+                                        {section.label}
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                     <div className="flex justify-between pt-4 border-t border-slate-800">
                         <Button
                             variant="outline"
