@@ -39,6 +39,17 @@ export async function loadEconomicData() {
         ipcMap.set(key, record.value);
     });
 
+    const tcRecords = await prisma.economicIndicator.findMany({
+        where: { type: 'TC_USD_ARS' },
+        orderBy: { date: 'asc' }
+    });
+
+    const tcMap = new Map<number, number>();
+    tcRecords.forEach(record => {
+        const timestamp = new Date(record.date).getTime();
+        tcMap.set(timestamp, record.value);
+    });
+
     return { ipcMap, tcMap };
 }
 
@@ -70,7 +81,9 @@ function getTCClosingMonth(tcMap: Map<number, number>, date: Date): number {
 export async function generateContractCashflows(contract: ContractData) {
     const { ipcMap, tcMap } = await loadEconomicData();
 
-    const tcBase = getTCForDate(tcMap, new Date(contract.startDate));
+    // UTC Fix: Align tcBase with Month 0 (First Payment Date) to ensure 0% devaluation at start.
+    const startPaymentDate = addMonths(new Date(contract.startDate), 0);
+    const tcBase = getTCForDate(tcMap, startPaymentDate);
 
     const cashflows = [];
     let previousAmountARS: number | null = null;
@@ -124,18 +137,30 @@ export async function generateContractCashflows(contract: ContractData) {
         let inflationAccum: number | null = null;
         if (m > 0) {
             let inflationProduct = 1;
+            let validInflation = true;
             for (let k = 0; k < m; k++) {
                 const monthDate = addMonths(new Date(contract.startDate), k);
-                const monthIPC = getIPCForMonth(ipcMap, monthDate);
+                const key = getMonthKey(monthDate);
+
+                if (!ipcMap.has(key)) {
+                    validInflation = false;
+                    break;
+                }
+
+                const monthIPC = ipcMap.get(key) || 0;
                 inflationProduct *= (1 + monthIPC);
             }
-            inflationAccum = inflationProduct - 1;
+
+            if (validInflation) {
+                inflationAccum = inflationProduct - 1;
+            }
         } else {
             inflationAccum = 0;
         }
 
         let devaluationAccum: number | null = null;
-        if (tcBase > 0 && currentTC > 0) {
+        // Only calculate devaluation if inflation is valid (data exists), ensuring consistent graph cutoff.
+        if (inflationAccum !== null && tcBase > 0 && currentTC > 0) {
             devaluationAccum = (currentTC / tcBase) - 1;
         }
 

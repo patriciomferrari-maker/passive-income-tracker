@@ -10,12 +10,7 @@ export async function GET() {
         const investments = await prisma.investment.findMany({
             where: {
                 userId, // Filter by User
-                type: 'TREASURY',
-                transactions: {
-                    some: {
-                        type: 'BUY'
-                    }
-                }
+                type: 'TREASURY'
             },
             include: {
                 transactions: {

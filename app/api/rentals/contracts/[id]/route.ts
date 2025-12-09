@@ -49,11 +49,24 @@ export async function PUT(
             documentUrl
         } = body;
 
+        const parsedStartDate = new Date(startDate);
+        if (isNaN(parsedStartDate.getTime())) {
+            return NextResponse.json({ error: 'Invalid start date' }, { status: 400 });
+        }
+
+        // Standardize to UTC Noon to avoid localized shifts
+        const safeStartDate = new Date(Date.UTC(
+            parsedStartDate.getUTCFullYear(),
+            parsedStartDate.getUTCMonth(),
+            parsedStartDate.getUTCDate(),
+            12, 0, 0, 0
+        ));
+
         const contract = await prisma.contract.update({
             where: { id },
             data: {
                 tenantName,
-                startDate: new Date(new Date(startDate).setUTCHours(12, 0, 0, 0)),
+                startDate: safeStartDate,
                 durationMonths: parseInt(durationMonths),
                 initialRent: parseFloat(initialRent),
                 currency,
