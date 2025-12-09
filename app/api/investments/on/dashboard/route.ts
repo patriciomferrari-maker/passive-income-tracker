@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { calculateXIRR } from '@/lib/financial';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const userId = await getUserId();
@@ -10,7 +12,7 @@ export async function GET() {
     const investments = await prisma.investment.findMany({
       where: {
         userId,
-        type: 'ON',
+        type: { in: ['ON', 'CORPORATE_BOND'] },
         transactions: {
           some: {
             type: 'BUY'

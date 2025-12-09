@@ -20,7 +20,7 @@ interface Transaction {
     price: number;
     commission: number;
     totalAmount: number;
-    investment: { ticker: string; name: string; lastPrice?: number | null };
+    investment: { ticker: string; name: string; type?: string; lastPrice?: number | null };
 }
 
 export function PurchasesTab() {
@@ -77,6 +77,27 @@ export function PurchasesTab() {
         });
     };
 
+    const loadData = async () => {
+        try {
+            const [onsRes, txRes] = await Promise.all([
+                fetch('/api/investments/on', { cache: 'no-store' }),
+                fetch('/api/investments/transactions?type=ON,CORPORATE_BOND', { cache: 'no-store' })
+            ]);
+
+            const onsData = await onsRes.json();
+            const txData = await txRes.json();
+
+            // No client-side filtering needed anymore
+            setOns(onsData);
+            setTransactions(txData);
+            setSelectedIds([]); // Reset selection on reload
+        } catch (error) {
+            console.error('Error loading data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         loadData();
         const savedPrivacy = localStorage.getItem('privacy_mode');
@@ -104,26 +125,6 @@ export function PurchasesTab() {
     const formatMoney = (amount: number) => {
         if (!showValues) return '****';
         return `$${amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    };
-
-    const loadData = async () => {
-        try {
-            const [onsRes, txRes] = await Promise.all([
-                fetch('/api/investments/on'),
-                fetch('/api/investments/transactions')
-            ]);
-
-            const onsData = await onsRes.json();
-            const txData = await txRes.json();
-
-            setOns(onsData);
-            setTransactions(txData);
-            setSelectedIds([]); // Reset selection on reload
-        } catch (error) {
-            console.error('Error loading data:', error);
-        } finally {
-            setLoading(false);
-        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {

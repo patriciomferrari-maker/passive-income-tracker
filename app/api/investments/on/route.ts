@@ -8,7 +8,10 @@ export async function GET() {
     try {
         const userId = await getUserId();
         const investments = await prisma.investment.findMany({
-            where: { type: 'ON', userId },
+            where: {
+                type: { in: ['ON', 'CORPORATE_BOND'] },
+                userId
+            },
             include: {
                 amortizationSchedules: {
                     orderBy: { paymentDate: 'asc' }

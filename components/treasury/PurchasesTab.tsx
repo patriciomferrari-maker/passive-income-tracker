@@ -96,6 +96,28 @@ export function PurchasesTab() {
         });
     };
 
+    const loadData = async () => {
+        try {
+            // Fetch with specific types: TREASURY and ETF
+            const [treasuriesRes, txRes] = await Promise.all([
+                fetch('/api/investments/treasury', { cache: 'no-store' }),
+                fetch('/api/investments/transactions?type=TREASURY,ETF', { cache: 'no-store' })
+            ]);
+
+            const treasuriesData = await treasuriesRes.json();
+            const txData = await txRes.json();
+
+            // No client-side filtering needed anymore
+            setTreasuries(treasuriesData);
+            setTransactions(txData);
+            setSelectedIds([]); // Reset selection on reload
+        } catch (error) {
+            console.error('Error loading data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         loadData();
         const savedPrivacy = localStorage.getItem('privacy_mode');
@@ -123,29 +145,6 @@ export function PurchasesTab() {
     const formatMoney = (amount: number) => {
         if (!showValues) return '****';
         return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    };
-
-    const loadData = async () => {
-        try {
-            // Note: We deliberately fetch ALL transactions here (no type filter), doing the filtering client-side
-            // This assumes /api/investments/transactions?type=... logic in API is optional and handled properly
-            // We pass NO type query param to get EVERYTHING
-            const [treasuriesRes, txRes] = await Promise.all([
-                fetch('/api/investments/treasury'),
-                fetch('/api/investments/transactions') // Fetch all types (Treasury & ETF)
-            ]);
-
-            const treasuriesData = await treasuriesRes.json();
-            const txData = await txRes.json();
-
-            setTreasuries(treasuriesData);
-            setTransactions(txData);
-            setSelectedIds([]); // Reset selection on reload
-        } catch (error) {
-            console.error('Error loading data:', error);
-        } finally {
-            setLoading(false);
-        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
