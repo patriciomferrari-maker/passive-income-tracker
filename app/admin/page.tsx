@@ -12,7 +12,7 @@ export default function AdminPage() {
 
     const runAction = async (action: 'UPDATE_ONS') => {
         setLoading(action);
-        setResult({ action, loading: true }); // Clear previous result but keep action context
+        // We do NOT clear result here because we want to show 'loading' distinct from 'result'
         try {
             const res = await fetch('/api/admin/market-data', {
                 method: 'POST',
@@ -20,9 +20,10 @@ export default function AdminPage() {
                 body: JSON.stringify({ action })
             });
             const data = await res.json();
-            setResult(data);
+            // Preserve action in the result state so the UI knows which card triggered it
+            setResult({ action, ...data });
         } catch (error) {
-            setResult({ error: 'Failed to fetch' });
+            setResult({ action, error: 'Failed to fetch' });
         } finally {
             setLoading(null);
         }
@@ -34,7 +35,7 @@ export default function AdminPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
                 {/* ONs Card */}
-                <Card className="bg-slate-900 border-slate-800">
+                <Card className="bg-slate-900 border-slate-800 h-fit">
                     <CardHeader>
                         <CardTitle className="text-slate-100 flex items-center justify-between text-lg">
                             <div className="flex items-center gap-2">
@@ -66,16 +67,16 @@ export default function AdminPage() {
                 </Card>
 
                 {/* IPC Card */}
-                <IPCCard loading={loading} setLoading={setLoading} result={result} setResult={setResult} />
+                <IPCCard />
 
                 {/* Dolar Card */}
-                <DollarCard loading={loading} setLoading={setLoading} result={result} setResult={setResult} />
+                <DollarCard />
             </div>
         </div>
     );
 }
 
-function DollarCard({ loading, setLoading, result, setResult }: any) {
+function DollarCard() {
     const [dollarData, setDollarData] = useState<any[]>([]);
 
     useEffect(() => {
@@ -85,52 +86,22 @@ function DollarCard({ loading, setLoading, result, setResult }: any) {
                 if (Array.isArray(data)) setDollarData(data);
             })
             .catch(err => console.error(err));
-    }, [result]);
-
-    const updateDollar = async () => {
-        setLoading('UPDATE_DOLAR');
-        setResult(null);
-        try {
-            const res = await fetch('/api/admin/economic', { method: 'POST' });
-            const data = await res.json();
-            setResult({ action: 'UPDATE_DOLAR', ...data });
-        } catch (error) {
-            setResult({ action: 'UPDATE_DOLAR', error: 'Failed to update' });
-        } finally {
-            setLoading(null);
-        }
-    };
+    }, []);
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-slate-900 border-slate-800 h-fit">
             <CardHeader>
                 <CardTitle className="text-slate-100 flex items-center justify-between text-lg">
                     <div className="flex items-center gap-2">
                         <span>Dólar Blue</span>
                         <span className="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-0.5 rounded">Ambito</span>
                     </div>
-                    <Button
-                        onClick={updateDollar}
-                        disabled={!!loading}
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700"
-                    >
-                        {loading === 'UPDATE_DOLAR' ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
-                        Actualizar
-                    </Button>
                 </CardTitle>
             </CardHeader>
             <CardContent>
                 <p className="text-slate-400 text-xs mb-4">
-                    Cotización histórica y scraping diario (Ambito.com).
+                    Cotización histórica y scraping diario (Automático).
                 </p>
-
-                {result?.action === 'UPDATE_DOLAR' && result?.message && (
-                    <div className="mb-4 p-2 bg-green-500/10 border border-green-500/20 rounded text-green-400 text-xs flex items-center">
-                        <CheckCircle className="w-3 h-3 mr-2" />
-                        {result.message} ({result.count} registros)
-                    </div>
-                )}
 
                 <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
                     <div className="grid grid-cols-3 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
@@ -138,7 +109,7 @@ function DollarCard({ loading, setLoading, result, setResult }: any) {
                         <span className="text-right">Compra</span>
                         <span className="text-right">Venta</span>
                     </div>
-                    <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
+                    <div>
                         {dollarData.length > 0 ? (
                             dollarData.map((item, i) => (
                                 <div key={i} className="grid grid-cols-3 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
@@ -149,7 +120,7 @@ function DollarCard({ loading, setLoading, result, setResult }: any) {
                             ))
                         ) : (
                             <div className="p-4 text-center text-xs text-slate-500">
-                                Sin datos. Pulsa actualizar.
+                                Cargando...
                             </div>
                         )}
                     </div>
@@ -159,7 +130,7 @@ function DollarCard({ loading, setLoading, result, setResult }: any) {
     );
 }
 
-function IPCCard({ loading, setLoading, result, setResult }: any) {
+function IPCCard() {
     const [inflationData, setInflationData] = useState<any[]>([]);
 
     useEffect(() => {
@@ -169,52 +140,22 @@ function IPCCard({ loading, setLoading, result, setResult }: any) {
                 if (Array.isArray(data)) setInflationData(data);
             })
             .catch(err => console.error(err));
-    }, [result]); // Reload when result changes
-
-    const updateIPC = async () => {
-        setLoading('UPDATE_IPC');
-        setResult(null);
-        try {
-            const res = await fetch('/api/admin/inflation', { method: 'POST' });
-            const data = await res.json();
-            setResult({ action: 'UPDATE_IPC', ...data });
-        } catch (error) {
-            setResult({ action: 'UPDATE_IPC', error: 'Failed to update' });
-        } finally {
-            setLoading(null);
-        }
-    };
+    }, []);
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-slate-900 border-slate-800 h-fit">
             <CardHeader>
                 <CardTitle className="text-slate-100 flex items-center justify-between text-lg">
                     <div className="flex items-center gap-2">
                         <span>Inflación (IPC)</span>
                         <span className="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-0.5 rounded">DatosMacro</span>
                     </div>
-                    <Button
-                        onClick={updateIPC}
-                        disabled={!!loading}
-                        size="sm"
-                        className="bg-purple-600 hover:bg-purple-700"
-                    >
-                        {loading === 'UPDATE_IPC' ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
-                        Actualizar
-                    </Button>
                 </CardTitle>
             </CardHeader>
             <CardContent>
                 <p className="text-slate-400 text-xs mb-4">
-                    Scraping de datosmacro.expansion.com (Variación Mensual).
+                    Scraping de datosmacro.expansion.com (Automático).
                 </p>
-
-                {result?.action === 'UPDATE_IPC' && result?.message && (
-                    <div className="mb-4 p-2 bg-green-500/10 border border-green-500/20 rounded text-green-400 text-xs flex items-center">
-                        <CheckCircle className="w-3 h-3 mr-2" />
-                        {result.message} ({result.count} registros)
-                    </div>
-                )}
 
                 <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
                     <div className="grid grid-cols-3 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
@@ -222,7 +163,7 @@ function IPCCard({ loading, setLoading, result, setResult }: any) {
                         <span>Mes</span>
                         <span className="text-right">Valor</span>
                     </div>
-                    <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
+                    <div>
                         {inflationData.length > 0 ? (
                             inflationData.map((item, i) => (
                                 <div key={i} className="grid grid-cols-3 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
@@ -233,7 +174,7 @@ function IPCCard({ loading, setLoading, result, setResult }: any) {
                             ))
                         ) : (
                             <div className="p-4 text-center text-xs text-slate-500">
-                                Sin datos. Pulsa actualizar.
+                                Cargando...
                             </div>
                         )}
                     </div>
