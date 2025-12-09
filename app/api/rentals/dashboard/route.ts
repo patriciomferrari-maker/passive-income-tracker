@@ -30,7 +30,14 @@ export async function GET() {
         });
 
         // Use the last IPC date as the cutoff. If no IPC data, fallback to today.
-        const cutoffDate = lastIPC ? lastIPC.date : new Date();
+        // Use the last IPC date as the cutoff. If no IPC data, fallback to today.
+        // Fix: Use the end of the month of the last IPC date to include all cashflows in that month.
+        let cutoffDate = new Date();
+        if (lastIPC) {
+            const ipcDate = new Date(lastIPC.date);
+            // Set to end of the month (year, month + 1, 0)
+            cutoffDate = new Date(ipcDate.getFullYear(), ipcDate.getMonth() + 1, 0);
+        }
 
         const dashboardData = await Promise.all(activeContracts.map(async (contract) => {
             const cashflows = await prisma.rentalCashflow.findMany({
