@@ -21,7 +21,8 @@ export async function GET(request: Request) {
                     select: {
                         ticker: true,
                         name: true,
-                        type: true
+                        type: true,
+                        lastPrice: true
                     }
                 }
             },

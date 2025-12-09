@@ -20,7 +20,7 @@ interface Transaction {
     price: number;
     commission: number;
     totalAmount: number;
-    investment: { ticker: string; name: string };
+    investment: { ticker: string; name: string; lastPrice?: number | null };
 }
 
 export function PurchasesTab() {
@@ -256,6 +256,8 @@ export function PurchasesTab() {
                                         <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio</th>
                                         <th className="text-right py-3 px-4 text-slate-300 font-medium">Comisión</th>
                                         <th className="text-right py-3 px-4 text-slate-300 font-medium">Total</th>
+                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio Actual</th>
+                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">P&L</th>
                                         <th className="text-right py-3 px-4 text-slate-300 font-medium">Acciones</th>
                                     </tr>
                                 </thead>
@@ -292,6 +294,12 @@ export function PurchasesTab() {
                                             </td>
                                             <td className="py-3 px-4 text-white text-right font-mono font-bold">
                                                 {formatMoney(Math.abs(tx.totalAmount))}
+                                            </td>
+                                            <td className="py-3 px-4 text-right font-mono text-slate-300">
+                                                {tx.investment.lastPrice ? formatMoney(tx.investment.lastPrice) : '-'}
+                                            </td>
+                                            <td className={`py-3 px-4 text-right font-mono font-bold ${(tx.investment.lastPrice ? (tx.quantity * (tx.investment.lastPrice - tx.price) - tx.commission) : 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                {tx.investment.lastPrice ? formatMoney(tx.quantity * (tx.investment.lastPrice - tx.price) - tx.commission) : '-'}
                                             </td>
                                             <td className="py-3 px-4 text-right">
                                                 <button
