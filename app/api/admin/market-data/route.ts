@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { updateAssetPrices, updateIPC } from '@/app/lib/market-data';
+import { updateTreasuries, updateONs, updateIPC } from '@/app/lib/market-data';
 import { auth } from '@/auth';
 
 export async function POST(req: Request) {
@@ -13,8 +13,13 @@ export async function POST(req: Request) {
     try {
         const { action } = await req.json();
 
-        if (action === 'UPDATE_PRICES') {
-            const prices = await updateAssetPrices(session.user.id);
+        if (action === 'UPDATE_TREASURIES') {
+            const prices = await updateTreasuries(session.user.id);
+            return NextResponse.json({ success: true, prices });
+        }
+
+        if (action === 'UPDATE_ONS') {
+            const prices = await updateONs(session.user.id);
             return NextResponse.json({ success: true, prices });
         }
 
