@@ -32,7 +32,7 @@ export default function AdminPage() {
         <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
             <h1 className="text-4xl font-bold mb-8 text-center text-slate-50">Panel de Administración</h1>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
                 {/* ONs Card */}
                 <Card className="bg-slate-900 border-slate-800">
                     <CardHeader>
@@ -67,8 +67,95 @@ export default function AdminPage() {
 
                 {/* IPC Card */}
                 <IPCCard loading={loading} setLoading={setLoading} result={result} setResult={setResult} />
+
+                {/* Dolar Card */}
+                <DollarCard loading={loading} setLoading={setLoading} result={result} setResult={setResult} />
             </div>
         </div>
+    );
+}
+
+function DollarCard({ loading, setLoading, result, setResult }: any) {
+    const [dollarData, setDollarData] = useState<any[]>([]);
+
+    useEffect(() => {
+        fetch('/api/admin/economic')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) setDollarData(data);
+            })
+            .catch(err => console.error(err));
+    }, [result]);
+
+    const updateDollar = async () => {
+        setLoading('UPDATE_DOLAR');
+        setResult(null);
+        try {
+            const res = await fetch('/api/admin/economic', { method: 'POST' });
+            const data = await res.json();
+            setResult({ action: 'UPDATE_DOLAR', ...data });
+        } catch (error) {
+            setResult({ action: 'UPDATE_DOLAR', error: 'Failed to update' });
+        } finally {
+            setLoading(null);
+        }
+    };
+
+    return (
+        <Card className="bg-slate-900 border-slate-800">
+            <CardHeader>
+                <CardTitle className="text-slate-100 flex items-center justify-between text-lg">
+                    <div className="flex items-center gap-2">
+                        <span>Dólar Blue</span>
+                        <span className="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-0.5 rounded">Ambito</span>
+                    </div>
+                    <Button
+                        onClick={updateDollar}
+                        disabled={!!loading}
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                    >
+                        {loading === 'UPDATE_DOLAR' ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
+                        Actualizar
+                    </Button>
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-slate-400 text-xs mb-4">
+                    Cotización histórica y scraping diario (Ambito.com).
+                </p>
+
+                {result?.action === 'UPDATE_DOLAR' && result?.message && (
+                    <div className="mb-4 p-2 bg-green-500/10 border border-green-500/20 rounded text-green-400 text-xs flex items-center">
+                        <CheckCircle className="w-3 h-3 mr-2" />
+                        {result.message} ({result.count} registros)
+                    </div>
+                )}
+
+                <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
+                    <div className="grid grid-cols-3 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
+                        <span>Fecha</span>
+                        <span className="text-right">Compra</span>
+                        <span className="text-right">Venta</span>
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
+                        {dollarData.length > 0 ? (
+                            dollarData.map((item, i) => (
+                                <div key={i} className="grid grid-cols-3 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
+                                    <span className="text-slate-300">{new Date(item.date).toLocaleDateString('es-AR')}</span>
+                                    <span className="text-right text-slate-400">${item.buyRate}</span>
+                                    <span className="text-right font-bold text-green-400">${item.sellRate}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="p-4 text-center text-xs text-slate-500">
+                                Sin datos. Pulsa actualizar.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 

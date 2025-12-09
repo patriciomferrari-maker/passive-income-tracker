@@ -3,6 +3,10 @@
         {
             "path": "/api/cron/daily-maintenance",
             "schedule": "0 10 * * *"
+        },
+        {
+            "path": "/api/cron/economic",
+            "schedule": "0 13 * * *"
         }
     ]
 }
