@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+import { runDailyMaintenance } from '@/app/lib/cron-service';
 
 export async function POST() {
     try {
@@ -8,7 +9,6 @@ export async function POST() {
             userId = await getUserId();
         } catch (e: any) {
             console.error('Test Email Auth Check Failed:', e);
-            // Return detailed 401 for debugging
             return NextResponse.json({
                 error: 'Unauthorized',
                 debug: 'Session check failed',
@@ -16,27 +16,14 @@ export async function POST() {
             }, { status: 401 });
         }
 
-        const cronSecret = process.env.CRON_SECRET;
-        const appUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+        // DIRECT CALL - Bypassing Vercel HTTP Authentication Wall
+        // Instead of fetching the URL, we run the function directly on the server.
+        const result = await runDailyMaintenance(true, userId);
 
-        // Call the daily maintenance endpoint forcing execution for THIS user only
-        // Pass userId to ensure we only process this user's report
-        const response = await fetch(`${appUrl}/api/cron/daily-maintenance?force=true&userId=${userId}`, {
-            headers: {
-                'Authorization': `Bearer ${cronSecret}`
-            }
-        });
+        return NextResponse.json(result);
 
-        if (!response.ok) {
-            const text = await response.text();
-            return NextResponse.json({ error: 'Cron trigger failed: ' + text }, { status: response.status });
-        }
-
-        const data = await response.json();
-        return NextResponse.json(data);
-
-    } catch (error) {
+    } catch (error: any) {
         console.error('Test Email Proxy Error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Internal Server Error: ' + error.message }, { status: 500 });
     }
 }
