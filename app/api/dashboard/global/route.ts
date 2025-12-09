@@ -44,372 +44,376 @@ function calculateXIRR(values: number[], dates: Date[], guess = 0.1): number {
 export const dynamic = 'force-dynamic';
 export async function GET() {
     try {
-        const userId = await getUserId();
-        const today = new Date();
+        try {
+            const userId = await getUserId();
+            const settings = await prisma.appSettings.findUnique({ where: { userId } });
+            const enabledSections = settings?.enabledSections ? settings.enabledSections.split(',') : [];
 
-        // 0. Latest Valid IPC Date (History Limit)
-        const lastIPC = await prisma.economicIndicator.findFirst({
-            where: { type: 'IPC' },
-            orderBy: { date: 'desc' }
-        });
-        // If no IPC, use today. If IPC exists, usage restricts history to that month.
-        const maxValidDate = lastIPC ? endOfMonth(lastIPC.date) : endOfMonth(today);
+            const today = new Date();
 
-        // History Range: Last 12 months ending at maxValidDate
-        const historyStart = subMonths(startOfMonth(maxValidDate), 11);
-        const historyEnd = maxValidDate;
+            // 0. Latest Valid IPC Date (History Limit)
+            const lastIPC = await prisma.economicIndicator.findFirst({
+                where: { type: 'IPC' },
+                orderBy: { date: 'desc' }
+            });
+            // If no IPC, use today. If IPC exists, usage restricts history to that month.
+            const maxValidDate = lastIPC ? endOfMonth(lastIPC.date) : endOfMonth(today);
 
-        // Projection Start: Month strictly after maxValidDate
-        // Example: If IPC is Oct, History ends Oct. Projection starts Nov.
-        const projectionStart = startOfMonth(addMonths(maxValidDate, 1));
-        const projectionEnd = endOfMonth(addMonths(projectionStart, 11)); // 12 months projection
+            // History Range: Last 12 months ending at maxValidDate
+            const historyStart = subMonths(startOfMonth(maxValidDate), 11);
+            const historyEnd = maxValidDate;
 
-        // 1. Fetch History Cashflows (Interest Only, No Debt)
-        const historyCashflows = await prisma.cashflow.findMany({
-            where: {
-                investment: { userId },
-                date: { gte: historyStart, lte: historyEnd },
-                type: 'INTEREST',
-            },
-            include: { investment: { select: { type: true } } }
-        });
+            // Projection Start: Month strictly after maxValidDate
+            // Example: If IPC is Oct, History ends Oct. Projection starts Nov.
+            const projectionStart = startOfMonth(addMonths(maxValidDate, 1));
+            const projectionEnd = endOfMonth(addMonths(projectionStart, 11)); // 12 months projection
 
-        // 2. Fetch Rental Income (History)
-        const rentalCashflows = await prisma.rentalCashflow.findMany({
-            where: {
-                contract: { property: { userId } },
-                date: { gte: historyStart, lte: historyEnd }
-            },
-            select: { date: true, amountUSD: true }
-        });
+            // 1. Fetch History Cashflows (Interest Only, No Debt)
+            const historyCashflows = await prisma.cashflow.findMany({
+                where: {
+                    investment: { userId },
+                    date: { gte: historyStart, lte: historyEnd },
+                    type: 'INTEREST',
+                },
+                include: { investment: { select: { type: true } } }
+            });
 
-        // --- NEW METRICS CALCULATIONS (V3.2) ---
+            // 2. Fetch Rental Income (History)
+            const rentalCashflows = await prisma.rentalCashflow.findMany({
+                where: {
+                    contract: { property: { userId } },
+                    date: { gte: historyStart, lte: historyEnd }
+                },
+                select: { date: true, amountUSD: true }
+            });
 
-        // A. Total Investment & TIR Data
-        const investments = await prisma.investment.findMany({
-            where: {
-                userId,
-                OR: [{ type: 'ON' }, { type: 'TREASURY' }]
-            },
-            include: {
-                transactions: true,
-                cashflows: {
-                    where: { date: { lte: today } } // Include ALL past flows (Projected/Paid)
-                }
-            }
-        });
+            // --- NEW METRICS CALCULATIONS (V3.2) ---
 
-        let totalInvestedON = 0;
-        let totalInvestedTreasury = 0;
-        let xirrValues: number[] = [];
-        let xirrDates: Date[] = [];
-
-        investments.forEach(inv => {
-            let units = 0;
-            let lastPrice = 0; // Fallback for market value
-
-            // Process Transactions
-            inv.transactions.sort((a, b) => a.date.getTime() - b.date.getTime()).forEach(tx => {
-                const qty = Math.abs(tx.quantity);
-                const price = Math.abs(tx.price);
-
-                if (tx.type === 'BUY') {
-                    units += qty;
-                    lastPrice = price; // Update last known price
-                    xirrValues.push(-Math.abs(tx.totalAmount)); // Outflow
-                    xirrDates.push(tx.date);
-                } else if (tx.type === 'SELL') {
-                    units -= qty;
-                    xirrValues.push(Math.abs(tx.totalAmount)); // Inflow
-                    xirrDates.push(tx.date);
+            // A. Total Investment & TIR Data
+            const investments = await prisma.investment.findMany({
+                where: {
+                    userId,
+                    OR: [{ type: 'ON' }, { type: 'TREASURY' }]
+                },
+                include: {
+                    transactions: true,
+                    cashflows: {
+                        where: { date: { lte: today } } // Include ALL past flows (Projected/Paid)
+                    }
                 }
             });
 
-            // Process Flows
-            inv.cashflows.forEach(cf => {
-                xirrValues.push(cf.amount);
-                xirrDates.push(cf.date);
+            let totalInvestedON = 0;
+            let totalInvestedTreasury = 0;
+            let xirrValues: number[] = [];
+            let xirrDates: Date[] = [];
+
+            investments.forEach(inv => {
+                let units = 0;
+                let lastPrice = 0; // Fallback for market value
+
+                // Process Transactions
+                inv.transactions.sort((a, b) => a.date.getTime() - b.date.getTime()).forEach(tx => {
+                    const qty = Math.abs(tx.quantity);
+                    const price = Math.abs(tx.price);
+
+                    if (tx.type === 'BUY') {
+                        units += qty;
+                        lastPrice = price; // Update last known price
+                        xirrValues.push(-Math.abs(tx.totalAmount)); // Outflow
+                        xirrDates.push(tx.date);
+                    } else if (tx.type === 'SELL') {
+                        units -= qty;
+                        xirrValues.push(Math.abs(tx.totalAmount)); // Inflow
+                        xirrDates.push(tx.date);
+                    }
+                });
+
+                // Process Flows
+                inv.cashflows.forEach(cf => {
+                    xirrValues.push(cf.amount);
+                    xirrDates.push(cf.date);
+                });
+
+                // Calculate Terminal Value (Current Value)
+                // Units * Last Known Price
+                const currentValue = Math.max(0, units * lastPrice);
+
+                // Add to Stats
+                if (inv.type === 'ON') totalInvestedON += currentValue;
+                else if (inv.type === 'TREASURY') totalInvestedTreasury += currentValue;
+
+                // Add Terminal Value to XIRR (as if we sold everything today)
+                // This is crucial: it represents the "unrealized" return
+                if (currentValue > 0) {
+                    xirrValues.push(currentValue);
+                    xirrDates.push(today);
+                }
             });
 
-            // Calculate Terminal Value (Current Value)
-            // Units * Last Known Price
-            const currentValue = Math.max(0, units * lastPrice);
+            const totalInvested = totalInvestedON + totalInvestedTreasury;
 
-            // Add to Stats
-            if (inv.type === 'ON') totalInvestedON += currentValue;
-            else if (inv.type === 'TREASURY') totalInvestedTreasury += currentValue;
+            // Calculate TIR
+            let tir = 0;
+            if (xirrValues.length > 0) {
+                try {
+                    const combined = xirrValues.map((v, i) => ({ v, d: xirrDates[i] }));
+                    combined.sort((a, b) => a.d.getTime() - b.d.getTime());
 
-            // Add Terminal Value to XIRR (as if we sold everything today)
-            // This is crucial: it represents the "unrealized" return
-            if (currentValue > 0) {
-                xirrValues.push(currentValue);
-                xirrDates.push(today);
-            }
-        });
+                    const hasNeg = combined.some(c => c.v < 0);
+                    const hasPos = combined.some(c => c.v > 0);
 
-        const totalInvested = totalInvestedON + totalInvestedTreasury;
-
-        // Calculate TIR
-        let tir = 0;
-        if (xirrValues.length > 0) {
-            try {
-                const combined = xirrValues.map((v, i) => ({ v, d: xirrDates[i] }));
-                combined.sort((a, b) => a.d.getTime() - b.d.getTime());
-
-                const hasNeg = combined.some(c => c.v < 0);
-                const hasPos = combined.some(c => c.v > 0);
-
-                if (hasNeg && hasPos) {
-                    tir = calculateXIRR(combined.map(c => c.v), combined.map(c => c.d));
-                }
-            } catch (e) {
-                console.error("Error calculating XIRR:", e);
-                tir = 0;
-            }
-        }
-
-        // B. Next Events
-        const nextInterestON = await prisma.cashflow.findFirst({
-            where: { investment: { userId, type: 'ON' }, date: { gt: today }, type: 'INTEREST' },
-            orderBy: { date: 'asc' },
-            include: { investment: { select: { name: true } } }
-        });
-
-        const nextInterestTreasury = await prisma.cashflow.findFirst({
-            where: { investment: { userId, type: 'TREASURY' }, date: { gt: today }, type: 'INTEREST' },
-            orderBy: { date: 'asc' },
-            include: { investment: { select: { name: true } } }
-        });
-
-        const contracts = await prisma.contract.findMany({
-            where: { property: { userId } },
-            select: { startDate: true, adjustmentFrequency: true, durationMonths: true, property: { select: { name: true } }, adjustmentType: true }
-        });
-
-        let nextRentalAdjustment: { date: string; property: string; monthsTo: number } | null = null;
-        let nextContractExpiration: { date: string; property: string; monthsTo: number } | null = null;
-        let minDiffAdj = Infinity;
-        let minDiffExp = Infinity;
-
-        contracts.forEach(c => {
-            if (c.adjustmentType !== 'NONE') {
-                let nextAdjDate = new Date(c.startDate);
-                while (isBefore(nextAdjDate, today) || nextAdjDate.getTime() === today.getTime()) {
-                    nextAdjDate = addMonths(nextAdjDate, c.adjustmentFrequency);
-                }
-                const diffAdj = nextAdjDate.getTime() - today.getTime();
-                if (diffAdj < minDiffAdj) {
-                    minDiffAdj = diffAdj;
-                    nextRentalAdjustment = { date: nextAdjDate.toISOString(), property: c.property.name, monthsTo: differenceInMonths(nextAdjDate, today) };
+                    if (hasNeg && hasPos) {
+                        tir = calculateXIRR(combined.map(c => c.v), combined.map(c => c.d));
+                    }
+                } catch (e) {
+                    console.error("Error calculating XIRR:", e);
+                    tir = 0;
                 }
             }
-            const expDate = addMonths(new Date(c.startDate), c.durationMonths);
-            if (isAfter(expDate, today)) {
-                const diffExp = expDate.getTime() - today.getTime();
-                if (diffExp < minDiffExp) {
-                    minDiffExp = diffExp;
-                    nextContractExpiration = { date: expDate.toISOString(), property: c.property.name, monthsTo: differenceInMonths(expDate, today) };
-                }
-            }
-        });
 
-        // C. Debt Details
-        const debts = await prisma.debt.findMany({
-            where: { userId },
-            include: { payments: true }
-        });
-        let totalDebtPending = 0;
-        const debtDetails = debts.map(d => {
-            let total = d.initialAmount;
-            let paid = 0;
-            d.payments.forEach(p => { if (p.type === 'INCREASE') total += p.amount; else if (p.type === 'PAYMENT') paid += p.amount; });
-            const pending = Math.max(0, total - paid);
-            if (pending > 1) totalDebtPending += pending;
-            return { name: d.debtorName, paid, pending, total, currency: d.currency };
-        }).filter(d => d.pending > 1);
-
-        // D. Bank Data (NEW)
-        const bankOperations = await prisma.bankOperation.findMany({
-            where: { userId }
-        });
-
-        // 1. Total Bank USD
-        const totalBankUSD = bankOperations
-            .filter(op => op.currency === 'USD')
-            .reduce((sum, op) => sum + op.amount, 0);
-
-        // 2. Next Maturity PF
-        const pfs = bankOperations.filter(op => op.type === 'PLAZO_FIJO' && op.startDate);
-
-        // Helper: Calculate Interest
-        const getInterest = (amount: number, tna: number, days: number) => {
-            return amount * (tna / 100) * (days / 365);
-        };
-
-        const upcomingPFs = pfs.map(pf => {
-            const duration = pf.durationDays || 30; // Default to 30 if missing
-            const start = new Date(pf.startDate!);
-            const end = new Date(start);
-            end.setDate(start.getDate() + duration);
-            // Reset time to ensure correct day diff
-            const nowDay = startOfDay(today);
-            const endDay = startOfDay(end);
-            const daysLeft = differenceInDays(endDay, nowDay);
-
-            const interest = getInterest(pf.amount, pf.tna || 0, duration);
-
-            return { ...pf, endDate: end, daysLeft, interest };
-        }).filter(pf => pf.daysLeft >= -1).sort((a, b) => a.daysLeft - b.daysLeft);
-
-        const nextMaturitiesPF = upcomingPFs.slice(0, 3).map(pf => ({
-            daysLeft: pf.daysLeft,
-            date: pf.endDate.toISOString(),
-            amount: pf.amount + pf.interest, // Total (Capital + Interest)
-            alias: pf.alias
-        }));
-
-        // --- E. INTEGRATE PF INTEREST INTO CHARTS ---
-        // We consider PF Interest as "Income" when it matures (endDate).
-
-        // 1. Map all PFs (past and future)
-        const allPFMaturities = pfs.map(pf => {
-            const start = new Date(pf.startDate!);
-            const end = new Date(start);
-            end.setDate(start.getDate() + (pf.durationDays || 0));
-            const interest = getInterest(pf.amount, pf.tna || 0, pf.durationDays || 0);
-            return { date: end, interest };
-        });
-
-        // --- HISTORY CHART DATA (Strictly bounded by IPC) ---
-        const monthlyData = new Map<string, { ON: number; Treasury: number; Rentals: number; Bank: number }>();
-        // Fill Map from historyStart to historyEnd
-        let iterDate = startOfMonth(historyStart);
-        while (isBefore(iterDate, historyEnd) || iterDate.getTime() === startOfMonth(historyEnd).getTime()) {
-            const key = format(iterDate, 'yyyy-MM');
-            monthlyData.set(key, { ON: 0, Treasury: 0, Rentals: 0, Bank: 0 });
-            iterDate = addMonths(iterDate, 1);
-        }
-
-        historyCashflows.forEach(cf => {
-            const key = format(cf.date, 'yyyy-MM');
-            if (monthlyData.has(key)) {
-                const amount = cf.amount;
-                const type = cf.investment.type === 'ON' ? 'ON' : 'Treasury';
-                monthlyData.get(key)![type] += amount;
-            }
-        });
-
-        rentalCashflows.forEach(cf => {
-            const key = format(cf.date, 'yyyy-MM');
-            if (monthlyData.has(key)) {
-                monthlyData.get(key)!.Rentals += (cf.amountUSD || 0);
-            }
-        });
-
-        // Integrate PF Interest into History
-        allPFMaturities.forEach(pf => {
-            const key = format(pf.date, 'yyyy-MM');
-            if (monthlyData.has(key)) {
-                monthlyData.get(key)!.Bank += pf.interest;
-            }
-        });
-
-        const history = Array.from(monthlyData.entries())
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([key, values]) => {
-                const [year, month] = key.split('-');
-                return {
-                    month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
-                    fullDate: key,
-                    total: values.ON + values.Treasury + values.Rentals + values.Bank,
-                    ...values
-                };
+            // B. Next Events
+            const nextInterestON = await prisma.cashflow.findFirst({
+                where: { investment: { userId, type: 'ON' }, date: { gt: today }, type: 'INTEREST' },
+                orderBy: { date: 'asc' },
+                include: { investment: { select: { name: true } } }
             });
 
-        // Composition (Last valid month)
-        let composition: any[] = [];
-        let totalMonthlyIncome = 0;
-        if (history.length > 0) {
-            const lastMonth = history[history.length - 1];
-            totalMonthlyIncome = lastMonth.total;
-            composition = [
-                { name: 'Obligaciones Negociables', value: lastMonth.ON, fill: '#3b82f6' },
-                { name: 'Treasuries', value: lastMonth.Treasury, fill: '#8b5cf6' },
-                { name: 'Alquileres', value: lastMonth.Rentals, fill: '#10b981' },
-                { name: 'Intereses Banco', value: lastMonth.Bank, fill: '#f59e0b' }
-            ].filter(item => item.value > 0);
-        }
-
-        // --- PROJECTION CART DATA (Gapless) ---
-        const projectedCashflows = await prisma.cashflow.findMany({
-            where: {
-                investment: { userId },
-                date: { gte: projectionStart, lte: projectionEnd }
-            },
-            include: { investment: { select: { type: true } } }
-        });
-
-        const projectedMap = new Map<string, { Interest: number; Capital: number; BankInterest: number }>();
-        // Initialize projection months
-        iterDate = startOfMonth(projectionStart);
-        while (isBefore(iterDate, projectionEnd) || iterDate.getTime() === startOfMonth(projectionEnd).getTime()) {
-            const key = format(iterDate, 'yyyy-MM');
-            projectedMap.set(key, { Interest: 0, Capital: 0, BankInterest: 0 });
-            iterDate = addMonths(iterDate, 1);
-        }
-
-        projectedCashflows.forEach(cf => {
-            const key = format(cf.date, 'yyyy-MM');
-            if (projectedMap.has(key)) {
-                if (cf.type === 'AMORTIZATION') {
-                    projectedMap.get(key)!.Capital += cf.amount;
-                } else {
-                    projectedMap.get(key)!.Interest += cf.amount;
-                }
-            }
-        });
-
-        // Integrate PF Interest into Projection
-        allPFMaturities.forEach(pf => {
-            const key = format(pf.date, 'yyyy-MM');
-            if (projectedMap.has(key)) {
-                projectedMap.get(key)!.BankInterest += pf.interest;
-            }
-        });
-
-        const projected = Array.from(projectedMap.entries())
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([key, values]) => {
-                const [year, month] = key.split('-');
-                return {
-                    month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
-                    total: values.Interest + values.Capital + values.BankInterest,
-                    ...values
-                };
+            const nextInterestTreasury = await prisma.cashflow.findFirst({
+                where: { investment: { userId, type: 'TREASURY' }, date: { gt: today }, type: 'INTEREST' },
+                orderBy: { date: 'asc' },
+                include: { investment: { select: { name: true } } }
             });
 
+            const contracts = await prisma.contract.findMany({
+                where: { property: { userId } },
+                select: { startDate: true, adjustmentFrequency: true, durationMonths: true, property: { select: { name: true } }, adjustmentType: true }
+            });
 
-        return NextResponse.json({
-            summary: {
-                totalInvested,
-                totalDebtPending,
-                tir,
-                nextInterestON: nextInterestON ? { date: nextInterestON.date, amount: nextInterestON.amount, name: nextInterestON.investment.name } : null,
-                nextInterestTreasury: nextInterestTreasury ? { date: nextInterestTreasury.date, amount: nextInterestTreasury.amount, name: nextInterestTreasury.investment.name } : null,
-                nextRentalAdjustment,
-                nextContractExpiration,
-                totalMonthlyIncome,
-                totalBankUSD,
-                nextMaturitiesPF
-            },
-            history,
-            composition,
-            projected,
-            debtDetails
-        });
+            let nextRentalAdjustment: { date: string; property: string; monthsTo: number } | null = null;
+            let nextContractExpiration: { date: string; property: string; monthsTo: number } | null = null;
+            let minDiffAdj = Infinity;
+            let minDiffExp = Infinity;
 
-    } catch (error) {
-        console.error('Error fetching global dashboard data:', error);
-        return unauthorized();
+            contracts.forEach(c => {
+                if (c.adjustmentType !== 'NONE') {
+                    let nextAdjDate = new Date(c.startDate);
+                    while (isBefore(nextAdjDate, today) || nextAdjDate.getTime() === today.getTime()) {
+                        nextAdjDate = addMonths(nextAdjDate, c.adjustmentFrequency);
+                    }
+                    const diffAdj = nextAdjDate.getTime() - today.getTime();
+                    if (diffAdj < minDiffAdj) {
+                        minDiffAdj = diffAdj;
+                        nextRentalAdjustment = { date: nextAdjDate.toISOString(), property: c.property.name, monthsTo: differenceInMonths(nextAdjDate, today) };
+                    }
+                }
+                const expDate = addMonths(new Date(c.startDate), c.durationMonths);
+                if (isAfter(expDate, today)) {
+                    const diffExp = expDate.getTime() - today.getTime();
+                    if (diffExp < minDiffExp) {
+                        minDiffExp = diffExp;
+                        nextContractExpiration = { date: expDate.toISOString(), property: c.property.name, monthsTo: differenceInMonths(expDate, today) };
+                    }
+                }
+            });
+
+            // C. Debt Details
+            const debts = await prisma.debt.findMany({
+                where: { userId },
+                include: { payments: true }
+            });
+            let totalDebtPending = 0;
+            const debtDetails = debts.map(d => {
+                let total = d.initialAmount;
+                let paid = 0;
+                d.payments.forEach(p => { if (p.type === 'INCREASE') total += p.amount; else if (p.type === 'PAYMENT') paid += p.amount; });
+                const pending = Math.max(0, total - paid);
+                if (pending > 1) totalDebtPending += pending;
+                return { name: d.debtorName, paid, pending, total, currency: d.currency };
+            }).filter(d => d.pending > 1);
+
+            // D. Bank Data (NEW)
+            const bankOperations = await prisma.bankOperation.findMany({
+                where: { userId }
+            });
+
+            // 1. Total Bank USD
+            const totalBankUSD = bankOperations
+                .filter(op => op.currency === 'USD')
+                .reduce((sum, op) => sum + op.amount, 0);
+
+            // 2. Next Maturity PF
+            const pfs = bankOperations.filter(op => op.type === 'PLAZO_FIJO' && op.startDate);
+
+            // Helper: Calculate Interest
+            const getInterest = (amount: number, tna: number, days: number) => {
+                return amount * (tna / 100) * (days / 365);
+            };
+
+            const upcomingPFs = pfs.map(pf => {
+                const duration = pf.durationDays || 30; // Default to 30 if missing
+                const start = new Date(pf.startDate!);
+                const end = new Date(start);
+                end.setDate(start.getDate() + duration);
+                // Reset time to ensure correct day diff
+                const nowDay = startOfDay(today);
+                const endDay = startOfDay(end);
+                const daysLeft = differenceInDays(endDay, nowDay);
+
+                const interest = getInterest(pf.amount, pf.tna || 0, duration);
+
+                return { ...pf, endDate: end, daysLeft, interest };
+            }).filter(pf => pf.daysLeft >= -1).sort((a, b) => a.daysLeft - b.daysLeft);
+
+            const nextMaturitiesPF = upcomingPFs.slice(0, 3).map(pf => ({
+                daysLeft: pf.daysLeft,
+                date: pf.endDate.toISOString(),
+                amount: pf.amount + pf.interest, // Total (Capital + Interest)
+                alias: pf.alias
+            }));
+
+            // --- E. INTEGRATE PF INTEREST INTO CHARTS ---
+            // We consider PF Interest as "Income" when it matures (endDate).
+
+            // 1. Map all PFs (past and future)
+            const allPFMaturities = pfs.map(pf => {
+                const start = new Date(pf.startDate!);
+                const end = new Date(start);
+                end.setDate(start.getDate() + (pf.durationDays || 0));
+                const interest = getInterest(pf.amount, pf.tna || 0, pf.durationDays || 0);
+                return { date: end, interest };
+            });
+
+            // --- HISTORY CHART DATA (Strictly bounded by IPC) ---
+            const monthlyData = new Map<string, { ON: number; Treasury: number; Rentals: number; Bank: number }>();
+            // Fill Map from historyStart to historyEnd
+            let iterDate = startOfMonth(historyStart);
+            while (isBefore(iterDate, historyEnd) || iterDate.getTime() === startOfMonth(historyEnd).getTime()) {
+                const key = format(iterDate, 'yyyy-MM');
+                monthlyData.set(key, { ON: 0, Treasury: 0, Rentals: 0, Bank: 0 });
+                iterDate = addMonths(iterDate, 1);
+            }
+
+            historyCashflows.forEach(cf => {
+                const key = format(cf.date, 'yyyy-MM');
+                if (monthlyData.has(key)) {
+                    const amount = cf.amount;
+                    const type = cf.investment.type === 'ON' ? 'ON' : 'Treasury';
+                    monthlyData.get(key)![type] += amount;
+                }
+            });
+
+            rentalCashflows.forEach(cf => {
+                const key = format(cf.date, 'yyyy-MM');
+                if (monthlyData.has(key)) {
+                    monthlyData.get(key)!.Rentals += (cf.amountUSD || 0);
+                }
+            });
+
+            // Integrate PF Interest into History
+            allPFMaturities.forEach(pf => {
+                const key = format(pf.date, 'yyyy-MM');
+                if (monthlyData.has(key)) {
+                    monthlyData.get(key)!.Bank += pf.interest;
+                }
+            });
+
+            const history = Array.from(monthlyData.entries())
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([key, values]) => {
+                    const [year, month] = key.split('-');
+                    return {
+                        month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
+                        fullDate: key,
+                        total: values.ON + values.Treasury + values.Rentals + values.Bank,
+                        ...values
+                    };
+                });
+
+            // Composition (Last valid month)
+            let composition: any[] = [];
+            let totalMonthlyIncome = 0;
+            if (history.length > 0) {
+                const lastMonth = history[history.length - 1];
+                totalMonthlyIncome = lastMonth.total;
+                composition = [
+                    { name: 'Obligaciones Negociables', value: lastMonth.ON, fill: '#3b82f6' },
+                    { name: 'Treasuries', value: lastMonth.Treasury, fill: '#8b5cf6' },
+                    { name: 'Alquileres', value: lastMonth.Rentals, fill: '#10b981' },
+                    { name: 'Intereses Banco', value: lastMonth.Bank, fill: '#f59e0b' }
+                ].filter(item => item.value > 0);
+            }
+
+            // --- PROJECTION CART DATA (Gapless) ---
+            const projectedCashflows = await prisma.cashflow.findMany({
+                where: {
+                    investment: { userId },
+                    date: { gte: projectionStart, lte: projectionEnd }
+                },
+                include: { investment: { select: { type: true } } }
+            });
+
+            const projectedMap = new Map<string, { Interest: number; Capital: number; BankInterest: number }>();
+            // Initialize projection months
+            iterDate = startOfMonth(projectionStart);
+            while (isBefore(iterDate, projectionEnd) || iterDate.getTime() === startOfMonth(projectionEnd).getTime()) {
+                const key = format(iterDate, 'yyyy-MM');
+                projectedMap.set(key, { Interest: 0, Capital: 0, BankInterest: 0 });
+                iterDate = addMonths(iterDate, 1);
+            }
+
+            projectedCashflows.forEach(cf => {
+                const key = format(cf.date, 'yyyy-MM');
+                if (projectedMap.has(key)) {
+                    if (cf.type === 'AMORTIZATION') {
+                        projectedMap.get(key)!.Capital += cf.amount;
+                    } else {
+                        projectedMap.get(key)!.Interest += cf.amount;
+                    }
+                }
+            });
+
+            // Integrate PF Interest into Projection
+            allPFMaturities.forEach(pf => {
+                const key = format(pf.date, 'yyyy-MM');
+                if (projectedMap.has(key)) {
+                    projectedMap.get(key)!.BankInterest += pf.interest;
+                }
+            });
+
+            const projected = Array.from(projectedMap.entries())
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([key, values]) => {
+                    const [year, month] = key.split('-');
+                    return {
+                        month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
+                        total: values.Interest + values.Capital + values.BankInterest,
+                        ...values
+                    };
+                });
+
+
+            return NextResponse.json({
+                summary: {
+                    totalInvested,
+                    totalDebtPending,
+                    tir,
+                    nextInterestON: nextInterestON ? { date: nextInterestON.date, amount: nextInterestON.amount, name: nextInterestON.investment.name } : null,
+                    nextInterestTreasury: nextInterestTreasury ? { date: nextInterestTreasury.date, amount: nextInterestTreasury.amount, name: nextInterestTreasury.investment.name } : null,
+                    nextRentalAdjustment,
+                    nextContractExpiration,
+                    totalMonthlyIncome,
+                    totalBankUSD,
+                    nextMaturitiesPF
+                },
+                history,
+                composition,
+                projected,
+                debtDetails
+            });
+
+        } catch (error) {
+            console.error('Error fetching global dashboard data:', error);
+            return unauthorized();
+        }
     }
-}
