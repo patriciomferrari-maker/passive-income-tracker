@@ -510,7 +510,7 @@ export function DashboardTab({ showValues }: DashboardTabProps) {
 
                                             <Line
                                                 yAxisId="right"
-                                                type="monotone"
+                                                type="linear"
                                                 dataKey="inflationAccum"
                                                 name="Inf. Acum."
                                                 stroke="#f59e0b"
@@ -519,7 +519,7 @@ export function DashboardTab({ showValues }: DashboardTabProps) {
                                             />
                                             <Line
                                                 yAxisId="right"
-                                                type="monotone"
+                                                type="linear"
                                                 dataKey="devaluationAccum"
                                                 name="Dev. Acum."
                                                 stroke="#f43f5e"

@@ -24,19 +24,17 @@ export async function GET() {
             return start <= now && end >= now;
         });
 
-        const lastIPC = await prisma.economicIndicator.findFirst({
-            where: { type: 'IPC' },
+        // Use the last cashflow with valid Inflation data as the cutoff.
+        const lastCashflowWithInflation = await prisma.rentalCashflow.findFirst({
+            where: { inflationAccum: { not: null } },
             orderBy: { date: 'desc' }
         });
 
-        // Use the last IPC date as the cutoff. If no IPC data, fallback to today.
-        // Use the last IPC date as the cutoff. If no IPC data, fallback to today.
-        // Fix: Use the end of the month of the last IPC date to include all cashflows in that month.
         let cutoffDate = new Date();
-        if (lastIPC) {
-            const ipcDate = new Date(lastIPC.date);
-            // Set to end of the month (year, month + 1, 0)
-            cutoffDate = new Date(ipcDate.getFullYear(), ipcDate.getMonth() + 1, 0);
+        if (lastCashflowWithInflation) {
+            const lastDate = new Date(lastCashflowWithInflation.date);
+            // End of that month
+            cutoffDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 0);
         }
 
         const dashboardData = await Promise.all(activeContracts.map(async (contract) => {
