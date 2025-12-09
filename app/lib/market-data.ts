@@ -1,6 +1,8 @@
 
-import yahooFinance from 'yahoo-finance2';
 import { prisma } from '@/lib/prisma';
+
+// Use require for robust backend compatibility with Next.js/Webpack
+const yahooFinance = require('yahoo-finance2').default;
 
 // Types
 interface MarketDataResult {
@@ -33,8 +35,7 @@ export async function updateAssetPrices(userId?: string): Promise<MarketDataResu
     for (const inv of investments) {
         try {
             // Yahoo Finance fetch
-            // We use 'any' cast because the return type is strict and sometimes misses fields
-            const quote = await yahooFinance.quote(inv.ticker) as any;
+            const quote = await yahooFinance.quote(inv.ticker);
 
             if (quote && quote.regularMarketPrice) {
                 const price = quote.regularMarketPrice;
@@ -73,12 +74,14 @@ export async function updateAssetPrices(userId?: string): Promise<MarketDataResu
 
                 results.push({ ticker: inv.ticker, price, currency });
             } else {
-                results.push({ ticker: inv.ticker, price: null, currency: null, error: 'No price found' });
+                results.push({ ticker: inv.ticker, price: null, currency: null, error: 'No price found - Check Ticker' });
             }
 
         } catch (error: any) {
             console.error(`Error fetching ${inv.ticker}:`, error.message);
-            results.push({ ticker: inv.ticker, price: null, currency: null, error: error.message });
+            // Handle specific "Not Found" error cleaner
+            const msg = error.message.includes('404') ? 'Ticker not found' : error.message;
+            results.push({ ticker: inv.ticker, price: null, currency: null, error: msg });
         }
     }
 
@@ -87,40 +90,74 @@ export async function updateAssetPrices(userId?: string): Promise<MarketDataResu
 
 // 2. Fetch IPC (Argentina)
 export async function updateIPC(): Promise<IPCResult> {
-    const seriesId = '148.3_INIVELNAL_Dici_M_26'; // IPC Nacional (Base 2016)
-    // Alternative: 172.3_JL_TOTAL_12_M_15
+    // Corrected Series ID and Parameters
+    // 172.3_JL_TOTAL_12_M_15 = IPC Nacional - Nivel General (Base 2016)
+    const seriesId = '172.3_JL_TOTAL_12_M_15';
 
     try {
-        const url = `https://apis.datos.gob.ar/series/api/series?ids=${seriesId}&limit=1&sort=desc&format=json`;
-        const res = await fetch(url);
+        // Remove 'sort=desc' which sometimes causes issues if not supported on all endpoints, 
+        // but 'last' parameter usually helps.
+        // Official API: https://apis.datos.gob.ar/series/api/series?ids=...
+        const url = `https://apis.datos.gob.ar/series/api/series?ids=${seriesId}&limit=1&format=json`;
+
+        // Use a timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
 
         if (res.ok) {
             const json = await res.json();
-            // Data format: [[date_str, value], ...]
+            // Data format: data: [ [ "2024-10-01", 3.2 ] ]  <-- Example
             if (json.data && json.data.length > 0) {
-                const [dateStr, value] = json.data[0];
-                const date = new Date(dateStr);
+                // The API returns defaults to ASC usually, so we need to be careful.
+                // If limit=1 without sort, it might give the oldest.
+                // Let's try to get last 12 and pick the latest to be safe if sort is tricky.
+                // Re-fetch with sort if possible.
+                const urlWithSort = `https://apis.datos.gob.ar/series/api/series?ids=${seriesId}&limit=1&sort=desc&format=json`;
+                const resSort = await fetch(urlWithSort);
 
-                // Save to DB
-                // Start of month to normalize
-                const monthDate = new Date(date.getFullYear(), date.getMonth(), 1);
+                let dateStr, value;
 
-                const existing = await prisma.economicIndicator.findFirst({
-                    where: { type: 'IPC', date: monthDate }
-                });
-
-                if (existing) {
-                    await prisma.economicIndicator.update({
-                        where: { id: existing.id },
-                        data: { value: value }
-                    });
-                } else {
-                    await prisma.economicIndicator.create({
-                        data: { type: 'IPC', date: monthDate, value: value }
-                    });
+                if (resSort.ok) {
+                    const jsonSort = await resSort.json();
+                    if (jsonSort.data && jsonSort.data.length > 0) {
+                        [dateStr, value] = jsonSort.data[0];
+                    }
                 }
 
-                return { date: monthDate, value: value };
+                // Fallback if sort failed
+                if (!dateStr && json.data.length > 0) {
+                    // Grab last one from the first list?
+                    const last = json.data[json.data.length - 1];
+                    [dateStr, value] = last;
+                }
+
+                if (dateStr && value !== undefined) {
+                    const date = new Date(dateStr);
+                    // Fix Timezone offset issue by forcing UTC date components or adding T12:00:00
+                    const safeDate = new Date(`${dateStr}T12:00:00Z`); // Center of day
+                    const monthDate = new Date(safeDate.getFullYear(), safeDate.getMonth(), 1);
+
+                    // Save to DB
+                    const existing = await prisma.economicIndicator.findFirst({
+                        where: { type: 'IPC', date: monthDate }
+                    });
+
+                    if (existing) {
+                        await prisma.economicIndicator.update({
+                            where: { id: existing.id },
+                            data: { value: value }
+                        });
+                    } else {
+                        await prisma.economicIndicator.create({
+                            data: { type: 'IPC', date: monthDate, value: value }
+                        });
+                    }
+
+                    return { date: monthDate, value: value };
+                }
             }
         }
         return { date: new Date(), value: 0, error: `API Error: ${res.status}` };
