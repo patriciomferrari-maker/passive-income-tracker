@@ -133,67 +133,194 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     });
                     const activeContracts = contracts.filter(c => {
                         const start = new Date(c.startDate);
-                        snapshotData: { bank: bankTotalUSD, investments: investmentsTotalUSD, debts: debtTotalPendingUSD, rentalsIncome: monthlyRentalIncomeUSD }
-                    },
-                        create: {
-                        userId: user.id, month, year, totalNetWorthUSD, totalIncomeUSD: monthlyRentalIncomeUSD,
-                        snapshotData: { bank: bankTotalUSD, investments: investmentsTotalUSD, debts: debtTotalPendingUSD, rentalsIncome: monthlyRentalIncomeUSD }
-                    }
+                        const end = new Date(start);
+                        end.setMonth(end.getMonth() + c.durationMonths);
+                        return now >= start && now <= end;
+                    });
+                    const monthlyRentalIncomeUSD = activeContracts.reduce((sum, c) => sum + (c.currency === 'USD' ? c.initialRent : 0), 0);
+
+                    // 4. Debts
+                    const debts = await prisma.debt.findMany({
+                        where: { userId: user.id },
+                        include: { payments: true }
                     });
 
-                // Send HTML Email
-                if (process.env.RESEND_API_KEY && recipientEmail) {
-                    const htmlContent = generateMonthlyReportEmail({
-                        userName: user.name || 'Usuario',
-                        month: monthName,
-                        year: year.toString(),
-                        dashboardUrl: appUrl + '/dashboard/global',
+                    let debtTotalPendingUSD = 0;
+                    debts.forEach(d => {
+                        let total = d.initialAmount;
+                        let paid = 0;
+                        d.payments.forEach(p => {
+                            if (p.type === 'INCREASE') total += p.amount;
+                            else if (p.type === 'PAYMENT') paid += p.amount;
+                        });
+                        const pending = Math.max(0, total - paid);
+                        if (pending > 1) debtTotalPendingUSD += pending;
+                    });
 
-                        totalDebtPending: debtTotalPendingUSD, // Updated field
-                        totalArg: totalArg,
-                        totalUSA: totalUSA,
+                    const totalNetWorthUSD = bankTotalUSD + investmentsTotalUSD + debtTotalPendingUSD;
 
-                        maturities: maturities,
+                    // --- KEY DATES (Calculations) ---
 
-                        rentalEvents: {
-                            nextExpiration: nextRentalExpiration,
-                            nextAdjustment: nextRentalAdjustment
+                    let nextRentalExpiration: { date: Date; property: string } | null = null;
+                    let minDiffExp = Infinity;
+
+                    let nextRentalAdjustment: { date: Date; property: string } | null = null;
+                    let minDiffAdj = Infinity;
+
+                    contracts.forEach(c => {
+                        // Expiration
+                        const expDate = addMonths(new Date(c.startDate), c.durationMonths);
+                        if (isAfter(expDate, now)) {
+                            const diff = expDate.getTime() - now.getTime();
+                            if (diff < minDiffExp) {
+                                minDiffExp = diff;
+                                nextRentalExpiration = { date: expDate, property: c.property.name };
+                            }
+                        }
+
+                        // Adjustment
+                        if (c.adjustmentType !== 'NONE') {
+                            let nextAdjDate = new Date(c.startDate);
+                            // Find next future adjustment
+                            while (isBefore(nextAdjDate, now) || nextAdjDate.getTime() === now.getTime()) {
+                                nextAdjDate = addMonths(nextAdjDate, c.adjustmentFrequency);
+                            }
+                            const diff = nextAdjDate.getTime() - now.getTime();
+                            if (diff < minDiffAdj) {
+                                minDiffAdj = diff;
+                                nextRentalAdjustment = { date: nextAdjDate, property: c.property.name };
+                            }
+                        }
+                    });
+
+                    // Next PF Maturity
+                    let nextPFMaturity: { date: Date; bank: string; amount: number } | null = null;
+                    let minDiffPF = Infinity;
+
+                    const pfs = bankOps.filter(op => op.type === 'PLAZO_FIJO' && op.startDate);
+                    pfs.forEach(pf => {
+                        const start = new Date(pf.startDate!);
+                        const end = new Date(start);
+                        end.setDate(start.getDate() + (pf.durationDays || 30));
+
+                        // IF it is future
+                        if (isAfter(end, now)) {
+                            const diff = end.getTime() - now.getTime();
+                            if (diff < minDiffPF) {
+                                minDiffPF = diff;
+                                const interest = (pf.amount * (pf.tna || 0) / 100) * ((pf.durationDays || 30) / 365);
+                                nextPFMaturity = { date: end, bank: pf.alias || 'Plazo Fijo', amount: pf.amount + interest };
+                            }
+                        }
+                    });
+
+                    // --- DETAILED MATURITIES (Full Month) ---
+                    const maturities: any[] = [];
+
+                    // 1. Current Month Cashflows (All, not just future)
+                    const monthCashflows = await prisma.cashflow.findMany({
+                        where: {
+                            investment: { userId: user.id },
+                            date: { gte: monthStart, lte: monthEnd },
+                            status: 'PROJECTED'
                         },
-
-                        nextPFMaturity
+                        include: { investment: true }
                     });
 
-                    const resend = new Resend(process.env.RESEND_API_KEY);
-                    await resend.emails.send({
-                        from: 'Passive Income Tracker <onboarding@resend.dev>',
-                        to: recipientEmail.split(',').map((e: string) => e.trim()),
-                        subject: `Resumen Mensual: ${monthName} ${year}`,
-                        html: htmlContent
+                    monthCashflows.forEach(cf => {
+                        maturities.push({
+                            date: cf.date,
+                            description: `${cf.investment.name} (${cf.type === 'INTEREST' ? 'Interés' : 'Amort.'})`,
+                            amount: cf.amount,
+                            currency: cf.currency,
+                            type: cf.investment.type === 'ON' ? 'ON' : 'TREASURY'
+                        });
                     });
-                    userResult.success = true;
-                    userResult.message = `Enhanced Email sent to ${recipientEmail}`;
+
+                    // 2. Current Month PF Maturities
+                    pfs.forEach(pf => {
+                        const start = new Date(pf.startDate!);
+                        const end = new Date(start);
+                        end.setDate(start.getDate() + (pf.durationDays || 30));
+
+                        if (isSameMonth(end, now)) {
+                            const interest = (pf.amount * (pf.tna || 0) / 100) * ((pf.durationDays || 30) / 365);
+                            maturities.push({
+                                date: end,
+                                description: `PF ${pf.alias}`,
+                                amount: pf.amount + interest,
+                                currency: pf.currency,
+                                type: 'PF'
+                            });
+                        }
+                    });
+
+                    // Save Snapshot
+                    await prisma.monthlySummary.upsert({
+                        where: { userId_month_year: { userId: user.id, month, year } },
+                        update: {
+                            totalNetWorthUSD, totalIncomeUSD: monthlyRentalIncomeUSD,
+                            snapshotData: { bank: bankTotalUSD, investments: investmentsTotalUSD, debts: debtTotalPendingUSD, rentalsIncome: monthlyRentalIncomeUSD }
+                        },
+                        create: {
+                            userId: user.id, month, year, totalNetWorthUSD, totalIncomeUSD: monthlyRentalIncomeUSD,
+                            snapshotData: { bank: bankTotalUSD, investments: investmentsTotalUSD, debts: debtTotalPendingUSD, rentalsIncome: monthlyRentalIncomeUSD }
+                        }
+                    });
+
+                    // Send HTML Email
+                    if (process.env.RESEND_API_KEY && recipientEmail) {
+                        const htmlContent = generateMonthlyReportEmail({
+                            userName: user.name || 'Usuario',
+                            month: monthName,
+                            year: year.toString(),
+                            dashboardUrl: appUrl + '/dashboard/global',
+
+                            totalDebtPending: debtTotalPendingUSD, // Updated field
+                            totalArg: totalArg,
+                            totalUSA: totalUSA,
+
+                            maturities: maturities,
+
+                            rentalEvents: {
+                                nextExpiration: nextRentalExpiration,
+                                nextAdjustment: nextRentalAdjustment
+                            },
+
+                            nextPFMaturity
+                        });
+
+                        const resend = new Resend(process.env.RESEND_API_KEY);
+                        await resend.emails.send({
+                            from: 'Passive Income Tracker <onboarding@resend.dev>',
+                            to: recipientEmail.split(',').map((e: string) => e.trim()),
+                            subject: `Resumen Mensual: ${monthName} ${year}`,
+                            html: htmlContent
+                        });
+                        userResult.success = true;
+                        userResult.message = `Enhanced Email sent to ${recipientEmail}`;
+                    } else {
+                        userResult.success = false;
+                        userResult.message = 'Missing RESEND_API_KEY or Recipient Email';
+                    }
                 } else {
-                    userResult.success = false;
-                    userResult.message = 'Missing RESEND_API_KEY or Recipient Email';
+                    userResult.message = `Skipped: Not time (Day ${reportDay}, Hour ${reportHour})`;
                 }
-            } else {
-                userResult.message = `Skipped: Not time (Day ${reportDay}, Hour ${reportHour})`;
+
+            } catch (uError: any) {
+                console.error(`Error processing user ${user.id}:`, uError);
+                userResult.success = false;
+                userResult.message = uError.message;
             }
-
-        } catch (uError: any) {
-            console.error(`Error processing user ${user.id}:`, uError);
-            userResult.success = false;
-            userResult.message = uError.message;
+            results.reports.push(userResult);
         }
-        results.reports.push(userResult);
-    }
     } catch (error: any) {
-    console.error('Reports Loop Error:', error);
-}
+        console.error('Reports Loop Error:', error);
+    }
 
-return {
-    success: true,
-    timestamp: new Date().toISOString(),
-    details: results
-};
+    return {
+        success: true,
+        timestamp: new Date().toISOString(),
+        details: results
+    };
 }
