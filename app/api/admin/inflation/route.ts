@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { prisma } from '@/app/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { scrapeInflationData } from '@/app/lib/scrapers/inflation';
 
 export async function GET() {
