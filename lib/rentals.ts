@@ -10,21 +10,36 @@ interface ContractData {
     startDate: Date;
     durationMonths: number;
     initialRent: number;
+    currency: string;
+    adjustmentType: string;
+    adjustmentFrequency: number;
+}
+
+function addMonths(date: Date, months: number): Date {
+    // contract.startDate is likely UTC midnight. 
+    // We want to preserve the UTC month/year logic to avoid timezone backshifts.
+    // Create a new date using UTC components.
+    // Set to 1st of the calculated month.
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
+}
+
+function getMonthKey(date: Date): number {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)).getTime();
+}
+
+export async function loadEconomicData() {
+    const ipcRecords = await prisma.economicIndicator.findMany({
+        where: { type: 'IPC' },
+        orderBy: { date: 'asc' }
+    });
+
+    const ipcMap = new Map<number, number>();
+    ipcRecords.forEach(record => {
+        const key = getMonthKey(new Date(record.date));
         ipcMap.set(key, record.value);
     });
 
-const tcRecords = await prisma.economicIndicator.findMany({
-    where: { type: 'TC_USD_ARS' },
-    orderBy: { date: 'asc' }
-});
-
-const tcMap = new Map<number, number>();
-tcRecords.forEach(record => {
-    const timestamp = new Date(record.date).getTime();
-    tcMap.set(timestamp, record.value);
-});
-
-return { ipcMap, tcMap };
+    return { ipcMap, tcMap };
 }
 
 function getIPCForMonth(ipcMap: Map<number, number>, date: Date): number {
