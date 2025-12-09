@@ -407,3 +407,18 @@ model AppSettings {
 
   @@unique([userId]) // One settings profile per user
 }
+
+// =================================================================
+// INFLATION DATA
+// =================================================================
+
+model InflationData {
+  id        String   @id @default(cuid())
+  year      Int
+  month     Int
+  value     Float    // Monthly variation %
+  
+  updatedAt DateTime @updatedAt
+
+  @@unique([year, month])
+}
