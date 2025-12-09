@@ -19,7 +19,12 @@ interface Transaction {
     price: number;
     commission: number;
     totalAmount: number;
-    investment: { ticker: string; name: string };
+    investment: {
+        ticker: string;
+        name: string;
+        type: string;
+        lastPrice?: number;
+    };
 }
 
 export function PurchasesTab() {
@@ -28,6 +33,9 @@ export function PurchasesTab() {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [showValues, setShowValues] = useState(true);
+
+    // Filter State
+    const [filterType, setFilterType] = useState<'ALL' | 'TREASURY' | 'ETF'>('ALL');
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -60,9 +68,15 @@ export function PurchasesTab() {
     };
 
     const getSortedTransactions = () => {
-        if (!sortConfig) return transactions;
+        // First filter by type
+        let filtered = transactions;
+        if (filterType !== 'ALL') {
+            filtered = transactions.filter(tx => tx.investment.type === filterType);
+        }
 
-        return [...transactions].sort((a, b) => {
+        if (!sortConfig) return filtered;
+
+        return [...filtered].sort((a, b) => {
             let aValue: any = a[sortConfig.key as keyof Transaction];
             let bValue: any = b[sortConfig.key as keyof Transaction];
 
@@ -113,9 +127,12 @@ export function PurchasesTab() {
 
     const loadData = async () => {
         try {
+            // Note: We deliberately fetch ALL transactions here (no type filter), doing the filtering client-side
+            // This assumes /api/investments/transactions?type=... logic in API is optional and handled properly
+            // We pass NO type query param to get EVERYTHING
             const [treasuriesRes, txRes] = await Promise.all([
                 fetch('/api/investments/treasury'),
-                fetch('/api/investments/transactions?type=TREASURY')
+                fetch('/api/investments/transactions') // Fetch all types (Treasury & ETF)
             ]);
 
             const treasuriesData = await treasuriesRes.json();
@@ -260,6 +277,28 @@ export function PurchasesTab() {
                     <CardTitle className="text-white flex items-center justify-between">
                         Registro de Compras
                         <div className="flex gap-2">
+                            {/* Type Filter */}
+                            <div className="bg-slate-900 rounded-md border border-slate-700 p-1 flex mr-2">
+                                <button
+                                    onClick={() => setFilterType('ALL')}
+                                    className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ALL' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    Todos
+                                </button>
+                                <button
+                                    onClick={() => setFilterType('TREASURY')}
+                                    className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'TREASURY' ? 'bg-blue-900/50 text-blue-200' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    Treasuries
+                                </button>
+                                <button
+                                    onClick={() => setFilterType('ETF')}
+                                    className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ETF' ? 'bg-purple-900/50 text-purple-200' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    ETFs
+                                </button>
+                            </div>
+
                             <Button
                                 onClick={togglePrivacy}
                                 variant="outline"
@@ -288,7 +327,7 @@ export function PurchasesTab() {
                         </div>
                     </CardTitle>
                     <CardDescription className="text-slate-300">
-                        Historial de operaciones de compra de Treasuries
+                        Historial de operaciones de compra
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -330,66 +369,90 @@ export function PurchasesTab() {
                                             </button>
                                         </th>
                                         <th className="text-right py-3 px-4 text-slate-300 font-medium">Cantidad</th>
-                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio</th>
-                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">Comisión</th>
-                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">Total</th>
+                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio Compra</th>
+                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio Actual</th>
+                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">Total Pagado</th>
+                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">P&L</th>
                                         <th className="text-right py-3 px-4 text-slate-300 font-medium">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {getSortedTransactions().map((tx) => (
-                                        <tr key={tx.id} className={`border-b border-white/5 hover:bg-white/5 ${selectedIds.includes(tx.id) ? 'bg-white/10' : ''}`}>
-                                            <td className="py-3 px-4">
-                                                <button
-                                                    onClick={() => toggleSelection(tx.id)}
-                                                    className={`hover:text-white ${selectedIds.includes(tx.id) ? 'text-blue-400' : 'text-slate-500'}`}
-                                                >
-                                                    {selectedIds.includes(tx.id) ? (
-                                                        <CheckSquare size={18} />
-                                                    ) : (
-                                                        <Square size={18} />
-                                                    )}
-                                                </button>
-                                            </td>
-                                            <td className="py-3 px-4 text-white">
-                                                {format(new Date(tx.date), 'dd/MM/yyyy')}
-                                            </td>
-                                            <td className="py-3 px-4 text-white">
-                                                <span className="font-bold">{tx.investment.ticker}</span>
-                                                <span className="text-slate-400 text-xs ml-2 hidden md:inline">{tx.investment.name}</span>
-                                            </td>
-                                            <td className="py-3 px-4 text-white text-right font-mono">
-                                                {tx.quantity}
-                                            </td>
-                                            <td className="py-3 px-4 text-white text-right font-mono">
-                                                {formatMoney(tx.price)}
-                                            </td>
-                                            <td className="py-3 px-4 text-white text-right font-mono">
-                                                {formatMoney(tx.commission)}
-                                            </td>
-                                            <td className="py-3 px-4 text-white text-right font-mono font-bold">
-                                                {formatMoney(Math.abs(tx.totalAmount))}
-                                            </td>
-                                            <td className="py-3 px-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
+                                    {getSortedTransactions().map((tx) => {
+                                        const currentPrice = tx.investment.lastPrice || 0;
+                                        const totalPaid = Math.abs(tx.totalAmount); // Assuming buys are negative
+                                        const currentValue = tx.quantity * currentPrice;
+                                        const pnl = currentPrice > 0 ? currentValue - totalPaid : null;
+                                        const pnlPercent = currentPrice > 0 ? (pnl! / totalPaid) * 100 : null;
+
+                                        return (
+                                            <tr key={tx.id} className={`border-b border-white/5 hover:bg-white/5 ${selectedIds.includes(tx.id) ? 'bg-white/10' : ''}`}>
+                                                <td className="py-3 px-4">
                                                     <button
-                                                        onClick={() => handleEdit(tx)}
-                                                        className="p-2 text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
-                                                        title="Editar compra"
+                                                        onClick={() => toggleSelection(tx.id)}
+                                                        className={`hover:text-white ${selectedIds.includes(tx.id) ? 'text-blue-400' : 'text-slate-500'}`}
                                                     >
-                                                        <Edit size={16} />
+                                                        {selectedIds.includes(tx.id) ? <CheckSquare size={18} /> : <Square size={18} />}
                                                     </button>
-                                                    <button
-                                                        onClick={() => confirmDelete(tx.id)}
-                                                        className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                                                        title="Eliminar compra"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                </td>
+                                                <td className="py-3 px-4 text-white">
+                                                    {format(new Date(tx.date), 'dd/MM/yyyy')}
+                                                </td>
+                                                <td className="py-3 px-4 text-white">
+                                                    <div className="flex flex-col">
+                                                        <div>
+                                                            <span className="font-bold">{tx.investment.ticker}</span>
+                                                            {tx.investment.type === 'ETF' && (
+                                                                <span className="ml-2 text-[10px] bg-purple-900/50 text-purple-300 px-1 rounded border border-purple-800">ETF</span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-slate-400 text-xs hidden md:inline">{tx.investment.name}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 px-4 text-white text-right font-mono">
+                                                    {tx.quantity}
+                                                </td>
+                                                <td className="py-3 px-4 text-white text-right font-mono">
+                                                    {formatMoney(tx.price)}
+                                                </td>
+                                                {/* Current Price */}
+                                                <td className="py-3 px-4 text-white text-right font-mono">
+                                                    {currentPrice > 0 ? formatMoney(currentPrice) : '-'}
+                                                </td>
+                                                <td className="py-3 px-4 text-white text-right font-mono font-bold">
+                                                    {formatMoney(totalPaid)}
+                                                </td>
+                                                {/* P&L */}
+                                                <td className="py-3 px-4 text-right font-mono">
+                                                    {pnl !== null ? (
+                                                        <div className={`flex flex-col items-end ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                            <span className="font-bold">{formatMoney(pnl)}</span>
+                                                            <span className="text-xs">
+                                                                {pnl >= 0 ? '+' : ''}{pnlPercent?.toFixed(2)}%
+                                                            </span>
+                                                        </div>
+                                                    ) : '-'}
+                                                </td>
+                                                <td className="py-3 px-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleEdit(tx)}
+                                                            className="p-2 text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
+                                                            title="Editar compra"
+                                                        >
+                                                            <Edit size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => confirmDelete(tx.id)}
+                                                            className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                                                            title="Eliminar compra"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
                                 </tbody>
                             </table>
                         </div>

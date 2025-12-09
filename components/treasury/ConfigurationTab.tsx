@@ -119,6 +119,7 @@ export function ConfigurationTab() {
                             <table className="w-full">
                                 <thead>
                                     <tr className="border-b border-white/10">
+                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">Tipo</th>
                                         <th className="text-left py-3 px-4 text-slate-300 font-medium">Ticker</th>
                                         <th className="text-left py-3 px-4 text-slate-300 font-medium">Nombre</th>
                                         <th className="text-left py-3 px-4 text-slate-300 font-medium">Tasa</th>
@@ -128,8 +129,16 @@ export function ConfigurationTab() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {treasuries.map((treasury) => (
+                                    {treasuries.map((treasury: any) => (
                                         <tr key={treasury.id} className="border-b border-white/5 hover:bg-white/5">
+                                            <td className="py-3 px-4 text-white">
+                                                <span className={`text-xs px-2 py-1 rounded border ${treasury.type === 'ETF'
+                                                        ? 'bg-purple-900/50 text-purple-300 border-purple-800'
+                                                        : 'bg-blue-900/50 text-blue-300 border-blue-800'
+                                                    }`}>
+                                                    {treasury.type || 'TREASURY'}
+                                                </span>
+                                            </td>
                                             <td className="py-3 px-4 text-white font-mono">{treasury.ticker}</td>
                                             <td className="py-3 px-4 text-white">{treasury.name}</td>
                                             <td className="py-3 px-4 text-slate-300">
