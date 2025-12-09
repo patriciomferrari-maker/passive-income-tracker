@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { scrapeInflationData } from '@/app/lib/scrapers/inflation';
 import { scrapeDolarBlue } from '@/app/lib/scrapers/dolar';
+import { updateONs } from '@/app/lib/market-data';
 
 // Cron jobs should be protected or use a secret key in production, 
 // but for this Vercel setup with 'crons' config, it's open to the scheduler.
@@ -12,7 +13,8 @@ export async function GET(request: Request) {
     // Vercel Cron automatically sends a GET request
     const results = {
         ipc: { status: 'skipped', count: 0, error: null as any },
-        dolar: { status: 'skipped', count: 0, error: null as any }
+        dolar: { status: 'skipped', count: 0, error: null as any },
+        ons: { status: 'skipped', count: 0, error: null as any }
     };
 
     // 1. Update IPC
@@ -69,6 +71,16 @@ export async function GET(request: Request) {
     } catch (e) {
         results.dolar = { status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e) };
         console.error('Cron Dollar Error:', e);
+    }
+
+    // 3. Update ONs
+    try {
+        // If updateONs is called without args, it updates matching investments for all users (or just all in DB)
+        const onsResults = await updateONs();
+        results.ons = { status: 'success', count: onsResults.length, error: null };
+    } catch (e) {
+        results.ons = { status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e) };
+        console.error('Cron ONs Error:', e);
     }
 
     return NextResponse.json({ timestamp: new Date(), results });
