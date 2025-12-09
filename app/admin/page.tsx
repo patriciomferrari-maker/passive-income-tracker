@@ -10,25 +10,7 @@ export default function AdminPage() {
     const [loading, setLoading] = useState<string | null>(null);
     const [result, setResult] = useState<any>(null);
 
-    const runAction = async (action: 'UPDATE_TREASURIES' | 'UPDATE_ONS' | 'UPDATE_IPC') => {
-        setLoading(action);
-        setResult(null);
-        try {
-            const res = await fetch('/api/admin/market-data', {
-                method: 'POST',
-```typescript
-'use client';
-
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
-
-export default function AdminPage() {
-    const [loading, setLoading] = useState<string | null>(null);
-    const [result, setResult] = useState<any>(null);
-
-    const runAction = async (action: 'UPDATE_PRICES' | 'UPDATE_IPC') => {
+    const runAction = async (action: 'UPDATE_ONS') => {
         setLoading(action);
         setResult(null);
         try {
@@ -51,19 +33,17 @@ export default function AdminPage() {
             <h1 className="text-4xl font-bold mb-8 text-center text-slate-50">Panel de Administración</h1>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-
-
                 {/* ONs Card - PRIMARY FOCUS */}
                 <Card className="bg-slate-900 border-slate-800 md:col-span-2 lg:col-span-3">
                     <CardHeader>
                         <CardTitle className="text-slate-100 flex items-center justify-between text-lg">
                             Obligaciones Negociables (IOL)
-                            <Button 
-                                onClick={() => runAction('UPDATE_ONS')} 
+                            <Button
+                                onClick={() => runAction('UPDATE_ONS')}
                                 disabled={!!loading}
                                 className="bg-green-600 hover:bg-green-700 text-white text-xs h-8"
                             >
-                                {loading === 'UPDATE_ONS' ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <RefreshCw className="mr-2 h-3 w-3"/>}
+                                {loading === 'UPDATE_ONS' ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
                                 Actualizar ONs (Scraping)
                             </Button>
                         </CardTitle>
@@ -112,4 +92,3 @@ function PriceList({ prices }: { prices: any[] }) {
         </div>
     );
 }
-```
