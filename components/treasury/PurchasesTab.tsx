@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Eye, EyeOff, CheckSquare, Square, Trash, AlertTriangle, Edit } from 'lucide-react';
+import { Plus, Trash2, Eye, EyeOff, CheckSquare, Square, Trash, AlertTriangle, Edit, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Treasury {
@@ -47,6 +47,40 @@ export function PurchasesTab() {
     const [price, setPrice] = useState('');
     const [commission, setCommission] = useState('0');
     const [submitting, setSubmitting] = useState(false);
+
+    // Sorting State
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'date', direction: 'desc' });
+
+    const handleSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortedTransactions = () => {
+        if (!sortConfig) return transactions;
+
+        return [...transactions].sort((a, b) => {
+            let aValue: any = a[sortConfig.key as keyof Transaction];
+            let bValue: any = b[sortConfig.key as keyof Transaction];
+
+            // Handle nested properties
+            if (sortConfig.key === 'ticker') {
+                aValue = a.investment.ticker;
+                bValue = b.investment.ticker;
+            }
+
+            if (aValue < bValue) {
+                return sortConfig.direction === 'asc' ? -1 : 1;
+            }
+            if (aValue > bValue) {
+                return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+    };
 
     useEffect(() => {
         loadData();
@@ -281,8 +315,20 @@ export function PurchasesTab() {
                                                 )}
                                             </button>
                                         </th>
-                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">Fecha</th>
-                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">Ticker</th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">
+                                            <button onClick={() => handleSort('date')} className="flex items-center gap-1 hover:text-white">
+                                                Fecha
+                                                {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                                {sortConfig?.key !== 'date' && <ArrowUpDown size={14} className="opacity-50" />}
+                                            </button>
+                                        </th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">
+                                            <button onClick={() => handleSort('ticker')} className="flex items-center gap-1 hover:text-white">
+                                                Ticker
+                                                {sortConfig?.key === 'ticker' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                                {sortConfig?.key !== 'ticker' && <ArrowUpDown size={14} className="opacity-50" />}
+                                            </button>
+                                        </th>
                                         <th className="text-right py-3 px-4 text-slate-300 font-medium">Cantidad</th>
                                         <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio</th>
                                         <th className="text-right py-3 px-4 text-slate-300 font-medium">Comisión</th>
@@ -291,7 +337,7 @@ export function PurchasesTab() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {transactions.map((tx) => (
+                                    {getSortedTransactions().map((tx) => (
                                         <tr key={tx.id} className={`border-b border-white/5 hover:bg-white/5 ${selectedIds.includes(tx.id) ? 'bg-white/10' : ''}`}>
                                             <td className="py-3 px-4">
                                                 <button

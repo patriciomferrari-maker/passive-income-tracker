@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, X, FileText, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, X, FileText, Upload, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { upload } from '@vercel/blob/client';
 
 interface Contract {
@@ -38,6 +38,43 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [editingContract, setEditingContract] = useState<Contract | null>(null);
+
+    // Sorting State
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'startDate', direction: 'desc' });
+
+    const handleSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortedContracts = () => {
+        if (!sortConfig) return contracts;
+
+        return [...contracts].sort((a, b) => {
+            let aValue: any = a[sortConfig.key as keyof Contract];
+            let bValue: any = b[sortConfig.key as keyof Contract];
+
+            // Handle nested and special properties
+            if (sortConfig.key === 'propertyName') {
+                aValue = a.property.name;
+                bValue = b.property.name;
+            } else if (sortConfig.key === 'tenantName') {
+                aValue = a.tenantName || '';
+                bValue = b.tenantName || '';
+            }
+
+            if (aValue < bValue) {
+                return sortConfig.direction === 'asc' ? -1 : 1;
+            }
+            if (aValue > bValue) {
+                return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+    };
 
     // Form state
     const [propertyId, setPropertyId] = useState('');
@@ -220,9 +257,27 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                             <table className="w-full">
                                 <thead>
                                     <tr className="border-b border-slate-800">
-                                        <th className="text-left py-3 px-4 text-slate-300">Propiedad</th>
-                                        <th className="text-left py-3 px-4 text-slate-300">Inquilino</th>
-                                        <th className="text-left py-3 px-4 text-slate-300">Inicio</th>
+                                        <th className="text-left py-3 px-4 text-slate-300">
+                                            <button onClick={() => handleSort('propertyName')} className="flex items-center gap-1 hover:text-white">
+                                                Propiedad
+                                                {sortConfig?.key === 'propertyName' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                                {sortConfig?.key !== 'propertyName' && <ArrowUpDown size={14} className="opacity-50" />}
+                                            </button>
+                                        </th>
+                                        <th className="text-left py-3 px-4 text-slate-300">
+                                            <button onClick={() => handleSort('tenantName')} className="flex items-center gap-1 hover:text-white">
+                                                Inquilino
+                                                {sortConfig?.key === 'tenantName' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                                {sortConfig?.key !== 'tenantName' && <ArrowUpDown size={14} className="opacity-50" />}
+                                            </button>
+                                        </th>
+                                        <th className="text-left py-3 px-4 text-slate-300">
+                                            <button onClick={() => handleSort('startDate')} className="flex items-center gap-1 hover:text-white">
+                                                Inicio
+                                                {sortConfig?.key === 'startDate' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                                {sortConfig?.key !== 'startDate' && <ArrowUpDown size={14} className="opacity-50" />}
+                                            </button>
+                                        </th>
                                         <th className="text-center py-3 px-4 text-slate-300">Duración</th>
                                         <th className="text-right py-3 px-4 text-slate-300">Monto</th>
                                         <th className="text-center py-3 px-4 text-slate-300">Ajuste</th>
@@ -231,7 +286,7 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {contracts.map(contract => (
+                                    {getSortedContracts().map(contract => (
                                         <tr key={contract.id} className="border-b border-slate-800 hover:bg-slate-900">
                                             <td className="py-3 px-4 text-white font-medium">{contract.property.name}</td>
                                             <td className="py-3 px-4 text-slate-400">{contract.tenantName || '-'}</td>
