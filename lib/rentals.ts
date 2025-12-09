@@ -143,8 +143,8 @@ export async function generateContractCashflows(contract: ContractData) {
         }
 
         let devaluationAccum: number | null = null;
-        if (tcBase > 0 && tcClosing > 0) {
-            devaluationAccum = (tcClosing / tcBase) - 1;
+        if (tcBase > 0 && currentTC > 0) {
+            devaluationAccum = (currentTC / tcBase) - 1;
         }
 
         cashflows.push({
