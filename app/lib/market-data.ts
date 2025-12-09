@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma';
 
 // Use require for robust backend compatibility with Next.js/Webpack
 // Fix for Yahoo Finance instantiation error
-const { YahooFinance } = require('yahoo-finance2');
+// 'default' export is the class itself in CommonJS land for this lib
+const YahooFinance = require('yahoo-finance2').default;
 const yahooFinance = new YahooFinance();
 
 // Types
