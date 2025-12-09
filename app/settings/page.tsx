@@ -73,8 +73,8 @@ export default function SettingsPage() {
             }
 
             setMessage({ type: 'success', text: 'Correo de prueba enviado correctamente.' });
-        } catch (error) {
-            setMessage({ type: 'error', text: 'Error al enviar correo de prueba.' });
+        } catch (error: any) {
+            setMessage({ type: 'error', text: error.message || 'Error al enviar correo de prueba.' });
         } finally {
             setSendingTest(false);
         }
