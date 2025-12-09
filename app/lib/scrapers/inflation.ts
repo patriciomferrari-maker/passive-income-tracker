@@ -36,9 +36,16 @@ export async function scrapeInflationData(): Promise<InflationDataPoint[]> {
 
         $('table tbody tr').each((_, row) => {
             const cells = $(row).find('td');
-            if (cells.length >= 4) {
-                const dateText = $(cells[0]).text().trim().toLowerCase(); // e.g. "octubre 2025" or "1 octubre 2025"
-                const variationText = $(cells[3]).text().trim(); // e.g. "2,7%"
+            // Based on observation:
+            // 0: Date
+            // 1: Interanual Value
+            // 2: Interanual Bar
+            // 3: Acum Value
+            // 4: Acum Bar
+            // 5: Monthly Variation Value
+            if (cells.length >= 6) {
+                const dateText = $(cells[0]).text().trim().toLowerCase(); // e.g. "octubre 2025"
+                const variationText = $(cells[5]).text().trim(); // e.g. "2,7%"
 
                 // Parse Date
                 // Usually format is "Month Year". Sometimes data might have day.
