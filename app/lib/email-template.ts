@@ -18,36 +18,38 @@ interface MonthlyReportData {
     userName: string;
     month: string;
     year: string;
+    dashboardUrl: string;
 
     // Header Metrics
-    totalNetWorth: number;
-    totalArg: number;     // Cartera Arg (ONs)
-    totalUSA: number;     // Cartera USA (Treasuries)
+    totalDebtPending: number; // Was totalNetWorth
+    totalArg: number;
+    totalUSA: number;
 
     // Details
     maturities: MaturityItem[];
 
     // Highlights
-    nextRentalExpiration?: { date: Date; property: string } | null;
-    nextRentalAdjustment?: { date: Date; property: string } | null;
+    rentalEvents: {
+        nextExpiration?: { date: Date; property: string } | null;
+        nextAdjustment?: { date: Date; property: string } | null;
+    };
+
     nextPFMaturity?: { date: Date; bank: string; amount: number } | null;
 }
 
 export function generateMonthlyReportEmail(data: MonthlyReportData): string {
     const {
-        userName, month, year,
-        totalNetWorth, totalArg, totalUSA,
+        userName, month, year, dashboardUrl,
+        totalDebtPending, totalArg, totalUSA,
         maturities,
-        nextRentalExpiration, nextRentalAdjustment, nextPFMaturity
+        rentalEvents, nextPFMaturity
     } = data;
 
-    // Filter maturities for "This Month" (The requested "Vencimientos del mes" covers the whole month usually)
-    const today = new Date();
-    // Show all future maturities
-    const upcomingMaturities = maturities.filter(m => m.date >= today).sort((a, b) => a.date.getTime() - b.date.getTime());
+    // Sort by date (showing entire month as requested)
+    const sortedMaturities = [...maturities].sort((a, b) => a.date.getTime() - b.date.getTime());
 
     const renderRows = (items: MaturityItem[]) => {
-        if (items.length === 0) return '<tr><td colspan="3" style="padding: 12px; text-align: center; color: #64748b;">No hay más vencimientos este mes.</td></tr>';
+        if (items.length === 0) return '<tr><td colspan="3" style="padding: 12px; text-align: center; color: #64748b;">No hay movimientos este mes.</td></tr>';
 
         return items.map(item => `
             <tr style="border-bottom: 1px solid #e2e8f0;">
@@ -69,7 +71,7 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
         const total = items.reduce((sum, i) => sum + i.amount, 0);
         return `
             <tr>
-                <td colspan="2" style="padding: 12px 0; text-align: right; color: #64748b; font-size: 13px; text-transform: uppercase;">Total Estimado (USD)</td>
+                <td colspan="2" style="padding: 12px 0; text-align: right; color: #64748b; font-size: 13px; text-transform: uppercase;">Total del Mes (USD)</td>
                 <td style="padding: 12px 0; text-align: right; color: #0e4166; font-weight: 700;">${formatCurrency(total, 'USD')}</td>
             </tr>
         `;
@@ -98,33 +100,33 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
         <div style="padding: 32px 24px;">
             
             <p style="margin: 0 0 24px; color: #334155; font-size: 16px;">
-                Hola <strong>${userName}</strong>, aquí están tus números de hoy:
+                Hola <strong>${userName}</strong>, este es tu resumen:
             </p>
 
-            <!-- Dashboard Summary Cards (3 Columns) -->
+            <!-- 1. Cards: Arg | USA | Deudas -->
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
                 <tr>
                     <td width="32%" style="background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
                         <p style="margin: 0; color: #64748b; font-size: 10px; text-transform: uppercase; font-weight: 600;">Cartera Arg</p>
-                        <p style="margin: 4px 0 0; color: #0f172a; font-size: 16px; font-weight: 700;">${formatCurrency(totalArg, 'USD')}</p>
+                        <p style="margin: 4px 0 0; color: #0f172a; font-size: 15px; font-weight: 700;">${formatCurrency(totalArg, 'USD')}</p>
                     </td>
                     <td width="2%"></td>
                     <td width="32%" style="background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
                         <p style="margin: 0; color: #64748b; font-size: 10px; text-transform: uppercase; font-weight: 600;">Cartera USA</p>
-                        <p style="margin: 4px 0 0; color: #0f172a; font-size: 16px; font-weight: 700;">${formatCurrency(totalUSA, 'USD')}</p>
+                        <p style="margin: 4px 0 0; color: #0f172a; font-size: 15px; font-weight: 700;">${formatCurrency(totalUSA, 'USD')}</p>
                     </td>
                     <td width="2%"></td>
-                    <td width="32%" style="background-color: #ecfdf5; padding: 12px; border-radius: 8px; border: 1px solid #a7f3d0; text-align: center;">
-                        <p style="margin: 0; color: #047857; font-size: 10px; text-transform: uppercase; font-weight: 600;">Patrimonio</p>
-                        <p style="margin: 4px 0 0; color: #059669; font-size: 16px; font-weight: 700;">${formatCurrency(totalNetWorth, 'USD')}</p>
+                    <td width="32%" style="background-color: #fff1f2; padding: 12px; border-radius: 8px; border: 1px solid #fecdd3; text-align: center;">
+                        <p style="margin: 0; color: #be123c; font-size: 10px; text-transform: uppercase; font-weight: 600;">Deudas a Cobrar</p>
+                        <p style="margin: 4px 0 0; color: #be123c; font-size: 15px; font-weight: 700;">${formatCurrency(totalDebtPending, 'USD')}</p>
                     </td>
                 </tr>
             </table>
 
-            <!-- Section: Maturities -->
+            <!-- 2. Vencimientos del Mes (Full Month) -->
             <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
                 <div style="background-color: #f8fafc; padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
-                    <h3 style="margin: 0; color: #0e4166; font-size: 14px; font-weight: 700; text-transform: uppercase;">Próximos Vencimientos (${month})</h3>
+                    <h3 style="margin: 0; color: #0e4166; font-size: 14px; font-weight: 700; text-transform: uppercase;">Vencimientos del Mes (${month})</h3>
                 </div>
                 <div style="padding: 0 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
@@ -136,59 +138,73 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                             </tr>
                         </thead>
                         <tbody>
-                            ${renderRows(upcomingMaturities)}
-                            ${renderTotal(upcomingMaturities)}
+                            ${renderRows(sortedMaturities)}
+                            ${renderTotal(sortedMaturities)}
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Section: Key Dates (Highlights) -->
-             <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+            <!-- 3. Alquileres Tables (Prox Ajuste & Vencimiento) -->
+             <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
                 <div style="background-color: #f8fafc; padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
-                    <h3 style="margin: 0; color: #0e4166; font-size: 14px; font-weight: 700; text-transform: uppercase;">Próximos Eventos</h3>
+                    <h3 style="margin: 0; color: #0e4166; font-size: 14px; font-weight: 700; text-transform: uppercase;">Alquileres - Próximos Eventos</h3>
                 </div>
                 <div style="padding: 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
-                        ${nextRentalExpiration ? `
+                        ${rentalEvents.nextAdjustment ? `
                         <tr>
-                            <td style="padding-bottom: 8px; color: #64748b; font-size: 12px;">Vencimiento Alquiler</td>
+                            <td style="padding-bottom: 8px; color: #64748b; font-size: 12px;">Próximo Ajuste</td>
                             <td style="padding-bottom: 8px; color: #0f172a; font-weight: 500; text-align: right;">
-                                ${format(nextRentalExpiration.date, 'dd/MM/yyyy')} <span style="color: #64748b; font-size: 11px;">(${nextRentalExpiration.property})</span>
+                                ${format(rentalEvents.nextAdjustment.date, 'dd/MM/yyyy')} 
+                                <span style="display:block; color: #64748b; font-size: 11px;">${rentalEvents.nextAdjustment.property}</span>
                             </td>
                         </tr>
                         ` : ''}
                         
-                        ${nextRentalAdjustment ? `
+                        ${rentalEvents.nextExpiration ? `
                         <tr>
-                            <td style="padding-bottom: 8px; color: #64748b; font-size: 12px;">Próximo Ajuste Alquiler</td>
-                            <td style="padding-bottom: 8px; color: #0f172a; font-weight: 500; text-align: right;">
-                                ${format(nextRentalAdjustment.date, 'dd/MM/yyyy')} <span style="color: #64748b; font-size: 11px;">(${nextRentalAdjustment.property})</span>
+                            <td style="padding-bottom: 0px; color: #64748b; font-size: 12px;">Vencimiento Contrato</td>
+                            <td style="padding-bottom: 0px; color: #0f172a; font-weight: 500; text-align: right;">
+                                ${format(rentalEvents.nextExpiration.date, 'dd/MM/yyyy')}
+                                <span style="display:block; color: #64748b; font-size: 11px;">${rentalEvents.nextExpiration.property}</span>
                             </td>
                         </tr>
                         ` : ''}
 
-                         ${nextPFMaturity ? `
-                        <tr>
-                            <td style="padding-bottom: 0; color: #64748b; font-size: 12px;">Vencimiento Plazo Fijo</td>
-                            <td style="padding-bottom: 0; color: #0f172a; font-weight: 500; text-align: right;">
-                                ${format(nextPFMaturity.date, 'dd/MM/yyyy')} <span style="color: #64748b; font-size: 11px;">(${nextPFMaturity.bank})</span>
-                            </td>
-                        </tr>
-                        ` : ''}
-                        
-                        ${!nextRentalExpiration && !nextRentalAdjustment && !nextPFMaturity ? `
-                            <tr><td colspan="2" style="text-align: center; color: #94a3b8; font-size: 12px;">No hay eventos destacados próximos.</td></tr>
+                        ${!rentalEvents.nextAdjustment && !rentalEvents.nextExpiration ? `
+                            <tr><td colspan="2" style="text-align: center; color: #94a3b8; font-size: 12px;">No hay eventos de alquiler próximos.</td></tr>
                         ` : ''}
                     </table>
                 </div>
             </div>
+            
+            <!-- 4. Next PF Maturity (Optional) -->
+            ${nextPFMaturity ? `
+            <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
+                <div style="background-color: #f8fafc; padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
+                     <h3 style="margin: 0; color: #0e4166; font-size: 14px; font-weight: 700; text-transform: uppercase;">Próximo Vencimiento Plazo Fijo</h3>
+                </div>
+                <div style="padding: 16px;">
+                     <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #64748b; font-size: 12px;">${nextPFMaturity.bank}</td>
+                            <td style="color: #0f172a; font-weight: 500; text-align: right;">
+                                ${format(nextPFMaturity.date, 'dd/MM/yyyy')}
+                                <span style="display:block; color: #0e4166; font-weight: 700;">${formatCurrency(nextPFMaturity.amount, 'ARS')}</span>
+                            </td>
+                        </tr>
+                     </table>
+                </div>
+            </div>
+            ` : ''}
 
-        </div>
+            <!-- CTA Button -->
+             <div style="text-align: center; margin-top: 32px;">
+                <a href="${dashboardUrl}" style="background-color: #0e4166; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">Ir al Dashboard Consolidado</a>
+                <p style="margin-top: 16px; color: #94a3b8; font-size: 12px;">Para mas información visita tu panel de control.</p>
+            </div>
 
-        <!-- Footer -->
-        <div style="background-color: #f1f5f9; padding: 24px; text-align: center; color: #64748b; font-size: 12px;">
-            <p style="margin: 0;">Passive Income Tracker</p>
         </div>
 
     </div>

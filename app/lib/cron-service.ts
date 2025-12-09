@@ -78,6 +78,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
         const year = now.getFullYear();
 
         const monthName = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(now);
+        const appUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
 
         const users = await prisma.user.findMany({
             where: targetUserId ? { id: targetUserId } : undefined,
@@ -112,7 +113,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
 
                     investments.forEach(inv => {
                         const invested = inv.transactions.reduce((tSum, t) => tSum + t.totalAmount, 0);
-                        const currentValue = Math.abs(invested); // Simplified valuation
+                        const currentValue = Math.abs(invested);
 
                         investmentsTotalUSD += currentValue;
 
@@ -121,7 +122,6 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         } else if (inv.type === 'TREASURY' || inv.type === 'ETF' || inv.type === 'STOCK') {
                             totalUSA += currentValue;
                         } else {
-                            // Fallback
                             totalArg += currentValue;
                         }
                     });
@@ -153,11 +153,9 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
 
                     // --- KEY DATES (Calculations) ---
 
-                    // A. Next Rental Expiration
                     let nextRentalExpiration: { date: Date; property: string } | null = null;
                     let minDiffExp = Infinity;
 
-                    // B. Next Rental Adjustment
                     let nextRentalAdjustment: { date: Date; property: string } | null = null;
                     let minDiffAdj = Infinity;
 
@@ -175,10 +173,10 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         // Adjustment
                         if (c.adjustmentType !== 'NONE') {
                             let nextAdjDate = new Date(c.startDate);
+                            // Find next future adjustment
                             while (isBefore(nextAdjDate, now) || nextAdjDate.getTime() === now.getTime()) {
                                 nextAdjDate = addMonths(nextAdjDate, c.adjustmentFrequency);
                             }
-                            // Only if within reasonable timeframe (e.g. next year)
                             const diff = nextAdjDate.getTime() - now.getTime();
                             if (diff < minDiffAdj) {
                                 minDiffAdj = diff;
@@ -187,7 +185,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         }
                     });
 
-                    // C. Next PF Maturity (Global)
+                    // Next PF Maturity
                     let nextPFMaturity: { date: Date; bank: string; amount: number } | null = null;
                     let minDiffPF = Infinity;
 
@@ -208,10 +206,10 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         }
                     });
 
-                    // --- DETAILED MATURITIES ---
+                    // --- DETAILED MATURITIES (Full Month) ---
                     const maturities: any[] = [];
 
-                    // 1. Current Month Cashflows
+                    // 1. Current Month Cashflows (All, not just future)
                     const monthCashflows = await prisma.cashflow.findMany({
                         where: {
                             investment: { userId: user.id },
@@ -224,7 +222,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     monthCashflows.forEach(cf => {
                         maturities.push({
                             date: cf.date,
-                            description: `${cf.investment.name} (${cf.type === 'INTEREST' ? 'Int' : 'Amort'})`,
+                            description: `${cf.investment.name} (${cf.type === 'INTEREST' ? 'Interés' : 'Amort.'})`,
                             amount: cf.amount,
                             currency: cf.currency,
                             type: cf.investment.type === 'ON' ? 'ON' : 'TREASURY'
@@ -249,18 +247,16 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         }
                     });
 
-                    // 3. Monthly Rental
+                    // 3. Rentals (Collections this month)
                     activeContracts.forEach(c => {
-                        const collectionDate = new Date(now.getFullYear(), now.getMonth(), 5); // Approx
-                        if (!isBefore(collectionDate, now)) { // Only show if future or "active"
-                            maturities.push({
-                                date: collectionDate, // Or today
-                                description: `Alquiler ${c.property.name || ''}`,
-                                amount: c.initialRent,
-                                currency: c.currency,
-                                type: 'RENTAL'
-                            });
-                        }
+                        const collectionDate = new Date(now.getFullYear(), now.getMonth(), 5); // Approx 5th of month
+                        maturities.push({
+                            date: collectionDate, // Fixed date for the month
+                            description: `Alquiler ${c.property.name || ''}`,
+                            amount: c.initialRent,
+                            currency: c.currency,
+                            type: 'RENTAL'
+                        });
                     });
 
                     // Save Snapshot
@@ -282,13 +278,19 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             userName: user.name || 'Usuario',
                             month: monthName,
                             year: year.toString(),
-                            totalNetWorth: totalNetWorthUSD,
+                            dashboardUrl: appUrl + '/dashboard/global',
+
+                            totalDebtPending: debtTotalPendingUSD, // Updated field
                             totalArg: totalArg,
                             totalUSA: totalUSA,
-                            monthlyIncome: monthlyRentalIncomeUSD,
+
                             maturities: maturities,
-                            nextRentalExpiration,
-                            nextRentalAdjustment,
+
+                            rentalEvents: {
+                                nextExpiration: nextRentalExpiration,
+                                nextAdjustment: nextRentalAdjustment
+                            },
+
                             nextPFMaturity
                         });
 
