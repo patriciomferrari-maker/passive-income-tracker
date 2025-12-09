@@ -114,6 +114,7 @@ export async function updateTreasuries(userId?: string): Promise<MarketDataResul
 export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
 
+    console.log(`[updateONs] Called with userId: ${userId}`);
     // Find ONs/Cedears
     const investments = await prisma.investment.findMany({
         where: {
@@ -122,6 +123,7 @@ export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
             ...(userId ? { userId } : {})
         }
     });
+    console.log(`[updateONs] Found ${investments.length} investments.`);
 
     for (const inv of investments) {
         let price = null;

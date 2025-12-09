@@ -9,6 +9,8 @@ export async function POST(req: Request) {
     if (!session?.user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.log('Admin Action User:', session.user.id);
+
 
     try {
         const { action } = await req.json();
