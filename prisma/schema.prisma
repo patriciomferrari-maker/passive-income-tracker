@@ -132,8 +132,29 @@ model Investment {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
+  // Market Data (New)
+  lastPrice    Float?        // Ultimo precio de cierre conocido
+  lastPriceDate DateTime?    // Fecha del ultimo precio
+
+  assetPrices  AssetPrice[]
+
   @@unique([userId, ticker]) // Tickers unique per User, not global
   @@index([userId])
+}
+
+model AssetPrice {
+  id           String     @id @default(cuid())
+  investmentId String
+  investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  
+  date         DateTime
+  price        Float
+  currency     String     @default("USD")
+  
+  createdAt    DateTime   @default(now())
+  
+  @@index([investmentId])
+  @@index([date])
 }
 
 model AmortizationSchedule {
