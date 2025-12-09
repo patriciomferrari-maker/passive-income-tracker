@@ -69,7 +69,7 @@ function PriceList({ prices }: { prices: any[] }) {
     if (!prices || prices.length === 0) return <span className="text-xs text-yellow-500">No se encontraron inversiones con Ticker.</span>;
 
     return (
-        <div className="bg-slate-950 p-4 rounded-md border border-slate-800 max-h-60 overflow-y-auto">
+        <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
             <h4 className="text-sm font-semibold text-slate-300 mb-2">Resultados:</h4>
             <ul className="space-y-2">
                 {prices.map((p: any, i: number) => (

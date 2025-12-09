@@ -129,8 +129,15 @@ export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
         let source: 'YAHOO' | 'IOL' = 'IOL';
         let error = '';
 
+        // Force Ticker to end in 'D' for USD Price (User Request)
+        // e.g. RUCDO -> RUCDD
+        let searchTicker = inv.ticker;
+        if (!searchTicker.endsWith('D') && searchTicker.length > 0) {
+            searchTicker = searchTicker.slice(0, -1) + 'D';
+        }
+
         // Strategy 1: IOL Scraping (Primary request)
-        const iolData = await fetchIOLPrice(inv.ticker);
+        const iolData = await fetchIOLPrice(searchTicker);
         if (iolData) {
             price = iolData.price;
             currency = iolData.currency;
@@ -140,7 +147,7 @@ export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
         if (!price) {
             try {
                 source = 'YAHOO';
-                const quote = await yahooFinance.quote(inv.ticker);
+                const quote = await yahooFinance.quote(searchTicker);
                 if (quote && quote.regularMarketPrice) {
                     price = quote.regularMarketPrice;
                     currency = quote.currency || inv.currency;
