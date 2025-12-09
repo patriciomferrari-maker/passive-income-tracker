@@ -77,8 +77,7 @@ function getTCClosingMonth(tcMap: Map<number, number>, date: Date): number {
 export async function generateContractCashflows(contract: ContractData) {
     const { ipcMap, tcMap } = await loadEconomicData();
 
-    const monthBeforeStart = addMonths(new Date(contract.startDate), -1);
-    const tcBase = getTCClosingMonth(tcMap, monthBeforeStart);
+    const tcBase = getTCForDate(tcMap, new Date(contract.startDate));
 
     const cashflows = [];
     let previousAmountARS: number | null = null;
