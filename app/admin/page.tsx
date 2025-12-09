@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
@@ -75,17 +75,14 @@ export default function AdminPage() {
 function IPCCard({ loading, setLoading, result, setResult }: any) {
     const [inflationData, setInflationData] = useState<any[]>([]);
 
-    // Load data on mount
-    import('react').then(({ useEffect }) => {
-        useEffect(() => {
-            fetch('/api/admin/inflation')
-                .then(res => res.json())
-                .then(data => {
-                    if (Array.isArray(data)) setInflationData(data);
-                })
-                .catch(err => console.error(err));
-        }, [result]); // Reload when result changes
-    });
+    useEffect(() => {
+        fetch('/api/admin/inflation')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) setInflationData(data);
+            })
+            .catch(err => console.error(err));
+    }, [result]); // Reload when result changes
 
     const updateIPC = async () => {
         setLoading('UPDATE_IPC');
