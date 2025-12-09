@@ -105,59 +105,130 @@ export async function updateTreasuries(userId?: string): Promise<MarketDataResul
         } catch (e: any) {
             console.error('Yahoo Error:', e);
             results.push({ ticker: inv.ticker, price: null, currency: null, error: e.message || 'Yahoo Error', source: 'YAHOO' });
-            where: { id: investmentId },
-            data: { lastPrice: price, lastPriceDate: date }
-        });
-
-        // History (Once a day)
-        const todayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        const existing = await prisma.assetPrice.findFirst({ where: { investmentId, date: { gte: todayStart } } });
-
-        if (!existing) {
-            await prisma.assetPrice.create({
-                data: { investmentId, price, currency, date }
-            });
         }
     }
+    return results;
+}
 
-    // 3. Update IPC
-    export async function updateIPC(): Promise<IPCResult> {
-        const seriesId = '172.3_JL_TOTAL_12_M_15';
-        try {
-            const url = `https://apis.datos.gob.ar/series/api/series?ids=${seriesId}&limit=1&format=json`;
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 sec timeout
-            const res = await fetch(url, { signal: controller.signal });
-            clearTimeout(timeoutId);
+// 2. Update ONs (IOL Priority)
+export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
+    const results: MarketDataResult[] = [];
 
-            if (res.ok) {
-                const json = await res.json();
-                if (json.data && json.data.length > 0) {
-                    // The data format is [[date, value], ...]
-                    // We want the most recent one.
-                    // Sometimes we might need sort=desc, but usually last item is latest?
-                    // Let's rely on what we get.
-                    const last = json.data[json.data.length - 1];
-                    const [dateStr, value] = last;
+    console.log(`[updateONs] Called with userId: ${userId}`);
+    // Find ONs/Cedears
+    const investments = await prisma.investment.findMany({
+        where: {
+            ticker: { not: '' },
+            type: { in: ['ON', 'CEDEAR'] },
+            ...(userId ? { userId } : {})
+        }
+    });
 
-                    if (dateStr && value !== undefined) {
-                        const dateKey = new Date(dateStr);
-                        // Set to 1st of month to normalize
-                        const monthDate = new Date(dateKey.getFullYear(), dateKey.getMonth(), 1);
+    console.log(`[updateONs] Found ${investments.length} investments.`);
 
-                        // Upsert logic
-                        const existing = await prisma.economicIndicator.findFirst({ where: { type: 'IPC', date: monthDate } });
-                        if (existing) {
-                            await prisma.economicIndicator.update({ where: { id: existing.id }, data: { value } });
-                        } else {
-                            await prisma.economicIndicator.create({ data: { type: 'IPC', date: monthDate, value } });
-                        }
-                        return { date: monthDate, value };
+    if (investments.length === 0) {
+        return [];
+    }
+
+    for (const inv of investments) {
+        let price = null;
+        let currency = null;
+        let source: 'YAHOO' | 'IOL' = 'IOL';
+        let error = '';
+
+        // Force Ticker to end in 'D' for USD Price (User Request)
+        // e.g. RUCDO -> RUCDD
+        let searchTicker = inv.ticker;
+        if (!searchTicker.endsWith('D') && searchTicker.length > 0) {
+            searchTicker = searchTicker.slice(0, -1) + 'D';
+        }
+
+        // Strategy 1: IOL Scraping (Primary request)
+        const iolData = await fetchIOLPrice(searchTicker);
+        if (iolData) {
+            price = iolData.price;
+            currency = iolData.currency;
+        }
+
+        // Strategy 2: Yahoo Finance (Fallback)
+        if (!price) {
+            try {
+                source = 'YAHOO';
+                const quote = await yahooFinance.quote(searchTicker);
+                if (quote && quote.regularMarketPrice) {
+                    price = quote.regularMarketPrice;
+                    currency = quote.currency || inv.currency;
+                }
+            } catch (e) { /* Ignore */ }
+        }
+
+        if (price) {
+            await savePrice(inv.id, price, currency || 'USD');
+            results.push({ ticker: inv.ticker, price, currency, source });
+        } else {
+            results.push({ ticker: inv.ticker, price: null, currency: null, error: 'Not found via IOL or Yahoo', source });
+        }
+    }
+    return results;
+}
+
+// Helper to save to DB
+async function savePrice(investmentId: string, price: number, currency: string) {
+    const date = new Date();
+    await prisma.investment.update({
+        where: { id: investmentId },
+        data: { lastPrice: price, lastPriceDate: date }
+    });
+
+    // History (Once a day)
+    const todayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const existing = await prisma.assetPrice.findFirst({ where: { investmentId, date: { gte: todayStart } } });
+
+    if (!existing) {
+        await prisma.assetPrice.create({
+            data: { investmentId, price, currency, date }
+        });
+    }
+}
+
+// 3. Update IPC
+export async function updateIPC(): Promise<IPCResult> {
+    const seriesId = '172.3_JL_TOTAL_12_M_15';
+    try {
+        const url = `https://apis.datos.gob.ar/series/api/series?ids=${seriesId}&limit=1&format=json`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 sec timeout
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+            const json = await res.json();
+            if (json.data && json.data.length > 0) {
+                // The data format is [[date, value], ...]
+                // We want the most recent one.
+                // Sometimes we might need sort=desc, but usually last item is latest?
+                // Let's rely on what we get.
+                const last = json.data[json.data.length - 1];
+                const [dateStr, value] = last;
+
+                if (dateStr && value !== undefined) {
+                    const dateKey = new Date(dateStr);
+                    // Set to 1st of month to normalize
+                    const monthDate = new Date(dateKey.getFullYear(), dateKey.getMonth(), 1);
+
+                    // Upsert logic
+                    const existing = await prisma.economicIndicator.findFirst({ where: { type: 'IPC', date: monthDate } });
+                    if (existing) {
+                        await prisma.economicIndicator.update({ where: { id: existing.id }, data: { value } });
+                    } else {
+                        await prisma.economicIndicator.create({ data: { type: 'IPC', date: monthDate, value } });
                     }
+                    return { date: monthDate, value };
                 }
             }
-            return { date: new Date(), value: 0, error: 'API Empty Response' };
-        } catch (e: any) {
-            return { date: new Date(), value: 0, error: e.message };
         }
+        return { date: new Date(), value: 0, error: 'API Empty Response' };
+    } catch (e: any) {
+        return { date: new Date(), value: 0, error: e.message };
     }
+}
