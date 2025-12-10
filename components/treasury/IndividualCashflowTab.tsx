@@ -9,6 +9,7 @@ interface Treasury {
     id: string;
     ticker: string;
     name: string;
+    type: string;
 }
 
 interface Cashflow {
@@ -74,12 +75,17 @@ export function IndividualCashflowTab() {
 
     const loadTreasuries = async () => {
         try {
-            const res = await fetch('/api/investments/treasury');
+            const res = await fetch('/api/investments/treasury', { cache: 'no-store' });
             const data = await res.json();
-            setTreasuries(data);
 
-            if (data.length > 0 && !selectedTreasury) {
-                setSelectedTreasury(data[0].id);
+            // Filter only Treasuries (exclude ETFs)
+            // Ensure type comparison is case-insensitive just in case
+            const onlyTreasuries = data.filter((t: any) => t.type && t.type.toUpperCase() === 'TREASURY');
+
+            setTreasuries(onlyTreasuries);
+
+            if (onlyTreasuries.length > 0 && !selectedTreasury) {
+                setSelectedTreasury(onlyTreasuries[0].id);
             }
         } catch (error) {
             console.error('Error loading Treasuries:', error);

@@ -65,7 +65,7 @@ export function ConsolidatedCashflowTab() {
 
     const loadCashflows = async () => {
         try {
-            const res = await fetch('/api/investments/cashflows');
+            const res = await fetch('/api/investments/cashflows?type=ON,CORPORATE_BOND', { cache: 'no-store' });
             const data = await res.json();
             setCashflows(data);
             // Auto-expand current year

@@ -58,6 +58,13 @@ export async function generateInvestmentCashflow(investmentId: string): Promise<
     const freqMonths = investment.frequency;
     const annualRate = investment.couponRate || 0;
     const amortizationType = investment.amortization || 'BULLET';
+    const type = investment.type;
+
+    // Skip generation for ETFs or Stocks (they don't have predictable cashflows)
+    if (type === 'ETF' || type === 'STOCK') {
+        return [];
+    }
+
 
     // 1. Generate Full Schedule (Issuer View)
     // We need to know the full schedule to calculate residual factors correctly

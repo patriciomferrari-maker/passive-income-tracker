@@ -1,11 +1,4 @@
-
 import { prisma } from '@/lib/prisma';
-
-// Use require for robust backend compatibility with Next.js/Webpack
-// Fix for Yahoo Finance instantiation error
-// 'default' export is the class itself in CommonJS land for this lib
-const YahooFinance = require('yahoo-finance2').default;
-const yahooFinance = new YahooFinance();
 
 // Types
 interface MarketDataResult {
@@ -38,8 +31,7 @@ async function fetchIOLPrice(symbol: string): Promise<{ price: number; currency:
         if (!res.ok) return null;
         const html = await res.text();
 
-        // 1. Try "UltimoPrecio" data field (Found via verification script)
-        // <span data-field="UltimoPrecio">101,75</span>
+        // 1. Try "UltimoPrecio" data field
         const regexDataField = /data-field="UltimoPrecio">([\d\.,]+)</;
         const matchDataVal = html.match(regexDataField);
 
@@ -48,7 +40,6 @@ async function fetchIOLPrice(symbol: string): Promise<{ price: number; currency:
             const price = parseFloat(rawValue.replace(/\./g, '').replace(',', '.'));
 
             let currency = 'USD'; // Default assumption
-            // Logic to deduce currency from page
             if (html.includes('data-field="Moneda">US$') || html.includes('data-field="Moneda">USD') || html.includes('U$S')) {
                 currency = 'USD';
             } else if (html.includes('data-field="Moneda">$')) {
@@ -80,6 +71,9 @@ async function fetchIOLPrice(symbol: string): Promise<{ price: number; currency:
 // 1. Update Treasuries (Yahoo Finance Only)
 export async function updateTreasuries(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
+
+    // Import inside function to avoid init issues
+    const yahooFinance = require('yahoo-finance2').default;
 
     // Find Treasuries/ETFs with Ticker
     const investments = await prisma.investment.findMany({
@@ -113,6 +107,7 @@ export async function updateTreasuries(userId?: string): Promise<MarketDataResul
 // 2. Update ONs (IOL Priority)
 export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
+    const yahooFinance = require('yahoo-finance2').default;
 
     console.log(`[updateONs] Called with userId: ${userId}`);
     // Find ONs/Cedears
@@ -134,10 +129,8 @@ export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
         let price = null;
         let currency = null;
         let source: 'YAHOO' | 'IOL' = 'IOL';
-        let error = '';
 
         // Force Ticker to end in 'D' for USD Price (User Request)
-        // e.g. RUCDO -> RUCDD
         let searchTicker = inv.ticker;
         if (!searchTicker.endsWith('D') && searchTicker.length > 0) {
             searchTicker = searchTicker.slice(0, -1) + 'D';
@@ -175,6 +168,7 @@ export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
 // Helper to save to DB
 async function savePrice(investmentId: string, price: number, currency: string) {
     const date = new Date();
+    console.log(`Saving price for ${investmentId}: ${price} ${currency}`);
     await prisma.investment.update({
         where: { id: investmentId },
         data: { lastPrice: price, lastPriceDate: date }
@@ -204,19 +198,13 @@ export async function updateIPC(): Promise<IPCResult> {
         if (res.ok) {
             const json = await res.json();
             if (json.data && json.data.length > 0) {
-                // The data format is [[date, value], ...]
-                // We want the most recent one.
-                // Sometimes we might need sort=desc, but usually last item is latest?
-                // Let's rely on what we get.
                 const last = json.data[json.data.length - 1];
                 const [dateStr, value] = last;
 
                 if (dateStr && value !== undefined) {
                     const dateKey = new Date(dateStr);
-                    // Set to 1st of month to normalize
                     const monthDate = new Date(dateKey.getFullYear(), dateKey.getMonth(), 1);
 
-                    // Upsert logic
                     const existing = await prisma.economicIndicator.findFirst({ where: { type: 'IPC', date: monthDate } });
                     if (existing) {
                         await prisma.economicIndicator.update({ where: { id: existing.id }, data: { value } });

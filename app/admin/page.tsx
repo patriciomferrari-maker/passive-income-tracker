@@ -13,20 +13,37 @@ export default function AdminPage() {
 
     // Fetch ONs on mount
     useEffect(() => {
-        async function loadONs() {
+        async function initAdmin() {
+            setLoadingONs(true);
             try {
+                // 1. Trigger Updates (Auto-update requested by user)
+                // We fire both updates in parallel for efficiency
+                await Promise.all([
+                    fetch('/api/admin/market-data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'UPDATE_ONS' })
+                    }),
+                    fetch('/api/admin/market-data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'UPDATE_TREASURIES' })
+                    })
+                ]);
+
+                // 2. Fetch Latest Data
                 const res = await fetch('/api/admin/market-data');
                 const data = await res.json();
                 if (data.success && data.prices) {
                     setOnPrices(data.prices);
                 }
             } catch (e) {
-                console.error("Failed to load ONs", e);
+                console.error("Failed to update/load assets", e);
             } finally {
                 setLoadingONs(false);
             }
         }
-        loadONs();
+        initAdmin();
     }, []);
 
     return (
@@ -38,16 +55,19 @@ export default function AdminPage() {
                 <Card className="bg-slate-900 border-slate-800 h-fit">
                     <CardHeader>
                         <div className="flex justify-between items-center">
-                            <CardTitle className="text-slate-100 text-lg">Obligaciones Negociables</CardTitle>
-                            <Badge variant="secondary" className="bg-slate-800 text-slate-400">IOL</Badge>
+                            <CardTitle className="text-slate-100 text-lg">Cotización Activos</CardTitle>
+                            <Badge variant="secondary" className="bg-slate-800 text-slate-400">Multi-Market</Badge>
                         </div>
                         <CardDescription className="text-slate-400 text-xs">
-                            Cotización histórica y scraping diario (Automático).
+                            ONs (IOL) y US Assets (Yahoo Finance).
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         {loadingONs ? (
-                            <span className="text-xs text-yellow-500">Cargando...</span>
+                            <div className="flex flex-col gap-2">
+                                <span className="text-xs text-yellow-500 animate-pulse">Actualizando cotizaciones...</span>
+                                <span className="text-[10px] text-slate-500">Esto puede demorar unos segundos.</span>
+                            </div>
                         ) : (
                             <PriceList prices={onPrices} />
                         )}

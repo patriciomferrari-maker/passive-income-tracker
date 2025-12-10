@@ -16,7 +16,7 @@ export async function GET(request: Request) {
                 status: 'PROJECTED',
                 investment: {
                     userId, // Filter by User
-                    type: type
+                    type: { in: type.split(',') }
                 }
             },
             orderBy: { date: 'asc' }

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Eye, EyeOff, CheckSquare, Square, Trash, AlertTriangle, Edit, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Trash2, Eye, EyeOff, CheckSquare, Square, Trash, AlertTriangle, Edit, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Treasury {
@@ -269,6 +269,26 @@ export function PurchasesTab() {
         }
     };
 
+    const [updating, setUpdating] = useState(false);
+
+    const handleUpdatePrices = async () => {
+        setUpdating(true);
+        try {
+            const res = await fetch('/api/admin/market-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'UPDATE_TREASURIES' })
+            });
+            if (res.ok) {
+                await loadData();
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setUpdating(false);
+        }
+    };
+
     return (
         <>
             <Card className="bg-slate-950 border-slate-800">
@@ -293,37 +313,28 @@ export function PurchasesTab() {
                                 <button
                                     onClick={() => setFilterType('ETF')}
                                     className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ETF' ? 'bg-purple-900/50 text-purple-200' : 'text-slate-400 hover:text-white'}`}
+                                    title={showValues ? "Ocultar montos" : "Mostrar montos"}
                                 >
-                                    ETFs
-                                </button>
-                            </div>
-
-                            <Button
-                                onClick={togglePrivacy}
-                                variant="outline"
-                                className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
-                                title={showValues ? "Ocultar montos" : "Mostrar montos"}
-                            >
-                                {showValues ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </Button>
-                            {selectedIds.length > 0 && (
-                                <Button
-                                    onClick={confirmBulkDelete}
-                                    variant="outline"
-                                    className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
-                                >
-                                    <Trash className="h-4 w-4 mr-2" />
-                                    Eliminar ({selectedIds.length})
+                                    {showValues ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </Button>
-                            )}
-                            <Button
-                                onClick={() => setShowForm(true)}
-                                className="bg-blue-600 hover:bg-blue-700"
-                            >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Nueva Compra
-                            </Button>
-                        </div>
+                                {selectedIds.length > 0 && (
+                                    <Button
+                                        onClick={confirmBulkDelete}
+                                        variant="outline"
+                                        className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                                    >
+                                        <Trash className="h-4 w-4 mr-2" />
+                                        Eliminar ({selectedIds.length})
+                                    </Button>
+                                )}
+                                <Button
+                                    onClick={() => setShowForm(true)}
+                                    className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Nueva Compra
+                                </Button>
+                            </div>
                     </CardTitle>
                     <CardDescription className="text-slate-300">
                         Historial de operaciones de compra
@@ -417,7 +428,7 @@ export function PurchasesTab() {
                                                 <td className="py-3 px-4 text-white text-right font-mono">
                                                     {currentPrice > 0 ? formatMoney(currentPrice) : '-'}
                                                 </td>
-                                                <td className="py-3 px-4 text-white text-right font-mono font-bold">
+                                                <td className="py-3 px-4 text-white text-right font-mono text-slate-400">
                                                     {formatMoney(totalPaid)}
                                                 </td>
                                                 {/* P&L */}
