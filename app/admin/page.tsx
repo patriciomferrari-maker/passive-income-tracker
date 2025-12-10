@@ -141,7 +141,7 @@ function DollarCard() {
                         <span className="text-right">Compra</span>
                         <span className="text-right">Venta</span>
                     </div>
-                    <div>
+                    <div className="max-h-[400px] overflow-y-auto">
                         {dollarData.length > 0 ? (
                             dollarData.map((item, i) => (
                                 <div key={i} className="grid grid-cols-3 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">

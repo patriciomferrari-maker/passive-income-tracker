@@ -8,7 +8,7 @@ export async function GET() {
         const data = await prisma.economicIndicator.findMany({
             where: { type: 'TC_USD_ARS' },
             orderBy: { date: 'desc' },
-            take: 30
+            // Removed take limit to show full history
         });
 
         return NextResponse.json(data);
@@ -19,8 +19,9 @@ export async function GET() {
 
 export async function POST() {
     try {
-        // Scrape last 60 days to ensure recent history is filled
-        const scrapedData = await scrapeDolarBlue();
+        // Scrape from 2019-01-01 as requested
+        const today = new Date().toISOString().split('T')[0];
+        const scrapedData = await scrapeDolarBlue('2019-01-01', today);
 
         let count = 0;
         for (const item of scrapedData) {
