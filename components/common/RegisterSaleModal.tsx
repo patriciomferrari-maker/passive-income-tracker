@@ -16,9 +16,10 @@ interface RegisterSaleModalProps {
     assets: InvestmentOption[];
     onClose: () => void;
     onSuccess: () => void;
+    priceDivisor?: number; // Divisor for price (e.g. 100 for ONs)
 }
 
-export default function RegisterSaleModal({ assets, onClose, onSuccess }: RegisterSaleModalProps) {
+export default function RegisterSaleModal({ assets, onClose, onSuccess, priceDivisor = 1 }: RegisterSaleModalProps) {
     const [selectedAsset, setSelectedAsset] = useState('');
     const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [quantity, setQuantity] = useState('');
@@ -31,18 +32,8 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess }: Regist
         setSubmitting(true);
 
         try {
-            // Note: We use the generic transaction creation but with type=SELL implicit via logic or explicit param?
-            // The existing API /api/investments/treasury/[id]/transactions creates a transaction.
-            // We need to ensure it supports type='SELL'. 
-            // Looking at the implementation, usually it defaults to 'BUY' if not specified or might calculate totalAmount.
-            // Let's assume we need to pass a negative quantity for current logic OR send type='SELL'.
-            // The safest bet with FIFO logic is to send type='SELL' explicitly.
-
-            // Wait, existing POST logic might default to BUY.
-            // Let's check api/investments/transactions/route.ts if we can.
-            // For now, I'll assume we send negative quantity for sales if the backend interprets that as a reduction,
-            // OR we explicitly send type 'SELL'.
-            // Given the robust FIFO plan, let's send 'SELL' type.
+            const rawPrice = Number(price);
+            const actualPrice = rawPrice / priceDivisor;
 
             const res = await fetch(`/api/investments/transactions`, {
                 method: 'POST',
@@ -51,7 +42,7 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess }: Regist
                     investmentId: selectedAsset,
                     date,
                     quantity: Number(quantity),
-                    price: Number(price),
+                    price: actualPrice,
                     commission: Number(commission),
                     type: 'SELL'
                 })

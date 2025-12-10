@@ -67,7 +67,12 @@ export async function GET(request: Request) {
         for (const ticker in txByTicker) {
             const result = calculateFIFO(txByTicker[ticker], ticker);
             const investment = investmentMap[ticker];
-            const currentPrice = investment.lastPrice || 0;
+            let currentPrice = investment.lastPrice || 0;
+
+            // For ONs and Corporate Bonds, price is usually quoted as %, so divide by 100 for value calc
+            if (investment.type === 'ON' || investment.type === 'CORPORATE_BOND') {
+                currentPrice = currentPrice / 100;
+            }
 
             // Map Realized Gains (already calculated in lib/fifo)
             const realizedEvents = result.realizedGains.map(g => ({

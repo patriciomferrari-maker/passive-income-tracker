@@ -132,8 +132,8 @@ export default function PositionsTable({ types, refreshTrigger }: PositionsTable
                                     </td>
                                     <td className="px-4 py-3">
                                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${pos.status === 'OPEN'
-                                                ? 'bg-blue-900/30 text-blue-400 border-blue-900'
-                                                : 'bg-green-900/30 text-green-400 border-green-900'
+                                            ? 'bg-blue-900/30 text-blue-400 border-blue-900'
+                                            : 'bg-green-900/30 text-green-400 border-green-900'
                                             }`}>
                                             {pos.status === 'OPEN' ? 'ABIERTA' : 'CERRADA'}
                                         </span>
@@ -161,7 +161,7 @@ export default function PositionsTable({ types, refreshTrigger }: PositionsTable
                                         {formatMoney(pos.resultAbs, pos.currency)}
                                     </td>
                                     <td className={`px-4 py-3 text-right font-medium tabular-nums ${pos.resultPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {pos.resultPercent.toFixed(2)}%
+                                        {pos.resultPercent?.toFixed(2)}%
                                     </td>
                                 </tr>
                             ))}

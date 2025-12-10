@@ -556,6 +556,7 @@ export function PurchasesTab() {
                     assets={ons}
                     onClose={() => setShowSaleModal(false)}
                     onSuccess={handleSaleSuccess}
+                    priceDivisor={100}
                 />
             )}
         </Card>
