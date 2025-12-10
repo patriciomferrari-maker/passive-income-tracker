@@ -21,13 +21,21 @@ export async function GET() {
         const results = [];
 
         for (const ticker of uniqueTickers) {
-            // Fetch ARS (Ticker)
-            const arsData = await fetchRavaPrice(ticker);
-            // Fetch USD (Ticker + D)
-            const usdData = await fetchRavaPrice(ticker + 'D');
+            // Fetch From Rava (Returns price and usdPrice)
+            const ravaData = await fetchRavaPrice(ticker);
 
-            const arsPrice = arsData?.price || null;
-            const usdPrice = usdData?.price || null;
+            // If we didn't get a USD price from the main response, try "D" suffix explicitly 
+            // (Only if main failed to provide it, though user asked for "adding D")
+            let usdPrice = ravaData?.usdPrice || null;
+
+            if (!usdPrice) {
+                const usdData = await fetchRavaPrice(ticker + 'D');
+                if (usdData?.price) {
+                    usdPrice = usdData.price;
+                }
+            }
+
+            const arsPrice = ravaData?.price || null;
 
             let tc = null;
             if (arsPrice && usdPrice && usdPrice > 0) {
@@ -39,7 +47,7 @@ export async function GET() {
                 arsPrice,
                 usdPrice,
                 tc,
-                lastUpdate: arsData?.updateDate || usdData?.updateDate || new Date()
+                lastUpdate: ravaData?.updateDate || new Date()
             });
         }
 

@@ -13,7 +13,7 @@ export async function GET(req: Request) {
         const investments = await prisma.investment.findMany({
             where: {
                 userId: session.user.id,
-                type: { in: ['ON', 'CEDEAR', 'TREASURY', 'ETF', 'STOCK'] },
+                type: { in: ['ON', 'CORPORATE_BOND'] },
                 ticker: { not: '' }
             },
             select: {

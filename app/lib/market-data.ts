@@ -107,7 +107,7 @@ export async function updateTreasuries(userId?: string): Promise<MarketDataResul
 }
 
 // Helper: Scrape Rava
-export async function fetchRavaPrice(symbol: string): Promise<{ price: number; updateDate?: Date } | null> {
+export async function fetchRavaPrice(symbol: string): Promise<{ price: number; usdPrice?: number; updateDate?: Date } | null> {
     try {
         const url = `https://www.rava.com/perfil/${symbol}`;
         console.log(`Fetching Rava: ${url}`);
@@ -119,10 +119,6 @@ export async function fetchRavaPrice(symbol: string): Promise<{ price: number; u
         if (!res.ok) return null;
         const html = await res.text();
 
-        // Extract Vue prop :res="{...}"
-        // We look for :res=" and match until the next " (careful with escaped quotes)
-        // actually simple regex might fail if json uses quotes inside. 
-        // But Rava generally uses &quot; for inner quotes in the attribute.
         const regex = /:res="([^"]+)"/;
         const match = html.match(regex);
 
@@ -133,12 +129,14 @@ export async function fetchRavaPrice(symbol: string): Promise<{ price: number; u
                 const hist = data.coti_hist;
                 if (Array.isArray(hist) && hist.length > 0) {
                     const last = hist[hist.length - 1];
-                    // last contains { cierre: number, fecha: string, ... }
+                    // last contains { cierre: number, fecha: string, usd_cierre: number, ... }
                     const price = last.cierre;
+                    const usdPrice = last.usd_cierre || last.usd_ultimo || null;
+
                     const dateParts = last.fecha.split('-'); // YYYY-MM-DD
                     const date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
 
-                    return { price, updateDate: date };
+                    return { price, usdPrice, updateDate: date };
                 }
             } catch (e) {
                 console.error(`Error parsing Rava JSON for ${symbol}:`, e);
