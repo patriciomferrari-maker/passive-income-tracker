@@ -18,7 +18,7 @@ export default function ONManagementPage() {
     const tabs = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'holdings', label: 'Tenencia', icon: Briefcase },
-        { id: 'purchases', label: 'Historial', icon: ShoppingCart },
+        { id: 'purchases', label: 'Operaciones', icon: ShoppingCart },
         { id: 'individual', label: 'Flujo por ON', icon: TrendingUp },
         { id: 'consolidated', label: 'Flujo Consolidado', icon: BarChart3 },
         { id: 'config', label: 'Configuración', icon: Settings }

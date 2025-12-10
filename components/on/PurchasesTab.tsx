@@ -41,6 +41,8 @@ export function PurchasesTab() {
     // View Config
     const [viewCurrency, setViewCurrency] = useState<'ARS' | 'USD'>('USD');
     const [viewType, setViewType] = useState<string>('ALL');
+    const [viewAction, setViewAction] = useState<'ALL' | 'BUY' | 'SELL'>('ALL'); // Added Filter
+    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' }); // Added Sort
 
     // Modals
     const [showSaleModal, setShowSaleModal] = useState(false);
@@ -58,11 +60,10 @@ export function PurchasesTab() {
         fetch('/api/investments/on?market=ARG')
             .then(res => res.json())
             .then(data => {
-                // Map description to name if needed, api returns description
                 const mapped = data.map((d: any) => ({
                     ...d,
                     description: d.description || d.name,
-                    name: d.name || d.description // Ensure name exists 
+                    name: d.name || d.description
                 }));
                 setAssets(mapped);
             })
@@ -122,8 +123,44 @@ export function PurchasesTab() {
     const filteredTransactions = transactions.filter(tx => {
         const matchesSearch = tx.investment.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
             tx.investment.description.toLowerCase().includes(searchTerm.toLowerCase());
-        return matchesSearch;
+
+        // Action Filter
+        let matchesAction = true;
+        const isSell = tx.totalAmount >= 0; // Assuming positive totalAmount is sell (cashflow in) or based on Type? 
+        // Logic check: typically Buy is negative cashflow, Sell is positive. 
+        // OR we trust the Badge logic: `const isSell = tx.totalAmount >= 0;`
+        if (viewAction === 'BUY') matchesAction = !isSell;
+        if (viewAction === 'SELL') matchesAction = isSell;
+
+        return matchesSearch && matchesAction;
     });
+
+    // Sort Logic
+    const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+        let valA: any = '';
+        let valB: any = '';
+
+        if (sortConfig.key === 'date') {
+            valA = new Date(a.date).getTime();
+            valB = new Date(b.date).getTime();
+        } else if (sortConfig.key === 'ticker') {
+            valA = a.investment.ticker;
+            valB = b.investment.ticker;
+        }
+
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    const requestSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
 
     // Helper for History Display - Rates Logic
     const [ratesMap, setRatesMap] = useState<Record<string, number>>({});
@@ -180,13 +217,33 @@ export function PurchasesTab() {
                     <div className="space-y-1">
                         <CardTitle className="text-2xl font-bold text-white flex items-center gap-2">
                             <History className="text-blue-500" />
-                            Historial de Operaciones
+                            Operaciones
                         </CardTitle>
                         <CardDescription className="text-slate-400">
                             Registro completo de compras y ventas
                         </CardDescription>
                     </div>
                     <div className="flex gap-2">
+                        {/* Action Filter */}
+                        <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800 mr-2">
+                            {[
+                                { id: 'ALL', label: 'Todas' },
+                                { id: 'BUY', label: 'Compras' },
+                                { id: 'SELL', label: 'Ventas' }
+                            ].map(ft => (
+                                <button
+                                    key={ft.id}
+                                    onClick={() => setViewAction(ft.id as any)}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewAction === ft.id
+                                        ? 'bg-blue-600 text-white shadow-sm'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                        }`}
+                                >
+                                    {ft.label}
+                                </button>
+                            ))}
+                        </div>
+
                         {/* Type Filter */}
                         <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
                             {['ALL', 'ON', 'CEDEAR', 'ETF'].map(type => (
@@ -261,8 +318,13 @@ export function PurchasesTab() {
                         <table className="w-full text-sm">
                             <thead className="bg-slate-900 text-slate-400">
                                 <tr>
-                                    <th className="px-4 py-3 text-left font-medium">Fecha</th>
-                                    <th className="px-4 py-3 text-left font-medium">Activo</th>
+                                    <th className="px-4 py-3 text-left font-medium cursor-pointer hover:text-white hover:bg-slate-800/50" onClick={() => requestSort('date')}>
+                                        Fecha {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th className="px-4 py-3 text-left font-medium cursor-pointer hover:text-white hover:bg-slate-800/50" onClick={() => requestSort('ticker')}>
+                                        Activo {sortConfig.key === 'ticker' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th className="px-4 py-3 text-left font-medium">Clase</th>
                                     <th className="px-4 py-3 text-left font-medium">Tipo</th>
                                     <th className="px-4 py-3 text-right font-medium">Cantidad</th>
                                     <th className="px-4 py-3 text-right font-medium">Precio ({viewCurrency})</th>
@@ -274,11 +336,11 @@ export function PurchasesTab() {
                             </thead>
                             <tbody className="divide-y divide-slate-800">
                                 {loading ? (
-                                    <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-500">Cargando historial...</td></tr>
-                                ) : filteredTransactions.length === 0 ? (
-                                    <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-500">No hay operaciones registradas</td></tr>
+                                    <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-500">Cargando historial...</td></tr>
+                                ) : sortedTransactions.length === 0 ? (
+                                    <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-500">No hay operaciones registradas</td></tr>
                                 ) : (
-                                    filteredTransactions.map((tx) => {
+                                    sortedTransactions.map((tx) => {
                                         const isSell = tx.totalAmount >= 0;
                                         const convertedPrice = convertValue(tx.price, tx.date, tx.currency || 'ARS', viewCurrency);
                                         const convertedComm = convertValue(tx.commission, tx.date, tx.currency || 'ARS', viewCurrency);
@@ -294,6 +356,9 @@ export function PurchasesTab() {
                                                         <span>{tx.investment.ticker}</span>
                                                         <span className="text-xs text-slate-500">{tx.investment.description}</span>
                                                     </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-400 text-xs">
+                                                    {tx.investment.type || 'N/A'}
                                                 </td>
                                                 <td className="px-4 py-3 font-medium text-white">
                                                     <Badge variant={isSell ? "destructive" : "default"} className={isSell ? "bg-red-900/50 text-red-200 hover:bg-red-900 border-red-800" : "bg-green-900/50 text-green-200 hover:bg-green-900 border-green-800"}>
@@ -340,6 +405,7 @@ export function PurchasesTab() {
                     </div>
                 </CardContent>
             </Card>
+
 
             {showSaleModal && (
                 <RegisterSaleModal
