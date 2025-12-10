@@ -1,6 +1,8 @@
 
-import { prisma } from '../lib/prisma';
+import { PrismaClient } from '@prisma/client';
 import yahooFinance from 'yahoo-finance2';
+
+const prisma = new PrismaClient();
 
 async function main() {
     console.log('--- Diagnosing SPY ---');
@@ -14,8 +16,15 @@ async function main() {
     if (spy) {
         console.log('\n2. Testing Yahoo Finance Fetch for:', spy.ticker);
         try {
-            const quote = await yahooFinance.quote(spy.ticker) as any;
-            console.log('Yahoo Quote Result:', quote);
+            // Force strict strict validation off to see raw result
+            const quote = await yahooFinance.quote(spy.ticker, { validateResult: false }) as any;
+
+            console.log('Yahoo Quote Result (Raw):');
+            console.log('Symbol:', quote.symbol);
+            console.log('Regular Market Price:', quote.regularMarketPrice);
+            console.log('Currency:', quote.currency);
+            console.log('Full Quote Keys:', Object.keys(quote));
+
         } catch (e: any) {
             console.error('Yahoo Fetch Error:', e.message);
             console.error(e);
@@ -25,4 +34,8 @@ async function main() {
     }
 }
 
-main().catch(console.error);
+main()
+    .catch(console.error)
+    .finally(async () => {
+        await prisma.$disconnect();
+    });

@@ -73,7 +73,9 @@ export async function updateTreasuries(userId?: string): Promise<MarketDataResul
     const results: MarketDataResult[] = [];
 
     // Import inside function to avoid init issues
-    const yahooFinance = require('yahoo-finance2').default;
+    // Import inside function to avoid init issues
+    const YahooFinance = require('yahoo-finance2').default;
+    const yahooFinance = new YahooFinance();
 
     // Find Treasuries/ETFs with Ticker
     const investments = await prisma.investment.findMany({
@@ -107,7 +109,8 @@ export async function updateTreasuries(userId?: string): Promise<MarketDataResul
 // 2. Update ONs (IOL Priority)
 export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
-    const yahooFinance = require('yahoo-finance2').default;
+    const YahooFinance = require('yahoo-finance2').default;
+    const yahooFinance = new YahooFinance();
 
     console.log(`[updateONs] Called with userId: ${userId}`);
     // Find ONs/Cedears
