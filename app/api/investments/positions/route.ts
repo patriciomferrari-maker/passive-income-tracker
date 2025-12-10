@@ -92,8 +92,8 @@ export async function GET(request: Request) {
                 // Note: Selling usually incurs another commission. We are not projecting that here unless asked.
                 // User asked for "Resultado" (Result). 
 
-                const resultAbs = currentValue - totalCost;
-                const resultPercent = totalCost !== 0 ? (resultAbs / totalCost) * 100 : 0;
+                const resultAbs: number | null = currentPrice > 0 ? currentValue - totalCost : null;
+                const resultPercent: number | null = currentPrice > 0 && totalCost !== 0 ? ((currentValue - totalCost) / totalCost) * 100 : null;
 
                 return {
                     id: p.id,
@@ -104,10 +104,10 @@ export async function GET(request: Request) {
                     quantity: p.quantity,
                     buyPrice: p.buyPrice,
                     buyCommission: p.buyCommission,
-                    sellPrice: currentPrice, // "Precio de venta" -> Current Price for theoretical
-                    sellCommission: 0, // "Comision de venta" -> 0 for theoretical
-                    resultAbs,
-                    resultPercent,
+                    sellPrice: currentPrice > 0 ? currentPrice : 0,
+                    sellCommission: 0,
+                    resultAbs: resultAbs ?? 0, // Fallback to 0 for type safety but UI handles it? No, let's keep it null if interface allows
+                    resultPercent: resultPercent ?? 0,
                     currency: p.currency,
                     unrealized: true
                 };

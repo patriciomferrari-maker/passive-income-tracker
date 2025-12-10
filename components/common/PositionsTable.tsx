@@ -164,10 +164,10 @@ export default function PositionsTable({ types, refreshTrigger }: PositionsTable
                                         {pos.status === 'CLOSED' ? formatMoney(pos.sellCommission, pos.currency) : '-'}
                                     </td>
                                     <td className={`px-4 py-3 text-right font-medium tabular-nums ${pos.resultAbs >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {formatMoney(pos.resultAbs, pos.currency)}
+                                        {(pos.sellPrice > 0 || pos.status === 'CLOSED') ? formatMoney(pos.resultAbs, pos.currency) : '-'}
                                     </td>
                                     <td className={`px-4 py-3 text-right font-medium tabular-nums ${pos.resultPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {pos.resultPercent?.toFixed(2)}%
+                                        {(pos.sellPrice > 0 || pos.status === 'CLOSED') && pos.resultPercent !== undefined ? `${pos.resultPercent?.toFixed(2)}%` : '-'}
                                     </td>
                                 </tr>
                             ))}

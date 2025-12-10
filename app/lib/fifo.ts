@@ -51,7 +51,15 @@ export interface FIFOResult {
  */
 export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): FIFOResult {
     // 1. Sort by date ASC
-    const sorted = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sorted = [...transactions]
+        .map(tx => ({
+            ...tx,
+            price: Number(tx.price),
+            quantity: Number(tx.quantity),
+            commission: Number(tx.commission || 0)
+        }))
+        .filter(tx => !isNaN(tx.price) && !isNaN(tx.quantity) && tx.quantity > 0)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // Inventory items now need to track their specific commission paid
     interface InventoryItem extends FIFOTransaction {
