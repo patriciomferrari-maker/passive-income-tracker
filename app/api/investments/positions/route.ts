@@ -76,8 +76,19 @@ export async function GET(request: Request) {
 
             // Map Realized Gains (already calculated in lib/fifo)
             const realizedEvents = result.realizedGains.map(g => ({
-                ...g,
+                id: g.id,
+                date: g.date,
+                ticker: g.ticker,
                 name: investment.name,
+                status: g.status,
+                quantity: g.quantity,
+                buyPrice: g.buyPriceAvg, // Map Avg to generic buyPrice
+                buyCommission: g.buyCommissionPaid, // Map Paid to generic buyCommission
+                sellPrice: g.sellPrice,
+                sellCommission: g.sellCommission,
+                resultAbs: g.gainAbs,
+                resultPercent: g.gainPercent,
+                currency: g.currency,
                 currentPrice: 0, // Not relevant for closed
                 unrealized: false
             }));
