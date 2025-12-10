@@ -136,18 +136,20 @@ function DollarCard() {
             </CardHeader>
             <CardContent>
                 <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
-                    <div className="grid grid-cols-3 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
+                    <div className="grid grid-cols-4 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
                         <span>Fecha</span>
                         <span className="text-right">Compra</span>
                         <span className="text-right">Venta</span>
+                        <span className="text-right">Promedio</span>
                     </div>
                     <div className="max-h-[400px] overflow-y-auto">
                         {dollarData.length > 0 ? (
                             dollarData.map((item, i) => (
-                                <div key={i} className="grid grid-cols-3 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
+                                <div key={i} className="grid grid-cols-4 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
                                     <span className="text-slate-300">{new Date(item.date).toLocaleDateString('es-AR')}</span>
                                     <span className="text-right text-slate-400">${item.buyRate}</span>
                                     <span className="text-right font-bold text-green-400">${item.sellRate}</span>
+                                    <span className="text-right font-bold text-blue-400">${item.value}</span>
                                 </div>
                             ))
                         ) : (
