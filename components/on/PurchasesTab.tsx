@@ -310,6 +310,7 @@ export function PurchasesTab() {
                         </div>
                         <PositionsTable
                             types={filterType === 'ALL' ? "ON,CORPORATE_BOND,CEDEAR,ETF" : filterType === 'ON' ? "ON,CORPORATE_BOND" : filterType}
+                            market="ARG"
                             refreshTrigger={refreshTrigger}
                         />
                     </TabsContent>

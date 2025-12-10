@@ -14,13 +14,16 @@ export async function GET(request: Request) {
 
         const { searchParams } = new URL(request.url);
         const typeParam = searchParams.get('type');
+        const marketParam = searchParams.get('market');
 
         const typeFilter = typeParam ? {
-            investment: {
-                type: {
-                    in: typeParam.split(',')
-                }
+            type: {
+                in: typeParam.split(',')
             }
+        } : {};
+
+        const marketFilter = marketParam ? {
+            market: marketParam
         } : {};
 
         // 1. Fetch all transactions
@@ -28,8 +31,9 @@ export async function GET(request: Request) {
             where: {
                 investment: {
                     userId,
+                    ...typeFilter,
+                    ...marketFilter
                 },
-                ...typeFilter
             },
             include: {
                 investment: true

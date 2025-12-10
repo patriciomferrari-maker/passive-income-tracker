@@ -339,7 +339,7 @@ export function PurchasesTab() {
 
                     <TabsContent value="positions" className="mt-4 space-y-4">
                         {/* Button moved to header */}
-                        <PositionsTable types="TREASURY,ETF" refreshTrigger={refreshTrigger} />
+                        <PositionsTable types="TREASURY,ETF" market="US" refreshTrigger={refreshTrigger} />
                     </TabsContent>
 
                     <TabsContent value="history">

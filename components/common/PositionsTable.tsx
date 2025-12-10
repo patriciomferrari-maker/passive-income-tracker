@@ -23,10 +23,11 @@ interface PositionEvent {
 
 interface PositionsTableProps {
     types?: string; // Comma separated types to filter initial fetch
+    market?: string; // Market filter (ARG or US)
     refreshTrigger?: number;
 }
 
-export default function PositionsTable({ types, refreshTrigger }: PositionsTableProps) {
+export default function PositionsTable({ types, market, refreshTrigger }: PositionsTableProps) {
     const [positions, setPositions] = useState<PositionEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'date', direction: 'desc' });
@@ -34,9 +35,11 @@ export default function PositionsTable({ types, refreshTrigger }: PositionsTable
 
     const loadData = async () => {
         try {
-            const url = types
-                ? `/api/investments/positions?type=${types}`
-                : '/api/investments/positions';
+            const params = new URLSearchParams();
+            if (types) params.append('type', types);
+            if (market) params.append('market', market);
+
+            const url = `/api/investments/positions?${params.toString()}`;
 
             const res = await fetch(url, { cache: 'no-store' });
             if (!res.ok) throw new Error('Failed to fetch positions');
