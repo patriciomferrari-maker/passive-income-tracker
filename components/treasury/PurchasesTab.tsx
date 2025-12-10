@@ -297,6 +297,7 @@ export function PurchasesTab() {
                         Registro de Compras
                         <div className="flex gap-2">
                             {/* Type Filter */}
+                            {/* Type Filter */}
                             <div className="bg-slate-900 rounded-md border border-slate-700 p-1 flex mr-2">
                                 <button
                                     onClick={() => setFilterType('ALL')}
@@ -313,28 +314,38 @@ export function PurchasesTab() {
                                 <button
                                     onClick={() => setFilterType('ETF')}
                                     className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ETF' ? 'bg-purple-900/50 text-purple-200' : 'text-slate-400 hover:text-white'}`}
-                                    title={showValues ? "Ocultar montos" : "Mostrar montos"}
                                 >
-                                    {showValues ? <EyeOff size={16} /> : <Eye size={16} />}
-                                </Button>
-                                {selectedIds.length > 0 && (
-                                    <Button
-                                        onClick={confirmBulkDelete}
-                                        variant="outline"
-                                        className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
-                                    >
-                                        <Trash className="h-4 w-4 mr-2" />
-                                        Eliminar ({selectedIds.length})
-                                    </Button>
-                                )}
-                                <Button
-                                    onClick={() => setShowForm(true)}
-                                    className="bg-blue-600 hover:bg-blue-700"
-                                >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Nueva Compra
-                                </Button>
+                                    ETFs
+                                </button>
                             </div>
+
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setShowValues(!showValues)}
+                                title={showValues ? "Ocultar montos" : "Mostrar montos"}
+                                className="text-slate-400 hover:text-white"
+                            >
+                                {showValues ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </Button>
+
+                            {selectedIds.length > 0 && (
+                                <Button
+                                    onClick={confirmBulkDelete}
+                                    variant="outline"
+                                    className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                                >
+                                    <Trash className="h-4 w-4 mr-2" />
+                                    Eliminar ({selectedIds.length})
+                                </Button>
+                            )}
+                            <Button
+                                onClick={() => setShowForm(true)}
+                                className="bg-blue-600 hover:bg-blue-700"
+                            >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Nueva Compra
+                            </Button>
                     </CardTitle>
                     <CardDescription className="text-slate-300">
                         Historial de operaciones de compra
