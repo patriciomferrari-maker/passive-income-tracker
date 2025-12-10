@@ -302,6 +302,13 @@ export function PurchasesTab() {
                     <CardTitle className="text-white">Inversiones USA</CardTitle>
                     <div className="flex gap-2">
                         <Button
+                            onClick={() => setShowSaleModal(true)}
+                            className="bg-red-900/40 border border-red-900 text-red-100 hover:bg-red-900/60"
+                        >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Registrar Venta
+                        </Button>
+                        <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => setShowValues(!showValues)}
@@ -331,14 +338,7 @@ export function PurchasesTab() {
                     </TabsList>
 
                     <TabsContent value="positions" className="mt-4 space-y-4">
-                        <div className="flex justify-end">
-                            <Button
-                                onClick={() => setShowSaleModal(true)}
-                                className="bg-red-900/40 border border-red-900 text-red-100 hover:bg-red-900/60"
-                            >
-                                Registrar Venta
-                            </Button>
-                        </div>
+                        {/* Button moved to header */}
                         <PositionsTable types="TREASURY,ETF" refreshTrigger={refreshTrigger} />
                     </TabsContent>
 

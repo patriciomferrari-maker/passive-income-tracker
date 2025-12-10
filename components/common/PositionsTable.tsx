@@ -120,30 +120,34 @@ export default function PositionsTable({ types, refreshTrigger }: PositionsTable
 
     return (
         <div className="mt-8 space-y-4">
-            <h3 className="text-lg font-semibold text-white px-2">Posiciones (Lotes FIFO)</h3>
+            {/* <h3 className="text-lg font-semibold text-white px-2">Posiciones (Lotes FIFO)</h3> (Removed as requested) */}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-2">
-                <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 flex flex-col items-center justify-center text-center">
-                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Resultado No Realizado (Abiertas)</h4>
-                    <div className={`text-3xl font-bold mb-1 ${totalUnrealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {formatMoney(totalUnrealized, 'USD')}
-                    </div>
-                    <div className={`text-sm font-medium ${unrealizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {unrealizedPercent > 0 ? '+' : ''}{unrealizedPercent.toFixed(2)}%
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 text-center">Resultado No Realizado (Abiertas)</h4>
+                    <div className="flex items-center justify-between w-full">
+                        <div className={`text-3xl font-bold w-1/2 text-center border-r border-slate-800 ${totalUnrealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {formatMoney(totalUnrealized, 'USD')}
+                        </div>
+                        <div className={`text-xl font-medium w-1/2 text-center ${unrealizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {unrealizedPercent > 0 ? '+' : ''}{unrealizedPercent.toFixed(2)}%
+                        </div>
                     </div>
                 </div>
-                <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 flex flex-col items-center justify-center text-center">
-                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Resultado Realizado (Cerradas)</h4>
-                    <div className={`text-3xl font-bold mb-1 ${totalRealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {formatMoney(totalRealized, 'USD')}
-                    </div>
-                    <div className={`text-sm font-medium ${realizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {realizedPercent > 0 ? '+' : ''}{realizedPercent.toFixed(2)}%
+                <div className=" bg-slate-900 border border-slate-800 rounded-lg p-6">
+                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 text-center">Resultado Realizado (Cerradas)</h4>
+                    <div className="flex items-center justify-between w-full">
+                        <div className={`text-3xl font-bold w-1/2 text-center border-r border-slate-800 ${totalRealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {formatMoney(totalRealized, 'USD')}
+                        </div>
+                        <div className={`text-xl font-medium w-1/2 text-center ${realizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {realizedPercent > 0 ? '+' : ''}{realizedPercent.toFixed(2)}%
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-hidden">
+            <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-hidden mt-4">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead className="bg-slate-900 text-slate-400">
