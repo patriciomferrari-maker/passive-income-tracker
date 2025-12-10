@@ -40,10 +40,23 @@ async function fetchIOLPrice(symbol: string): Promise<{ price: number; currency:
             const price = parseFloat(rawValue.replace(/\./g, '').replace(',', '.'));
 
             let currency = 'USD'; // Default assumption
-            if (html.includes('data-field="Moneda">US$') || html.includes('data-field="Moneda">USD') || html.includes('U$S')) {
+            // Strict check for currency
+            if (html.includes('data-field="Moneda">US$') || html.includes('data-field="Moneda">USD')) {
                 currency = 'USD';
             } else if (html.includes('data-field="Moneda">$')) {
                 currency = 'ARS';
+            } else if (html.includes('U$S') && !html.includes('data-field="Moneda">$')) {
+                // Fallback: If body mentions U$S and NOT explicitly Moneda $, assume USD. 
+                // But this caused false positives for VSCRO (Pesos) which had U$S in recommendations/footer.
+                // So we should be very careful. 
+                // Better to default to ARS if ambiguous? No, ONs are often USD.
+                // Let's assume if we are scraping a 'D' ticker, it is USD.
+                if (symbol.endsWith('D')) {
+                    currency = 'USD';
+                } else {
+                    // If symbol ends in 'O' or nothing, and no explicit USD tag, maybe ARS?
+                    currency = 'ARS';
+                }
             }
 
             return { price, currency };
@@ -211,10 +224,24 @@ export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
         // Strategy B: ON / Corporate Bond -> IOL
         else {
             source = 'IOL';
-            let searchTicker = inv.ticker;
-            // Force D for USD Price if acceptable, but IOL usually lists specific tickers.
-            // If the ticker provided by user is "PN36D", we search "PN36D".
-            // If "PN36", we search "PN36".
+            let searchTicker = inv.ticker.trim();
+
+            // Force D suffix for ONs to get USD Price
+            if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND') {
+                if (!searchTicker.endsWith('D') && searchTicker.length > 0) {
+                    // Start of logic to swap termination?
+                    // Usually ONs end in O (Pesos) or D (Dollars).
+                    // If it ends in O, swap to D.
+                    if (searchTicker.endsWith('O')) {
+                        searchTicker = searchTicker.slice(0, -1) + 'D';
+                    } else {
+                        // If it ends in something else or nothing, just append D? 
+                        // Some tickers don't have suffix.
+                        // IOL usually needs D for dollars.
+                        searchTicker = searchTicker + 'D';
+                    }
+                }
+            }
 
             // IOL Scraping
             const iolData = await fetchIOLPrice(searchTicker);
