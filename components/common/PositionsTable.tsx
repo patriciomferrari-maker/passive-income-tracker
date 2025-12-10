@@ -102,25 +102,43 @@ export default function PositionsTable({ types, refreshTrigger }: PositionsTable
         .filter(p => p.status === 'CLOSED')
         .reduce((sum, p) => sum + (p.resultAbs || 0), 0);
 
+    const totalCostRealized = positions
+        .filter(p => p.status === 'CLOSED')
+        .reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
+
+    const realizedPercent = totalCostRealized !== 0 ? (totalRealized / totalCostRealized) * 100 : 0;
+
     const totalUnrealized = positions
         .filter(p => p.status === 'OPEN')
         .reduce((sum, p) => sum + (p.resultAbs || 0), 0);
+
+    const totalCostUnrealized = positions
+        .filter(p => p.status === 'OPEN')
+        .reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
+
+    const unrealizedPercent = totalCostUnrealized !== 0 ? (totalUnrealized / totalCostUnrealized) * 100 : 0;
 
     return (
         <div className="mt-8 space-y-4">
             <h3 className="text-lg font-semibold text-white px-2">Posiciones (Lotes FIFO)</h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-2">
-                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Resultado No Realizado (Abiertas)</h4>
-                    <div className={`text-2xl font-bold ${totalUnrealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 flex flex-col items-center justify-center text-center">
+                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Resultado No Realizado (Abiertas)</h4>
+                    <div className={`text-3xl font-bold mb-1 ${totalUnrealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {formatMoney(totalUnrealized, 'USD')}
                     </div>
+                    <div className={`text-sm font-medium ${unrealizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {unrealizedPercent > 0 ? '+' : ''}{unrealizedPercent.toFixed(2)}%
+                    </div>
                 </div>
-                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Resultado Realizado (Cerradas)</h4>
-                    <div className={`text-2xl font-bold ${totalRealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 flex flex-col items-center justify-center text-center">
+                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Resultado Realizado (Cerradas)</h4>
+                    <div className={`text-3xl font-bold mb-1 ${totalRealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {formatMoney(totalRealized, 'USD')}
+                    </div>
+                    <div className={`text-sm font-medium ${realizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {realizedPercent > 0 ? '+' : ''}{realizedPercent.toFixed(2)}%
                     </div>
                 </div>
             </div>
