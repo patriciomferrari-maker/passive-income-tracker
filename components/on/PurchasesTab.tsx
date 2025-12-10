@@ -99,7 +99,7 @@ export function PurchasesTab() {
         try {
             const [onsRes, txRes] = await Promise.all([
                 fetch('/api/investments/on', { cache: 'no-store' }),
-                fetch('/api/investments/transactions?type=ON,CORPORATE_BOND', { cache: 'no-store' })
+                fetch('/api/investments/transactions?type=ON,CORPORATE_BOND,CEDEAR,ETF', { cache: 'no-store' })
             ]);
 
             const onsData = await onsRes.json();

@@ -9,11 +9,19 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const category = searchParams.get('category'); // 'ON' or 'US_ETF'
+
+    let typeFilter: string[] = ['ON', 'CORPORATE_BOND']; // Default
+    if (category === 'US_ETF') {
+        typeFilter = ['TREASURY', 'ETF', 'STOCK'];
+    }
+
     try {
         const investments = await prisma.investment.findMany({
             where: {
                 userId: session.user.id,
-                type: { in: ['ON', 'CORPORATE_BOND'] },
+                type: { in: typeFilter },
                 ticker: { not: '' }
             },
             select: {

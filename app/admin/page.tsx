@@ -9,6 +9,7 @@ import { AlertCircle, CheckCircle } from 'lucide-react';
 export default function AdminPage() {
     // ONs State
     const [onPrices, setOnPrices] = useState<any[]>([]);
+    const [usEtfPrices, setUsEtfPrices] = useState<any[]>([]); // New state for US ETFs
     const [loadingONs, setLoadingONs] = useState(true);
 
     // Fetch ONs on mount
@@ -32,10 +33,16 @@ export default function AdminPage() {
                 ]);
 
                 // 2. Fetch Latest Data
-                const res = await fetch('/api/admin/market-data');
-                const data = await res.json();
-                if (data.success && data.prices) {
-                    setOnPrices(data.prices);
+                const resON = await fetch('/api/admin/market-data?category=ON');
+                const dataON = await resON.json();
+                if (dataON.success && dataON.prices) {
+                    setOnPrices(dataON.prices);
+                }
+
+                const resUS = await fetch('/api/admin/market-data?category=US_ETF');
+                const dataUS = await resUS.json();
+                if (dataUS.success && dataUS.prices) {
+                    setUsEtfPrices(dataUS.prices);
                 }
             } catch (e) {
                 console.error("Failed to update/load assets", e);
@@ -59,7 +66,7 @@ export default function AdminPage() {
                             <Badge variant="secondary" className="bg-slate-800 text-slate-400">Multi-Market</Badge>
                         </div>
                         <CardDescription className="text-slate-400 text-xs">
-                            ONs (IOL) y US Assets (Yahoo Finance).
+                            Cotización ONs (IOL)
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -72,6 +79,22 @@ export default function AdminPage() {
                             <PriceList prices={onPrices} />
                         )}
                         {/* Manual update button removed as requested */}
+                    </CardContent>
+                </Card>
+
+                {/* US ETFs Card */}
+                <Card className="bg-slate-900 border-slate-800 h-fit">
+                    <CardHeader>
+                        <div className="flex justify-between items-center">
+                            <CardTitle className="text-slate-100 text-lg">US ETFs/Treasuries</CardTitle>
+                            <Badge variant="secondary" className="bg-slate-800 text-slate-400">Yahoo Finance</Badge>
+                        </div>
+                        <CardDescription className="text-slate-400 text-xs">
+                            Cotización desde Yahoo Finance (Automático)
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <PriceList prices={usEtfPrices} />
                     </CardContent>
                 </Card>
 
