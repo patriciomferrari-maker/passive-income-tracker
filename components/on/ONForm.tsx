@@ -17,6 +17,7 @@ interface ONFormProps {
 }
 
 export function ONForm({ onClose, onSave, initialData }: ONFormProps) {
+    const [type, setType] = useState(initialData?.type || 'ON');
     const [ticker, setTicker] = useState(initialData?.ticker || '');
     const [name, setName] = useState(initialData?.name || '');
     const [emissionDate, setEmissionDate] = useState(
@@ -55,15 +56,17 @@ export function ONForm({ onClose, onSave, initialData }: ONFormProps) {
         setLoading(true);
 
         try {
+            const isON = type === 'ON';
             const data = {
+                type,
                 ticker: ticker.toUpperCase(),
                 name,
-                emissionDate,
-                couponRate: parseFloat(couponRate) / 100,
-                frequency: parseInt(frequency),
-                maturityDate,
-                amortization,
-                amortizationSchedules: amortization === 'PERSONALIZADA'
+                emissionDate: isON ? emissionDate : null,
+                couponRate: isON ? parseFloat(couponRate) / 100 : null,
+                frequency: isON ? parseInt(frequency) : null,
+                maturityDate: isON ? maturityDate : null,
+                amortization: isON ? amortization : null,
+                amortizationSchedules: (isON && amortization === 'PERSONALIZADA')
                     ? schedules.map(s => ({
                         paymentDate: s.paymentDate,
                         percentage: parseFloat(s.percentage) / 100
@@ -98,6 +101,48 @@ export function ONForm({ onClose, onSave, initialData }: ONFormProps) {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {/* Tipo de Activo */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">
+                                Tipo de Activo
+                            </label>
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="assetType"
+                                        value="ON"
+                                        checked={type === 'ON'}
+                                        onChange={(e) => setType(e.target.value)}
+                                        className="text-blue-600 focus:ring-blue-500"
+                                    />
+                                    Obligación Negociable
+                                </label>
+                                <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="assetType"
+                                        value="CEDEAR"
+                                        checked={type === 'CEDEAR'}
+                                        onChange={(e) => setType(e.target.value)}
+                                        className="text-purple-600 focus:ring-purple-500"
+                                    />
+                                    CEDEAR
+                                </label>
+                                <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="assetType"
+                                        value="ETF"
+                                        checked={type === 'ETF'}
+                                        onChange={(e) => setType(e.target.value)}
+                                        className="text-green-600 focus:ring-green-500"
+                                    />
+                                    ETF (Arg)
+                                </label>
+                            </div>
+                        </div>
+
                         {/* Ticker y Nombre */}
                         <div className="grid grid-cols-2 gap-4">
                             <div>
@@ -109,7 +154,7 @@ export function ONForm({ onClose, onSave, initialData }: ONFormProps) {
                                     value={ticker}
                                     onChange={(e) => setTicker(e.target.value)}
                                     className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                    placeholder="ej: AL30"
+                                    placeholder={type === 'ON' ? "ej: AL30" : "ej: AAPL"}
                                     required
                                     disabled={!!initialData}
                                 />
@@ -123,89 +168,93 @@ export function ONForm({ onClose, onSave, initialData }: ONFormProps) {
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                    placeholder="ej: ALUAR 2030"
+                                    placeholder={type === 'ON' ? "ej: ALUAR 2030" : "ej: Apple Inc."}
                                     required
                                 />
                             </div>
                         </div>
 
-                        {/* Fechas */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1">
-                                    Fecha de Emisión *
-                                </label>
-                                <input
-                                    type="date"
-                                    value={emissionDate}
-                                    onChange={(e) => setEmissionDate(e.target.value)}
-                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1">
-                                    Fecha de Vencimiento *
-                                </label>
-                                <input
-                                    type="date"
-                                    value={maturityDate}
-                                    onChange={(e) => setMaturityDate(e.target.value)}
-                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                    required
-                                />
-                            </div>
-                        </div>
+                        {type === 'ON' && (
+                            <>
+                                {/* Fechas */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-1">
+                                            Fecha de Emisión *
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={emissionDate}
+                                            onChange={(e) => setEmissionDate(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-1">
+                                            Fecha de Vencimiento *
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={maturityDate}
+                                            onChange={(e) => setMaturityDate(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
+                                            required
+                                        />
+                                    </div>
+                                </div>
 
-                        {/* Tasa y Frecuencia */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1">
-                                    Tasa de Interés (% anual) *
-                                </label>
-                                <input
-                                    type="number"
-                                    step="any"
-                                    value={couponRate}
-                                    onChange={(e) => setCouponRate(e.target.value)}
-                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                    placeholder="ej: 8.5"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1">
-                                    Frecuencia de Pago (meses) *
-                                </label>
-                                <select
-                                    value={frequency}
-                                    onChange={(e) => setFrequency(e.target.value)}
-                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                    required
-                                >
-                                    <option value="1">Mensual</option>
-                                    <option value="3">Trimestral</option>
-                                    <option value="6">Semestral</option>
-                                    <option value="12">Anual</option>
-                                </select>
-                            </div>
-                        </div>
+                                {/* Tasa y Frecuencia */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-1">
+                                            Tasa de Interés (% anual) *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            value={couponRate}
+                                            onChange={(e) => setCouponRate(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
+                                            placeholder="ej: 8.5"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-1">
+                                            Frecuencia de Pago (meses) *
+                                        </label>
+                                        <select
+                                            value={frequency}
+                                            onChange={(e) => setFrequency(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
+                                            required
+                                        >
+                                            <option value="1">Mensual</option>
+                                            <option value="3">Trimestral</option>
+                                            <option value="6">Semestral</option>
+                                            <option value="12">Anual</option>
+                                        </select>
+                                    </div>
+                                </div>
 
-                        {/* Tipo de Amortización */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">
-                                Tipo de Amortización *
-                            </label>
-                            <select
-                                value={amortization}
-                                onChange={(e) => setAmortization(e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                required
-                            >
-                                <option value="BULLET">Bullet (al vencimiento)</option>
-                                <option value="PERSONALIZADA">Personalizada</option>
-                            </select>
-                        </div>
+                                {/* Tipo de Amortización */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">
+                                        Tipo de Amortización *
+                                    </label>
+                                    <select
+                                        value={amortization}
+                                        onChange={(e) => setAmortization(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
+                                        required
+                                    >
+                                        <option value="BULLET">Bullet (al vencimiento)</option>
+                                        <option value="PERSONALIZADA">Personalizada</option>
+                                    </select>
+                                </div>
+                            </>
+                        )}
 
                         {/* Schedule de Amortización Personalizada */}
                         {amortization === 'PERSONALIZADA' && (

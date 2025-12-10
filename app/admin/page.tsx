@@ -55,7 +55,7 @@ export default function AdminPage() {
                 <Card className="bg-slate-900 border-slate-800 h-fit">
                     <CardHeader>
                         <div className="flex justify-between items-center">
-                            <CardTitle className="text-slate-100 text-lg">Cotización Activos</CardTitle>
+                            <CardTitle className="text-slate-100 text-lg">Cotización ONs/Bonos</CardTitle>
                             <Badge variant="secondary" className="bg-slate-800 text-slate-400">Multi-Market</Badge>
                         </div>
                         <CardDescription className="text-slate-400 text-xs">
@@ -74,6 +74,9 @@ export default function AdminPage() {
                         {/* Manual update button removed as requested */}
                     </CardContent>
                 </Card>
+
+                {/* CEDEARs Card */}
+                <CedearCard />
 
                 {/* IPC Card */}
                 <IPCCard />
@@ -219,5 +222,74 @@ function PriceList({ prices }: { prices: any[] }) {
                 ))}
             </ul>
         </div>
+    );
+}
+
+function CedearCard() {
+    const [quotes, setQuotes] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetch('/api/admin/cedears')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && Array.isArray(data.data)) {
+                    setQuotes(data.data);
+                }
+            })
+            .catch(err => console.error(err))
+            .finally(() => setLoading(false));
+    }, []);
+
+    return (
+        <Card className="bg-slate-900 border-slate-800 h-fit">
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="text-slate-100 text-lg">CEDEARs & ETFs (Rava)</CardTitle>
+                    <Badge variant="secondary" className="bg-slate-800 text-slate-400">Rava</Badge>
+                </div>
+                <CardDescription className="text-slate-400 text-xs">
+                    Cotización ARS y USD (Implícito)
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {loading ? (
+                    <div className="p-4 text-center text-xs text-slate-500">
+                        Cargando Rava...
+                    </div>
+                ) : (
+                    <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
+                        <div className="grid grid-cols-4 bg-slate-900 p-2 text-[10px] font-medium text-slate-400 border-b border-slate-800">
+                            <span>Ticker</span>
+                            <span className="text-right">ARS</span>
+                            <span className="text-right">USD</span>
+                            <span className="text-right">TC Imp.</span>
+                        </div>
+                        <div>
+                            {quotes.length > 0 ? (
+                                quotes.map((q, i) => (
+                                    <div key={i} className="grid grid-cols-4 p-2 text-[10px] border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors items-center">
+                                        <span className="font-bold text-blue-400">{q.ticker}</span>
+                                        <span className="text-right text-slate-300">
+                                            {q.arsPrice ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(q.arsPrice) : '-'}
+                                        </span>
+                                        <span className="text-right text-green-400">
+                                            {q.usdPrice ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(q.usdPrice) : '-'}
+                                        </span>
+                                        <span className="text-right text-yellow-500 font-mono">
+                                            {q.tc ? `$${q.tc.toFixed(2)}` : '-'}
+                                        </span>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-4 text-center text-xs text-slate-500">
+                                    No hay CEDEARs/ETFs cargados.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }

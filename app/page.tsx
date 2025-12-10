@@ -125,7 +125,7 @@ export default function HomePage() {
                         {shouldShow('on') && (
                           <DashboardCard
                             title="Cartera Argentina"
-                            description="Obligaciones Negociables"
+                            description="ONs, CEDEARs y ETFs"
                             icon={<FlagARG className="w-12 h-8 rounded shadow-sm" />}
                             href="/investments/on"
                             count={stats.on.count}

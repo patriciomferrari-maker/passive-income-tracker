@@ -106,18 +106,62 @@ export async function updateTreasuries(userId?: string): Promise<MarketDataResul
     return results;
 }
 
-// 2. Update ONs (IOL Priority)
+// Helper: Scrape Rava
+export async function fetchRavaPrice(symbol: string): Promise<{ price: number; updateDate?: Date } | null> {
+    try {
+        const url = `https://www.rava.com/perfil/${symbol}`;
+        console.log(`Fetching Rava: ${url}`);
+        const res = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        });
+        if (!res.ok) return null;
+        const html = await res.text();
+
+        // Extract Vue prop :res="{...}"
+        // We look for :res=" and match until the next " (careful with escaped quotes)
+        // actually simple regex might fail if json uses quotes inside. 
+        // But Rava generally uses &quot; for inner quotes in the attribute.
+        const regex = /:res="([^"]+)"/;
+        const match = html.match(regex);
+
+        if (match) {
+            const jsonStr = match[1].replace(/&quot;/g, '"');
+            try {
+                const data = JSON.parse(jsonStr);
+                const hist = data.coti_hist;
+                if (Array.isArray(hist) && hist.length > 0) {
+                    const last = hist[hist.length - 1];
+                    // last contains { cierre: number, fecha: string, ... }
+                    const price = last.cierre;
+                    const dateParts = last.fecha.split('-'); // YYYY-MM-DD
+                    const date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+
+                    return { price, updateDate: date };
+                }
+            } catch (e) {
+                console.error(`Error parsing Rava JSON for ${symbol}:`, e);
+            }
+        }
+    } catch (e: any) {
+        console.error(`Rava Fetch Error (${symbol}):`, e.message);
+    }
+    return null;
+}
+
+// 2. Update Argentina Assets (ON, CEDEAR, ETF)
 export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
     const YahooFinance = require('yahoo-finance2').default;
     const yahooFinance = new YahooFinance();
 
     console.log(`[updateONs] Called with userId: ${userId}`);
-    // Find ONs/Cedears
+    // Find ONs/Cedears/ETFs
     const investments = await prisma.investment.findMany({
         where: {
             ticker: { not: '' },
-            type: { in: ['ON', 'CEDEAR'] },
+            type: { in: ['ON', 'CEDEAR', 'ETF', 'CORPORATE_BOND'] },
             ...(userId ? { userId } : {})
         }
     });
@@ -130,39 +174,89 @@ export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
 
     for (const inv of investments) {
         let price = null;
-        let currency = null;
-        let source: 'YAHOO' | 'IOL' = 'IOL';
+        let currency = inv.currency || 'ARS'; // Default to ARS if not set, or preserve existing
+        let source: 'YAHOO' | 'IOL' | 'RAVA' = 'IOL';
+        let error = undefined;
 
-        // Force Ticker to end in 'D' for USD Price (User Request)
-        let searchTicker = inv.ticker;
-        if (!searchTicker.endsWith('D') && searchTicker.length > 0) {
-            searchTicker = searchTicker.slice(0, -1) + 'D';
-        }
+        // Determine strategy based on Type
+        // CEDEAR/ETF -> Rava Preference
+        // ON -> IOL Preference (as before)
 
-        // Strategy 1: IOL Scraping (Primary request)
-        const iolData = await fetchIOLPrice(searchTicker);
-        if (iolData) {
-            price = iolData.price;
-            currency = iolData.currency;
-        }
+        if (inv.type === 'CEDEAR' || inv.type === 'ETF') {
+            source = 'RAVA';
 
-        // Strategy 2: Yahoo Finance (Fallback)
-        if (!price) {
-            try {
-                source = 'YAHOO';
-                const quote = await yahooFinance.quote(searchTicker);
-                if (quote && quote.regularMarketPrice) {
-                    price = quote.regularMarketPrice;
-                    currency = quote.currency || inv.currency;
+            // For CEDEARs, we might want ARS price by default (ticker)
+            // If the user wants USD, they might have a separate investment or we assume ARS for now.
+            // Rava URL for ARS is just ticker (e.g. AAPL)
+
+            // Try Rava
+            const ravaData = await fetchRavaPrice(inv.ticker);
+            if (ravaData) {
+                price = ravaData.price;
+                // Rava usually returns ARS for standard tickers.
+                // If the user entered a ticker ending in D, it would be USD.
+                if (inv.ticker.endsWith('D')) {
+                    currency = 'USD';
+                } else {
+                    currency = 'ARS';
                 }
-            } catch (e) { /* Ignore */ }
+            } else {
+                // Fallback to IOL? or Yahoo?
+                // Yahoo might be better for underlying US ETF but for CEDEAR price we need local market.
+                // Try IOL as fallback
+                const iolData = await fetchIOLPrice(inv.ticker);
+                if (iolData) {
+                    price = iolData.price;
+                    currency = iolData.currency;
+                    source = 'IOL';
+                }
+            }
+
+        } else {
+            // ON / CORPORATE_BOND -> Keep existing IOL logic
+
+            // Force Ticker to end in 'D' for USD Price (User Request for ONs specifically?)
+            // The previous logic forced 'D' for ONs. I should preserve that ONLY if it was intended for ONs.
+            // The previous code applied it to *all* investments in this function. 
+            // "Force Ticker to end in 'D' for USD Price (User Request)" -> likely for ONs which trade in USD commonly.
+
+            let searchTicker = inv.ticker;
+            // Only apply D suffix logic for ONs if that was the specific requirement, 
+            // but standard ON tickers on IOL often need alignment.
+            // I'll preserve the logic but check if it's generic.
+
+            if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND') {
+                if (!searchTicker.endsWith('D') && searchTicker.length > 0) {
+                    searchTicker = searchTicker.slice(0, -1) + 'D';
+                }
+            }
+
+            // Strategy 1: IOL Scraping
+            const iolData = await fetchIOLPrice(searchTicker);
+            if (iolData) {
+                price = iolData.price;
+                currency = iolData.currency;
+            }
+
+            // Strategy 2: Yahoo Finance (Fallback)
+            if (!price) {
+                try {
+                    source = 'YAHOO';
+                    const quote = await yahooFinance.quote(searchTicker);
+                    if (quote && quote.regularMarketPrice) {
+                        price = quote.regularMarketPrice;
+                        currency = quote.currency || inv.currency;
+                    }
+                } catch (e) { /* Ignore */ }
+            }
         }
 
         if (price) {
-            await savePrice(inv.id, price, currency || 'USD');
-            results.push({ ticker: inv.ticker, price, currency, source });
+            await savePrice(inv.id, price, currency || 'USD'); // Default USD was for ONs, maybe dangerous for CEDEARs? 
+            // For CEDEARs we explicitly set currency in the block above.
+            results.push({ ticker: inv.ticker, price, currency, source: source as any });
         } else {
-            results.push({ ticker: inv.ticker, price: null, currency: null, error: 'Not found via IOL or Yahoo', source });
+            results.push({ ticker: inv.ticker, price: null, currency: null, error: 'Not found', source: source as any });
         }
     }
     return results;

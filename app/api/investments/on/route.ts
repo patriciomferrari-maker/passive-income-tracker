@@ -9,7 +9,7 @@ export async function GET() {
         const userId = await getUserId();
         const investments = await prisma.investment.findMany({
             where: {
-                type: { in: ['ON', 'CORPORATE_BOND'] },
+                type: { in: ['ON', 'CORPORATE_BOND', 'CEDEAR', 'ETF'] },
                 userId
             },
             include: {
@@ -36,15 +36,15 @@ export async function POST(request: Request) {
     try {
         const userId = await getUserId();
         const body = await request.json();
-        const { ticker, name, emissionDate, couponRate, frequency, maturityDate, amortization, amortizationSchedules } = body;
+        const { type, ticker, name, emissionDate, couponRate, frequency, maturityDate, amortization, amortizationSchedules } = body;
 
         const investment = await prisma.investment.create({
             data: {
                 userId,
                 ticker,
                 name,
-                type: 'ON',
-                currency: 'ARS',
+                type: type || 'ON', // Default to ON if not specified
+                currency: ['CEDEAR', 'ETF'].includes(type) ? 'ARS' : 'ARS', // Usually ARS for Arg Portfolio
                 emissionDate: emissionDate ? new Date(emissionDate) : null,
                 couponRate: couponRate ? parseFloat(couponRate) : null,
                 frequency: frequency ? parseInt(frequency) : null,

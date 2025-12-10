@@ -38,7 +38,7 @@ export function PurchasesTab() {
 
     // Filter State
     // ON tab includes ON and CORPORATE_BOND
-    const [filterType, setFilterType] = useState<'ALL' | 'ON' | 'CORPORATE_BOND'>('ALL');
+    const [filterType, setFilterType] = useState<'ALL' | 'ON' | 'CORPORATE_BOND' | 'CEDEAR' | 'ETF'>('ALL');
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -300,8 +300,18 @@ export function PurchasesTab() {
                     </TabsList>
 
                     <TabsContent value="positions" className="mt-4 space-y-4">
-                        {/* Button moved to header */}
-                        <PositionsTable types="ON,CORPORATE_BOND" refreshTrigger={refreshTrigger} />
+                        <div className="flex justify-end mb-4">
+                            <div className="bg-slate-900 rounded-md border border-slate-700 p-1 flex">
+                                <button onClick={() => setFilterType('ALL')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ALL' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>Todos</button>
+                                <button onClick={() => setFilterType('ON')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ON' ? 'bg-blue-900/50 text-blue-200' : 'text-slate-400 hover:text-white'}`}>ONs</button>
+                                <button onClick={() => setFilterType('CEDEAR')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'CEDEAR' ? 'bg-purple-900/50 text-purple-200' : 'text-slate-400 hover:text-white'}`}>CEDEARs</button>
+                                <button onClick={() => setFilterType('ETF')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ETF' ? 'bg-green-900/50 text-green-200' : 'text-slate-400 hover:text-white'}`}>ETFs</button>
+                            </div>
+                        </div>
+                        <PositionsTable
+                            types={filterType === 'ALL' ? "ON,CORPORATE_BOND,CEDEAR,ETF" : filterType === 'ON' ? "ON,CORPORATE_BOND" : filterType}
+                            refreshTrigger={refreshTrigger}
+                        />
                     </TabsContent>
 
                     <TabsContent value="history">
@@ -321,10 +331,16 @@ export function PurchasesTab() {
                                     ONs
                                 </button>
                                 <button
-                                    onClick={() => setFilterType('CORPORATE_BOND')}
-                                    className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'CORPORATE_BOND' ? 'bg-purple-900/50 text-purple-200' : 'text-slate-400 hover:text-white'}`}
+                                    onClick={() => setFilterType('CEDEAR')}
+                                    className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'CEDEAR' ? 'bg-purple-900/50 text-purple-200' : 'text-slate-400 hover:text-white'}`}
                                 >
-                                    Bonos Corp
+                                    CEDEARs
+                                </button>
+                                <button
+                                    onClick={() => setFilterType('ETF')}
+                                    className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ETF' ? 'bg-green-900/50 text-green-200' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    ETFs
                                 </button>
                             </div>
 

@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 
 interface ON {
     id: string;
+    type?: string;
     ticker: string;
     name: string;
     emissionDate: string | null;
@@ -125,6 +126,7 @@ export function ConfigurationTab() {
                             <table className="w-full">
                                 <thead>
                                     <tr className="border-b border-white/10">
+                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">Tipo</th>
                                         <th className="text-left py-3 px-4 text-slate-300 font-medium">Ticker</th>
                                         <th className="text-left py-3 px-4 text-slate-300 font-medium">Nombre</th>
                                         <th className="text-left py-3 px-4 text-slate-300 font-medium">Tasa</th>
@@ -137,6 +139,14 @@ export function ConfigurationTab() {
                                 <tbody>
                                     {ons.map((on) => (
                                         <tr key={on.id} className="border-b border-white/5 hover:bg-white/5">
+                                            <td className="py-3 px-4">
+                                                <span className={`text-[10px] items-center px-1.5 py-0.5 rounded font-medium border ${on.type === 'ON' || on.type === 'CORPORATE_BOND' ? 'bg-blue-900/40 text-blue-300 border-blue-800' :
+                                                    on.type === 'CEDEAR' ? 'bg-purple-900/40 text-purple-300 border-purple-800' :
+                                                        'bg-green-900/40 text-green-300 border-green-800'
+                                                    }`}>
+                                                    {(on.type === 'CORPORATE_BOND' ? 'ON' : (on.type || 'ON'))}
+                                                </span>
+                                            </td>
                                             <td className="py-3 px-4 text-white font-mono">{on.ticker}</td>
                                             <td className="py-3 px-4 text-white">{on.name}</td>
                                             <td className="py-3 px-4 text-slate-300">
