@@ -3,6 +3,32 @@ import { NextResponse } from 'next/server';
 import { generateInvestmentCashflow, saveInvestmentCashflows } from '@/lib/investments';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
+export async function GET(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const userId = await getUserId();
+        const { id } = await params;
+
+        const transaction = await prisma.transaction.findFirst({
+            where: {
+                id,
+                investment: { userId }
+            }
+        });
+
+        if (!transaction) {
+            return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+        }
+
+        return NextResponse.json(transaction);
+    } catch (error) {
+        console.error('Error fetching transaction:', error);
+        return unauthorized();
+    }
+}
+
 export async function PUT(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -11,7 +37,7 @@ export async function PUT(
         const userId = await getUserId();
         const { id } = await params;
         const body = await request.json();
-        const { date, quantity, price, commission } = body;
+        const { date, quantity, price, commission, currency } = body;
 
         const qty = parseFloat(quantity);
         const prc = parseFloat(price);
@@ -38,7 +64,8 @@ export async function PUT(
                 quantity: qty,
                 price: prc,
                 commission: comm,
-                totalAmount: total
+                totalAmount: total,
+                currency: currency || transaction.currency // Update currency if provided, else keep existing
             }
         });
 

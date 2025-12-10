@@ -1,19 +1,16 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Pencil } from 'lucide-react';
 
 interface PositionEvent {
     id: string;
     ticker: string;
     name: string;
-    date: string; // Purchase or Sale Date based on context, but API returns one main date.
-    // Ideally we want both dates. API returns 'date' which is SaleDate for Closed, PurchaseDate for Open.
+    date: string;
     status: 'OPEN' | 'CLOSED';
     quantity: number;
-    buyPrice: number; // or buyPriceAvg
-    buyCommission: number; // or buyCommissionPaid
+    buyPrice: number;
+    buyCommission: number;
     sellPrice: number;
     sellCommission: number;
     resultAbs: number;
@@ -22,13 +19,14 @@ interface PositionEvent {
 }
 
 interface PositionsTableProps {
-    types?: string; // Comma separated types to filter initial fetch
-    market?: string; // Market filter (ARG or US)
-    currency?: string; // Currency filter (ARS or USD)
+    types?: string;
+    market?: string;
+    currency?: string;
     refreshTrigger?: number;
+    onEdit?: (positionId: string) => void;
 }
 
-export default function PositionsTable({ types, market, currency, refreshTrigger }: PositionsTableProps) {
+export default function PositionsTable({ types, market, currency, refreshTrigger, onEdit }: PositionsTableProps) {
     const [positions, setPositions] = useState<PositionEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'date', direction: 'desc' });
@@ -101,7 +99,6 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
     };
 
     if (loading) return <div className="text-slate-400 text-sm py-4">Cargando posiciones...</div>;
-    // if (positions.length === 0) return null; // Don't show if empty? Or show empty message?
 
     const totalRealized = positions
         .filter(p => p.status === 'CLOSED')
@@ -125,8 +122,6 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
 
     return (
         <div className="mt-8 space-y-4">
-            {/* <h3 className="text-lg font-semibold text-white px-2">Posiciones (Lotes FIFO)</h3> (Removed as requested) */}
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-2">
                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
                     <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 text-center">Resultado No Realizado (Abiertas)</h4>
@@ -178,6 +173,7 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                 <th className="px-4 py-3 text-right font-medium">Com. Venta</th>
                                 <th className="px-4 py-3 text-right font-medium">Resultado</th>
                                 <th className="px-4 py-3 text-right font-medium">%</th>
+                                <th className="px-4 py-3 text-right font-medium">Acción</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
@@ -219,6 +215,16 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                     </td>
                                     <td className={`px-4 py-3 text-right font-medium tabular-nums ${pos.resultPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                         {(pos.sellPrice > 0 || pos.status === 'CLOSED') && pos.resultPercent !== undefined ? `${pos.resultPercent?.toFixed(2)}%` : '-'}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        {onEdit && pos.status === 'OPEN' && (
+                                            <button
+                                                onClick={() => onEdit(pos.id)}
+                                                className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded transition-colors"
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

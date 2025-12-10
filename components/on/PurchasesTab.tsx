@@ -1,21 +1,23 @@
 ﻿'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Upload, Trash, CheckSquare, Square, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, DollarSign } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Trash2, Upload, Search, Pencil, ArrowUpRight, FileDown, History } from 'lucide-react';
+import { format } from 'date-fns';
 import { BulkImportDialog } from '@/components/on/BulkImportDialog';
-import PositionsTable from "@/components/common/PositionsTable";
 import RegisterSaleModal from "@/components/common/RegisterSaleModal";
+import { TransactionFormModal } from '@/components/common/TransactionFormModal';
 
 interface ON {
     id: string;
     ticker: string;
-    name: string;
+    description: string;
+    name: string; // Added for TransactionFormModal compatibility
     currency?: string;
     type?: string;
+    lastPrice?: number;
 }
 
 interface Transaction {
@@ -27,637 +29,347 @@ interface Transaction {
     totalAmount: number;
     currency: string;
     type?: string;
-    investment: { ticker: string; name: string; type?: string; lastPrice?: number | null };
-}
-
-interface EconomicRate {
-    date: string;
-    value: number; // Avg Rate
+    investment: { ticker: string; description: string; type?: string; lastPrice?: number | null };
 }
 
 export function PurchasesTab() {
-    const [ons, setOns] = useState<ON[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [rates, setRates] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
-    const [showForm, setShowForm] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [assets, setAssets] = useState<ON[]>([]);
+
+    // View Config
+    const [viewCurrency, setViewCurrency] = useState<'ARS' | 'USD'>('USD');
+    const [viewType, setViewType] = useState<string>('ALL');
+
+    // Modals
+    const [showSaleModal, setShowSaleModal] = useState(false);
     const [showImport, setShowImport] = useState(false);
 
+    // Transaction Modal (Create/Edit)
+    const [isTxModalOpen, setIsTxModalOpen] = useState(false);
+    const [editingTxId, setEditingTxId] = useState<string | null>(null);
+
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [showValues, setShowValues] = useState(true);
 
-    // Filter State
-    const [filterType, setFilterType] = useState<'ALL' | 'ON' | 'CORPORATE_BOND' | 'CEDEAR' | 'ETF'>('ALL');
+    // Fetch Assets (for filter/modal)
+    useEffect(() => {
+        fetch('/api/investments/on?market=ARG')
+            .then(res => res.json())
+            .then(data => {
+                // Map description to name if needed, api returns description
+                const mapped = data.map((d: any) => ({
+                    ...d,
+                    description: d.description || d.name,
+                    name: d.name || d.description // Ensure name exists 
+                }));
+                setAssets(mapped);
+            })
+            .catch(err => console.error('Error fetching assets:', err));
 
-    // Currency View State
-    const [viewCurrency, setViewCurrency] = useState<'ARS' | 'USD'>('USD'); // Default to USD view for standardization
+        const savedPrivacy = localStorage.getItem('privacy_mode');
+        if (savedPrivacy !== null) setShowValues(savedPrivacy === 'true');
+    }, []);
 
-    // Selection State
-    const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-    // Form state
-    const [selectedON, setSelectedON] = useState('');
-    const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-    const [quantity, setQuantity] = useState('');
-    const [price, setPrice] = useState('');
-    const [commission, setCommission] = useState('0');
-    const [txCurrency, setTxCurrency] = useState<'ARS' | 'USD'>('ARS');
-    const [submitting, setSubmitting] = useState(false);
-
-    // FIFO State
-    const [showSaleModal, setShowSaleModal] = useState(false);
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
-
-    // Sorting State
-    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'date', direction: 'desc' });
-
-    const handleSort = (key: string) => {
-        let direction: 'asc' | 'desc' = 'asc';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
-    };
-
-    // Helper: Find rate for a date
-    const getRate = (dateStr: string) => {
-        // Try exact match
-        if (rates[dateStr]) return rates[dateStr];
-
-        // Find closest previous rate
-        // Assuming rates keys are ISO strings, we can sort.
-        // But for performance, let's just loop if not found (or rely on backend providing adequate density).
-        // Since we loaded ALL history, exact or near match should exist.
-        // If not found, look for closest date before.
-        const targetDate = new Date(dateStr).getTime();
-        let closestDate = '';
-        let minDiff = Infinity;
-
-        for (const rDate of Object.keys(rates)) {
-            const d = new Date(rDate).getTime();
-            if (d <= targetDate) {
-                const diff = targetDate - d;
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    closestDate = rDate;
-                }
-            }
-        }
-
-        return closestDate ? rates[closestDate] : 1000; // Default fallback if absolutely no data (unlikely)
-    };
-
-    const normalizeAmount = (amount: number, txDate: string, txCurrency: string, targetCurrency: string) => {
-        if (txCurrency === targetCurrency) return amount;
-
-        const rate = getRate(txDate);
-        if (rate === 0) return amount; // Avoid zero div
-
-        if (txCurrency === 'ARS' && targetCurrency === 'USD') {
-            return amount / rate;
-        }
-        if (txCurrency === 'USD' && targetCurrency === 'ARS') {
-            return amount * rate;
-        }
-        return amount;
-    };
-
-    const getSortedTransactions = () => {
-        let filtered = transactions;
-        if (filterType !== 'ALL') {
-            filtered = transactions.filter(tx => tx.investment.type === filterType);
-        }
-
-        if (!sortConfig) return filtered;
-
-        return [...filtered].sort((a, b) => {
-            let aValue: any = a[sortConfig.key as keyof Transaction];
-            let bValue: any = b[sortConfig.key as keyof Transaction];
-
-            if (sortConfig.key === 'ticker') {
-                aValue = a.investment.ticker;
-                bValue = b.investment.ticker;
-            }
-
-            if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-            return 0;
-        });
-    };
-
-    const loadData = async () => {
+    const fetchTransactions = async () => {
         try {
-            const [onsRes, txRes, ecoRes] = await Promise.all([
-                fetch('/api/investments/on', { cache: 'no-store' }),
-                fetch('/api/investments/transactions?type=ON,CORPORATE_BOND,CEDEAR,ETF', { cache: 'no-store' }),
-                // Get ALL rates for history
-                fetch('/api/admin/economic', { cache: 'no-store' })
-            ]);
+            setLoading(true);
+            const params = new URLSearchParams();
+            if (viewType !== 'ALL') params.append('type', viewType);
+            params.append('market', 'ARG');
 
-            const onsData = await onsRes.json();
-            const txData = await txRes.json();
-            const ecoData = await ecoRes.json(); // returns array of { date, value ... }
-
-            setOns(onsData);
-            setTransactions(txData);
-
-            // Process rates into map
-            const rateMap: Record<string, number> = {};
-            if (Array.isArray(ecoData)) {
-                ecoData.forEach((item: any) => {
-                    // Item date is ISO string full. Key by "YYYY-MM-DD"
-                    const d = item.date.split('T')[0];
-                    rateMap[d] = item.value;
-                });
-            }
-            setRates(rateMap);
-
-            setSelectedIds([]);
+            const res = await fetch(`/api/investments/transactions?${params.toString()}`);
+            if (!res.ok) throw new Error('Failed to fetch transactions');
+            const data = await res.json();
+            setTransactions(data);
         } catch (error) {
-            console.error('Error loading data:', error);
+            console.error('Error fetching transactions:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSaleSuccess = () => {
-        setShowSaleModal(false);
-        setRefreshTrigger(prev => prev + 1);
-        loadData();
-    };
-
     useEffect(() => {
-        loadData();
-        const savedPrivacy = localStorage.getItem('privacy_mode');
-        if (savedPrivacy !== null) {
-            setShowValues(savedPrivacy === 'true');
-        }
+        fetchTransactions();
+    }, [refreshTrigger, viewType]);
 
-        const handlePrivacyChange = () => {
-            const savedPrivacy = localStorage.getItem('privacy_mode');
-            if (savedPrivacy !== null) {
-                setShowValues(savedPrivacy === 'true');
-            }
-        };
-        window.addEventListener('privacy-changed', handlePrivacyChange);
-        return () => window.removeEventListener('privacy-changed', handlePrivacyChange);
-    }, []);
-
-    const togglePrivacy = () => {
-        const newValue = !showValues;
-        setShowValues(newValue);
-        localStorage.setItem('privacy_mode', String(newValue));
-        window.dispatchEvent(new Event('privacy-changed'));
-    };
-
-    const formatMoney = (amount: number, currency: string) => {
-        if (!showValues) return '****';
-        return new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', {
-            style: 'currency',
-            currency: currency
-        }).format(amount);
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSubmitting(true);
-        let success = false;
-
-        try {
-            const res = await fetch(`/api/investments/on/${selectedON}/transactions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    date,
-                    quantity,
-                    price,
-                    commission,
-                    currency: txCurrency
-                })
-            });
-
-            if (!res.ok) throw new Error('Failed to create transaction');
-            success = true;
-        } catch (error) {
-            console.error('Error creating transaction:', error);
-            alert('Error al registrar la compra');
-        } finally {
-            setSubmitting(false);
-        }
-
-        if (success) {
-            setShowForm(false);
-            resetForm();
-            try {
-                await loadData();
-                setRefreshTrigger(prev => prev + 1);
-            } catch (loadError) {
-                console.error("Error reloading after save:", loadError);
-            }
-        }
-    };
-
-    const resetForm = () => {
-        setSelectedON('');
-        setDate(format(new Date(), 'yyyy-MM-dd'));
-        setQuantity('');
-        setPrice('');
-        setCommission('0');
-        setTxCurrency('ARS');
+    const handleEditTransaction = (tx: Transaction) => {
+        setEditingTxId(tx.id);
+        setIsTxModalOpen(true);
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('¿Estás seguro de eliminar esta compra?')) return;
-
+        if (!confirm('¿Estás seguro de eliminar esta transacción?')) return;
         try {
-            const res = await fetch(`/api/investments/transactions/${id}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Failed to delete');
-            await loadData();
+            await fetch(`/api/investments/transactions/${id}`, { method: 'DELETE' });
             setRefreshTrigger(prev => prev + 1);
         } catch (error) {
             console.error('Error deleting transaction:', error);
-            alert('Error al eliminar la compra');
         }
     };
 
-    const handleDeleteSelected = async () => {
-        if (!confirm(`¿Estás seguro de que quieres eliminar las ${selectedIds.length} compras seleccionadas?`)) {
-            return;
-        }
+    const handleSuccess = () => {
+        setRefreshTrigger(prev => prev + 1);
+    };
 
-        try {
-            for (const id of selectedIds) {
-                const res = await fetch(`/api/investments/transactions/${id}`, {
-                    method: 'DELETE'
-                });
-                if (!res.ok) console.error(`Failed to delete transaction ${id}`);
+    const handleCloseTxModal = () => {
+        setIsTxModalOpen(false);
+        setEditingTxId(null);
+    };
+
+    // Filter Logic
+    const filteredTransactions = transactions.filter(tx => {
+        const matchesSearch = tx.investment.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            tx.investment.description.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesSearch;
+    });
+
+    // Helper for History Display - Rates Logic
+    const [ratesMap, setRatesMap] = useState<Record<string, number>>({});
+    useEffect(() => {
+        fetch('/api/admin/economic?limit=5000')
+            .then(res => res.json())
+            .then(data => {
+                const map: Record<string, number> = {};
+                if (Array.isArray(data)) {
+                    data.forEach((item: any) => {
+                        const dateStr = new Date(item.date).toISOString().split('T')[0];
+                        map[dateStr] = item.value;
+                    });
+                }
+                setRatesMap(map);
+            });
+    }, []);
+
+    const getRate = (dateStr: string) => {
+        const d = dateStr.split('T')[0];
+        if (ratesMap[d]) return ratesMap[d];
+
+        // Simple fallback to closest previous if exact date missing
+        const target = new Date(d).getTime();
+        let bestDiff = Infinity;
+        let bestRate = 0;
+
+        for (const [k, v] of Object.entries(ratesMap)) {
+            const t = new Date(k).getTime();
+            if (t <= target) {
+                const diff = target - t;
+                if (diff < bestDiff) {
+                    bestDiff = diff;
+                    bestRate = v;
+                }
             }
-
-            await loadData();
-            setRefreshTrigger(prev => prev + 1);
-            alert('Compras seleccionadas eliminadas');
-        } catch (error) {
-            console.error('Error deleting selected transactions:', error);
-            alert('Error al eliminar las compras');
         }
+        return bestRate || 1000; // Fallback
     };
 
-    const toggleSelection = (id: string) => {
-        setSelectedIds(prev =>
-            prev.includes(id)
-                ? prev.filter(x => x !== id)
-                : [...prev, id]
-        );
-    };
-
-    const toggleSelectAll = () => {
-        if (selectedIds.length === transactions.length) {
-            setSelectedIds([]);
-        } else {
-            setSelectedIds(transactions.map(tx => tx.id));
-        }
+    const convertValue = (val: number, date: string, fromCurr: string, toCurr: string) => {
+        if (fromCurr === toCurr) return val;
+        const rate = getRate(date);
+        if (!rate) return val;
+        if (fromCurr === 'ARS' && toCurr === 'USD') return val / rate;
+        if (fromCurr === 'USD' && toCurr === 'ARS') return val * rate;
+        return val;
     };
 
     return (
-        <Card className="bg-slate-950 border-slate-800">
-            <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                    <CardTitle className="text-white">Registro de Compras</CardTitle>
+        <div className="space-y-6 animate-in fade-in zoom-in duration-300">
+            <Card className="bg-slate-950 border-slate-800">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <div className="space-y-1">
+                        <CardTitle className="text-2xl font-bold text-white flex items-center gap-2">
+                            <History className="text-blue-500" />
+                            Historial de Operaciones
+                        </CardTitle>
+                        <CardDescription className="text-slate-400">
+                            Registro completo de compras y ventas
+                        </CardDescription>
+                    </div>
                     <div className="flex gap-2">
-                        <div className="bg-slate-900 rounded-md border border-slate-700 p-0.5 flex mr-2">
+                        {/* Type Filter */}
+                        <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
+                            {['ALL', 'ON', 'CEDEAR', 'ETF'].map(type => (
+                                <button
+                                    key={type}
+                                    onClick={() => setViewType(type)}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewType === type
+                                        ? 'bg-blue-600 text-white shadow-sm'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                        }`}
+                                >
+                                    {type === 'ALL' ? 'Todos' : type}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Currency Toggle */}
+                        <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800 ml-4">
                             <button
                                 onClick={() => setViewCurrency('ARS')}
-                                className={`px-3 py-1 text-xs font-bold rounded transition-colors ${viewCurrency === 'ARS' ? 'bg-blue-600/20 text-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${viewCurrency === 'ARS'
+                                    ? 'bg-blue-900/50 text-blue-200 border border-blue-800'
+                                    : 'text-slate-400 hover:text-white'
+                                    }`}
                             >
                                 ARS
                             </button>
                             <button
                                 onClick={() => setViewCurrency('USD')}
-                                className={`px-3 py-1 text-xs font-bold rounded transition-colors ${viewCurrency === 'USD' ? 'bg-green-600/20 text-green-400' : 'text-slate-500 hover:text-slate-300'}`}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${viewCurrency === 'USD'
+                                    ? 'bg-green-900/50 text-green-200 border border-green-800'
+                                    : 'text-slate-400 hover:text-white'
+                                    }`}
                             >
                                 USD
                             </button>
                         </div>
-
-                        <Button
-                            onClick={() => setShowSaleModal(true)}
-                            className="bg-red-900/40 border border-red-900 text-red-100 hover:bg-red-900/60"
-                        >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Registrar Venta
-                        </Button>
-                        <Button
-                            onClick={togglePrivacy}
-                            variant="outline"
-                            className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
-                            title={showValues ? "Ocultar montos" : "Mostrar montos"}
-                        >
-                            {showValues ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </Button>
-                        <Button
-                            onClick={() => setShowImport(true)}
-                            className="bg-slate-700 hover:bg-slate-600 text-white"
-                        >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Importar CSV
-                        </Button>
-                        <Button
-                            onClick={() => setShowForm(true)}
-                            className="bg-blue-600 hover:bg-blue-700"
-                        >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Nueva Compra
-                        </Button>
                     </div>
-                </div>
-                <CardDescription className="text-slate-300">
-                    Historial de operaciones. Vista actual: <span className="font-bold text-white">{viewCurrency}</span> (convertido al tipo de cambio del día).
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Tabs defaultValue="positions" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 bg-slate-900">
-                        <TabsTrigger value="positions">Posiciones</TabsTrigger>
-                        <TabsTrigger value="history">Historial de Compras</TabsTrigger>
-                    </TabsList>
+                </CardHeader>
+                <CardContent>
 
-                    <TabsContent value="positions" className="mt-4 space-y-4">
-                        <PositionsTable
-                            types={filterType === 'ALL' ? "ON,CORPORATE_BOND,CEDEAR,ETF" : filterType === 'ON' ? "ON,CORPORATE_BOND" : filterType}
-                            market="ARG"
-                            currency={viewCurrency}
-                            refreshTrigger={refreshTrigger}
-                        />
-                    </TabsContent>
-
-                    <TabsContent value="history">
-                        <div className="flex justify-between items-center my-4">
-                            <div className="bg-slate-900 rounded-md border border-slate-700 p-1 flex">
-                                <button onClick={() => setFilterType('ALL')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ALL' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>Todos</button>
-                                <button onClick={() => setFilterType('ON')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ON' ? 'bg-blue-900/50 text-blue-200' : 'text-slate-400 hover:text-white'}`}>ONs</button>
-                                <button onClick={() => setFilterType('CEDEAR')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'CEDEAR' ? 'bg-purple-900/50 text-purple-200' : 'text-slate-400 hover:text-white'}`}>CEDEARs</button>
-                                <button onClick={() => setFilterType('ETF')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ETF' ? 'bg-green-900/50 text-green-200' : 'text-slate-400 hover:text-white'}`}>ETFs</button>
-                            </div>
-
-                            {selectedIds.length > 0 && (
-                                <Button
-                                    onClick={handleDeleteSelected}
-                                    variant="outline"
-                                    className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
-                                >
-                                    <Trash className="h-4 w-4 mr-2" />
-                                    Eliminar ({selectedIds.length})
-                                </Button>
-                            )}
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="relative w-72">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 h-4 w-4" />
+                            <input
+                                type="text"
+                                placeholder="Buscar activo..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none transition-all placeholder:text-slate-600"
+                            />
                         </div>
-
-                        {loading ? (
-                            <div className="text-slate-400 text-center py-12">Cargando...</div>
-                        ) : transactions.length === 0 ? (
-                            <div className="text-slate-400 text-center py-12">
-                                No hay compras registradas.
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto rounded-md border border-slate-800">
-                                <table className="w-full">
-                                    <thead className="bg-slate-900/50">
-                                        <tr className="border-b border-white/10">
-                                            <th className="w-10 py-3 px-4">
-                                                <button onClick={toggleSelectAll} className="text-slate-400 hover:text-white">
-                                                    {selectedIds.length === transactions.length && transactions.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
-                                                </button>
-                                            </th>
-                                            <th className="text-left py-3 px-4 text-slate-300 font-medium">Tipo</th>
-                                            <th className="text-left py-3 px-4 text-slate-300 font-medium">
-                                                <button onClick={() => handleSort('date')} className="flex items-center gap-1 hover:text-white">
-                                                    Fecha
-                                                    {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
-                                                </button>
-                                            </th>
-                                            <th className="text-left py-3 px-4 text-slate-300 font-medium">
-                                                <button onClick={() => handleSort('ticker')} className="flex items-center gap-1 hover:text-white">
-                                                    Ticker
-                                                    {sortConfig?.key === 'ticker' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
-
-                                                </button>
-                                            </th >
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Cantidad</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio ({viewCurrency})</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Comisión ({viewCurrency})</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Total ({viewCurrency})</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Orig.</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Acciones</th>
-                                        </tr >
-                                    </thead >
-                                    <tbody>
-                                        {getSortedTransactions().map((tx) => {
-                                            const normPrice = normalizeAmount(tx.price, tx.date, tx.currency || 'ARS', viewCurrency);
-                                            const normComm = normalizeAmount(tx.commission, tx.date, tx.currency || 'ARS', viewCurrency);
-                                            const normTotal = normalizeAmount(tx.totalAmount, tx.date, tx.currency || 'ARS', viewCurrency);
-
-                                            return (
-                                                <tr key={tx.id} className={`border-b border-white/5 hover:bg-white/5 ${selectedIds.includes(tx.id) ? 'bg-white/10' : ''}`}>
-                                                    <td className="py-3 px-4">
-                                                        <button onClick={() => toggleSelection(tx.id)} className={`hover:text-white ${selectedIds.includes(tx.id) ? 'text-blue-400' : 'text-slate-500'}`}>
-                                                            {selectedIds.includes(tx.id) ? <CheckSquare size={18} /> : <Square size={18} />}
-                                                        </button>
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${(tx.investment.type === 'SELL' || (tx as any).type === 'SELL')
-                                                            ? 'bg-red-900/50 text-red-200 border border-red-800'
-                                                            : 'bg-green-900/50 text-green-200 border border-green-800'
-                                                            }`}>
-                                                            {(tx.investment.type === 'SELL' || (tx as any).type === 'SELL') ? 'VENTA' : 'COMPRA'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-white">
-                                                        {format(new Date(tx.date), 'dd/MM/yyyy')}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-white">
-                                                        <span className="font-bold">{tx.investment.ticker}</span>
-                                                        <span className="text-slate-400 text-xs ml-2 hidden md:inline">{tx.investment.name}</span>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-white text-right font-mono">
-                                                        {tx.quantity}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-white text-right font-mono">
-                                                        {formatMoney(normPrice, viewCurrency)}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-white text-right font-mono">
-                                                        {formatMoney(normComm, viewCurrency)}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-white text-right font-mono font-bold">
-                                                        {formatMoney(Math.abs(normTotal), viewCurrency)}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-slate-500 text-xs text-right font-mono">
-                                                        {tx.currency || 'ARS'}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-right">
-                                                        <button onClick={() => handleDelete(tx.id)} className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors" title="Eliminar compra">
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            )
-                                        })}
-                                    </tbody>
-                                </table >
-                            </div >
-                        )
-                        }
-                    </TabsContent >
-                </Tabs >
-            </CardContent >
-
-            {/* New Transaction Form Modal */}
-            {
-                showForm && (
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                        <Card className="w-full max-w-md bg-slate-900 border-slate-700">
-                            <CardHeader>
-                                <CardTitle className="text-white">Nueva Compra</CardTitle>
-                                <CardDescription className="text-slate-400">
-                                    Registra una nueva operación de compra
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <form onSubmit={handleSubmit} className="space-y-4">
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-slate-300">Obligación Negociable</label>
-                                        <select
-                                            required
-                                            value={selectedON}
-                                            onChange={(e) => setSelectedON(e.target.value)}
-                                            className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                        >
-                                            <option value="">Seleccionar ON...</option>
-                                            {ons.map(on => (
-                                                <option key={on.id} value={on.id}>
-                                                    {on.ticker} - {on.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-300">Moneda Ope.</label>
-                                            <div className="flex bg-slate-800 rounded-md border border-slate-700 p-1">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setTxCurrency('ARS')}
-                                                    className={`flex-1 text-xs py-1.5 rounded font-bold transition-colors ${txCurrency === 'ARS' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                                                >
-                                                    ARS
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setTxCurrency('USD')}
-                                                    className={`flex-1 text-xs py-1.5 rounded font-bold transition-colors ${txCurrency === 'USD' ? 'bg-green-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                                                >
-                                                    USD
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-300">Fecha</label>
-                                            <input
-                                                type="date"
-                                                required
-                                                value={date}
-                                                onChange={(e) => setDate(e.target.value)}
-                                                className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-300">Cantidad</label>
-                                            <input
-                                                type="number"
-                                                required
-                                                min="1"
-                                                step="1"
-                                                value={quantity}
-                                                onChange={(e) => setQuantity(e.target.value)}
-                                                className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-300">Precio ({txCurrency})</label>
-                                            <input
-                                                type="number"
-                                                required
-                                                min="0"
-                                                step="any"
-                                                value={price}
-                                                onChange={(e) => setPrice(e.target.value)}
-                                                className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-slate-300">Comisión ({txCurrency})</label>
-                                        <input
-                                            type="number"
-                                            required
-                                            min="0"
-                                            step="any"
-                                            value={commission}
-                                            onChange={(e) => setCommission(e.target.value)}
-                                            className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                        />
-                                    </div>
-
-                                    <div className="flex gap-4 pt-4">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setShowForm(false)}
-                                            className="w-full border-slate-600 text-slate-300 hover:bg-slate-800"
-                                        >
-                                            Cancelar
-                                        </Button>
-                                        <Button
-                                            type="submit"
-                                            disabled={submitting}
-                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                                        >
-                                            {submitting ? 'Guardando...' : 'Guardar'}
-                                        </Button>
-                                    </div>
-                                </form>
-                            </CardContent>
-                        </Card>
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={() => { setEditingTxId(null); setIsTxModalOpen(true); }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+                            >
+                                <Plus size={16} />
+                                Nueva Compra
+                            </Button>
+                            <Button variant="outline" onClick={() => setShowSaleModal(true)} className="border-slate-700 text-slate-300 hover:bg-slate-800 gap-2">
+                                <ArrowUpRight size={16} />
+                                Registrar Venta
+                            </Button>
+                            <Button variant="ghost" onClick={() => setShowImport(true)} className="text-slate-400 hover:text-white">
+                                <FileDown size={16} />
+                            </Button>
+                        </div>
                     </div>
-                )
-            }
 
-            {
-                showImport && (
-                    <BulkImportDialog
-                        onClose={() => setShowImport(false)}
-                        onSuccess={() => {
-                            setShowImport(false);
-                            loadData();
-                        }}
-                    />
-                )
-            }
+                    <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-hidden">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-900 text-slate-400">
+                                <tr>
+                                    <th className="px-4 py-3 text-left font-medium">Fecha</th>
+                                    <th className="px-4 py-3 text-left font-medium">Activo</th>
+                                    <th className="px-4 py-3 text-left font-medium">Tipo</th>
+                                    <th className="px-4 py-3 text-right font-medium">Cantidad</th>
+                                    <th className="px-4 py-3 text-right font-medium">Precio ({viewCurrency})</th>
+                                    <th className="px-4 py-3 text-right font-medium">Comisión ({viewCurrency})</th>
+                                    <th className="px-4 py-3 text-right font-medium">Total ({viewCurrency})</th>
+                                    <th className="px-4 py-3 text-right font-medium">Orig.</th>
+                                    <th className="px-4 py-3 text-right font-medium">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800">
+                                {loading ? (
+                                    <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-500">Cargando historial...</td></tr>
+                                ) : filteredTransactions.length === 0 ? (
+                                    <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-500">No hay operaciones registradas</td></tr>
+                                ) : (
+                                    filteredTransactions.map((tx) => {
+                                        const isSell = tx.totalAmount >= 0;
+                                        const convertedPrice = convertValue(tx.price, tx.date, tx.currency || 'ARS', viewCurrency);
+                                        const convertedComm = convertValue(tx.commission, tx.date, tx.currency || 'ARS', viewCurrency);
+                                        const convertedTotal = convertValue(Math.abs(tx.totalAmount), tx.date, tx.currency || 'ARS', viewCurrency);
 
-            {/* Register Sale Modal */}
-            {
-                showSaleModal && (
-                    <RegisterSaleModal
-                        assets={ons}
-                        onClose={() => setShowSaleModal(false)}
-                        onSuccess={handleSaleSuccess}
-                    />
-                )
-            }
-        </Card >
+                                        return (
+                                            <tr key={tx.id} className="hover:bg-slate-800/50 transition-colors">
+                                                <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
+                                                    {format(new Date(tx.date), 'dd/MM/yyyy')}
+                                                </td>
+                                                <td className="px-4 py-3 font-medium text-white">
+                                                    <div className="flex flex-col">
+                                                        <span>{tx.investment.ticker}</span>
+                                                        <span className="text-xs text-slate-500">{tx.investment.description}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 font-medium text-white">
+                                                    <Badge variant={isSell ? "destructive" : "default"} className={isSell ? "bg-red-900/50 text-red-200 hover:bg-red-900 border-red-800" : "bg-green-900/50 text-green-200 hover:bg-green-900 border-green-800"}>
+                                                        {isSell ? 'VENTA' : 'COMPRA'}
+                                                    </Badge>
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
+                                                    {tx.quantity}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
+                                                    {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(convertedPrice)}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-slate-400 tabular-nums text-xs">
+                                                    {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(convertedComm)}
+                                                </td>
+                                                <td className={`px-4 py-3 text-right font-medium tabular-nums ${isSell ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(convertedTotal)}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-slate-500 text-xs">
+                                                    {tx.currency || 'ARS'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right flex justify-end gap-2">
+                                                    <button
+                                                        onClick={() => handleEditTransaction(tx)}
+                                                        className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded transition-colors"
+                                                        title="Editar"
+                                                    >
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(tx.id)}
+                                                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded transition-colors"
+                                                        title="Eliminar"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {showSaleModal && (
+                <RegisterSaleModal
+                    onClose={() => setShowSaleModal(false)}
+                    onSuccess={handleSuccess}
+                    assets={assets}
+                />
+            )}
+
+            {showImport && (
+                <BulkImportDialog
+                    onClose={() => setShowImport(false)}
+                    onSuccess={handleSuccess}
+                />
+            )}
+
+            <TransactionFormModal
+                isOpen={isTxModalOpen}
+                onClose={handleCloseTxModal}
+                onSuccess={handleSuccess}
+                initialData={editingTxId ? {
+                    id: editingTxId,
+                    date: '', // Fetched by component
+                    quantity: 0,
+                    price: 0,
+                    commission: 0,
+                    currency: 'ARS'
+                } : null}
+                assets={assets}
+            />
+        </div>
     );
 }
-
-

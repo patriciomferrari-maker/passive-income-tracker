@@ -148,7 +148,7 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
                 const safeGainPercent = isNaN(gainPercent) ? 0 : gainPercent;
 
                 realizedGains.push({
-                    id: `gain-${tx.date.getTime()}-${Math.random()}`,
+                    id: tx.id || `gain-${tx.date.getTime()}-${Math.random()}`,
                     date: tx.date,
                     ticker,
                     status: 'CLOSED',
@@ -176,7 +176,7 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
             : 0;
 
         return {
-            id: `open-${item.date.getTime()}-${Math.random()}`,
+            id: item.id || `open-${item.date.getTime()}-${Math.random()}`,
             date: item.date,
             ticker,
             status: 'OPEN',

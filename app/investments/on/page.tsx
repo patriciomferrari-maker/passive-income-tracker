@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Settings, ShoppingCart, TrendingUp, BarChart3, LayoutDashboard, ArrowLeft } from 'lucide-react';
+import { Plus, Settings, ShoppingCart, TrendingUp, BarChart3, LayoutDashboard, ArrowLeft, Briefcase } from 'lucide-react';
 import { DashboardTab } from '@/components/on/DashboardTab';
 import { ConfigurationTab } from '@/components/on/ConfigurationTab';
 import { PurchasesTab } from '@/components/on/PurchasesTab';
+import { HoldingsTab } from '@/components/on/HoldingsTab';
 import { IndividualCashflowTab } from '@/components/on/IndividualCashflowTab';
 import { ConsolidatedCashflowTab } from '@/components/on/ConsolidatedCashflowTab';
 import Link from 'next/link';
@@ -16,7 +17,8 @@ export default function ONManagementPage() {
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'purchases', label: 'Compras', icon: ShoppingCart },
+        { id: 'holdings', label: 'Tenencia', icon: Briefcase },
+        { id: 'purchases', label: 'Historial', icon: ShoppingCart },
         { id: 'individual', label: 'Flujo por ON', icon: TrendingUp },
         { id: 'consolidated', label: 'Flujo Consolidado', icon: BarChart3 },
         { id: 'config', label: 'Configuración', icon: Settings }
@@ -60,6 +62,7 @@ export default function ONManagementPage() {
                 <div className="min-h-[600px]">
                     {activeTab === 'dashboard' && <DashboardTab />}
                     {activeTab === 'config' && <ConfigurationTab />}
+                    {activeTab === 'holdings' && <HoldingsTab />}
                     {activeTab === 'purchases' && <PurchasesTab />}
                     {activeTab === 'individual' && <IndividualCashflowTab />}
                     {activeTab === 'consolidated' && <ConsolidatedCashflowTab />}
