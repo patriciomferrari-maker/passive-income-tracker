@@ -162,10 +162,11 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                 <th className="px-4 py-3 text-left font-medium">Estado</th>
                                 <th className="px-4 py-3 text-left font-medium">
                                     <button onClick={() => handleSort('date')} className="flex items-center gap-1 hover:text-white">
-                                        Fecha
+                                        Fecha Compra
                                         {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                     </button>
                                 </th>
+                                <th className="px-4 py-3 text-left font-medium">Fecha Venta</th>
                                 <th className="px-4 py-3 text-right font-medium">Nominales</th>
                                 <th className="px-4 py-3 text-right font-medium">Precio Compra</th>
                                 <th className="px-4 py-3 text-right font-medium">Com. Compra</th>
@@ -175,8 +176,8 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                 <th className="px-4 py-3 text-right font-medium">%</th>
                                 {currency === 'ARS' && (
                                     <>
-                                        <th className="px-4 py-3 text-right font-medium text-xs text-blue-400">Res. Precio</th>
                                         <th className="px-4 py-3 text-right font-medium text-xs text-yellow-500">Res. TC</th>
+                                        <th className="px-4 py-3 text-right font-medium text-xs text-blue-400">Res. Perf.</th>
                                     </>
                                 )}
                                 <th className="px-4 py-3 text-right font-medium">Acción</th>
@@ -184,14 +185,7 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                         </thead>
                         <tbody className="divide-y divide-slate-800">
                             {getSortedPositions().map((pos) => {
-                                // Calculate percentages for split results
-                                // Base is Total Cost (buyPrice * qty).
                                 const totalCost = (pos.quantity * pos.buyPrice) + pos.buyCommission;
-                                // Actually, buyPrice is the ARS price. 
-                                // Percentage of what? Usually of invested capital.
-                                // pos.priceResult / totalCost
-                                // pos.fxResult / totalCost
-
                                 const priceResultPercent = totalCost !== 0 && (pos as any).priceResult ? ((pos as any).priceResult / totalCost) * 100 : 0;
                                 const fxResultPercent = totalCost !== 0 && (pos as any).fxResult ? ((pos as any).fxResult / totalCost) * 100 : 0;
 
@@ -210,7 +204,10 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-slate-300">
-                                            {format(new Date(pos.date), 'dd/MM/yyyy')}
+                                            {pos.status === 'OPEN' ? format(new Date(pos.date), 'dd/MM/yyyy') : '-'}
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-300">
+                                            {pos.status === 'CLOSED' ? format(new Date(pos.date), 'dd/MM/yyyy') : '-'}
                                         </td>
                                         <td className="px-4 py-3 text-right text-white tabular-nums">
                                             {pos.quantity}
@@ -237,19 +234,19 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
 
                                         {currency === 'ARS' && (
                                             <>
-                                                <td className="px-4 py-3 text-right font-medium tabular-nums text-blue-400">
-                                                    <div className="flex flex-col items-end">
-                                                        <span>{(pos as any).priceResult ? formatMoney((pos as any).priceResult, currency) : '-'}</span>
-                                                        <span className="text-[10px] opacity-70">
-                                                            {(pos as any).priceResult ? `${priceResultPercent.toFixed(2)}%` : ''}
-                                                        </span>
-                                                    </div>
-                                                </td>
                                                 <td className="px-4 py-3 text-right font-medium tabular-nums text-yellow-500">
                                                     <div className="flex flex-col items-end">
                                                         <span>{(pos as any).fxResult ? formatMoney((pos as any).fxResult, currency) : '-'}</span>
                                                         <span className="text-[10px] opacity-70">
                                                             {(pos as any).fxResult ? `${fxResultPercent.toFixed(2)}%` : ''}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-medium tabular-nums text-blue-400">
+                                                    <div className="flex flex-col items-end">
+                                                        <span>{(pos as any).priceResult ? formatMoney((pos as any).priceResult, currency) : '-'}</span>
+                                                        <span className="text-[10px] opacity-70">
+                                                            {(pos as any).priceResult ? `${priceResultPercent.toFixed(2)}%` : ''}
                                                         </span>
                                                     </div>
                                                 </td>
