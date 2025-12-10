@@ -22,6 +22,7 @@ interface Transaction {
     price: number;
     commission: number;
     totalAmount: number;
+    type?: string; // Add type field
     investment: {
         ticker: string;
         name: string;
@@ -400,6 +401,7 @@ export function PurchasesTab() {
                                                     )}
                                                 </button>
                                             </th>
+                                            <th className="text-left py-3 px-4 text-slate-300 font-medium">Tipo</th>
                                             <th className="text-left py-3 px-4 text-slate-300 font-medium">
                                                 <button onClick={() => handleSort('date')} className="flex items-center gap-1 hover:text-white">
                                                     Fecha
@@ -415,9 +417,9 @@ export function PurchasesTab() {
                                                 </button>
                                             </th>
                                             <th className="text-right py-3 px-4 text-slate-300 font-medium">Cantidad</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio Compra</th>
+                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio</th>
                                             <th className="text-right py-3 px-4 text-slate-300 font-medium">ComisiÃ³n</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Total Pagado</th>
+                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Total</th>
                                             <th className="text-right py-3 px-4 text-slate-300 font-medium">Acciones</th>
                                         </tr>
                                     </thead>
@@ -433,6 +435,14 @@ export function PurchasesTab() {
                                                         >
                                                             {selectedIds.includes(tx.id) ? <CheckSquare size={18} /> : <Square size={18} />}
                                                         </button>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${(tx.type || 'BUY') === 'SELL'
+                                                            ? 'bg-red-900/50 text-red-200 border border-red-800'
+                                                            : 'bg-green-900/50 text-green-200 border border-green-800'
+                                                            }`}>
+                                                            {(tx.type || 'BUY') === 'SELL' ? 'VENTA' : 'COMPRA'}
+                                                        </span>
                                                     </td>
                                                     <td className="py-3 px-4 text-white">
                                                         {format(new Date(tx.date), 'dd/MM/yyyy')}
