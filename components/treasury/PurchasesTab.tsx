@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Eye, EyeOff, CheckSquare, Square, Trash, AlertTriangle, Edit, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
+import RealizedGainsTable from "@/components/common/RealizedGainsTable";
+import RegisterSaleModal from "@/components/common/RegisterSaleModal";
 
 interface Treasury {
     id: string;
@@ -58,6 +60,10 @@ export function PurchasesTab() {
 
     // Sorting State
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'date', direction: 'desc' });
+
+    // FIFO State
+    const [showSaleModal, setShowSaleModal] = useState(false);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -145,6 +151,12 @@ export function PurchasesTab() {
     const formatMoney = (amount: number) => {
         if (!showValues) return '****';
         return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    const handleSaleSuccess = () => {
+        setShowSaleModal(false);
+        setRefreshTrigger(prev => prev + 1); // Refresh FIFO table
+        loadData(); // Refresh holdings
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -269,26 +281,6 @@ export function PurchasesTab() {
         }
     };
 
-    const [updating, setUpdating] = useState(false);
-
-    const handleUpdatePrices = async () => {
-        setUpdating(true);
-        try {
-            const res = await fetch('/api/admin/market-data', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'UPDATE_TREASURIES' })
-            });
-            if (res.ok) {
-                await loadData();
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setUpdating(false);
-        }
-    };
-
     return (
         <>
             <Card className="bg-slate-950 border-slate-800">
@@ -296,7 +288,6 @@ export function PurchasesTab() {
                     <CardTitle className="text-white flex items-center justify-between">
                         Registro de Compras
                         <div className="flex gap-2">
-                            {/* Type Filter */}
                             {/* Type Filter */}
                             <div className="bg-slate-900 rounded-md border border-slate-700 p-1 flex mr-2">
                                 <button
@@ -339,6 +330,12 @@ export function PurchasesTab() {
                                     Eliminar ({selectedIds.length})
                                 </Button>
                             )}
+                            <Button
+                                onClick={() => setShowSaleModal(true)}
+                                className="bg-red-900/40 border border-red-900 text-red-100 hover:bg-red-900/60"
+                            >
+                                Registrar Venta
+                            </Button>
                             <Button
                                 onClick={() => setShowForm(true)}
                                 className="bg-blue-600 hover:bg-blue-700"
@@ -482,6 +479,9 @@ export function PurchasesTab() {
                 </CardContent>
             </Card>
 
+            {/* Realized Gains Section */}
+            <RealizedGainsTable types="TREASURY,ETF" refreshTrigger={refreshTrigger} />
+
             {/* New Transaction Form Modal */}
             {showForm && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -591,6 +591,15 @@ export function PurchasesTab() {
                         </CardContent>
                     </Card>
                 </div>
+            )}
+
+            {/* Register Sale Modal */}
+            {showSaleModal && (
+                <RegisterSaleModal
+                    assets={treasuries}
+                    onClose={() => setShowSaleModal(false)}
+                    onSuccess={handleSaleSuccess}
+                />
             )}
 
             {/* Delete Confirmation Modal */}

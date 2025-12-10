@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Upload, Trash, CheckSquare, Square, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { BulkImportDialog } from '@/components/on/BulkImportDialog';
+import RealizedGainsTable from "@/components/common/RealizedGainsTable";
+import RegisterSaleModal from "@/components/common/RegisterSaleModal";
 
 interface ON {
     id: string;
@@ -42,6 +44,10 @@ export function PurchasesTab() {
     const [price, setPrice] = useState('');
     const [commission, setCommission] = useState('0');
     const [submitting, setSubmitting] = useState(false);
+
+    // FIFO State
+    const [showSaleModal, setShowSaleModal] = useState(false);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Sorting State
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'date', direction: 'desc' });
@@ -96,6 +102,12 @@ export function PurchasesTab() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleSaleSuccess = () => {
+        setShowSaleModal(false);
+        setRefreshTrigger(prev => prev + 1); // Refresh FIFO table
+        loadData(); // Refresh holdings
     };
 
     useEffect(() => {
@@ -223,6 +235,12 @@ export function PurchasesTab() {
                     <CardTitle className="text-white flex items-center justify-between">
                         Registro de Compras
                         <div className="flex gap-2">
+                            <Button
+                                onClick={() => setShowSaleModal(true)}
+                                className="bg-red-900/40 border border-red-900 text-red-100 hover:bg-red-900/60"
+                            >
+                                Registrar Venta (FIFO)
+                            </Button>
                             <Button
                                 onClick={togglePrivacy}
                                 variant="outline"
@@ -366,6 +384,9 @@ export function PurchasesTab() {
                 </CardContent>
             </Card>
 
+            {/* Realized Gains Section */}
+            <RealizedGainsTable types="ON,CORPORATE_BOND" refreshTrigger={refreshTrigger} />
+
             {/* New Transaction Form Modal */}
             {showForm && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -477,6 +498,15 @@ export function PurchasesTab() {
                         setShowImport(false);
                         loadData();
                     }}
+                />
+            )}
+
+            {/* Register Sale Modal */}
+            {showSaleModal && (
+                <RegisterSaleModal
+                    assets={ons}
+                    onClose={() => setShowSaleModal(false)}
+                    onSuccess={handleSaleSuccess}
                 />
             )}
         </>
