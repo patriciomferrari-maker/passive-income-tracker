@@ -9,7 +9,9 @@ export async function GET() {
         const userId = await getUserId();
         const investments = await prisma.investment.findMany({
             where: {
-                type: { in: ['ON', 'CORPORATE_BOND', 'CEDEAR', 'ETF'] },
+                // type: { in: ['ON', 'CORPORATE_BOND', 'CEDEAR', 'ETF'] }, // Removing broad type filter or adding market filter
+                // We want specifically Argentina Portfolio items.
+                market: 'ARG',
                 userId
             },
             include: {
@@ -44,6 +46,7 @@ export async function POST(request: Request) {
                 ticker,
                 name,
                 type: type || 'ON', // Default to ON if not specified
+                market: 'ARG', // Explicitly Argentina Portfolio
                 currency: ['CEDEAR', 'ETF'].includes(type) ? 'ARS' : 'ARS', // Usually ARS for Arg Portfolio
                 emissionDate: emissionDate ? new Date(emissionDate) : null,
                 couponRate: couponRate ? parseFloat(couponRate) : null,

@@ -137,7 +137,9 @@ model Investment {
   lastPriceDate DateTime?    // Fecha del ultimo precio
 
   assetPrices  AssetPrice[]
-
+  
+  market       String        @default("US") // US, ARG
+  
   @@unique([userId, ticker]) // Tickers unique per User, not global
   @@index([userId])
 }

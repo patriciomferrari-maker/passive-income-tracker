@@ -9,7 +9,8 @@ export async function GET() {
         const userId = await getUserId();
         const investments = await prisma.investment.findMany({
             where: {
-                type: { in: ['TREASURY', 'ETF'] },
+                // type: { in: ['TREASURY', 'ETF'] }, // Removing broad type filter
+                market: 'US',
                 userId
             },
             include: {
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
                 ticker,
                 name,
                 type: investmentType,
+                market: 'US', // Explicitly US Portfolio
                 currency: 'USD',
                 emissionDate: emissionDate ? new Date(emissionDate) : null,
                 couponRate: couponRate ? parseFloat(couponRate) : null,

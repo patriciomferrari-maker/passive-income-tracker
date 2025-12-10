@@ -32,8 +32,8 @@ export default function ONManagementPage() {
                             <ArrowLeft className="mr-2 h-4 w-4" /> Volver
                         </Button>
                     </Link>
-                    <h1 className="text-4xl font-bold text-white mb-2">Obligaciones Negociables (ON)</h1>
-                    <p className="text-slate-300">Gestiona tus inversiones en bonos corporativos argentinos</p>
+                    <h1 className="text-4xl font-bold text-white mb-2">Cartera Argentina</h1>
+                    <p className="text-slate-300">Gestiona tus inversiones en ONs, CEDEARs y ETFs</p>
                 </div>
 
                 {/* Tabs */}

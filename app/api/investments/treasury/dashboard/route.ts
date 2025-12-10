@@ -8,11 +8,12 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
     try {
         const userId = await getUserId();
-        // Get all Treasury investments that have at least one transaction (purchase)
+        // Get all US Market investments (Treasuries + ETFs)
         const investments = await prisma.investment.findMany({
             where: {
                 userId, // Filter by User
-                type: { in: ['TREASURY', 'ETF'] }
+                market: 'US' // Explicitly US Portfolio
+                // type: { in: ['TREASURY', 'ETF'] } // Replaced by market: 'US'
             },
             include: {
                 transactions: {
@@ -87,38 +88,45 @@ export async function GET() {
         const portfolioBreakdown = investments.map(inv => {
             const invested = inv.transactions.reduce((sum, tx) => sum + Math.abs(tx.totalAmount), 0);
 
-            // Calculate TIR
-            const amounts: number[] = [];
-            const dates: Date[] = [];
+            // Calculate TIR (Only for Treasuries usually, but per-asset TIR is fine if cashflows exist)
+            let tir = 0;
+            if (inv.type === 'TREASURY' && inv.cashflows.length > 0) {
+                const amounts: number[] = [];
+                const dates: Date[] = [];
 
-            inv.transactions.forEach(tx => {
-                amounts.push(-Math.abs(tx.totalAmount));
-                dates.push(new Date(tx.date));
-            });
+                inv.transactions.forEach(tx => {
+                    amounts.push(-Math.abs(tx.totalAmount));
+                    dates.push(new Date(tx.date));
+                });
 
-            inv.cashflows.forEach(cf => {
-                amounts.push(cf.amount);
-                dates.push(new Date(cf.date));
-            });
+                inv.cashflows.forEach(cf => {
+                    amounts.push(cf.amount);
+                    dates.push(new Date(cf.date));
+                });
 
-            const tir = calculateXIRR(amounts, dates);
+                const result = calculateXIRR(amounts, dates);
+                tir = result ? result * 100 : 0;
+            }
 
             return {
                 ticker: inv.ticker,
                 name: inv.name,
                 invested,
                 percentage: capitalInvertido > 0 ? (invested / capitalInvertido) * 100 : 0,
-                tir: tir ? tir * 100 : 0
+                tir: tir
             };
         });
         // Removed filter to show 0-invested items in breakdown
         // .filter(item => item.invested > 0);
 
-        // Calculate Consolidated TIR (XIRR)
+        // Calculate Consolidated TIR (XIRR) - TREASURIES ONLY
         const allAmounts: number[] = [];
         const allDates: Date[] = [];
 
         investments.forEach(inv => {
+            // Skip ETF or other non-Treasury assets for Consolidated TIR
+            if (inv.type !== 'TREASURY') return;
+
             // Add all BUY transactions as negative cashflows
             inv.transactions.forEach(tx => {
                 if (tx.type === 'BUY') {
