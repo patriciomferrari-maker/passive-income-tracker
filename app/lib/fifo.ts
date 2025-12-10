@@ -89,7 +89,9 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
                     // Since we are consuming the *rest* of the batch (current quantity), we take the proportional commission remaining?
                     // Simpler: We tracked the "unit commission" or we just re-calculate prorated.
                     // Prorated Comm = (QtyConsumed / OriginalQty) * OriginalComm
-                    const proratedComm = (batch.quantity / batch.originalQuantity) * batch.originalCommission;
+                    const proratedComm = batch.originalQuantity > 0
+                        ? (batch.quantity / batch.originalQuantity) * batch.originalCommission
+                        : 0;
 
                     costBasisTotal += batchCost;
                     buyCommissionConsumedTotal += proratedComm;
@@ -100,7 +102,9 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
                     // Partially consume this batch
                     const qtyConsumed = qtyToSell;
                     const batchCost = qtyConsumed * batch.price;
-                    const proratedComm = (qtyConsumed / batch.originalQuantity) * batch.originalCommission;
+                    const proratedComm = batch.originalQuantity > 0
+                        ? (qtyConsumed / batch.originalQuantity) * batch.originalCommission
+                        : 0;
 
                     costBasisTotal += batchCost;
                     buyCommissionConsumedTotal += proratedComm;
@@ -129,7 +133,11 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
                 // ROI % = Profit / Invested
                 const gainPercent = totalBuyCostFirst !== 0 ? (gainAbs / totalBuyCostFirst) * 100 : 0;
 
-                const buyPriceAvg = costBasisTotal / qtySoldTotal;
+                const buyPriceAvg = qtySoldTotal > 0 ? costBasisTotal / qtySoldTotal : 0;
+
+                // Safety check for NaN
+                const safeBuyPriceAvg = isNaN(buyPriceAvg) ? 0 : buyPriceAvg;
+                const safeGainPercent = isNaN(gainPercent) ? 0 : gainPercent;
 
                 realizedGains.push({
                     id: `gain-${tx.date.getTime()}-${Math.random()}`,
@@ -139,10 +147,10 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
                     quantity: qtySoldTotal,
                     sellPrice: tx.price,
                     sellCommission: sellCommission,
-                    buyPriceAvg: buyPriceAvg,
-                    buyCommissionPaid: buyCommissionConsumedTotal,
+                    buyPriceAvg: safeBuyPriceAvg,
+                    buyCommissionPaid: buyCommissionConsumedTotal || 0, // Prevent NaN
                     gainAbs,
-                    gainPercent,
+                    gainPercent: safeGainPercent,
                     currency: tx.currency
                 });
 
@@ -154,7 +162,10 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
     // Process Open Positions from remaining Inventory
     const openPositions: OpenPositionEvent[] = inventory.map(item => {
         // Prorated commission for the remaining quantity
-        const proratedComm = (item.quantity / item.originalQuantity) * item.originalCommission;
+        // Prorated commission for the remaining quantity
+        const proratedComm = item.originalQuantity > 0
+            ? (item.quantity / item.originalQuantity) * item.originalCommission
+            : 0;
 
         return {
             id: `open-${item.date.getTime()}-${Math.random()}`,

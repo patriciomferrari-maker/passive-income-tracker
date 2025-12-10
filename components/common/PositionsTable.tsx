@@ -106,7 +106,13 @@ export default function PositionsTable({ types, refreshTrigger }: PositionsTable
                     <table className="w-full text-sm">
                         <thead className="bg-slate-900 text-slate-400">
                             <tr>
-                                <th className="px-4 py-3 text-left font-medium">Activo</th>
+                                <th className="px-4 py-3 text-left font-medium">
+                                    <button onClick={() => handleSort('ticker')} className="flex items-center gap-1 hover:text-white">
+                                        Activo
+                                        {sortConfig?.key === 'ticker' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                        {sortConfig?.key !== 'ticker' && <ArrowUpDown size={14} className="opacity-50" />}
+                                    </button>
+                                </th>
                                 <th className="px-4 py-3 text-left font-medium">Estado</th>
                                 <th className="px-4 py-3 text-left font-medium">
                                     <button onClick={() => handleSort('date')} className="flex items-center gap-1 hover:text-white">
@@ -132,8 +138,8 @@ export default function PositionsTable({ types, refreshTrigger }: PositionsTable
                                     </td>
                                     <td className="px-4 py-3">
                                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${pos.status === 'OPEN'
-                                            ? 'bg-blue-900/30 text-blue-400 border-blue-900'
-                                            : 'bg-green-900/30 text-green-400 border-green-900'
+                                            ? 'bg-green-900/30 text-green-400 border-green-900'
+                                            : 'bg-red-900/30 text-red-400 border-red-900'
                                             }`}>
                                             {pos.status === 'OPEN' ? 'ABIERTA' : 'CERRADA'}
                                         </span>
