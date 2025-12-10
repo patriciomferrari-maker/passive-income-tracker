@@ -18,6 +18,7 @@ export async function GET(req: Request) {
             },
             select: {
                 ticker: true,
+                type: true,
                 lastPrice: true,
                 currency: true,
                 lastPriceDate: true
@@ -26,6 +27,7 @@ export async function GET(req: Request) {
 
         const prices = investments.map(inv => ({
             ticker: inv.ticker,
+            type: inv.type,
             price: inv.lastPrice,
             currency: inv.currency,
             lastUpdated: inv.lastPriceDate

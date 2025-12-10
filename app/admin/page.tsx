@@ -203,7 +203,9 @@ function PriceList({ prices }: { prices: any[] }) {
                     <li key={i} className="text-xs flex justify-between items-center border-b border-slate-800 pb-1 last:border-0">
                         <div className="flex flex-col">
                             <span className="font-mono text-blue-400 font-bold">{p.ticker}</span>
-                            <span className="text-[10px] text-slate-500">{p.source || 'IOL'}</span>
+                            <span className="text-[10px] text-slate-500">
+                                {['TREASURY', 'ETF', 'STOCK'].includes(p.type) ? 'Yahoo Finance' : 'IOL'}
+                            </span>
                         </div>
                         {p.error ? (
                             <span className="text-red-400 flex items-center text-right"><AlertCircle className="w-3 h-3 mr-1" /> {p.error}</span>
