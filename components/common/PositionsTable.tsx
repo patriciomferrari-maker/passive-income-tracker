@@ -96,11 +96,35 @@ export default function PositionsTable({ types, refreshTrigger }: PositionsTable
     };
 
     if (loading) return <div className="text-slate-400 text-sm py-4">Cargando posiciones...</div>;
-    if (positions.length === 0) return null; // Don't show if empty? Or show empty message?
+    // if (positions.length === 0) return null; // Don't show if empty? Or show empty message?
+
+    const totalRealized = positions
+        .filter(p => p.status === 'CLOSED')
+        .reduce((sum, p) => sum + (p.resultAbs || 0), 0);
+
+    const totalUnrealized = positions
+        .filter(p => p.status === 'OPEN')
+        .reduce((sum, p) => sum + (p.resultAbs || 0), 0);
 
     return (
         <div className="mt-8 space-y-4">
             <h3 className="text-lg font-semibold text-white px-2">Posiciones (Lotes FIFO)</h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-2">
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Resultado No Realizado (Abiertas)</h4>
+                    <div className={`text-2xl font-bold ${totalUnrealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatMoney(totalUnrealized, 'USD')}
+                    </div>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Resultado Realizado (Cerradas)</h4>
+                    <div className={`text-2xl font-bold ${totalRealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatMoney(totalRealized, 'USD')}
+                    </div>
+                </div>
+            </div>
+
             <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
