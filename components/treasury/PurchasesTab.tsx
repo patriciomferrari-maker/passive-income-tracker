@@ -346,6 +346,7 @@ export function PurchasesTab() {
                                 <Plus className="h-4 w-4 mr-2" />
                                 Nueva Compra
                             </Button>
+                        </div>
                     </CardTitle>
                     <CardDescription className="text-slate-300">
                         Historial de operaciones de compra
