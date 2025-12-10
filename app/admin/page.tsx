@@ -76,7 +76,7 @@ export default function AdminPage() {
                                 <span className="text-[10px] text-slate-500">Esto puede demorar unos segundos.</span>
                             </div>
                         ) : (
-                            <PriceList prices={onPrices} />
+                            <ONListTable prices={onPrices} />
                         )}
                         {/* Manual update button removed as requested */}
                     </CardContent>
@@ -220,29 +220,58 @@ function getMonthName(month: number) {
     return months[month - 1] || month;
 }
 
+function ONListTable({ prices }: { prices: any[] }) {
+    if (!prices || prices.length === 0) return <span className="text-xs text-yellow-500">No se encontraron títulos cargados.</span>;
+
+    return (
+        <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
+            <div className="grid grid-cols-4 bg-slate-900 p-2 text-[10px] font-medium text-slate-400 border-b border-slate-800">
+                <span>Ticker</span>
+                <span className="text-right">ARS</span>
+                <span className="text-right">USD</span>
+                <span className="text-right">TC Imp.</span>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto">
+                {prices.map((p: any, i: number) => (
+                    <div key={i} className="grid grid-cols-4 p-2 text-[10px] border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors items-center">
+                        <div className="flex flex-col">
+                            <span className="font-bold text-blue-400">{p.ticker}</span>
+                            <span className="text-[9px] text-slate-600">{p.source === 'YAHOO' ? 'Yahoo' : 'IOL'}</span>
+                        </div>
+                        <span className="text-right text-slate-300">
+                            {p.arsPrice ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(p.arsPrice) : '-'}
+                        </span>
+                        <span className="text-right text-green-400">
+                            {p.usdPrice ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(p.usdPrice) : '-'}
+                        </span>
+                        <span className="text-right text-yellow-500 font-mono">
+                            {p.impliedTC ? `$${p.impliedTC.toFixed(2)}` : '-'}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function PriceList({ prices }: { prices: any[] }) {
-    if (!prices || prices.length === 0) return <span className="text-xs text-yellow-500">No se encontraron títulos cargados para obtener el valor.</span>;
+    // This is now used for US ETFs which fall back to simple view or we can upgrade them too?
+    // The US ETF API part (category=US_ETF) returns standard structure?
+    // Let's check API. API returns same structure but fields might be null for arsPrice/usdPrice if not scraped dual.
+    // For US ETFs (Yahoo), we usually get USD price.
+    // So we can keep PriceList for US ETFs or make it generic.
+    // Let's keep separate simple list for US ETFs Card.
+    if (!prices || prices.length === 0) return <span className="text-xs text-yellow-500">No data.</span>;
 
     return (
         <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
-            <h4 className="text-sm font-semibold text-slate-300 mb-2">Resultados:</h4>
             <ul className="space-y-2">
                 {prices.map((p: any, i: number) => (
                     <li key={i} className="text-xs flex justify-between items-center border-b border-slate-800 pb-1 last:border-0">
-                        <div className="flex flex-col">
-                            <span className="font-mono text-blue-400 font-bold">{p.ticker}</span>
-                            <span className="text-[10px] text-slate-500">
-                                {['TREASURY', 'ETF', 'STOCK'].includes(p.type) ? 'Yahoo Finance' : 'IOL'}
-                            </span>
-                        </div>
-                        {p.error ? (
-                            <span className="text-red-400 flex items-center text-right"><AlertCircle className="w-3 h-3 mr-1" /> {p.error}</span>
-                        ) : (
-                            <span className="text-green-400 flex items-center font-bold text-right">
-                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: p.currency || 'USD' }).format(p.price)}
-                                <CheckCircle className="w-3 h-3 ml-1" />
-                            </span>
-                        )}
+                        <span className="font-mono text-blue-400 font-bold">{p.ticker}</span>
+                        <span className="text-green-400 flex items-center font-bold text-right">
+                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: p.currency || 'USD' }).format(p.price || 0)}
+                        </span>
                     </li>
                 ))}
             </ul>

@@ -25,6 +25,7 @@ export async function GET(req: Request) {
                 ticker: { not: '' }
             },
             select: {
+                id: true,
                 ticker: true,
                 type: true,
                 lastPrice: true,
@@ -33,13 +34,49 @@ export async function GET(req: Request) {
             }
         });
 
-        const prices = investments.map(inv => ({
-            ticker: inv.ticker,
-            type: inv.type,
-            price: inv.lastPrice,
-            currency: inv.currency,
-            lastUpdated: inv.lastPriceDate
-        }));
+        // Fetch latest asset prices for these investments (ARS and USD)
+        // We look back 3 days to find recent prices
+        const ids = investments.map(i => i.id);
+        const threeDaysAgo = new Date();
+        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+        const assetPrices = await prisma.assetPrice.findMany({
+            where: {
+                investmentId: { in: ids },
+                date: { gte: threeDaysAgo }
+            },
+            orderBy: { date: 'asc' } // Latest last
+        });
+
+        // Map latest price per currency
+        const priceMap: Record<string, { ARS?: number, USD?: number }> = {};
+
+        assetPrices.forEach(ap => {
+            if (!priceMap[ap.investmentId]) priceMap[ap.investmentId] = {};
+            if (ap.currency === 'ARS') priceMap[ap.investmentId].ARS = ap.price;
+            if (ap.currency === 'USD') priceMap[ap.investmentId].USD = ap.price;
+        });
+
+        const prices = investments.map(inv => {
+            const hist = priceMap[inv.id] || {};
+            // Prefer historical recent lookup, fallback to investment.lastPrice if matching currency
+            const arsPrice = hist.ARS || (inv.currency === 'ARS' ? inv.lastPrice : null);
+            const usdPrice = hist.USD || (inv.currency === 'USD' ? inv.lastPrice : null);
+
+            // Implied TC
+            const impliedTC = (arsPrice && usdPrice) ? (arsPrice / usdPrice) : null;
+
+            return {
+                ticker: inv.ticker,
+                type: inv.type,
+                price: inv.lastPrice, // Keep legacy for compatibility or debug
+                currency: inv.currency,
+                lastUpdated: inv.lastPriceDate,
+                arsPrice,
+                usdPrice,
+                impliedTC
+            };
+        });
 
         return NextResponse.json({ success: true, prices });
     } catch (error: any) {

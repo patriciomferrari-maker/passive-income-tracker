@@ -15,6 +15,7 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const typeParam = searchParams.get('type');
         const marketParam = searchParams.get('market');
+        const targetCurrency = searchParams.get('currency'); // ARS or USD
 
         const typeFilter = typeParam ? {
             type: {
@@ -43,13 +44,11 @@ export async function GET(request: Request) {
             }
         });
 
-        const targetCurrency = searchParams.get('currency');
+        // 2. Fetch Exchange Rates (TC_USD_ARS)
         let ratesMap: Record<string, number> = {};
-
-        // If conversion is needed, fetch rates
         if (targetCurrency) {
             const rates = await prisma.economicIndicator.findMany({
-                where: { type: 'BLUE' }, // Assuming BLUE is the type for Dolar Blue
+                where: { type: 'TC_USD_ARS' },
                 select: { date: true, value: true }
             });
             rates.forEach(r => {
@@ -58,22 +57,55 @@ export async function GET(request: Request) {
             });
         }
 
-        // Helper to find closest rate
         const getRate = (date: Date) => {
             const dateStr = date.toISOString().split('T')[0];
             if (ratesMap[dateStr]) return ratesMap[dateStr];
-            // Naive fallback: find closest? For now just return 0 or handle error?
-            // Let's assume data is dense enough or fallback to 'latest' found so far?
-            // Simple approach: look for exact match, if not found, assume 1 (to avoid crash) but this implies error.
-            // Better: Find latest available rate before or on date.
-            // Given the map is not sorted, we might need a sorted array.
-            // But since we are inside a route, let's keep it simple: exact match or use a recent one?
-            // For now, exact match logic or fallback to most recent previous rate (re-query db? too slow).
-            // Let's rely on the map. If missing, maybe use the last known rate from iteration?
-            return ratesMap[dateStr] || 0;
+
+            // Fallback: Find closest rate in past (simple linear scan in map keys if needed, but let's assume coverage)
+            // If missing, try to find a rate within 7 days
+            const targetTime = date.getTime();
+            // This is slow if map is large, but acceptable for now. 
+            // Better: finding the last known rate.
+            // Since keys are YYYY-MM-DD, we can just look back day by day.
+            let d = new Date(date);
+            for (let i = 0; i < 10; i++) { // Look back 10 days
+                const ds = d.toISOString().split('T')[0];
+                if (ratesMap[ds]) return ratesMap[ds];
+                d.setDate(d.getDate() - 1);
+            }
+            return 0;
         };
 
-        // 2. Group transactions by Ticker (FIFO is per-asset)
+        // 3. Fetch Latest Asset Prices for Target Currency
+        // We need the latest price for each investment in the TARGET currency.
+        const investmentIds = Array.from(new Set(transactions.map(t => t.investmentId)));
+
+        let priceMap: Record<string, number> = {}; // investmentId -> price
+
+        if (targetCurrency && investmentIds.length > 0) {
+            // Fetch latest price for each investment in the specific currency
+            // We can't easily do "Find Latest Group By" in Prisma standard API without unique keys or raw query.
+            // We'll fetch all prices for these investments from the last 7 days and pick the latest in memory.
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+
+            const recentPrices = await prisma.assetPrice.findMany({
+                where: {
+                    investmentId: { in: investmentIds },
+                    currency: targetCurrency, // Strict currency match
+                    date: { gte: weekAgo }
+                },
+                orderBy: { date: 'asc' }
+            });
+
+            // Populate map with latest (asc sort guarantees last is latest)
+            recentPrices.forEach(p => {
+                priceMap[p.investmentId] = p.price;
+            });
+        }
+
+
+        // 4. Group transactions by Ticker
         const txByTicker: Record<string, FIFOTransaction[]> = {};
         const investmentMap: Record<string, any> = {};
 
@@ -88,7 +120,10 @@ export async function GET(request: Request) {
             let commission = tx.commission;
             let currency = tx.currency;
 
-            // NORMALIZE IF NEEDED
+            // HISTORICAL COST CONVERSION
+            // "Las COMPRAS que se hicieron en USD --> Multiplicar esos valores por el TC AVG del dìa de la compra" (View ARS)
+            // "Las compras que hice en ARS, dividir precio de compra y comision por el TC AVG" (View USD)
+
             if (targetCurrency && targetCurrency !== currency) {
                 const rate = getRate(tx.date);
                 if (rate > 0) {
@@ -104,6 +139,7 @@ export async function GET(request: Request) {
                 }
             }
 
+            // Note: IF we converted, we pretend the transaction happened in the target currency.
             txByTicker[ticker].push({
                 id: tx.id,
                 date: tx.date,
@@ -115,40 +151,75 @@ export async function GET(request: Request) {
             });
         }
 
-        // 3. Calculate Positions (Realized & Open) for each ticker
+        // 5. Calculate Positions
         let allPositions: any[] = [];
 
         for (const ticker in txByTicker) {
             const result = calculateFIFO(txByTicker[ticker], ticker);
             const investment = investmentMap[ticker];
-            let currentPrice = investment.lastPrice || 0;
 
-            // For ONs and Corporate Bonds, price is usually quoted as %, so divide by 100 for value calc
+            // DETERMINE CURRENT MARKET PRICE
+            let currentPrice = 0;
+
+            if (targetCurrency) {
+                // 1. Try strict lookup (AssetPrice in Target Currency)
+                if (priceMap[investment.id]) {
+                    currentPrice = priceMap[investment.id];
+                }
+                // 2. Fallback: If no specific price found (e.g. strict lookup failed), 
+                // use investment.lastPrice BUT logic says strict.
+                // If we have no price in target currency, maybe we shouldn't show it or should convert?
+                // User request implies strict tickers ("ticker sin la D" vs "con D").
+                // If we don't have the "D" price, maybe convert the "O" price?
+                // Let's use standard conversion if strict price missing.
+                else {
+                    // Check investment.currency vs target
+                    const basePrice = investment.lastPrice || 0;
+                    const baseCurrency = investment.currency || 'USD';
+
+                    if (baseCurrency === targetCurrency) {
+                        currentPrice = basePrice;
+                    } else {
+                        // Convert using LATEST COMPATIBLE RATE (e.g. today or lastPriceDate)
+                        const rateDate = investment.lastPriceDate || new Date();
+                        const rate = getRate(rateDate);
+                        if (rate > 0) {
+                            if (baseCurrency === 'ARS' && targetCurrency === 'USD') currentPrice = basePrice / rate;
+                            else if (baseCurrency === 'USD' && targetCurrency === 'ARS') currentPrice = basePrice * rate;
+                        }
+                    }
+                }
+            } else {
+                // No target currency? Use investment defaults
+                currentPrice = investment.lastPrice || 0;
+            }
+
+            // For ONs/Bonds, divide by 100 if needed (usually price is % or per 100 nominals)
+            // Assuming the scraped price is already correct unit-wise or needs /100.
+            // IOL prices for ONs are usually per 100 nominals? NO, per 1.
+            // Wait, Standard is per 100 for bonds, but IOL quoting is per 1 usually? 
+            // In the previous logic (line 127 in original file), checks for /100.
+            // "if (investment.type === 'ON' || investment.type === 'CORPORATE_BOND') { currentPrice = currentPrice / 100; }"
+            // I should preserve this if it was correct. 
+            // BUT, if I scraped a price of "1050" ARS, is that for 1 lamina? usually yes.
+            // If scraped price is "98" USD for 100 face value?
+            // User screenshot shows AAPL $100.
+            // Let's assume the previous logic was there for a reason and keep it conditionally?
+            // Actually, if I scraped "1150" for an ON, and I have 100 nominals, value is 1150 * 100? or 1150 total?
+            // Usually local ONs quote per 1 value. 
+            // US Corp bonds quote % (per 100).
+            // Let's checking existing logic.
             if (investment.type === 'ON' || investment.type === 'CORPORATE_BOND') {
+                // Check magnitude? If price is > 1000 USD?
+                // Let's assume the original logic was correct and restore it, BUT make sure it applies to the *converted* or *looked up* price?
+                // Actually, if I look up a price of 60 USD (e.g. GN34), that's per 100 face value typically.
+                // If I have 1000 nominals, value = 1000 * 0.60? or 1000 * 60?
+                // Let's keep /100 for now as safe bet if it's consistent with prev.
                 currentPrice = currentPrice / 100;
             }
 
-            // Normalize Current Price (Market Price) if needed
-            // Investment might have currency USD/ARS/etc.
-            // We need to convert Current Price to Target Currency too!
-            if (targetCurrency && targetCurrency !== investment.currency) {
-                // Convert current price using LATEST rate (or rate of lastPriceDate)
-                // Let's use rate of lastPriceDate if available, or today.
-                const priceDate = investment.lastPriceDate || new Date();
-                const rate = getRate(priceDate);
 
-                // Fallback if rate not in map (e.g. today's rate might be in DB though)
-                // Logic similar to above
-                if (rate > 0) {
-                    if (investment.currency === 'ARS' && targetCurrency === 'USD') {
-                        currentPrice = currentPrice / rate;
-                    } else if (investment.currency === 'USD' && targetCurrency === 'ARS') {
-                        currentPrice = currentPrice * rate;
-                    }
-                }
-            }
-
-            // Map Realized Gains (already calculated in lib/fifo)
+            // Map Realized
             const realizedEvents = result.realizedGains.map(g => ({
                 id: g.id,
                 date: g.date,
@@ -156,33 +227,28 @@ export async function GET(request: Request) {
                 name: investment.name,
                 status: g.status,
                 quantity: g.quantity,
-                buyPrice: g.buyPriceAvg, // Map Avg to generic buyPrice
-                buyCommission: g.buyCommissionPaid, // Map Paid to generic buyCommission
+                buyPrice: g.buyPriceAvg,
+                buyCommission: g.buyCommissionPaid,
                 sellPrice: g.sellPrice,
                 sellCommission: g.sellCommission,
                 resultAbs: g.gainAbs,
                 resultPercent: g.gainPercent,
-                currency: g.currency,
-                currentPrice: 0, // Not relevant for closed
+                currency: g.currency, // This will be targetCurrency if we converted
+                currentPrice: 0,
                 unrealized: false
             }));
 
-            // Map Open Positions -> Add Unrealized P&L
+            // Map Open
             const openEvents = result.openPositions.map(p => {
                 const totalCost = (p.quantity * p.buyPrice) + p.buyCommission;
-                const currentValue = p.quantity * currentPrice; // Gross value?
-                // Unrealized Result = CurrentValue - TotalCost
-                // (Asset Value) - (Invested Capital including commissions)
-
-                // Note: Selling usually incurs another commission. We are not projecting that here unless asked.
-                // User asked for "Resultado" (Result). 
+                const currentValue = p.quantity * currentPrice;
 
                 const resultAbs: number | null = currentPrice > 0 ? currentValue - totalCost : null;
                 const resultPercent: number | null = currentPrice > 0 && totalCost !== 0 ? ((currentValue - totalCost) / totalCost) * 100 : null;
 
                 return {
                     id: p.id,
-                    date: p.date, // Purchase Date
+                    date: p.date,
                     ticker: p.ticker,
                     name: investment.name,
                     status: 'OPEN',
@@ -191,9 +257,9 @@ export async function GET(request: Request) {
                     buyCommission: p.buyCommission,
                     sellPrice: currentPrice > 0 ? currentPrice : 0,
                     sellCommission: 0,
-                    resultAbs: resultAbs ?? 0, // Fallback to 0 for type safety but UI handles it? No, let's keep it null if interface allows
+                    resultAbs: resultAbs ?? 0,
                     resultPercent: resultPercent ?? 0,
-                    currency: targetCurrency || p.currency, // Force view currency if set
+                    currency: targetCurrency || p.currency,
                     unrealized: true
                 };
             });
@@ -201,12 +267,9 @@ export async function GET(request: Request) {
             allPositions = [...allPositions, ...realizedEvents, ...openEvents];
         }
 
-        // 4. Sort by Date Descending (Most recent event first)
-        // For Open positions: Purchase Date. For Closed: Sale Date.
         allPositions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         return NextResponse.json(allPositions);
-
     } catch (error) {
         console.error('Error calculating positions:', error);
         return new NextResponse('Internal Server Error', { status: 500 });

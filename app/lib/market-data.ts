@@ -6,7 +6,7 @@ interface MarketDataResult {
     price: number | null;
     currency: string | null;
     error?: string;
-    source: 'YAHOO' | 'IOL';
+    source: 'YAHOO' | 'IOL' | 'RAVA';
 }
 
 interface IPCResult {
@@ -46,15 +46,10 @@ async function fetchIOLPrice(symbol: string): Promise<{ price: number; currency:
             } else if (html.includes('data-field="Moneda">$')) {
                 currency = 'ARS';
             } else if (html.includes('U$S') && !html.includes('data-field="Moneda">$')) {
-                // Fallback: If body mentions U$S and NOT explicitly Moneda $, assume USD. 
-                // But this caused false positives for VSCRO (Pesos) which had U$S in recommendations/footer.
-                // So we should be very careful. 
-                // Better to default to ARS if ambiguous? No, ONs are often USD.
-                // Let's assume if we are scraping a 'D' ticker, it is USD.
+                // Fallback logic
                 if (symbol.endsWith('D')) {
                     currency = 'USD';
                 } else {
-                    // If symbol ends in 'O' or nothing, and no explicit USD tag, maybe ARS?
                     currency = 'ARS';
                 }
             }
@@ -79,44 +74,6 @@ async function fetchIOLPrice(symbol: string): Promise<{ price: number; currency:
         console.error(`IOL Fetch Error (${symbol}):`, e.message);
     }
     return null;
-}
-
-// 1. Update Treasuries (Yahoo Finance Only)
-export async function updateTreasuries(userId?: string): Promise<MarketDataResult[]> {
-    const results: MarketDataResult[] = [];
-
-    // Import inside function to avoid init issues
-    // Import inside function to avoid init issues
-    const YahooFinance = require('yahoo-finance2').default;
-    const yahooFinance = new YahooFinance();
-
-    // Find Treasuries/ETFs with Ticker
-    const investments = await prisma.investment.findMany({
-        where: {
-            ticker: { not: '' },
-            type: { in: ['TREASURY', 'ETF', 'STOCK'] }, // US Only
-            ...(userId ? { userId } : {})
-        }
-    });
-
-    for (const inv of investments) {
-        try {
-            const quote = await yahooFinance.quote(inv.ticker);
-            if (quote && quote.regularMarketPrice) {
-                const price = quote.regularMarketPrice;
-                const currency = quote.currency || inv.currency;
-
-                await savePrice(inv.id, price, currency);
-                results.push({ ticker: inv.ticker, price, currency, source: 'YAHOO' });
-            } else {
-                results.push({ ticker: inv.ticker, price: null, currency: null, error: 'Not found on Yahoo', source: 'YAHOO' });
-            }
-        } catch (e: any) {
-            console.error('Yahoo Error:', e);
-            results.push({ ticker: inv.ticker, price: null, currency: null, error: e.message || 'Yahoo Error', source: 'YAHOO' });
-        }
-    }
-    return results;
 }
 
 // Helper: Scrape Rava
@@ -161,14 +118,85 @@ export async function fetchRavaPrice(symbol: string): Promise<{ price: number; u
     return null;
 }
 
-// 2. Update Argentina Assets (ON, CEDEAR) - Exclude ETF (now handled by updateTreasuries via Yahoo)
+// Helper to save to DB
+async function savePrice(investmentId: string, price: number, currency: string, updateMain: boolean = false) {
+    const date = new Date();
+    // console.log(`Saving price for ${investmentId}: ${price} ${currency}`);
+
+    // Update main investment ONLY if requested (usually if currency matches primary)
+    if (updateMain) {
+        await prisma.investment.update({
+            where: { id: investmentId },
+            data: { lastPrice: price, lastPriceDate: date }
+        });
+    }
+
+    // History (Once a day per currency)
+    const todayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+    // Check for existing price TODAY for THIS CURRENCY
+    const existing = await prisma.assetPrice.findFirst({
+        where: {
+            investmentId,
+            date: { gte: todayStart },
+            currency: currency
+        }
+    });
+
+    if (existing) {
+        await prisma.assetPrice.update({
+            where: { id: existing.id },
+            data: { price, date } // Update timestamp and value
+        });
+    } else {
+        await prisma.assetPrice.create({
+            data: { investmentId, price, currency, date }
+        });
+    }
+}
+
+// 1. Update Treasuries (Yahoo Finance Only)
+export async function updateTreasuries(userId?: string): Promise<MarketDataResult[]> {
+    const results: MarketDataResult[] = [];
+    const YahooFinance = require('yahoo-finance2').default;
+    const yahooFinance = new YahooFinance();
+
+    // Find Treasuries/ETFs with Ticker
+    const investments = await prisma.investment.findMany({
+        where: {
+            ticker: { not: '' },
+            type: { in: ['TREASURY', 'ETF', 'STOCK'] }, // US Only
+            ...(userId ? { userId } : {})
+        }
+    });
+
+    for (const inv of investments) {
+        try {
+            const quote = await yahooFinance.quote(inv.ticker);
+            if (quote && quote.regularMarketPrice) {
+                const price = quote.regularMarketPrice;
+                const currency = quote.currency || inv.currency;
+
+                await savePrice(inv.id, price, currency, true); // Always update main for US assets
+                results.push({ ticker: inv.ticker, price, currency, source: 'YAHOO' });
+            } else {
+                results.push({ ticker: inv.ticker, price: null, currency: null, error: 'Not found on Yahoo', source: 'YAHOO' });
+            }
+        } catch (e: any) {
+            console.error('Yahoo Error:', e);
+            results.push({ ticker: inv.ticker, price: null, currency: null, error: e.message || 'Yahoo Error', source: 'YAHOO' });
+        }
+    }
+    return results;
+}
+
+// 2. Update Argentina Assets (ON, CEDEAR) - Exclude ETF (now handled by updateTreasuries via Yahoo if US)
 export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
     const YahooFinance = require('yahoo-finance2').default;
     const yahooFinance = new YahooFinance();
 
-    console.log(`[updateONs] Called with userId: ${userId}`);
-    // Find ONs/Cedears ONLY. ETFs are handled by Yahoo logic now.
+    // Find ONs/Cedears ONLY.
     const investments = await prisma.investment.findMany({
         where: {
             ticker: { not: '' },
@@ -177,122 +205,87 @@ export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
         }
     });
 
-    console.log(`[updateONs] Found ${investments.length} investments.`);
-
     if (investments.length === 0) {
         return [];
     }
 
     for (const inv of investments) {
         let price = null;
-        let currency = inv.currency || 'ARS'; // Default to ARS if not set
+        let currency = inv.currency || 'ARS';
         let source: 'YAHOO' | 'IOL' | 'RAVA' = 'IOL';
-        let error = undefined;
 
         // Strategy A: CEDEAR -> Rava
         if (inv.type === 'CEDEAR') {
             source = 'RAVA';
             const ravaData = await fetchRavaPrice(inv.ticker);
             if (ravaData) {
-                price = ravaData.price;
-                // CEDEARs on Rava are usually ARS unless specified.
-                // Our logic: If ticker ends with D, it's USD.
-                // But generally base Rava is ARS.
-                // If we want USD for CEDEARs, we rely on the `usdPrice` field being scraped separate or implied.
-                // But PRIMARY price for CEDEAR is ARS.
-                // If the user wants to see USD in Admin, we use the `usdPrice` field we added to the API response.
-                // But here we update the `lastPrice` of the investment.
-                // If the investment is `currency: 'USD'`, we should probably use the USD price if available.
+                // Save ARS Price (Base)
+                await savePrice(inv.id, ravaData.price, 'ARS', inv.currency === 'ARS');
 
-                if (inv.currency === 'USD' && ravaData.usdPrice) {
-                    price = ravaData.usdPrice;
-                    currency = 'USD';
-                } else {
-                    currency = 'ARS';
+                // Save USD Price (if scraped or implied)
+                if (ravaData.usdPrice) {
+                    await savePrice(inv.id, ravaData.usdPrice, 'USD', inv.currency === 'USD');
                 }
+
+                results.push({ ticker: inv.ticker, price: ravaData.price, currency: 'ARS', source: 'RAVA' });
             } else {
-                // Fallback to IOL for CEDEARs? Sometimes they have them.
+                // Fallback to IOL
                 const iolData = await fetchIOLPrice(inv.ticker);
                 if (iolData) {
-                    price = iolData.price;
-                    currency = iolData.currency;
-                    source = 'IOL';
+                    await savePrice(inv.id, iolData.price, iolData.currency, true);
+                    results.push({ ticker: inv.ticker, price: iolData.price, currency: iolData.currency, source: 'IOL' });
+                } else {
+                    results.push({ ticker: inv.ticker, price: null, currency: null, error: 'Not found', source: 'RAVA' });
                 }
             }
         }
 
-        // Strategy B: ON / Corporate Bond -> IOL
+        // Strategy B: ON / Corporate Bond -> IOL (Dual Scraping)
         else {
             source = 'IOL';
-            let searchTicker = inv.ticker.trim();
+            let baseTicker = inv.ticker.trim().toUpperCase();
 
-            // Force D suffix for ONs to get USD Price
-            if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND') {
-                if (!searchTicker.endsWith('D') && searchTicker.length > 0) {
-                    // Start of logic to swap termination?
-                    // Usually ONs end in O (Pesos) or D (Dollars).
-                    // If it ends in O, swap to D.
-                    if (searchTicker.endsWith('O')) {
-                        searchTicker = searchTicker.slice(0, -1) + 'D';
-                    } else {
-                        // If it ends in something else or nothing, just append D? 
-                        // Some tickers don't have suffix.
-                        // IOL usually needs D for dollars.
-                        searchTicker = searchTicker + 'D';
-                    }
+            // Normalize base ticker (remove suffix for logic)
+            if (baseTicker.endsWith('D') || baseTicker.endsWith('O') || baseTicker.endsWith('C')) {
+                baseTicker = baseTicker.slice(0, -1);
+            }
+
+            // 1. Fetch ARS Price (Try 'O' suffix first as it's cleaner for ONs)
+            const tickerARS = baseTicker + 'O';
+            let iolDataARS = await fetchIOLPrice(tickerARS);
+
+            // If 'O' failed, try base ticker (some don't use suffix)
+            if (!iolDataARS) {
+                const iolDataBase = await fetchIOLPrice(baseTicker);
+                if (iolDataBase && iolDataBase.currency === 'ARS') {
+                    iolDataARS = iolDataBase;
                 }
             }
 
-            // IOL Scraping
-            const iolData = await fetchIOLPrice(searchTicker);
-            if (iolData) {
-                price = iolData.price;
-                currency = iolData.currency;
+            if (iolDataARS) {
+                await savePrice(inv.id, iolDataARS.price, 'ARS', inv.currency === 'ARS');
+                results.push({ ticker: tickerARS, price: iolDataARS.price, currency: 'ARS', source: 'IOL' });
             }
 
-            // Fallback to Yahoo if IOL fails for ONs? Only if needed.
-            // Usually ONs are not on Yahoo correctly (except some globals).
-            // Keeping Yahoo fallback just in case but labeled IOL/Yahoo.
-            if (!price) {
+            // 2. Fetch USD Price (Suffix 'D')
+            const tickerUSD = baseTicker + 'D';
+            const iolDataUSD = await fetchIOLPrice(tickerUSD);
+
+            if (iolDataUSD) {
+                await savePrice(inv.id, iolDataUSD.price, 'USD', inv.currency === 'USD');
+                results.push({ ticker: tickerUSD, price: iolDataUSD.price, currency: 'USD', source: 'IOL' });
+            } else {
+                // Fallback to Yahoo for USD if IOL fails (rare for ONs but possible for Globals)
                 try {
-                    const quote = await yahooFinance.quote(searchTicker);
+                    const quote = await yahooFinance.quote(tickerUSD);
                     if (quote && quote.regularMarketPrice) {
-                        price = quote.regularMarketPrice;
-                        currency = quote.currency || inv.currency;
-                        source = 'YAHOO';
+                        await savePrice(inv.id, quote.regularMarketPrice, quote.currency || 'USD', inv.currency === 'USD');
                     }
                 } catch (e) { }
             }
         }
-
-        if (price) {
-            await savePrice(inv.id, price, currency);
-            results.push({ ticker: inv.ticker, price, currency, source: source as any });
-        } else {
-            results.push({ ticker: inv.ticker, price: null, currency: null, error: 'Not found', source: source as any });
-        }
     }
     return results;
-}
-
-// Helper to save to DB
-async function savePrice(investmentId: string, price: number, currency: string) {
-    const date = new Date();
-    console.log(`Saving price for ${investmentId}: ${price} ${currency}`);
-    await prisma.investment.update({
-        where: { id: investmentId },
-        data: { lastPrice: price, lastPriceDate: date }
-    });
-
-    // History (Once a day)
-    const todayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const existing = await prisma.assetPrice.findFirst({ where: { investmentId, date: { gte: todayStart } } });
-
-    if (!existing) {
-        await prisma.assetPrice.create({
-            data: { investmentId, price, currency, date }
-        });
-    }
 }
 
 // 3. Update IPC
