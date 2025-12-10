@@ -62,7 +62,7 @@ export async function POST(
                 price: parseFloat(price),
                 commission: parseFloat(commission || 0),
                 totalAmount,
-                currency: 'ARS'
+                currency: body.currency || 'ARS'
             }
         });
 

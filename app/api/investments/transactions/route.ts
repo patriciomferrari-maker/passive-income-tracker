@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     try {
         const userId = await getUserId();
         const json = await request.json();
-        const { investmentId, date, quantity, price, commission, type = 'BUY' } = json;
+        const { investmentId, date, quantity, price, commission, type = 'BUY', currency } = json;
 
         if (!investmentId || !date || !quantity || !price) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
                 price: Number(price),
                 commission: Number(commission) || 0,
                 totalAmount,
-                currency: investment.currency
+                currency: currency || investment.currency
             }
         });
 

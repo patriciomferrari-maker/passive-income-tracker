@@ -1,11 +1,11 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Upload, Trash, CheckSquare, Square, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Trash2, Upload, Trash, CheckSquare, Square, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, DollarSign } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { BulkImportDialog } from '@/components/on/BulkImportDialog';
 import PositionsTable from "@/components/common/PositionsTable";
 import RegisterSaleModal from "@/components/common/RegisterSaleModal";
@@ -14,6 +14,8 @@ interface ON {
     id: string;
     ticker: string;
     name: string;
+    currency?: string;
+    type?: string;
 }
 
 interface Transaction {
@@ -23,13 +25,20 @@ interface Transaction {
     price: number;
     commission: number;
     totalAmount: number;
-    type?: string; // Add type field
+    currency: string;
+    type?: string;
     investment: { ticker: string; name: string; type?: string; lastPrice?: number | null };
+}
+
+interface EconomicRate {
+    date: string;
+    value: number; // Avg Rate
 }
 
 export function PurchasesTab() {
     const [ons, setOns] = useState<ON[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [rates, setRates] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [showImport, setShowImport] = useState(false);
@@ -37,8 +46,10 @@ export function PurchasesTab() {
     const [showValues, setShowValues] = useState(true);
 
     // Filter State
-    // ON tab includes ON and CORPORATE_BOND
     const [filterType, setFilterType] = useState<'ALL' | 'ON' | 'CORPORATE_BOND' | 'CEDEAR' | 'ETF'>('ALL');
+
+    // Currency View State
+    const [viewCurrency, setViewCurrency] = useState<'ARS' | 'USD'>('USD'); // Default to USD view for standardization
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -49,6 +60,7 @@ export function PurchasesTab() {
     const [quantity, setQuantity] = useState('');
     const [price, setPrice] = useState('');
     const [commission, setCommission] = useState('0');
+    const [txCurrency, setTxCurrency] = useState<'ARS' | 'USD'>('ARS');
     const [submitting, setSubmitting] = useState(false);
 
     // FIFO State
@@ -66,8 +78,50 @@ export function PurchasesTab() {
         setSortConfig({ key, direction });
     };
 
+    // Helper: Find rate for a date
+    const getRate = (dateStr: string) => {
+        // Try exact match
+        if (rates[dateStr]) return rates[dateStr];
+
+        // Find closest previous rate
+        // Assuming rates keys are ISO strings, we can sort.
+        // But for performance, let's just loop if not found (or rely on backend providing adequate density).
+        // Since we loaded ALL history, exact or near match should exist.
+        // If not found, look for closest date before.
+        const targetDate = new Date(dateStr).getTime();
+        let closestDate = '';
+        let minDiff = Infinity;
+
+        for (const rDate of Object.keys(rates)) {
+            const d = new Date(rDate).getTime();
+            if (d <= targetDate) {
+                const diff = targetDate - d;
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestDate = rDate;
+                }
+            }
+        }
+
+        return closestDate ? rates[closestDate] : 1000; // Default fallback if absolutely no data (unlikely)
+    };
+
+    const normalizeAmount = (amount: number, txDate: string, txCurrency: string, targetCurrency: string) => {
+        if (txCurrency === targetCurrency) return amount;
+
+        const rate = getRate(txDate);
+        if (rate === 0) return amount; // Avoid zero div
+
+        if (txCurrency === 'ARS' && targetCurrency === 'USD') {
+            return amount / rate;
+        }
+        if (txCurrency === 'USD' && targetCurrency === 'ARS') {
+            return amount * rate;
+        }
+        return amount;
+    };
+
     const getSortedTransactions = () => {
-        // First filter by type
         let filtered = transactions;
         if (filterType !== 'ALL') {
             filtered = transactions.filter(tx => tx.investment.type === filterType);
@@ -79,36 +133,45 @@ export function PurchasesTab() {
             let aValue: any = a[sortConfig.key as keyof Transaction];
             let bValue: any = b[sortConfig.key as keyof Transaction];
 
-            // Handle nested properties
             if (sortConfig.key === 'ticker') {
                 aValue = a.investment.ticker;
                 bValue = b.investment.ticker;
             }
 
-            if (aValue < bValue) {
-                return sortConfig.direction === 'asc' ? -1 : 1;
-            }
-            if (aValue > bValue) {
-                return sortConfig.direction === 'asc' ? 1 : -1;
-            }
+            if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
     };
 
     const loadData = async () => {
         try {
-            const [onsRes, txRes] = await Promise.all([
+            const [onsRes, txRes, ecoRes] = await Promise.all([
                 fetch('/api/investments/on', { cache: 'no-store' }),
-                fetch('/api/investments/transactions?type=ON,CORPORATE_BOND,CEDEAR,ETF', { cache: 'no-store' })
+                fetch('/api/investments/transactions?type=ON,CORPORATE_BOND,CEDEAR,ETF', { cache: 'no-store' }),
+                // Get ALL rates for history
+                fetch('/api/admin/economic', { cache: 'no-store' })
             ]);
 
             const onsData = await onsRes.json();
             const txData = await txRes.json();
+            const ecoData = await ecoRes.json(); // returns array of { date, value ... }
 
-            // No client-side filtering needed anymore
             setOns(onsData);
             setTransactions(txData);
-            setSelectedIds([]); // Reset selection on reload
+
+            // Process rates into map
+            const rateMap: Record<string, number> = {};
+            if (Array.isArray(ecoData)) {
+                ecoData.forEach((item: any) => {
+                    // Item date is ISO string full. Key by "YYYY-MM-DD"
+                    const d = item.date.split('T')[0];
+                    rateMap[d] = item.value;
+                });
+            }
+            setRates(rateMap);
+
+            setSelectedIds([]);
         } catch (error) {
             console.error('Error loading data:', error);
         } finally {
@@ -118,8 +181,8 @@ export function PurchasesTab() {
 
     const handleSaleSuccess = () => {
         setShowSaleModal(false);
-        setRefreshTrigger(prev => prev + 1); // Refresh FIFO table
-        loadData(); // Refresh holdings
+        setRefreshTrigger(prev => prev + 1);
+        loadData();
     };
 
     useEffect(() => {
@@ -146,9 +209,12 @@ export function PurchasesTab() {
         window.dispatchEvent(new Event('privacy-changed'));
     };
 
-    const formatMoney = (amount: number) => {
+    const formatMoney = (amount: number, currency: string) => {
         if (!showValues) return '****';
-        return `$${amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', {
+            style: 'currency',
+            currency: currency
+        }).format(amount);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -164,7 +230,8 @@ export function PurchasesTab() {
                     date,
                     quantity,
                     price,
-                    commission
+                    commission,
+                    currency: txCurrency
                 })
             });
 
@@ -195,10 +262,11 @@ export function PurchasesTab() {
         setQuantity('');
         setPrice('');
         setCommission('0');
+        setTxCurrency('ARS');
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Â¿EstÃ¡s seguro de eliminar esta compra?')) return;
+        if (!confirm('¿Estás seguro de eliminar esta compra?')) return;
 
         try {
             const res = await fetch(`/api/investments/transactions/${id}`, { method: 'DELETE' });
@@ -212,13 +280,11 @@ export function PurchasesTab() {
     };
 
     const handleDeleteSelected = async () => {
-        if (!confirm(`Â¿EstÃ¡s seguro de que quieres eliminar las ${selectedIds.length} compras seleccionadas?`)) {
+        if (!confirm(`¿Estás seguro de que quieres eliminar las ${selectedIds.length} compras seleccionadas?`)) {
             return;
         }
 
         try {
-            // Delete all selected transactions
-            // Ideally we should have a bulk delete API, but loop is fine for now
             for (const id of selectedIds) {
                 const res = await fetch(`/api/investments/transactions/${id}`, {
                     method: 'DELETE'
@@ -257,6 +323,21 @@ export function PurchasesTab() {
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-white">Registro de Compras</CardTitle>
                     <div className="flex gap-2">
+                        <div className="bg-slate-900 rounded-md border border-slate-700 p-0.5 flex mr-2">
+                            <button
+                                onClick={() => setViewCurrency('ARS')}
+                                className={`px-3 py-1 text-xs font-bold rounded transition-colors ${viewCurrency === 'ARS' ? 'bg-blue-600/20 text-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
+                            >
+                                ARS
+                            </button>
+                            <button
+                                onClick={() => setViewCurrency('USD')}
+                                className={`px-3 py-1 text-xs font-bold rounded transition-colors ${viewCurrency === 'USD' ? 'bg-green-600/20 text-green-400' : 'text-slate-500 hover:text-slate-300'}`}
+                            >
+                                USD
+                            </button>
+                        </div>
+
                         <Button
                             onClick={() => setShowSaleModal(true)}
                             className="bg-red-900/40 border border-red-900 text-red-100 hover:bg-red-900/60"
@@ -289,7 +370,7 @@ export function PurchasesTab() {
                     </div>
                 </div>
                 <CardDescription className="text-slate-300">
-                    Historial de operaciones de compra de ONs
+                    Historial de operaciones. Vista actual: <span className="font-bold text-white">{viewCurrency}</span> (convertido al tipo de cambio del día).
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -300,49 +381,21 @@ export function PurchasesTab() {
                     </TabsList>
 
                     <TabsContent value="positions" className="mt-4 space-y-4">
-                        <div className="flex justify-end mb-4">
-                            <div className="bg-slate-900 rounded-md border border-slate-700 p-1 flex">
-                                <button onClick={() => setFilterType('ALL')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ALL' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>Todos</button>
-                                <button onClick={() => setFilterType('ON')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ON' ? 'bg-blue-900/50 text-blue-200' : 'text-slate-400 hover:text-white'}`}>ONs</button>
-                                <button onClick={() => setFilterType('CEDEAR')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'CEDEAR' ? 'bg-purple-900/50 text-purple-200' : 'text-slate-400 hover:text-white'}`}>CEDEARs</button>
-                                <button onClick={() => setFilterType('ETF')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ETF' ? 'bg-green-900/50 text-green-200' : 'text-slate-400 hover:text-white'}`}>ETFs</button>
-                            </div>
-                        </div>
                         <PositionsTable
                             types={filterType === 'ALL' ? "ON,CORPORATE_BOND,CEDEAR,ETF" : filterType === 'ON' ? "ON,CORPORATE_BOND" : filterType}
                             market="ARG"
+                            currency={viewCurrency}
                             refreshTrigger={refreshTrigger}
                         />
                     </TabsContent>
 
                     <TabsContent value="history">
                         <div className="flex justify-between items-center my-4">
-                            {/* Type Filter */}
                             <div className="bg-slate-900 rounded-md border border-slate-700 p-1 flex">
-                                <button
-                                    onClick={() => setFilterType('ALL')}
-                                    className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ALL' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
-                                >
-                                    Todos
-                                </button>
-                                <button
-                                    onClick={() => setFilterType('ON')}
-                                    className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ON' ? 'bg-blue-900/50 text-blue-200' : 'text-slate-400 hover:text-white'}`}
-                                >
-                                    ONs
-                                </button>
-                                <button
-                                    onClick={() => setFilterType('CEDEAR')}
-                                    className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'CEDEAR' ? 'bg-purple-900/50 text-purple-200' : 'text-slate-400 hover:text-white'}`}
-                                >
-                                    CEDEARs
-                                </button>
-                                <button
-                                    onClick={() => setFilterType('ETF')}
-                                    className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ETF' ? 'bg-green-900/50 text-green-200' : 'text-slate-400 hover:text-white'}`}
-                                >
-                                    ETFs
-                                </button>
+                                <button onClick={() => setFilterType('ALL')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ALL' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>Todos</button>
+                                <button onClick={() => setFilterType('ON')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ON' ? 'bg-blue-900/50 text-blue-200' : 'text-slate-400 hover:text-white'}`}>ONs</button>
+                                <button onClick={() => setFilterType('CEDEAR')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'CEDEAR' ? 'bg-purple-900/50 text-purple-200' : 'text-slate-400 hover:text-white'}`}>CEDEARs</button>
+                                <button onClick={() => setFilterType('ETF')} className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ETF' ? 'bg-green-900/50 text-green-200' : 'text-slate-400 hover:text-white'}`}>ETFs</button>
                             </div>
 
                             {selectedIds.length > 0 && (
@@ -369,15 +422,8 @@ export function PurchasesTab() {
                                     <thead className="bg-slate-900/50">
                                         <tr className="border-b border-white/10">
                                             <th className="w-10 py-3 px-4">
-                                                <button
-                                                    onClick={toggleSelectAll}
-                                                    className="text-slate-400 hover:text-white"
-                                                >
-                                                    {selectedIds.length === transactions.length && transactions.length > 0 ? (
-                                                        <CheckSquare size={18} />
-                                                    ) : (
-                                                        <Square size={18} />
-                                                    )}
+                                                <button onClick={toggleSelectAll} className="text-slate-400 hover:text-white">
+                                                    {selectedIds.length === transactions.length && transactions.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
                                                 </button>
                                             </th>
                                             <th className="text-left py-3 px-4 text-slate-300 font-medium">Tipo</th>
@@ -385,82 +431,81 @@ export function PurchasesTab() {
                                                 <button onClick={() => handleSort('date')} className="flex items-center gap-1 hover:text-white">
                                                     Fecha
                                                     {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
-                                                    {sortConfig?.key !== 'date' && <ArrowUpDown size={14} className="opacity-50" />}
                                                 </button>
                                             </th>
                                             <th className="text-left py-3 px-4 text-slate-300 font-medium">
                                                 <button onClick={() => handleSort('ticker')} className="flex items-center gap-1 hover:text-white">
                                                     Ticker
                                                     {sortConfig?.key === 'ticker' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
-                                                    {sortConfig?.key !== 'ticker' && <ArrowUpDown size={14} className="opacity-50" />}
+
                                                 </button>
-                                            </th>
+                                            </th >
                                             <th className="text-right py-3 px-4 text-slate-300 font-medium">Cantidad</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">ComisiÃ³n</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Total</th>
+                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio ({viewCurrency})</th>
+                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Comisión ({viewCurrency})</th>
+                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Total ({viewCurrency})</th>
+                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Orig.</th>
                                             <th className="text-right py-3 px-4 text-slate-300 font-medium">Acciones</th>
-                                        </tr>
-                                    </thead>
+                                        </tr >
+                                    </thead >
                                     <tbody>
-                                        {getSortedTransactions().map((tx) => (
-                                            <tr key={tx.id} className={`border-b border-white/5 hover:bg-white/5 ${selectedIds.includes(tx.id) ? 'bg-white/10' : ''}`}>
-                                                <td className="py-3 px-4">
-                                                    <button
-                                                        onClick={() => toggleSelection(tx.id)}
-                                                        className={`hover:text-white ${selectedIds.includes(tx.id) ? 'text-blue-400' : 'text-slate-500'}`}
-                                                    >
-                                                        {selectedIds.includes(tx.id) ? (
-                                                            <CheckSquare size={18} />
-                                                        ) : (
-                                                            <Square size={18} />
-                                                        )}
-                                                    </button>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${(tx.investment.type === 'SELL' || (tx as any).type === 'SELL')
-                                                        ? 'bg-red-900/50 text-red-200 border border-red-800'
-                                                        : 'bg-green-900/50 text-green-200 border border-green-800'
-                                                        }`}>
-                                                        {(tx.investment.type === 'SELL' || (tx as any).type === 'SELL') ? 'VENTA' : 'COMPRA'}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 px-4 text-white">
-                                                    {format(new Date(tx.date), 'dd/MM/yyyy')}
-                                                </td>
-                                                <td className="py-3 px-4 text-white">
-                                                    <span className="font-bold">{tx.investment.ticker}</span>
-                                                    <span className="text-slate-400 text-xs ml-2 hidden md:inline">{tx.investment.name}</span>
-                                                </td>
-                                                <td className="py-3 px-4 text-white text-right font-mono">
-                                                    {tx.quantity}
-                                                </td>
-                                                <td className="py-3 px-4 text-white text-right font-mono">
-                                                    {formatMoney(tx.price)}
-                                                </td>
-                                                <td className="py-3 px-4 text-white text-right font-mono">
-                                                    {formatMoney(tx.commission)}
-                                                </td>
-                                                <td className="py-3 px-4 text-white text-right font-mono font-bold">
-                                                    {formatMoney(Math.abs(tx.totalAmount))}
-                                                </td>
-                                                <td className="py-3 px-4 text-right">
-                                                    <button
-                                                        onClick={() => handleDelete(tx.id)}
-                                                        className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                                                        title="Eliminar compra"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {getSortedTransactions().map((tx) => {
+                                            const normPrice = normalizeAmount(tx.price, tx.date, tx.currency || 'ARS', viewCurrency);
+                                            const normComm = normalizeAmount(tx.commission, tx.date, tx.currency || 'ARS', viewCurrency);
+                                            const normTotal = normalizeAmount(tx.totalAmount, tx.date, tx.currency || 'ARS', viewCurrency);
+
+                                            return (
+                                                <tr key={tx.id} className={`border-b border-white/5 hover:bg-white/5 ${selectedIds.includes(tx.id) ? 'bg-white/10' : ''}`}>
+                                                    <td className="py-3 px-4">
+                                                        <button onClick={() => toggleSelection(tx.id)} className={`hover:text-white ${selectedIds.includes(tx.id) ? 'text-blue-400' : 'text-slate-500'}`}>
+                                                            {selectedIds.includes(tx.id) ? <CheckSquare size={18} /> : <Square size={18} />}
+                                                        </button>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${(tx.investment.type === 'SELL' || (tx as any).type === 'SELL')
+                                                            ? 'bg-red-900/50 text-red-200 border border-red-800'
+                                                            : 'bg-green-900/50 text-green-200 border border-green-800'
+                                                            }`}>
+                                                            {(tx.investment.type === 'SELL' || (tx as any).type === 'SELL') ? 'VENTA' : 'COMPRA'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-white">
+                                                        {format(new Date(tx.date), 'dd/MM/yyyy')}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-white">
+                                                        <span className="font-bold">{tx.investment.ticker}</span>
+                                                        <span className="text-slate-400 text-xs ml-2 hidden md:inline">{tx.investment.name}</span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-white text-right font-mono">
+                                                        {tx.quantity}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-white text-right font-mono">
+                                                        {formatMoney(normPrice, viewCurrency)}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-white text-right font-mono">
+                                                        {formatMoney(normComm, viewCurrency)}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-white text-right font-mono font-bold">
+                                                        {formatMoney(Math.abs(normTotal), viewCurrency)}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-slate-500 text-xs text-right font-mono">
+                                                        {tx.currency || 'ARS'}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-right">
+                                                        <button onClick={() => handleDelete(tx.id)} className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors" title="Eliminar compra">
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
                                     </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </TabsContent>
-                </Tabs>
+                                </table >
+                            </div >
+                        )
+                        }
+                    </TabsContent >
+                </Tabs >
             </CardContent >
 
             {/* New Transaction Form Modal */}
@@ -471,13 +516,13 @@ export function PurchasesTab() {
                             <CardHeader>
                                 <CardTitle className="text-white">Nueva Compra</CardTitle>
                                 <CardDescription className="text-slate-400">
-                                    Registra una nueva operaciÃ³n de compra
+                                    Registra una nueva operación de compra
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <form onSubmit={handleSubmit} className="space-y-4">
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-slate-300">ObligaciÃ³n Negociable</label>
+                                        <label className="text-sm font-medium text-slate-300">Obligación Negociable</label>
                                         <select
                                             required
                                             value={selectedON}
@@ -495,6 +540,25 @@ export function PurchasesTab() {
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
+                                            <label className="text-sm font-medium text-slate-300">Moneda Ope.</label>
+                                            <div className="flex bg-slate-800 rounded-md border border-slate-700 p-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTxCurrency('ARS')}
+                                                    className={`flex-1 text-xs py-1.5 rounded font-bold transition-colors ${txCurrency === 'ARS' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                                                >
+                                                    ARS
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTxCurrency('USD')}
+                                                    className={`flex-1 text-xs py-1.5 rounded font-bold transition-colors ${txCurrency === 'USD' ? 'bg-green-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                                                >
+                                                    USD
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
                                             <label className="text-sm font-medium text-slate-300">Fecha</label>
                                             <input
                                                 type="date"
@@ -504,6 +568,9 @@ export function PurchasesTab() {
                                                 className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
                                             />
                                         </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium text-slate-300">Cantidad</label>
                                             <input
@@ -516,11 +583,8 @@ export function PurchasesTab() {
                                                 className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
                                             />
                                         </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-300">Precio</label>
+                                            <label className="text-sm font-medium text-slate-300">Precio ({txCurrency})</label>
                                             <input
                                                 type="number"
                                                 required
@@ -531,18 +595,19 @@ export function PurchasesTab() {
                                                 className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-300">ComisiÃ³n</label>
-                                            <input
-                                                type="number"
-                                                required
-                                                min="0"
-                                                step="any"
-                                                value={commission}
-                                                onChange={(e) => setCommission(e.target.value)}
-                                                className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                            />
-                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Comisión ({txCurrency})</label>
+                                        <input
+                                            type="number"
+                                            required
+                                            min="0"
+                                            step="any"
+                                            value={commission}
+                                            onChange={(e) => setCommission(e.target.value)}
+                                            className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
+                                        />
                                     </div>
 
                                     <div className="flex gap-4 pt-4">
@@ -588,10 +653,11 @@ export function PurchasesTab() {
                         assets={ons}
                         onClose={() => setShowSaleModal(false)}
                         onSuccess={handleSaleSuccess}
-                        priceDivisor={100}
                     />
                 )
             }
         </Card >
     );
 }
+
+

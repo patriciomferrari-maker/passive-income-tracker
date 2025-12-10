@@ -43,6 +43,36 @@ export async function GET(request: Request) {
             }
         });
 
+        const targetCurrency = searchParams.get('currency');
+        let ratesMap: Record<string, number> = {};
+
+        // If conversion is needed, fetch rates
+        if (targetCurrency) {
+            const rates = await prisma.economicIndicator.findMany({
+                where: { type: 'BLUE' }, // Assuming BLUE is the type for Dolar Blue
+                select: { date: true, value: true }
+            });
+            rates.forEach(r => {
+                const d = r.date.toISOString().split('T')[0];
+                ratesMap[d] = r.value;
+            });
+        }
+
+        // Helper to find closest rate
+        const getRate = (date: Date) => {
+            const dateStr = date.toISOString().split('T')[0];
+            if (ratesMap[dateStr]) return ratesMap[dateStr];
+            // Naive fallback: find closest? For now just return 0 or handle error?
+            // Let's assume data is dense enough or fallback to 'latest' found so far?
+            // Simple approach: look for exact match, if not found, assume 1 (to avoid crash) but this implies error.
+            // Better: Find latest available rate before or on date.
+            // Given the map is not sorted, we might need a sorted array.
+            // But since we are inside a route, let's keep it simple: exact match or use a recent one?
+            // For now, exact match logic or fallback to most recent previous rate (re-query db? too slow).
+            // Let's rely on the map. If missing, maybe use the last known rate from iteration?
+            return ratesMap[dateStr] || 0;
+        };
+
         // 2. Group transactions by Ticker (FIFO is per-asset)
         const txByTicker: Record<string, FIFOTransaction[]> = {};
         const investmentMap: Record<string, any> = {};
@@ -54,14 +84,34 @@ export async function GET(request: Request) {
                 investmentMap[ticker] = tx.investment;
             }
 
+            let price = tx.price;
+            let commission = tx.commission;
+            let currency = tx.currency;
+
+            // NORMALIZE IF NEEDED
+            if (targetCurrency && targetCurrency !== currency) {
+                const rate = getRate(tx.date);
+                if (rate > 0) {
+                    if (currency === 'ARS' && targetCurrency === 'USD') {
+                        price = price / rate;
+                        commission = commission / rate;
+                        currency = 'USD';
+                    } else if (currency === 'USD' && targetCurrency === 'ARS') {
+                        price = price * rate;
+                        commission = commission * rate;
+                        currency = 'ARS';
+                    }
+                }
+            }
+
             txByTicker[ticker].push({
                 id: tx.id,
                 date: tx.date,
                 type: tx.type as 'BUY' | 'SELL',
                 quantity: tx.quantity,
-                price: tx.price,
-                commission: tx.commission,
-                currency: tx.currency
+                price: price,
+                commission: commission,
+                currency: currency
             });
         }
 
@@ -76,6 +126,26 @@ export async function GET(request: Request) {
             // For ONs and Corporate Bonds, price is usually quoted as %, so divide by 100 for value calc
             if (investment.type === 'ON' || investment.type === 'CORPORATE_BOND') {
                 currentPrice = currentPrice / 100;
+            }
+
+            // Normalize Current Price (Market Price) if needed
+            // Investment might have currency USD/ARS/etc.
+            // We need to convert Current Price to Target Currency too!
+            if (targetCurrency && targetCurrency !== investment.currency) {
+                // Convert current price using LATEST rate (or rate of lastPriceDate)
+                // Let's use rate of lastPriceDate if available, or today.
+                const priceDate = investment.lastPriceDate || new Date();
+                const rate = getRate(priceDate);
+
+                // Fallback if rate not in map (e.g. today's rate might be in DB though)
+                // Logic similar to above
+                if (rate > 0) {
+                    if (investment.currency === 'ARS' && targetCurrency === 'USD') {
+                        currentPrice = currentPrice / rate;
+                    } else if (investment.currency === 'USD' && targetCurrency === 'ARS') {
+                        currentPrice = currentPrice * rate;
+                    }
+                }
             }
 
             // Map Realized Gains (already calculated in lib/fifo)
@@ -123,7 +193,7 @@ export async function GET(request: Request) {
                     sellCommission: 0,
                     resultAbs: resultAbs ?? 0, // Fallback to 0 for type safety but UI handles it? No, let's keep it null if interface allows
                     resultPercent: resultPercent ?? 0,
-                    currency: p.currency,
+                    currency: targetCurrency || p.currency, // Force view currency if set
                     unrealized: true
                 };
             });

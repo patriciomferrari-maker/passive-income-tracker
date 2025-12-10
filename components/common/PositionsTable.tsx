@@ -24,10 +24,11 @@ interface PositionEvent {
 interface PositionsTableProps {
     types?: string; // Comma separated types to filter initial fetch
     market?: string; // Market filter (ARG or US)
+    currency?: string; // Currency filter (ARS or USD)
     refreshTrigger?: number;
 }
 
-export default function PositionsTable({ types, market, refreshTrigger }: PositionsTableProps) {
+export default function PositionsTable({ types, market, currency, refreshTrigger }: PositionsTableProps) {
     const [positions, setPositions] = useState<PositionEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'date', direction: 'desc' });
@@ -38,6 +39,7 @@ export default function PositionsTable({ types, market, refreshTrigger }: Positi
             const params = new URLSearchParams();
             if (types) params.append('type', types);
             if (market) params.append('market', market);
+            if (currency) params.append('currency', currency);
 
             const url = `/api/investments/positions?${params.toString()}`;
 
@@ -54,7 +56,7 @@ export default function PositionsTable({ types, market, refreshTrigger }: Positi
 
     useEffect(() => {
         loadData();
-    }, [refreshTrigger, types]);
+    }, [refreshTrigger, types, currency]);
 
     useEffect(() => {
         const savedPrivacy = localStorage.getItem('privacy_mode');
@@ -130,7 +132,7 @@ export default function PositionsTable({ types, market, refreshTrigger }: Positi
                     <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 text-center">Resultado No Realizado (Abiertas)</h4>
                     <div className="flex items-center justify-between w-full">
                         <div className={`text-2xl font-bold w-1/2 text-center border-r border-slate-800 ${totalUnrealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {formatMoney(totalUnrealized, 'USD')}
+                            {formatMoney(totalUnrealized, currency || 'USD')}
                         </div>
                         <div className={`text-2xl font-medium w-1/2 text-center ${unrealizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                             {unrealizedPercent > 0 ? '+' : ''}{unrealizedPercent.toFixed(2)}%
@@ -141,7 +143,7 @@ export default function PositionsTable({ types, market, refreshTrigger }: Positi
                     <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 text-center">Resultado Realizado (Cerradas)</h4>
                     <div className="flex items-center justify-between w-full">
                         <div className={`text-2xl font-bold w-1/2 text-center border-r border-slate-800 ${totalRealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {formatMoney(totalRealized, 'USD')}
+                            {formatMoney(totalRealized, currency || 'USD')}
                         </div>
                         <div className={`text-2xl font-medium w-1/2 text-center ${realizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                             {realizedPercent > 0 ? '+' : ''}{realizedPercent.toFixed(2)}%

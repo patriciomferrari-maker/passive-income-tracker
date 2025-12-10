@@ -10,21 +10,22 @@ interface InvestmentOption {
     id: string;
     ticker: string;
     name: string;
+    type?: string;
 }
 
 interface RegisterSaleModalProps {
     assets: InvestmentOption[];
     onClose: () => void;
     onSuccess: () => void;
-    priceDivisor?: number; // Divisor for price (e.g. 100 for ONs)
 }
 
-export default function RegisterSaleModal({ assets, onClose, onSuccess, priceDivisor = 1 }: RegisterSaleModalProps) {
+export default function RegisterSaleModal({ assets, onClose, onSuccess }: RegisterSaleModalProps) {
     const [selectedAsset, setSelectedAsset] = useState('');
     const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [quantity, setQuantity] = useState('');
     const [price, setPrice] = useState(''); // Sell Price
     const [commission, setCommission] = useState('0');
+    const [currency, setCurrency] = useState('ARS'); // Default to ARS
     const [submitting, setSubmitting] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -32,6 +33,10 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess, priceDiv
         setSubmitting(true);
 
         try {
+            const asset = assets.find(a => a.id === selectedAsset);
+            const isBond = asset?.type === 'ON' || asset?.type === 'CORPORATE_BOND';
+            const priceDivisor = isBond ? 100 : 1;
+
             const rawPrice = Number(price);
             const actualPrice = rawPrice / priceDivisor;
 
@@ -44,7 +49,8 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess, priceDiv
                     quantity: Number(quantity),
                     price: actualPrice,
                     commission: Number(commission),
-                    type: 'SELL'
+                    type: 'SELL',
+                    currency
                 })
             });
 
@@ -95,6 +101,25 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess, priceDiv
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-300">Moneda Venta</label>
+                                <div className="flex bg-slate-800 rounded-md border border-slate-700 p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrency('ARS')}
+                                        className={`flex-1 text-xs py-1.5 rounded font-bold transition-colors ${currency === 'ARS' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        ARS
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrency('USD')}
+                                        className={`flex-1 text-xs py-1.5 rounded font-bold transition-colors ${currency === 'USD' ? 'bg-green-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        USD
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-300">Fecha Venta</label>
                                 <input
                                     type="date"
@@ -104,6 +129,9 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess, priceDiv
                                     className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
                                 />
                             </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-300">Cantidad Nominal</label>
                                 <input
@@ -116,11 +144,8 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess, priceDiv
                                     className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
                                 />
                             </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-300">Precio de Venta</label>
+                                <label className="text-sm font-medium text-slate-300">Precio ({currency})</label>
                                 <input
                                     type="number"
                                     required
@@ -131,18 +156,19 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess, priceDiv
                                     className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-300">Comisión</label>
-                                <input
-                                    type="number"
-                                    required
-                                    min="0"
-                                    step="any"
-                                    value={commission}
-                                    onChange={(e) => setCommission(e.target.value)}
-                                    className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                />
-                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-300">Comisión ({currency})</label>
+                            <input
+                                type="number"
+                                required
+                                min="0"
+                                step="any"
+                                value={commission}
+                                onChange={(e) => setCommission(e.target.value)}
+                                className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
+                            />
                         </div>
 
                         <div className="flex gap-4 pt-4">
