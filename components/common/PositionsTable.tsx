@@ -173,61 +173,102 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                 <th className="px-4 py-3 text-right font-medium">Com. Venta</th>
                                 <th className="px-4 py-3 text-right font-medium">Resultado</th>
                                 <th className="px-4 py-3 text-right font-medium">%</th>
+                                {currency === 'ARS' && (
+                                    <>
+                                        <th className="px-4 py-3 text-right font-medium text-xs text-blue-400">Res. Precio</th>
+                                        <th className="px-4 py-3 text-right font-medium text-xs text-yellow-500">Res. TC</th>
+                                    </>
+                                )}
                                 <th className="px-4 py-3 text-right font-medium">Acción</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
-                            {getSortedPositions().map((pos) => (
-                                <tr key={pos.id} className="hover:bg-slate-800/50 transition-colors">
-                                    <td className="px-4 py-3">
-                                        <div className="font-medium text-white">{pos.ticker}</div>
-                                        <div className="text-xs text-slate-500">{pos.name}</div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${pos.status === 'OPEN'
-                                            ? 'bg-green-900/30 text-green-400 border-green-900'
-                                            : 'bg-red-900/30 text-red-400 border-red-900'
-                                            }`}>
-                                            {pos.status === 'OPEN' ? 'ABIERTA' : 'CERRADA'}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-slate-300">
-                                        {format(new Date(pos.date), 'dd/MM/yyyy')}
-                                    </td>
-                                    <td className="px-4 py-3 text-right text-white tabular-nums">
-                                        {pos.quantity}
-                                    </td>
-                                    <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
-                                        {formatMoney(pos.buyPrice, pos.currency)}
-                                    </td>
-                                    <td className="px-4 py-3 text-right text-slate-400 tabular-nums text-xs">
-                                        {formatMoney(pos.buyCommission, pos.currency)}
-                                    </td>
-                                    <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
-                                        {pos.sellPrice > 0 ? formatMoney(pos.sellPrice, pos.currency) : '-'}
-                                        {pos.status === 'OPEN' && <span className="text-[10px] text-slate-500 ml-1">(Actual)</span>}
-                                    </td>
-                                    <td className="px-4 py-3 text-right text-slate-400 tabular-nums text-xs">
-                                        {pos.status === 'CLOSED' ? formatMoney(pos.sellCommission, pos.currency) : '-'}
-                                    </td>
-                                    <td className={`px-4 py-3 text-right font-medium tabular-nums ${pos.resultAbs >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {(pos.sellPrice > 0 || pos.status === 'CLOSED') ? formatMoney(pos.resultAbs, pos.currency) : '-'}
-                                    </td>
-                                    <td className={`px-4 py-3 text-right font-medium tabular-nums ${pos.resultPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {(pos.sellPrice > 0 || pos.status === 'CLOSED') && pos.resultPercent !== undefined ? `${pos.resultPercent?.toFixed(2)}%` : '-'}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        {onEdit && pos.status === 'OPEN' && (
-                                            <button
-                                                onClick={() => onEdit(pos.id)}
-                                                className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded transition-colors"
-                                            >
-                                                <Pencil size={14} />
-                                            </button>
+                            {getSortedPositions().map((pos) => {
+                                // Calculate percentages for split results
+                                // Base is Total Cost (buyPrice * qty).
+                                const totalCost = (pos.quantity * pos.buyPrice) + pos.buyCommission;
+                                // Actually, buyPrice is the ARS price. 
+                                // Percentage of what? Usually of invested capital.
+                                // pos.priceResult / totalCost
+                                // pos.fxResult / totalCost
+
+                                const priceResultPercent = totalCost !== 0 && (pos as any).priceResult ? ((pos as any).priceResult / totalCost) * 100 : 0;
+                                const fxResultPercent = totalCost !== 0 && (pos as any).fxResult ? ((pos as any).fxResult / totalCost) * 100 : 0;
+
+                                return (
+                                    <tr key={pos.id} className="hover:bg-slate-800/50 transition-colors">
+                                        <td className="px-4 py-3">
+                                            <div className="font-medium text-white">{pos.ticker}</div>
+                                            <div className="text-xs text-slate-500">{pos.name}</div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${pos.status === 'OPEN'
+                                                ? 'bg-green-900/30 text-green-400 border-green-900'
+                                                : 'bg-red-900/30 text-red-400 border-red-900'
+                                                }`}>
+                                                {pos.status === 'OPEN' ? 'ABIERTA' : 'CERRADA'}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-300">
+                                            {format(new Date(pos.date), 'dd/MM/yyyy')}
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-white tabular-nums">
+                                            {pos.quantity}
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
+                                            {formatMoney(pos.buyPrice, pos.currency)}
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-slate-400 tabular-nums text-xs">
+                                            {formatMoney(pos.buyCommission, pos.currency)}
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
+                                            {pos.sellPrice > 0 ? formatMoney(pos.sellPrice, pos.currency) : '-'}
+                                            {pos.status === 'OPEN' && <span className="text-[10px] text-slate-500 ml-1">(Actual)</span>}
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-slate-400 tabular-nums text-xs">
+                                            {pos.status === 'CLOSED' ? formatMoney(pos.sellCommission, pos.currency) : '-'}
+                                        </td>
+                                        <td className={`px-4 py-3 text-right font-medium tabular-nums ${pos.resultAbs >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {(pos.sellPrice > 0 || pos.status === 'CLOSED') ? formatMoney(pos.resultAbs, pos.currency) : '-'}
+                                        </td>
+                                        <td className={`px-4 py-3 text-right font-medium tabular-nums ${pos.resultPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {(pos.sellPrice > 0 || pos.status === 'CLOSED') && pos.resultPercent !== undefined ? `${pos.resultPercent?.toFixed(2)}%` : '-'}
+                                        </td>
+
+                                        {currency === 'ARS' && (
+                                            <>
+                                                <td className="px-4 py-3 text-right font-medium tabular-nums text-blue-400">
+                                                    <div className="flex flex-col items-end">
+                                                        <span>{(pos as any).priceResult ? formatMoney((pos as any).priceResult, currency) : '-'}</span>
+                                                        <span className="text-[10px] opacity-70">
+                                                            {(pos as any).priceResult ? `${priceResultPercent.toFixed(2)}%` : ''}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-medium tabular-nums text-yellow-500">
+                                                    <div className="flex flex-col items-end">
+                                                        <span>{(pos as any).fxResult ? formatMoney((pos as any).fxResult, currency) : '-'}</span>
+                                                        <span className="text-[10px] opacity-70">
+                                                            {(pos as any).fxResult ? `${fxResultPercent.toFixed(2)}%` : ''}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                            </>
                                         )}
-                                    </td>
-                                </tr>
-                            ))}
+
+                                        <td className="px-4 py-3 text-right">
+                                            {onEdit && pos.status === 'OPEN' && (
+                                                <button
+                                                    onClick={() => onEdit(pos.id)}
+                                                    className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded transition-colors"
+                                                >
+                                                    <Pencil size={14} />
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>

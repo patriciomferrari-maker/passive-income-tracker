@@ -128,18 +128,64 @@ export async function GET(request: Request) {
                 const rate = getRate(tx.date);
                 if (rate > 0) {
                     if (currency === 'ARS' && targetCurrency === 'USD') {
-                        price = price / rate;
-                        commission = commission / rate;
-                        currency = 'USD';
+                        // ARS -> USD
+                        // We need to track the rate used.
+                        // originalPrice is the ARS price.
+                        // price is the converted USD price.
+                        // But wait, the standard P&L Attribution requested is usually for USD assets viewed in ARS?
+                        // "cuando la operacion estè en PESOS, agreguemos 4 columnas"
+                        // This implies viewing in ARS.
+                        // If the asset is natively USD (e.g. ONs in USD), and we view in ARS:
+                        // We CONVERT USD -> ARS.
+                        // So here: currency='USD', target='ARS'.
+                        price = price * rate;
+                        commission = commission * rate;
+                        currency = 'ARS';
                     } else if (currency === 'USD' && targetCurrency === 'ARS') {
+                        // USD -> ARS
                         price = price * rate;
                         commission = commission * rate;
                         currency = 'ARS';
                     }
                 }
+                // Pass the rate used for conversion if relevant for P&L attribution
+                // If we are viewing in ARS, and the asset was bought in USD (or converted to ARS via rate),
+                // we want to know the "Buy TC".
+                // If original currency was USD, `rate` is the TC.
+                // If original currency was ARS, and we view in ARS, rate is 1.
             }
 
-            // Note: IF we converted, we pretend the transaction happened in the target currency.
+            // Capture data for FIFO
+            // For P&L Attribution (FX vs Price result), we focus on the case: View in ARS.
+            // If we view in ARS:
+            // 1. Transaction was in USD: Converted to ARS using `rate`. `rate` IS the "TC Compra".
+            // 2. Transaction was in ARS: `rate` is 1 (or undefined).
+
+            let exchangeRate = 1;
+            let originalPrice = tx.price; // Default to transaction price
+
+            if (targetCurrency === 'ARS' && tx.currency === 'USD') {
+                // Convert USD tx to ARS inventory
+                const rate = getRate(tx.date) || 1;
+                exchangeRate = rate;
+                originalPrice = tx.price; // Original USD price
+
+                // Apply conversion for the FIFO inventory (Price in ARS)
+                price = tx.price * rate;
+                commission = tx.commission * rate;
+                currency = 'ARS';
+            } else if (targetCurrency === 'USD' && tx.currency === 'ARS') {
+                // Convert ARS tx to USD inventory
+                const rate = getRate(tx.date) || 1;
+                exchangeRate = rate;
+                originalPrice = tx.price; // Original ARS price
+
+                // Apply conversion
+                price = tx.price / rate;
+                commission = tx.commission / rate;
+                currency = 'USD';
+            }
+
             txByTicker[ticker].push({
                 id: tx.id,
                 date: tx.date,
@@ -147,7 +193,9 @@ export async function GET(request: Request) {
                 quantity: tx.quantity,
                 price: price,
                 commission: commission,
-                currency: currency
+                currency: currency,
+                exchangeRate: exchangeRate,
+                originalPrice: originalPrice
             });
         }
 
@@ -160,29 +208,22 @@ export async function GET(request: Request) {
 
             // DETERMINE CURRENT MARKET PRICE
             let currentPrice = 0;
+            let currentExchangeRate = 1; // Track TC Actual
 
             if (targetCurrency) {
-                // 1. Try strict lookup (AssetPrice in Target Currency)
                 if (priceMap[investment.id]) {
                     currentPrice = priceMap[investment.id];
                 }
-                // 2. Fallback: If no specific price found (e.g. strict lookup failed), 
-                // use investment.lastPrice BUT logic says strict.
-                // If we have no price in target currency, maybe we shouldn't show it or should convert?
-                // User request implies strict tickers ("ticker sin la D" vs "con D").
-                // If we don't have the "D" price, maybe convert the "O" price?
-                // Let's use standard conversion if strict price missing.
                 else {
-                    // Check investment.currency vs target
                     const basePrice = investment.lastPrice || 0;
                     const baseCurrency = investment.currency || 'USD';
 
                     if (baseCurrency === targetCurrency) {
                         currentPrice = basePrice;
                     } else {
-                        // Convert using LATEST COMPATIBLE RATE (e.g. today or lastPriceDate)
                         const rateDate = investment.lastPriceDate || new Date();
                         const rate = getRate(rateDate);
+                        currentExchangeRate = rate; // Capture TC Actual if derived
                         if (rate > 0) {
                             if (baseCurrency === 'ARS' && targetCurrency === 'USD') currentPrice = basePrice / rate;
                             else if (baseCurrency === 'USD' && targetCurrency === 'ARS') currentPrice = basePrice * rate;
@@ -190,53 +231,96 @@ export async function GET(request: Request) {
                     }
                 }
             } else {
-                // No target currency? Use investment defaults
                 currentPrice = investment.lastPrice || 0;
             }
 
-            // For ONs/Bonds, divide by 100 if needed (usually price is % or per 100 nominals)
-            // Assuming the scraped price is already correct unit-wise or needs /100.
-            // IOL prices for ONs are usually per 100 nominals? NO, per 1.
-            // Wait, Standard is per 100 for bonds, but IOL quoting is per 1 usually? 
-            // In the previous logic (line 127 in original file), checks for /100.
-            // "if (investment.type === 'ON' || investment.type === 'CORPORATE_BOND') { currentPrice = currentPrice / 100; }"
-            // I should preserve this if it was correct. 
-            // BUT, if I scraped a price of "1050" ARS, is that for 1 lamina? usually yes.
-            // If scraped price is "98" USD for 100 face value?
-            // User screenshot shows AAPL $100.
-            // Let's assume the previous logic was there for a reason and keep it conditionally?
-            // Actually, if I scraped "1150" for an ON, and I have 100 nominals, value is 1150 * 100? or 1150 total?
-            // Usually local ONs quote per 1 value. 
-            // US Corp bonds quote % (per 100).
-            // Let's checking existing logic.
+            // If we found a strict price in ARS for a USD asset, we still need the Implied TC for the P&L formula?
+            // "TC actual/venta".
+            // If we scraped ARS price directly, we might not have the explicit TC.
+            // Implied TC = Price ARS / Price USD.
+            // We need Price USD to execute the formula: `Nominales x USD Price x (TC Current - TC Buy)`.
+            // Wait, the user formula: `nominales x (TC actual/venta - TC Compra) - comisiones`.
+            // This formula assumes the nominals ARE DOLLARS? Or that nominals * PriceUSD is the base?
+            // "Nominales" usually refers to Quantity.
+            // If I bought 100 units at $1 USD (TC 1000) -> Cost 100,000 ARS.
+            // Now Price is $1 USD (TC 1200) -> Value 120,000 ARS.
+            // FX Result = 120,000 - 100,000 = 20,000.
+            // Formula check: 100 * (1200 - 1000) = 20,000. Correct.
+            // This assumes Price USD remained constant ($1).
+            // What if Price USD changed to $1.1?
+            // Cost: 100,000 ARS.
+            // Value: 100 * 1.1 * 1200 = 132,000 ARS.
+            // Total Gain: 32,000.
+            // FX Result should be? 
+            // "Para ver el resultado por performance, vamos a hacer la cuenta que està ahora, pero neteandole el resultado por TC"
+            // FX Result logic: Effect of TC change on the ORIGINAL investment? 
+            // Logic A: Qty * OriginalUSDPrice * (CurrentTC - BuyTC).
+            // In example: 100 * 1 * (1200 - 1000) = 20,000.
+            // Price Result = Total (32,000) - FX (20,000) = 12,000.
+            // 12,000 represents the gain from $1 -> $1.1 (10% gain).
+            // 10% of 120,000 (Current Value)? No.
+            // 10% of Cost in TC TERMS?
+            // Let's stick to users formula: `nominales x (TC actual/venta - TC Compra)`.
+            // BUT, user creates ambiguity: "nominales" for ONs might be Face Value? 
+            // Let's assume `quantity * original_price_usd` is the "Principal in USD".
+            // So formula: `(Quantity * OriginalPriceUSD) * (CurrentTC - BuyTC)`.
+
+            // We need `currentExchangeRate`. 
+            // If we scraped ARS price, do we have TC?
+            // We can look up TC from `getRate(new Date())` or use Implied if we have USD price.
+            // Let's use `getRate(new Date())` (TC Blue Actual) as the standard "Current TC".
+
+            const currentTC = getRate(new Date());
+
+
             if (investment.type === 'ON' || investment.type === 'CORPORATE_BOND') {
-                // Check magnitude? If price is > 1000 USD?
-                // Let's assume the original logic was correct and restore it, BUT make sure it applies to the *converted* or *looked up* price?
-                // Actually, if I look up a price of 60 USD (e.g. GN34), that's per 100 face value typically.
-                // If I have 1000 nominals, value = 1000 * 0.60? or 1000 * 60?
-                // Let's keep /100 for now as safe bet if it's consistent with prev.
                 currentPrice = currentPrice / 100;
             }
 
-
             // Map Realized
-            const realizedEvents = result.realizedGains.map(g => ({
-                id: g.id,
-                date: g.date,
-                ticker: g.ticker,
-                name: investment.name,
-                status: g.status,
-                quantity: g.quantity,
-                buyPrice: g.buyPriceAvg,
-                buyCommission: g.buyCommissionPaid,
-                sellPrice: g.sellPrice,
-                sellCommission: g.sellCommission,
-                resultAbs: g.gainAbs,
-                resultPercent: g.gainPercent,
-                currency: g.currency, // This will be targetCurrency if we converted
-                currentPrice: 0,
-                unrealized: false
-            }));
+            const realizedEvents = result.realizedGains.map(g => {
+                // FX Result for Realized?
+                // Only if current view is ARS and we have data.
+                let fxResult = 0;
+                let priceResult = 0;
+
+                if (targetCurrency === 'ARS' && g.buyExchangeRateAvg && g.buyExchangeRateAvg > 1) {
+                    // Need "Sell TC".
+                    // If transaction currency was USD, we have implicit Sell TC?
+                    // Or we just use the historic TC of the sale date.
+                    const sellTC = getRate(g.date);
+                    const principalUSD = g.quantity * (g.buyPriceAvg / g.buyExchangeRateAvg);
+                    // buyPriceAvg is ARS. Divide by TC to get USD Price Avg?
+                    // Wait, `buyPriceAvg` in simplified logic above was calculated on the *converted* inventory?
+                    // Yes. If we converted to ARS, `buyPriceAvg` is in ARS.
+                    // So `buyPriceAvg / buyExchangeRateAvg` should be roughly `originalPriceUSD`.
+
+                    const fxDiff = sellTC - g.buyExchangeRateAvg;
+                    fxResult = principalUSD * fxDiff;
+                    priceResult = g.gainAbs - fxResult;
+                }
+
+
+                return {
+                    id: g.id,
+                    date: g.date,
+                    ticker: g.ticker,
+                    name: investment.name,
+                    status: g.status,
+                    quantity: g.quantity,
+                    buyPrice: g.buyPriceAvg,
+                    buyCommission: g.buyCommissionPaid,
+                    sellPrice: g.sellPrice,
+                    sellCommission: g.sellCommission,
+                    resultAbs: g.gainAbs,
+                    resultPercent: g.gainPercent,
+                    currency: g.currency,
+                    currentPrice: 0,
+                    unrealized: false,
+                    fxResult,
+                    priceResult
+                };
+            });
 
             // Map Open
             const openEvents = result.openPositions.map(p => {
@@ -245,6 +329,34 @@ export async function GET(request: Request) {
 
                 const resultAbs: number | null = currentPrice > 0 ? currentValue - totalCost : null;
                 const resultPercent: number | null = currentPrice > 0 && totalCost !== 0 ? ((currentValue - totalCost) / totalCost) * 100 : null;
+
+                let fxResult = 0;
+                let priceResult = 0;
+
+                if (targetCurrency === 'ARS' && p.buyExchangeRateAvg && p.buyExchangeRateAvg > 1 && resultAbs !== null) {
+                    // Formula: (Qty * OriginalPriceUSD) * (CurrentTC - BuyTC)
+                    // We need OriginalPriceUSD. 
+                    // p.buyPrice is in ARS (converted). 
+                    // p.buyPriceOriginalAvg is the Original Price (USD).
+
+                    const originalPriceUSD = p.buyPriceOriginalAvg || (p.buyPrice / p.buyExchangeRateAvg);
+                    const principalUSD = p.quantity * originalPriceUSD;
+
+                    const fxDiff = currentTC - p.buyExchangeRateAvg;
+                    fxResult = principalUSD * fxDiff;
+                    // Adjust FX result for commission? "neteandole el resultado por TC".
+                    // User said: "nominales x (TC actual/venta - TC Compra) - comisiones".
+                    // Wait, comisiones usually are deducted from total result.
+                    // If we define FX Result PURELY as the Rate Diff on Principal:
+                    // Then Price Result absorbs the commissions?
+                    // "neteandole el resultado por TC" -> Price Result = Total Result - FX Result.
+                    // This implies Total Result (which includes commissions) - FX Result.
+                    // So FX Result is Gross?
+                    // User said: "Para ver el resultado por performance, vamos a hacer la cuenta que data ahora, pero neteandole el resultado por TC"
+                    // So `PriceResult = ResultAbs - FXResult`.
+
+                    priceResult = resultAbs - fxResult;
+                }
 
                 return {
                     id: p.id,
@@ -260,7 +372,9 @@ export async function GET(request: Request) {
                     resultAbs: resultAbs ?? 0,
                     resultPercent: resultPercent ?? 0,
                     currency: targetCurrency || p.currency,
-                    unrealized: true
+                    unrealized: true,
+                    fxResult,
+                    priceResult
                 };
             });
 

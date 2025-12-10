@@ -1,4 +1,5 @@
 
+
 export interface FIFOTransaction {
     id?: string;
     date: Date;
@@ -7,6 +8,9 @@ export interface FIFOTransaction {
     price: number;
     currency: string;
     commission?: number;
+    // New fields for P&L Attribution
+    exchangeRate?: number; // TC at moment of transaction
+    originalPrice?: number; // Original price in original currency (if converted)
 }
 
 export interface RealizedGainEvent {
@@ -22,6 +26,8 @@ export interface RealizedGainEvent {
     gainAbs: number;
     gainPercent: number;
     currency: string;
+    // New fields
+    buyExchangeRateAvg?: number;
 }
 
 export interface OpenPositionEvent {
@@ -34,6 +40,9 @@ export interface OpenPositionEvent {
     buyCommission: number; // Prorated if it was a partial lot, or full if whole
     currency: string;
     originalTotalQty?: number; // Helper to know if it was comprised of larger lot?
+    // New fields
+    buyExchangeRateAvg?: number;
+    buyPriceOriginalAvg?: number; // Weighted avg of original price (USD)
 }
 
 export type PositionEvent = RealizedGainEvent | OpenPositionEvent;
@@ -61,10 +70,12 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
         .filter(tx => !isNaN(tx.price) && !isNaN(tx.quantity) && tx.quantity > 0)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // Inventory items now need to track their specific commission paid
+    // Inventory items now need to track their specific commission paid AND exchange rates
     interface InventoryItem extends FIFOTransaction {
         originalCommission: number; // Total commission paid for the original batch
         originalQuantity: number; // Total quantity of the original batch
+        originalExchangeRate: number; // TC at buy
+        originalUnitCostOriginalCurrency: number; // Price in orig currency
     }
 
     const inventory: InventoryItem[] = [];
@@ -77,13 +88,19 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
             inventory.push({
                 ...tx,
                 originalCommission: tx.commission || 0,
-                originalQuantity: tx.quantity
+                originalQuantity: tx.quantity,
+                originalExchangeRate: tx.exchangeRate || 1,
+                originalUnitCostOriginalCurrency: tx.originalPrice || tx.price
             });
         } else if (tx.type === 'SELL') {
             let qtyToSell = tx.quantity;
             let costBasisTotal = 0;
             let buyCommissionConsumedTotal = 0;
             let qtySoldTotal = 0;
+
+            // For weighted avg tracking of consumed lots
+            let totalWeightedExchangeRate = 0;
+            let totalWeightedOriginalPrice = 0;
 
             // Consume inventory FIFO
             while (qtyToSell > 0 && inventory.length > 0) {
@@ -94,9 +111,6 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
                     const batchCost = batch.quantity * batch.price;
 
                     // Prorate commission: (BatchCurrentQty / BatchOriginalQty) * BatchOriginalCommission
-                    // Since we are consuming the *rest* of the batch (current quantity), we take the proportional commission remaining?
-                    // Simpler: We tracked the "unit commission" or we just re-calculate prorated.
-                    // Prorated Comm = (QtyConsumed / OriginalQty) * OriginalComm
                     const proratedComm = batch.originalQuantity > 0
                         ? (batch.quantity / batch.originalQuantity) * batch.originalCommission
                         : 0;
@@ -104,6 +118,11 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
                     costBasisTotal += batchCost;
                     buyCommissionConsumedTotal += proratedComm;
                     qtySoldTotal += batch.quantity;
+
+                    // accumulate weighted sums
+                    totalWeightedExchangeRate += batch.quantity * batch.originalExchangeRate;
+                    // totalWeightedOriginalPrice += batch.quantity * batch.originalUnitCostOriginalCurrency;
+
                     qtyToSell -= batch.quantity;
                     inventory.shift(); // Remove from queue
                 } else {
@@ -118,6 +137,10 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
                     buyCommissionConsumedTotal += proratedComm;
                     qtySoldTotal += qtyConsumed;
 
+                    // accumulate weighted sums
+                    totalWeightedExchangeRate += qtyConsumed * batch.originalExchangeRate;
+                    // totalWeightedOriginalPrice += qtyConsumed * batch.originalUnitCostOriginalCurrency;
+
                     batch.quantity -= qtyConsumed; // Reduce remaining qty
                     qtyToSell = 0;
                 }
@@ -125,27 +148,14 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
 
             // Record Gain
             if (qtySoldTotal > 0) {
-                // Sell Commission: We assume the TX commission is for the WHOLE sale. 
-                // Since this logic processes one SELL tx at a time (which might consume multiple BUY lots),
-                // the sell commission is fully attributed to this realization event.
                 const sellCommission = tx.commission || 0;
-
-                // Result = (SellAmount - SellComm) - (BuyAmount + BuyComm)
-                // SellAmount = SellPrice * Qty
-                // BuyAmount = CostBasisTotal
-
                 const totalSellProceedsNet = (qtySoldTotal * tx.price) - sellCommission;
                 const totalBuyCostFirst = costBasisTotal + buyCommissionConsumedTotal;
-
                 const gainAbs = totalSellProceedsNet - totalBuyCostFirst;
-                // ROI % = Profit / Invested
                 const gainPercent = totalBuyCostFirst !== 0 ? (gainAbs / totalBuyCostFirst) * 100 : 0;
 
-                const buyPriceAvg = qtySoldTotal > 0 ? costBasisTotal / qtySoldTotal : 0;
-
-                // Safety check for NaN
-                const safeBuyPriceAvg = isNaN(buyPriceAvg) ? 0 : buyPriceAvg;
-                const safeGainPercent = isNaN(gainPercent) ? 0 : gainPercent;
+                const buyPriceAvg = costBasisTotal / qtySoldTotal;
+                const buyExchangeRateAvg = totalWeightedExchangeRate / qtySoldTotal;
 
                 realizedGains.push({
                     id: tx.id || `gain-${tx.date.getTime()}-${Math.random()}`,
@@ -155,11 +165,12 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
                     quantity: qtySoldTotal,
                     sellPrice: tx.price,
                     sellCommission: sellCommission,
-                    buyPriceAvg: safeBuyPriceAvg,
-                    buyCommissionPaid: buyCommissionConsumedTotal || 0, // Prevent NaN
+                    buyPriceAvg: isNaN(buyPriceAvg) ? 0 : buyPriceAvg,
+                    buyCommissionPaid: buyCommissionConsumedTotal || 0,
                     gainAbs,
-                    gainPercent: safeGainPercent,
-                    currency: tx.currency
+                    gainPercent: isNaN(gainPercent) ? 0 : gainPercent,
+                    currency: tx.currency,
+                    buyExchangeRateAvg: isNaN(buyExchangeRateAvg) ? 1 : buyExchangeRateAvg
                 });
 
                 totalGainAbs += gainAbs;
@@ -167,10 +178,8 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
         }
     }
 
-    // Process Open Positions from remaining Inventory
+    // Process Open Positions
     const openPositions: OpenPositionEvent[] = inventory.map(item => {
-        // Prorated commission for the remaining quantity
-        // Prorated commission for the remaining quantity
         const proratedComm = item.originalQuantity > 0
             ? (item.quantity / item.originalQuantity) * item.originalCommission
             : 0;
@@ -184,9 +193,12 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
             buyPrice: item.price,
             buyCommission: proratedComm,
             currency: item.currency,
-            originalTotalQty: item.originalQuantity
+            originalTotalQty: item.originalQuantity,
+            buyExchangeRateAvg: item.originalExchangeRate, // For a single lot, avg is itself
+            buyPriceOriginalAvg: item.originalUnitCostOriginalCurrency
         };
     });
+
 
     return { inventory, openPositions, realizedGains, totalGainAbs };
 }

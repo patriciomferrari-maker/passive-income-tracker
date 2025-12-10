@@ -9,11 +9,10 @@ export async function GET(request: Request) {
     try {
         const userId = await getUserId();
         const { searchParams } = new URL(request.url);
+        const marketParam = searchParams.get('market');
         const typeParam = searchParams.get('type');
-        console.log(`[API] Fetching transactions for user ${userId}. Type Filter: ${typeParam}`);
 
         let typeFilter = {};
-
         if (typeParam) {
             const types = typeParam.split(',');
             if (types.length > 1) {
@@ -23,11 +22,14 @@ export async function GET(request: Request) {
             }
         }
 
+        const marketFilter = marketParam ? { market: marketParam } : {};
+
         const transactions = await prisma.transaction.findMany({
             where: {
                 investment: {
-                    userId, // Filter by User
-                    ...typeFilter // Optional Type Filter
+                    userId,
+                    ...typeFilter,
+                    ...marketFilter
                 }
             },
             include: {
