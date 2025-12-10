@@ -113,7 +113,7 @@ export default function PositionsTable({ types, refreshTrigger }: PositionsTable
         .reduce((sum, p) => sum + (p.resultAbs || 0), 0);
 
     const totalCostUnrealized = positions
-        .filter(p => p.status === 'OPEN')
+        .filter(p => p.status === 'OPEN' && p.sellPrice > 0)
         .reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
 
     const unrealizedPercent = totalCostUnrealized !== 0 ? (totalUnrealized / totalCostUnrealized) * 100 : 0;
@@ -126,10 +126,10 @@ export default function PositionsTable({ types, refreshTrigger }: PositionsTable
                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
                     <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 text-center">Resultado No Realizado (Abiertas)</h4>
                     <div className="flex items-center justify-between w-full">
-                        <div className={`text-3xl font-bold w-1/2 text-center border-r border-slate-800 ${totalUnrealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <div className={`text-2xl font-bold w-1/2 text-center border-r border-slate-800 ${totalUnrealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                             {formatMoney(totalUnrealized, 'USD')}
                         </div>
-                        <div className={`text-xl font-medium w-1/2 text-center ${unrealizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        <div className={`text-2xl font-medium w-1/2 text-center ${unrealizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                             {unrealizedPercent > 0 ? '+' : ''}{unrealizedPercent.toFixed(2)}%
                         </div>
                     </div>
@@ -137,10 +137,10 @@ export default function PositionsTable({ types, refreshTrigger }: PositionsTable
                 <div className=" bg-slate-900 border border-slate-800 rounded-lg p-6">
                     <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 text-center">Resultado Realizado (Cerradas)</h4>
                     <div className="flex items-center justify-between w-full">
-                        <div className={`text-3xl font-bold w-1/2 text-center border-r border-slate-800 ${totalRealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <div className={`text-2xl font-bold w-1/2 text-center border-r border-slate-800 ${totalRealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                             {formatMoney(totalRealized, 'USD')}
                         </div>
-                        <div className={`text-xl font-medium w-1/2 text-center ${realizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        <div className={`text-2xl font-medium w-1/2 text-center ${realizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                             {realizedPercent > 0 ? '+' : ''}{realizedPercent.toFixed(2)}%
                         </div>
                     </div>
