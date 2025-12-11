@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { BulkImportDialog } from '@/components/on/BulkImportDialog';
 import RegisterSaleModal from "@/components/common/RegisterSaleModal";
 import { TransactionFormModal } from '@/components/common/TransactionFormModal';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface ON {
     id: string;
@@ -39,10 +40,12 @@ export function PurchasesTab() {
     const [assets, setAssets] = useState<ON[]>([]);
 
     // View Config
-    const [viewCurrency, setViewCurrency] = useState<'ARS' | 'USD'>('USD');
     const [viewType, setViewType] = useState<string>('ALL');
     const [viewAction, setViewAction] = useState<'ALL' | 'BUY' | 'SELL'>('ALL'); // Added Filter
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' }); // Added Sort
+
+    // Selection State
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
     // Modals
     const [showSaleModal, setShowSaleModal] = useState(false);
@@ -84,6 +87,7 @@ export function PurchasesTab() {
             if (!res.ok) throw new Error('Failed to fetch transactions');
             const data = await res.json();
             setTransactions(data);
+            setSelectedIds(new Set()); // Clear selection on refresh
         } catch (error) {
             console.error('Error fetching transactions:', error);
         } finally {
@@ -110,6 +114,23 @@ export function PurchasesTab() {
         }
     };
 
+    const handleBulkDelete = async () => {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`¿Estás seguro de eliminar las ${selectedIds.size} transacciones seleccionadas?`)) return;
+
+        try {
+            await Promise.all(
+                Array.from(selectedIds).map(id =>
+                    fetch(`/api/investments/transactions/${id}`, { method: 'DELETE' })
+                )
+            );
+            setRefreshTrigger(prev => prev + 1);
+        } catch (error) {
+            console.error('Error deleting transactions:', error);
+            alert('Hubo un error al eliminar algunas transacciones.');
+        }
+    };
+
     const handleSuccess = () => {
         setRefreshTrigger(prev => prev + 1);
     };
@@ -126,9 +147,7 @@ export function PurchasesTab() {
 
         // Action Filter
         let matchesAction = true;
-        const isSell = tx.totalAmount >= 0; // Assuming positive totalAmount is sell (cashflow in) or based on Type? 
-        // Logic check: typically Buy is negative cashflow, Sell is positive. 
-        // OR we trust the Badge logic: `const isSell = tx.totalAmount >= 0;`
+        const isSell = tx.totalAmount >= 0;
         if (viewAction === 'BUY') matchesAction = !isSell;
         if (viewAction === 'SELL') matchesAction = isSell;
 
@@ -161,53 +180,24 @@ export function PurchasesTab() {
         setSortConfig({ key, direction });
     };
 
-
-    // Helper for History Display - Rates Logic
-    const [ratesMap, setRatesMap] = useState<Record<string, number>>({});
-    useEffect(() => {
-        fetch('/api/admin/economic?limit=5000')
-            .then(res => res.json())
-            .then(data => {
-                const map: Record<string, number> = {};
-                if (Array.isArray(data)) {
-                    data.forEach((item: any) => {
-                        const dateStr = new Date(item.date).toISOString().split('T')[0];
-                        map[dateStr] = item.value;
-                    });
-                }
-                setRatesMap(map);
-            });
-    }, []);
-
-    const getRate = (dateStr: string) => {
-        const d = dateStr.split('T')[0];
-        if (ratesMap[d]) return ratesMap[d];
-
-        // Simple fallback to closest previous if exact date missing
-        const target = new Date(d).getTime();
-        let bestDiff = Infinity;
-        let bestRate = 0;
-
-        for (const [k, v] of Object.entries(ratesMap)) {
-            const t = new Date(k).getTime();
-            if (t <= target) {
-                const diff = target - t;
-                if (diff < bestDiff) {
-                    bestDiff = diff;
-                    bestRate = v;
-                }
-            }
+    // Selection Logic
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            const allIds = new Set(sortedTransactions.map(tx => tx.id));
+            setSelectedIds(allIds);
+        } else {
+            setSelectedIds(new Set());
         }
-        return bestRate || 1000; // Fallback
     };
 
-    const convertValue = (val: number, date: string, fromCurr: string, toCurr: string) => {
-        if (fromCurr === toCurr) return val;
-        const rate = getRate(date);
-        if (!rate) return val;
-        if (fromCurr === 'ARS' && toCurr === 'USD') return val / rate;
-        if (fromCurr === 'USD' && toCurr === 'ARS') return val * rate;
-        return val;
+    const handleSelectRow = (id: string, checked: boolean) => {
+        const newSelected = new Set(selectedIds);
+        if (checked) {
+            newSelected.add(id);
+        } else {
+            newSelected.delete(id);
+        }
+        setSelectedIds(newSelected);
     };
 
     return (
@@ -259,28 +249,6 @@ export function PurchasesTab() {
                                 </button>
                             ))}
                         </div>
-
-                        {/* Currency Toggle */}
-                        <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800 ml-4">
-                            <button
-                                onClick={() => setViewCurrency('ARS')}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${viewCurrency === 'ARS'
-                                    ? 'bg-blue-900/50 text-blue-200 border border-blue-800'
-                                    : 'text-slate-400 hover:text-white'
-                                    }`}
-                            >
-                                ARS
-                            </button>
-                            <button
-                                onClick={() => setViewCurrency('USD')}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${viewCurrency === 'USD'
-                                    ? 'bg-green-900/50 text-green-200 border border-green-800'
-                                    : 'text-slate-400 hover:text-white'
-                                    }`}
-                            >
-                                USD
-                            </button>
-                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -297,6 +265,16 @@ export function PurchasesTab() {
                             />
                         </div>
                         <div className="flex gap-2">
+                            {selectedIds.size > 0 && (
+                                <Button
+                                    variant="destructive"
+                                    onClick={handleBulkDelete}
+                                    className="gap-2 bg-red-600 hover:bg-red-700 text-white animate-in fade-in"
+                                >
+                                    <Trash2 size={16} />
+                                    Eliminar ({selectedIds.size})
+                                </Button>
+                            )}
                             <Button
                                 onClick={() => { setEditingTxId(null); setIsTxModalOpen(true); }}
                                 className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
@@ -304,7 +282,10 @@ export function PurchasesTab() {
                                 <Plus size={16} />
                                 Nueva Compra
                             </Button>
-                            <Button variant="outline" onClick={() => setShowSaleModal(true)} className="border-slate-700 text-slate-300 hover:bg-slate-800 gap-2">
+                            <Button
+                                onClick={() => setShowSaleModal(true)}
+                                className="bg-red-600 hover:bg-red-700 text-white gap-2 border-0"
+                            >
                                 <ArrowUpRight size={16} />
                                 Registrar Venta
                             </Button>
@@ -318,6 +299,12 @@ export function PurchasesTab() {
                         <table className="w-full text-sm">
                             <thead className="bg-slate-900 text-slate-400">
                                 <tr>
+                                    <th className="w-10 px-4 py-3 text-center">
+                                        <Checkbox
+                                            checked={sortedTransactions.length > 0 && selectedIds.size === sortedTransactions.length}
+                                            onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                                        />
+                                    </th>
                                     <th className="px-4 py-3 text-left font-medium cursor-pointer hover:text-white hover:bg-slate-800/50" onClick={() => requestSort('date')}>
                                         Fecha {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                     </th>
@@ -327,27 +314,31 @@ export function PurchasesTab() {
                                     <th className="px-4 py-3 text-left font-medium">Clase</th>
                                     <th className="px-4 py-3 text-left font-medium">Tipo</th>
                                     <th className="px-4 py-3 text-right font-medium">Cantidad</th>
-                                    <th className="px-4 py-3 text-right font-medium">Precio ({viewCurrency})</th>
-                                    <th className="px-4 py-3 text-right font-medium">Comisión ({viewCurrency})</th>
-                                    <th className="px-4 py-3 text-right font-medium">Total ({viewCurrency})</th>
+                                    <th className="px-4 py-3 text-right font-medium">Precio</th>
+                                    <th className="px-4 py-3 text-right font-medium">Comisión</th>
+                                    <th className="px-4 py-3 text-right font-medium">Total</th>
                                     <th className="px-4 py-3 text-right font-medium">Orig.</th>
                                     <th className="px-4 py-3 text-right font-medium">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800">
                                 {loading ? (
-                                    <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-500">Cargando historial...</td></tr>
+                                    <tr><td colSpan={11} className="px-4 py-8 text-center text-slate-500">Cargando historial...</td></tr>
                                 ) : sortedTransactions.length === 0 ? (
-                                    <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-500">No hay operaciones registradas</td></tr>
+                                    <tr><td colSpan={11} className="px-4 py-8 text-center text-slate-500">No hay operaciones registradas</td></tr>
                                 ) : (
                                     sortedTransactions.map((tx) => {
                                         const isSell = tx.totalAmount >= 0;
-                                        const convertedPrice = convertValue(tx.price, tx.date, tx.currency || 'ARS', viewCurrency);
-                                        const convertedComm = convertValue(tx.commission, tx.date, tx.currency || 'ARS', viewCurrency);
-                                        const convertedTotal = convertValue(Math.abs(tx.totalAmount), tx.date, tx.currency || 'ARS', viewCurrency);
+                                        // Show original values directly
 
                                         return (
                                             <tr key={tx.id} className="hover:bg-slate-800/50 transition-colors">
+                                                <td className="px-4 py-3 text-center">
+                                                    <Checkbox
+                                                        checked={selectedIds.has(tx.id)}
+                                                        onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
+                                                    />
+                                                </td>
                                                 <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
                                                     {format(new Date(tx.date), 'dd/MM/yyyy')}
                                                 </td>
@@ -369,13 +360,13 @@ export function PurchasesTab() {
                                                     {tx.quantity}
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
-                                                    {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(convertedPrice)}
+                                                    {!showValues ? '****' : Intl.NumberFormat(tx.currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: tx.currency }).format(tx.price)}
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-slate-400 tabular-nums text-xs">
-                                                    {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(convertedComm)}
+                                                    {!showValues ? '****' : Intl.NumberFormat(tx.currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: tx.currency }).format(tx.commission)}
                                                 </td>
                                                 <td className={`px-4 py-3 text-right font-medium tabular-nums ${isSell ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(convertedTotal)}
+                                                    {!showValues ? '****' : Intl.NumberFormat(tx.currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: tx.currency }).format(Math.abs(tx.totalAmount))}
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-slate-500 text-xs">
                                                     {tx.currency || 'ARS'}

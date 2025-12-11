@@ -204,10 +204,24 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-slate-300">
-                                            {pos.status === 'OPEN' ? format(new Date(pos.date), 'dd/MM/yyyy') : '-'}
+                                            <div className="flex flex-col">
+                                                <span>{pos.status === 'OPEN' ? format(new Date(pos.date), 'dd/MM/yyyy') : '-'}</span>
+                                                {currency === 'ARS' && pos.status === 'OPEN' && (pos as any).buyExchangeRate && (
+                                                    <span className="text-[10px] text-slate-500">
+                                                        TC {Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format((pos as any).buyExchangeRate)}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-slate-300">
-                                            {pos.status === 'CLOSED' ? format(new Date(pos.date), 'dd/MM/yyyy') : '-'}
+                                            <div className="flex flex-col">
+                                                <span>{pos.status === 'CLOSED' ? format(new Date(pos.date), 'dd/MM/yyyy') : '-'}</span>
+                                                {currency === 'ARS' && pos.status === 'CLOSED' && (pos as any).sellExchangeRate && (
+                                                    <span className="text-[10px] text-slate-500">
+                                                        TC {Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format((pos as any).sellExchangeRate)}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-right text-white tabular-nums">
                                             {pos.quantity}

@@ -230,7 +230,9 @@ export async function GET(request: Request) {
                     currentPrice: 0,
                     unrealized: false,
                     fxResult,
-                    priceResult
+                    priceResult,
+                    buyExchangeRate: g.buyExchangeRateAvg,
+                    sellExchangeRate: getRate(g.date)
                 };
             });
 
@@ -270,7 +272,9 @@ export async function GET(request: Request) {
                     currency: targetCurrency || p.currency,
                     unrealized: true,
                     fxResult,
-                    priceResult
+                    priceResult,
+                    buyExchangeRate: p.buyExchangeRateAvg,
+                    sellExchangeRate: currentTC
                 };
             });
 

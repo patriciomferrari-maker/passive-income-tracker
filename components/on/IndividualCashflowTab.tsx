@@ -81,7 +81,11 @@ export function IndividualCashflowTab() {
         try {
             const res = await fetch('/api/investments/on');
             const data = await res.json();
-            const onsWithPurchases = data.filter((on: any) => on._count && on._count.transactions > 0);
+            // Filter only ONs and Bonds, and those with transactions
+            const onsWithPurchases = data.filter((on: any) =>
+                (on._count && on._count.transactions > 0) &&
+                (on.type === 'ON' || on.type === 'CORPORATE_BOND')
+            );
             setOns(onsWithPurchases);
 
             if (onsWithPurchases.length > 0 && !selectedON) {
