@@ -216,7 +216,7 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                         <td className="px-4 py-3 text-slate-300">
                                             <div className="flex flex-col">
                                                 <span>{pos.status === 'CLOSED' ? format(new Date(pos.date), 'dd/MM/yyyy') : '-'}</span>
-                                                {currency === 'ARS' && pos.status === 'CLOSED' && (pos as any).sellExchangeRate && (
+                                                {currency === 'ARS' && (pos as any).sellExchangeRate && (
                                                     <span className="text-[10px] text-slate-500">
                                                         TC {Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format((pos as any).sellExchangeRate)}
                                                     </span>

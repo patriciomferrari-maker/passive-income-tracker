@@ -100,7 +100,7 @@ export function ConfigurationTab() {
                             className="bg-blue-600 hover:bg-blue-700"
                         >
                             <Plus className="h-4 w-4 mr-2" />
-                            Nuevo Treasury
+                            Nuevo
                         </Button>
                     </CardTitle>
                     <CardDescription className="text-slate-300">
@@ -133,8 +133,8 @@ export function ConfigurationTab() {
                                         <tr key={treasury.id} className="border-b border-white/5 hover:bg-white/5">
                                             <td className="py-3 px-4 text-white">
                                                 <span className={`text-xs px-2 py-1 rounded border ${treasury.type === 'ETF'
-                                                        ? 'bg-purple-900/50 text-purple-300 border-purple-800'
-                                                        : 'bg-blue-900/50 text-blue-300 border-blue-800'
+                                                    ? 'bg-purple-900/50 text-purple-300 border-purple-800'
+                                                    : 'bg-blue-900/50 text-blue-300 border-blue-800'
                                                     }`}>
                                                     {treasury.type || 'TREASURY'}
                                                 </span>

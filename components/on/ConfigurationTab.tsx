@@ -107,7 +107,7 @@ export function ConfigurationTab() {
                             className="bg-blue-600 hover:bg-blue-700"
                         >
                             <Plus className="h-4 w-4 mr-2" />
-                            Nueva ON
+                            Nuevo
                         </Button>
                     </CardTitle>
                     <CardDescription className="text-slate-300">
@@ -163,7 +163,7 @@ export function ConfigurationTab() {
                                                     ? 'bg-blue-500/20 text-blue-300'
                                                     : 'bg-purple-500/20 text-purple-300'
                                                     }`}>
-                                                    {on.amortization || 'BULLET'}
+                                                    {(on.type === 'ON' || on.type === 'CORPORATE_BOND') ? (on.amortization || 'BULLET') : '-'}
                                                 </span>
                                             </td>
                                             <td className="py-3 px-4">
