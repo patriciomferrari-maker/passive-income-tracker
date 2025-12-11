@@ -295,7 +295,7 @@ export function PurchasesTab() {
                         </div>
                     </div>
 
-                    <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-hidden">
+                    <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead className="bg-slate-900 text-slate-400">
                                 <tr>

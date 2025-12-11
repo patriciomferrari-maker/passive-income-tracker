@@ -99,7 +99,7 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess }: Regist
                             </select>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-300">Moneda Venta</label>
                                 <div className="flex bg-slate-800 rounded-md border border-slate-700 p-1">
@@ -131,7 +131,7 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess }: Regist
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-300">Cantidad Nominal</label>
                                 <input

@@ -26,7 +26,7 @@ export default function ONManagementPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-            <div className="container mx-auto p-8">
+            <div className="container mx-auto p-4 sm:p-8">
                 {/* Header */}
                 <div className="mb-8">
                     <Link href="/">

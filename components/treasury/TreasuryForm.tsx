@@ -92,7 +92,7 @@ export function TreasuryForm({ onClose, onSave, initialData }: TreasuryFormProps
                         )}
 
                         {/* Ticker y Nombre */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-300 mb-1">
                                     Ticker *
@@ -125,7 +125,7 @@ export function TreasuryForm({ onClose, onSave, initialData }: TreasuryFormProps
                         {type === 'TREASURY' && (
                             <>
                                 {/* Fechas */}
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-300 mb-1">
                                             Fecha de Emisión *
@@ -153,7 +153,7 @@ export function TreasuryForm({ onClose, onSave, initialData }: TreasuryFormProps
                                 </div>
 
                                 {/* Tasa y Frecuencia */}
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-300 mb-1">
                                             Tasa de Interés (% anual) *
