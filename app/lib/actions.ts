@@ -84,5 +84,5 @@ export async function register(prevState: string | undefined, formData: FormData
 }
 
 export async function signOutAction() {
-    await signOut();
+    await signOut({ redirectTo: '/login' });
 }
