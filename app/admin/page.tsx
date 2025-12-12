@@ -194,7 +194,7 @@ function IPCCard() {
                         <span>Mes</span>
                         <span className="text-right">Valor</span>
                     </div>
-                    <div>
+                    <div className="max-h-[300px] overflow-y-auto">
                         {inflationData.length > 0 ? (
                             inflationData.map((item, i) => (
                                 <div key={i} className="grid grid-cols-3 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">

@@ -9,8 +9,8 @@ export async function GET() {
             orderBy: [
                 { year: 'desc' },
                 { month: 'desc' }
-            ],
-            take: 24 // Last 2 years
+            ]
+            // take: 24 -- Removed to show full history (2019+)
         });
 
         return NextResponse.json(data);
