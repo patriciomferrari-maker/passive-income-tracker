@@ -159,8 +159,6 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                                 <option value="ALL">Todos</option>
                                 <option value="ON">Obligaciones Negociables</option>
                                 <option value="CEDEAR">CEDEARs</option>
-                                <option value="ETF">ETFs</option>
-                                <option value="TREASURY">Bonos Tesoro (USA)</option>
                             </select>
 
                             <label className="text-sm font-medium text-slate-300">Activo / Ticker</label>

@@ -36,13 +36,13 @@ export default function AdminPage() {
                 const resON = await fetch('/api/admin/market-data?category=ON');
                 const dataON = await resON.json();
                 if (dataON.success && dataON.prices) {
-                    setOnPrices(dataON.prices);
+                    setOnPrices(dataON.prices.sort((a: any, b: any) => a.ticker.localeCompare(b.ticker)));
                 }
 
                 const resUS = await fetch('/api/admin/market-data?category=US_ETF');
                 const dataUS = await resUS.json();
                 if (dataUS.success && dataUS.prices) {
-                    setUsEtfPrices(dataUS.prices);
+                    setUsEtfPrices(dataUS.prices.sort((a: any, b: any) => a.ticker.localeCompare(b.ticker)));
                 }
             } catch (e) {
                 console.error("Failed to update/load assets", e);
@@ -288,7 +288,7 @@ function CedearCard() {
             .then(res => res.json())
             .then(data => {
                 if (data.success && Array.isArray(data.data)) {
-                    setQuotes(data.data);
+                    setQuotes(data.data.sort((a: any, b: any) => a.ticker.localeCompare(b.ticker)));
                 }
             })
             .catch(err => console.error(err))

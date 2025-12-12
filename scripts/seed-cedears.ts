@@ -72,10 +72,9 @@ async function main() {
     // If it returns a global list, then we are good.
     // Checking `app/api/investments/on/route.ts`...
 
-    // Assuming we need to add these for the current user (patrick).
-    // I'll fetch the first ADMIN user or the specific user.
-    const user = await prisma.user.findFirst();
-    if (!user) throw new Error('No user found');
+    // Find specific user
+    const user = await prisma.user.findUnique({ where: { email: 'patriciomferrari@gmail.com' } });
+    if (!user) throw new Error('User patriciomferrari@gmail.com not found');
 
     console.log(`Seeding for user: ${user.email} (${user.id})`);
 

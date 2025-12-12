@@ -76,7 +76,7 @@ export function HoldingsTab() {
                     <div className="flex items-center gap-2">
                         {/* Type Filter */}
                         <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
-                            {['ALL', 'ON', 'CEDEAR', 'ETF'].map(type => (
+                            {['ALL', 'ON', 'CEDEAR'].map(type => (
                                 <button
                                     key={type}
                                     onClick={() => setViewType(type)}

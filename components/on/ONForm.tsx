@@ -129,17 +129,6 @@ export function ONForm({ onClose, onSave, initialData }: ONFormProps) {
                                     />
                                     CEDEAR
                                 </label>
-                                <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="assetType"
-                                        value="ETF"
-                                        checked={type === 'ETF'}
-                                        onChange={(e) => setType(e.target.value)}
-                                        className="text-green-600 focus:ring-green-500"
-                                    />
-                                    ETF (Arg)
-                                </label>
                             </div>
                         </div>
 
