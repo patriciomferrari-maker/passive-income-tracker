@@ -52,7 +52,7 @@ export async function generateInvestmentCashflow(investmentId: string): Promise<
     const type = investment.type;
 
     // Skip generation for ETFs or Stocks (they don't have predictable cashflows)
-    if (type === 'ETF' || type === 'STOCK') {
+    if (['ETF', 'STOCK', 'CEDEAR', 'EQUITY', 'FCI'].includes(type || '')) {
         return [];
     }
 
