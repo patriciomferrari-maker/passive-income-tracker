@@ -16,6 +16,7 @@ interface PositionEvent {
     resultAbs: number;
     resultPercent: number;
     currency: string;
+    type?: string;
 }
 
 interface PositionsTableProps {
@@ -120,32 +121,38 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
 
     const unrealizedPercent = totalCostUnrealized !== 0 ? (totalUnrealized / totalCostUnrealized) * 100 : 0;
 
+    // Only show P&L cards if there are Equity assets (CEDEAR, ETF, etc.)
+    // If only ONs are present (or nothing), hide these cards as they are typically yield-based.
+    const hasEquityAssets = positions.some(p => ['CEDEAR', 'ETF', 'EQUITY', 'STOCK'].includes(p.type || ''));
+
     return (
         <div className="mt-8 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-2">
-                <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 text-center">Resultado No Realizado (Abiertas)</h4>
-                    <div className="flex items-center justify-between w-full">
-                        <div className={`text-2xl font-bold w-1/2 text-center border-r border-slate-800 ${totalUnrealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {formatMoney(totalUnrealized, currency || 'USD')}
+            {hasEquityAssets && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-2">
+                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+                        <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 text-center">Resultado No Realizado (Abiertas)</h4>
+                        <div className="flex items-center justify-between w-full">
+                            <div className={`text-2xl font-bold w-1/2 text-center border-r border-slate-800 ${totalUnrealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {formatMoney(totalUnrealized, currency || 'USD')}
+                            </div>
+                            <div className={`text-2xl font-medium w-1/2 text-center ${unrealizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                {unrealizedPercent > 0 ? '+' : ''}{unrealizedPercent.toFixed(2)}%
+                            </div>
                         </div>
-                        <div className={`text-2xl font-medium w-1/2 text-center ${unrealizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {unrealizedPercent > 0 ? '+' : ''}{unrealizedPercent.toFixed(2)}%
+                    </div>
+                    <div className=" bg-slate-900 border border-slate-800 rounded-lg p-6">
+                        <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 text-center">Resultado Realizado (Cerradas)</h4>
+                        <div className="flex items-center justify-between w-full">
+                            <div className={`text-2xl font-bold w-1/2 text-center border-r border-slate-800 ${totalRealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {formatMoney(totalRealized, currency || 'USD')}
+                            </div>
+                            <div className={`text-2xl font-medium w-1/2 text-center ${realizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                {realizedPercent > 0 ? '+' : ''}{realizedPercent.toFixed(2)}%
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div className=" bg-slate-900 border border-slate-800 rounded-lg p-6">
-                    <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 text-center">Resultado Realizado (Cerradas)</h4>
-                    <div className="flex items-center justify-between w-full">
-                        <div className={`text-2xl font-bold w-1/2 text-center border-r border-slate-800 ${totalRealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {formatMoney(totalRealized, currency || 'USD')}
-                        </div>
-                        <div className={`text-2xl font-medium w-1/2 text-center ${realizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {realizedPercent > 0 ? '+' : ''}{realizedPercent.toFixed(2)}%
-                        </div>
-                    </div>
-                </div>
-            </div>
+            )}
 
             <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-hidden mt-4">
                 <div className="overflow-x-auto">

@@ -232,7 +232,8 @@ export async function GET(request: Request) {
                     fxResult,
                     priceResult,
                     buyExchangeRate: g.buyExchangeRateAvg,
-                    sellExchangeRate: getRate(g.date)
+                    sellExchangeRate: getRate(g.date),
+                    type: investment.type
                 };
             });
 
@@ -274,7 +275,8 @@ export async function GET(request: Request) {
                     fxResult,
                     priceResult,
                     buyExchangeRate: p.buyExchangeRateAvg,
-                    sellExchangeRate: currentTC
+                    sellExchangeRate: currentTC,
+                    type: investment.type
                 };
             });
 
