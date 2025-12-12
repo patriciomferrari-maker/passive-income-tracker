@@ -206,6 +206,10 @@ export async function GET() {
             totalUnrealizedGL += unrealized;
         });
 
+        const portfolioDistribution = Array.from(portfolioMap.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+
         // --- BANK COMPOSITION ---
         const bankOperations = await prisma.bankOperation.findMany({
             where: { userId }
@@ -219,14 +223,6 @@ export async function GET() {
             const current = bankCompositionMap.get(type) || 0;
             bankCompositionMap.set(type, current + op.amount);
         });
-
-        // Merge Bank Composition into Portfolio Distribution
-        const portfolioDistribution = [
-            ...Array.from(portfolioMap.entries()).map(([name, value]) => ({ name, value })),
-            ...Array.from(bankCompositionMap.entries()).map(([name, value]) => ({ name, value }))
-        ].sort((a, b) => b.value - a.value);
-
-
 
         const bankComposition = Array.from(bankCompositionMap.entries()).map(([name, value]) => ({
             name, value, fill: '#10b981' // Standard color, can randomize in UI
