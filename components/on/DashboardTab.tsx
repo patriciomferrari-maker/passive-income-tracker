@@ -39,6 +39,13 @@ interface DashboardData {
     }>;
     totalONs: number;
     totalTransactions: number;
+    pnl?: {
+        realized: number;
+        realizedPercent: number;
+        unrealized: number;
+        unrealizedPercent: number;
+        hasEquity: boolean;
+    } | null;
 }
 
 const COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
@@ -216,6 +223,50 @@ export function DashboardTab() {
                     </div>
                 </div>
             </Card>
+
+            {/* P&L CARDS (Conditional) */}
+            {data.pnl && data.pnl.hasEquity && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <Card className="bg-slate-950 border-slate-800">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-xs font-medium text-slate-400 uppercase tracking-wider text-center">Resultado No Realizado (Abiertas)</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center justify-between w-full">
+                                <div className={`text-2xl font-bold w-1/2 text-center border-r border-slate-800 ${data.pnl.unrealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {showValues ? formatMoney(data.pnl.unrealized) : '****'}
+                                </div>
+                                <div className={`text-2xl font-medium w-1/2 text-center ${data.pnl.unrealizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {showValues ? (
+                                        <>
+                                            {data.pnl.unrealizedPercent > 0 ? '+' : ''}{data.pnl.unrealizedPercent.toFixed(2)}%
+                                        </>
+                                    ) : '****'}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-slate-950 border-slate-800">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-xs font-medium text-slate-400 uppercase tracking-wider text-center">Resultado Realizado (Cerradas)</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center justify-between w-full">
+                                <div className={`text-2xl font-bold w-1/2 text-center border-r border-slate-800 ${data.pnl.realized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {showValues ? formatMoney(data.pnl.realized) : '****'}
+                                </div>
+                                <div className={`text-2xl font-medium w-1/2 text-center ${data.pnl.realizedPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {showValues ? (
+                                        <>
+                                            {data.pnl.realizedPercent > 0 ? '+' : ''}{data.pnl.realizedPercent.toFixed(2)}%
+                                        </>
+                                    ) : '****'}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
 
             {/* SECONDARY METRICS: Grid of 4 */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
