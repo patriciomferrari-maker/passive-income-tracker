@@ -93,10 +93,12 @@ export function GlobalDashboardTab() {
     const loadStats = async () => {
         try {
             const res = await fetch('/api/dashboard/global', { cache: 'no-store' });
+            if (!res.ok) throw new Error('Failed to fetch stats');
             const data = await res.json();
             setStats(data);
         } catch (error) {
             console.error('Error loading global stats:', error);
+            setStats(null);
         } finally {
             setLoading(false);
         }
@@ -130,7 +132,8 @@ export function GlobalDashboardTab() {
     };
 
     if (loading) return <div className="text-center py-20 text-slate-400">Cargando dashboard consolidado...</div>;
-    if (!stats) return <div className="text-center py-20 text-slate-400">No se pudieron cargar los datos.</div>;
+    // Check for stats AND critical children (summary) to avoid crash if partial data
+    if (!stats || !stats.summary) return <div className="text-center py-20 text-slate-400">No se pudieron cargar los datos (o sesión expirada).</div>;
 
     // Filtering Logic
     const sections = stats.enabledSections || [];
