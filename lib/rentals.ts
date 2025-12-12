@@ -37,7 +37,9 @@ export async function loadEconomicData() {
         // Construct date from year/month (Month is 1-based in InflationData)
         const date = new Date(Date.UTC(record.year, record.month - 1, 1));
         const key = date.getTime(); // Midnight UTC on 1st of month
-        ipcMap.set(key, record.value);
+
+        // Convert Percentage (2.5) to Decimal (0.025)
+        ipcMap.set(key, record.value / 100);
     });
 
     const tcRecords = await prisma.economicIndicator.findMany({
