@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+import { regenerateContractCashflows } from '@/lib/rentals';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,5 +53,32 @@ export async function GET(
     } catch (error) {
         console.error('Error fetching contract cashflows:', error);
         return unauthorized();
+    }
+}
+
+export async function POST(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const userId = await getUserId();
+        const { id } = await params;
+
+        // Verify ownership
+        const contract = await prisma.contract.findUnique({
+            where: { id },
+            select: { property: { select: { userId: true } } }
+        });
+
+        if (!contract || contract.property.userId !== userId) {
+            return unauthorized();
+        }
+
+        const cashflows = await regenerateContractCashflows(id);
+
+        return NextResponse.json(cashflows);
+    } catch (error) {
+        console.error('Error regenerating cashflows:', error);
+        return NextResponse.json({ error: 'Failed to regenerate cashflows' }, { status: 500 });
     }
 }

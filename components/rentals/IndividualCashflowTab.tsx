@@ -96,6 +96,25 @@ export function IndividualCashflowTab({ showValues = true }: { showValues?: bool
         }
     };
 
+    const handleRecalculate = async () => {
+        if (!selectedContractId) return;
+        setLoadingCashflows(true);
+        try {
+            // Invalidate cache by POST to regenerate
+            const res = await fetch(`/api/rentals/contracts/${selectedContractId}/cashflows`, {
+                method: 'POST'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) setCashflows(data);
+            }
+        } catch (error) {
+            console.error('Error recalculating cashflows:', error);
+        } finally {
+            setLoadingCashflows(false);
+        }
+    };
+
     const formatCurrency = (value: number | null, currency: string = 'ARS') => {
         if (value === null) return '-';
         return new Intl.NumberFormat('es-AR', {
@@ -318,8 +337,16 @@ export function IndividualCashflowTab({ showValues = true }: { showValues?: bool
             {/* Cashflows Table */}
             {selectedContractId && (
                 <Card className="bg-slate-900 border-slate-800">
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle className="text-white">Cashflows Proyectados</CardTitle>
+                        <button
+                            onClick={handleRecalculate}
+                            disabled={loadingCashflows}
+                            className="flex items-center gap-2 px-3 py-1.5 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-950/30 rounded border border-blue-900/50 transition-colors disabled:opacity-50"
+                        >
+                            <RefreshCw size={14} className={loadingCashflows ? 'animate-spin' : ''} />
+                            {loadingCashflows ? 'Recalculando...' : 'Recalcular Flujo'}
+                        </button>
                     </CardHeader>
                     <CardContent className="p-0">
                         {loadingCashflows ? (
