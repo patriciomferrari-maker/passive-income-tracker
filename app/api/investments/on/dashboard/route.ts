@@ -13,8 +13,7 @@ export async function GET() {
     const investments = await prisma.investment.findMany({
       where: {
         userId,
-        // REMOVED type filter to allow all assets (needed for P&L of CEDEARs)
-        // type: { in: ['ON', 'CORPORATE_BOND'] }, 
+        market: 'ARG', // Strict filter: Only Argentina Portfolio
         transactions: {
           some: {} // Any transaction
         }
