@@ -320,12 +320,12 @@ export function GlobalDashboardTab() {
                 {/* Portfolio Composition (Market) - MOVED TO BOTTOM */}
             </div>
 
-            {/* ROW 2: Upcoming Events (5 Cards) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            {/* ROW 2: Upcoming Events (Adaptive Flex) */}
+            <div className="flex flex-wrap gap-6">
 
                 {/* 0. Next Maturity PF */}
                 {shouldShow('bank') && stats.summary.nextMaturitiesPF && stats.summary.nextMaturitiesPF.length > 0 && (
-                    <Card className="bg-gradient-to-br from-cyan-950/40 to-slate-900 border-cyan-500/20 text-center">
+                    <Card className="flex-1 min-w-[220px] bg-gradient-to-br from-cyan-950/40 to-slate-900 border-cyan-500/20 text-center">
                         <CardHeader className="pb-2 flex flex-col items-center h-14 justify-center">
                             <CardTitle className="text-slate-300 text-sm font-bold uppercase tracking-wide">
                                 Prox. Vto Plazo Fijo
@@ -355,7 +355,7 @@ export function GlobalDashboardTab() {
 
                 {/* 1. Next Interest ON */}
                 {shouldShow('on') && stats.summary.nextInterestON && (
-                    <Card className="bg-gradient-to-br from-indigo-950/40 to-slate-900 border-indigo-500/20 text-center">
+                    <Card className="flex-1 min-w-[220px] bg-gradient-to-br from-indigo-950/40 to-slate-900 border-indigo-500/20 text-center">
                         <CardHeader className="pb-2 flex flex-col items-center h-14 justify-center">
                             <CardTitle className="text-slate-300 text-sm font-bold uppercase tracking-wide">
                                 Próximo Interés ON
@@ -391,7 +391,7 @@ export function GlobalDashboardTab() {
 
                 {/* 2. Next Interest Treasury */}
                 {shouldShow('treasury') && stats.summary.nextInterestTreasury && (
-                    <Card className="bg-gradient-to-br from-purple-950/40 to-slate-900 border-purple-500/20 text-center">
+                    <Card className="flex-1 min-w-[220px] bg-gradient-to-br from-purple-950/40 to-slate-900 border-purple-500/20 text-center">
                         <CardHeader className="pb-2 flex flex-col items-center h-14 justify-center">
                             <CardTitle className="text-slate-300 text-sm font-bold uppercase tracking-wide">
                                 Próximo Interés Treasury
@@ -423,7 +423,7 @@ export function GlobalDashboardTab() {
 
                 {/* 3. Next Rental Adjustment */}
                 {shouldShow('rentals') && stats.summary.nextRentalAdjustment && (
-                    <Card className="bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center">
+                    <Card className="flex-1 min-w-[220px] bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center">
                         <CardHeader className="pb-2 flex flex-col items-center h-14 justify-center">
                             <CardTitle className="text-slate-300 text-sm font-bold uppercase tracking-wide">
                                 Próximo Ajuste Alquiler
@@ -455,7 +455,7 @@ export function GlobalDashboardTab() {
 
                 {/* 4. Next Contract Expiration */}
                 {shouldShow('rentals') && stats.summary.nextContractExpiration && (
-                    <Card className="bg-gradient-to-br from-orange-950/40 to-slate-900 border-orange-500/20 text-center">
+                    <Card className="flex-1 min-w-[220px] bg-gradient-to-br from-orange-950/40 to-slate-900 border-orange-500/20 text-center">
                         <CardHeader className="pb-2 flex flex-col items-center h-14 justify-center">
                             <CardTitle className="text-slate-300 text-sm font-bold uppercase tracking-wide">
                                 Próx. Vencimiento Contrato
