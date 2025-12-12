@@ -214,28 +214,45 @@ export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
         let currency = inv.currency || 'ARS';
         let source: 'YAHOO' | 'IOL' | 'RAVA' = 'IOL';
 
-        // Strategy A: CEDEAR -> Rava
+        // Strategy A: CEDEAR -> Rava (Try both Base and D suffix)
         if (inv.type === 'CEDEAR') {
             source = 'RAVA';
-            const ravaData = await fetchRavaPrice(inv.ticker);
-            if (ravaData) {
-                // Save ARS Price (Base)
-                await savePrice(inv.id, ravaData.price, 'ARS', inv.currency === 'ARS');
 
-                // Save USD Price (if scraped or implied)
-                if (ravaData.usdPrice) {
-                    await savePrice(inv.id, ravaData.usdPrice, 'USD', inv.currency === 'USD');
-                }
+            // 1. Fetch ARS (Base)
+            let ravaData = await fetchRavaPrice(inv.ticker);
 
-                results.push({ ticker: inv.ticker, price: ravaData.price, currency: 'ARS', source: 'RAVA' });
-            } else {
-                // Fallback to IOL
+            // If Rava Base failed or returned no price, try IOL Base
+            if (!ravaData || !ravaData.price) {
                 const iolData = await fetchIOLPrice(inv.ticker);
                 if (iolData) {
                     await savePrice(inv.id, iolData.price, iolData.currency, true);
                     results.push({ ticker: inv.ticker, price: iolData.price, currency: iolData.currency, source: 'IOL' });
                 } else {
                     results.push({ ticker: inv.ticker, price: null, currency: null, error: 'Not found', source: 'RAVA' });
+                }
+            } else {
+                // Save ARS Price (Base)
+                await savePrice(inv.id, ravaData.price, 'ARS', inv.currency === 'ARS');
+                results.push({ ticker: inv.ticker, price: ravaData.price, currency: 'ARS', source: 'RAVA' });
+
+                // If Rava gave us USD price in the same payload, save it
+                if (ravaData.usdPrice) {
+                    await savePrice(inv.id, ravaData.usdPrice, 'USD', inv.currency === 'USD');
+                }
+            }
+
+            // 2. Fetch USD explicitly (Suffix 'D') if not already found or just to be sure
+            // Many Rava CEDEARs store USD price in the 'D' ticker page
+            const tickerD = inv.ticker + 'D';
+            const ravaDataD = await fetchRavaPrice(tickerD);
+            if (ravaDataD && ravaDataD.price) {
+                await savePrice(inv.id, ravaDataD.price, 'USD', inv.currency === 'USD');
+                // We don't necessarily push result for 'D' as it's the same asset, but good for debug
+            } else {
+                // Fallback to IOL for D if Rava D failed
+                const iolDataD = await fetchIOLPrice(tickerD);
+                if (iolDataD) {
+                    await savePrice(inv.id, iolDataD.price, 'USD', inv.currency === 'USD');
                 }
             }
         }
