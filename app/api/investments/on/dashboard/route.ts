@@ -200,7 +200,8 @@ export async function GET() {
         name: inv.name,
         invested,
         percentage: capitalInvertido > 0 ? (invested / capitalInvertido) * 100 : 0,
-        tir: tir ? tir * 100 : 0
+        tir: tir ? tir * 100 : 0,
+        type: inv.type
       };
     }).filter(item => item.invested > 0);
 
@@ -241,7 +242,8 @@ export async function GET() {
       proximoPago,
       upcomingPayments,
       portfolioBreakdown,
-      totalONs: investments.length,
+      totalONs: investments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(i.type || '')).length, // Real bond count
+      totalInvestments: investments.length, // Total count including equities
       totalTransactions: investments.reduce((sum, inv) => sum + inv.transactions.length, 0),
       // P&L Data for Cards
       pnl: hasEquity ? {

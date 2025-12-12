@@ -35,8 +35,10 @@ interface DashboardData {
         invested: number;
         percentage: number;
         tir: number;
+        type?: string;
     }>;
     totalONs: number;
+    totalTreasuries: number;
     totalTransactions: number;
 }
 
@@ -129,8 +131,9 @@ export function DashboardTab() {
 
     const chartDataArray = showValues ? Object.values(chartData).slice(0, 12) : [];
 
-    // Prepare TIR chart data
+    // Prepare TIR chart data (Only for Treasuries)
     const tirChartData = showValues ? data.portfolioBreakdown
+        .filter(item => item.type === 'TREASURY')
         .map(item => ({
             ticker: item.ticker,
             tir: item.tir
@@ -159,7 +162,7 @@ export function DashboardTab() {
             {/* HERO CARD: Unified Investment, TIR, and Next Payment */}
             {data.totalTransactions > 0 || data.capitalInvertido > 0 ?
                 <Card className="bg-slate-950 border-slate-800 overflow-hidden">
-                    <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-800">
+                    <div className={`grid grid-cols-1 ${data.totalTreasuries > 0 ? 'md:grid-cols-3 divide-y md:divide-y-0 md:divide-x' : 'md:grid-cols-1'} divide-slate-800`}>
                         {/* Total Investment */}
                         <div className="p-6 flex flex-col justify-center items-center text-center hover:bg-slate-900/50 transition-colors">
                             <div className="mb-3 p-3 rounded-full bg-emerald-500/10 text-emerald-500">
@@ -174,45 +177,49 @@ export function DashboardTab() {
                             </p>
                         </div>
 
-                        {/* Consolidated TIR */}
-                        <div className="p-6 flex flex-col justify-center items-center text-center hover:bg-slate-900/50 transition-colors">
-                            <div className="mb-3 p-3 rounded-full bg-blue-500/10 text-blue-500">
-                                <TrendingUp className="h-6 w-6" />
-                            </div>
-                            <p className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-1">TIR Consolidada</p>
-                            <div className="text-3xl font-bold text-blue-400 tracking-tight">
-                                {showValues ? `${data.tirConsolidada.toFixed(2)}%` : '****'}
-                            </div>
-                            <p className="text-xs text-slate-500 mt-2">
-                                Rendimiento anualizado
-                            </p>
-                        </div>
-
-                        {/* Next Payment */}
-                        <div className="p-6 flex flex-col justify-center items-center text-center relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-gradient-to-b from-slate-900/0 to-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                            <div className="mb-3 p-3 rounded-full bg-purple-500/10 text-purple-500 z-10">
-                                <Clock className="h-6 w-6" />
-                            </div>
-                            <p className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-1 z-10">Próximo Pago</p>
-
-                            {data.proximoPago ? (
-                                <div className="z-10">
-                                    <div className="text-3xl font-bold text-white tracking-tight mb-1">
-                                        {formatMoney(data.proximoPago.amount)}
-                                    </div>
-                                    <div className="text-sm font-medium text-purple-300 mb-1">
-                                        {data.proximoPago.name}
-                                    </div>
-                                    <div className="text-xs text-slate-500">
-                                        {format(new Date(data.proximoPago.date), 'dd MMMM yyyy', { locale: es })}
-                                    </div>
+                        {/* Consolidated TIR (Only if Treasuries exist) */}
+                        {data.totalTreasuries > 0 && (
+                            <div className="p-6 flex flex-col justify-center items-center text-center hover:bg-slate-900/50 transition-colors">
+                                <div className="mb-3 p-3 rounded-full bg-blue-500/10 text-blue-500">
+                                    <TrendingUp className="h-6 w-6" />
                                 </div>
-                            ) : (
-                                <div className="text-slate-500 z-10">Sin pagos próximos</div>
-                            )}
-                        </div>
+                                <p className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-1">TIR Consolidada</p>
+                                <div className="text-3xl font-bold text-blue-400 tracking-tight">
+                                    {showValues ? `${data.tirConsolidada.toFixed(2)}%` : '****'}
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">
+                                    Rendimiento anualizado
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Next Payment (Only if Treasuries exist) */}
+                        {data.totalTreasuries > 0 && (
+                            <div className="p-6 flex flex-col justify-center items-center text-center relative overflow-hidden group">
+                                <div className="absolute inset-0 bg-gradient-to-b from-slate-900/0 to-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                <div className="mb-3 p-3 rounded-full bg-purple-500/10 text-purple-500 z-10">
+                                    <Clock className="h-6 w-6" />
+                                </div>
+                                <p className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-1 z-10">Próximo Pago</p>
+
+                                {data.proximoPago ? (
+                                    <div className="z-10">
+                                        <div className="text-3xl font-bold text-white tracking-tight mb-1">
+                                            {formatMoney(data.proximoPago.amount)}
+                                        </div>
+                                        <div className="text-sm font-medium text-purple-300 mb-1">
+                                            {data.proximoPago.name}
+                                        </div>
+                                        <div className="text-xs text-slate-500">
+                                            {format(new Date(data.proximoPago.date), 'dd MMMM yyyy', { locale: es })}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-slate-500 z-10">Sin pagos próximos</div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </Card> : (
                     <Card className="bg-slate-950 border-slate-800 overflow-hidden">
@@ -403,7 +410,7 @@ export function DashboardTab() {
             )}
 
             {/* Charts Row 2: TIR */}
-            {data.portfolioBreakdown.length > 0 && (
+            {tirChartData.length > 0 && (
                 <div className="grid grid-cols-1 gap-6">
                     <Card className={cardClass}>
                         <CardHeader>

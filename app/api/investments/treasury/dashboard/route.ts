@@ -113,7 +113,8 @@ export async function GET() {
                 name: inv.name,
                 invested,
                 percentage: capitalInvertido > 0 ? (invested / capitalInvertido) * 100 : 0,
-                tir: tir
+                tir: tir,
+                type: inv.type
             };
         });
         // Removed filter to show 0-invested items in breakdown
@@ -158,6 +159,7 @@ export async function GET() {
             proximoPago,
             upcomingPayments,
             portfolioBreakdown,
+            totalTreasuries: investments.filter(i => i.type === 'TREASURY').length,
             totalONs: investments.length,
             totalTransactions: investments.reduce((sum, inv) => sum + inv.transactions.length, 0)
         });
