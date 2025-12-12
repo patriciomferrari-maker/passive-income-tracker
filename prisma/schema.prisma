@@ -424,3 +424,24 @@ model InflationData {
 
   @@unique([year, month])
 }
+
+// =================================================================
+// SECURITY AUDIT LOGS
+// =================================================================
+
+model AccessLog {
+  id        String   @id @default(cuid())
+  userId    String?  // Nullable because failed attempts might not have a valid user ID
+  email     String?  // Log the email attempted
+  action    String   // 'LOGIN'
+  status    String   // 'SUCCESS', 'FAILURE'
+  ip        String?
+  userAgent String?
+  
+  details   String?  // Failure reason
+
+  createdAt DateTime @default(now())
+  
+  @@index([email])
+  @@index([createdAt])
+}

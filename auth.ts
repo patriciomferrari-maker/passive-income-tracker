@@ -62,5 +62,10 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
             }
             return token;
         }
+    },
+    session: {
+        strategy: 'jwt',
+        maxAge: 3600, // 1 Hour
+        updateAge: 300, // Update session every 5 minutes if active
     }
 });

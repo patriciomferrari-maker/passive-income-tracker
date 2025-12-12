@@ -8,14 +8,36 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
 
+import { headers } from 'next/headers';
+
 export async function authenticate(
     prevState: string | undefined,
     formData: FormData,
 ) {
+    const email = formData.get('email') as string;
+    const headerList = await headers();
+    const ip = headerList.get('x-forwarded-for') ?? 'unknown';
+    const userAgent = headerList.get('user-agent') ?? 'unknown';
+
     try {
         await signIn('credentials', formData);
+
+        // If we get here (which usually doesn't happen due to redirect), log success
+        // But mainly success is handled via the specific redirect error catch or implicitly
     } catch (error) {
         if (error instanceof AuthError) {
+            // Log Failure
+            await prisma.accessLog.create({
+                data: {
+                    email,
+                    action: 'LOGIN',
+                    status: 'FAILURE',
+                    details: error.type,
+                    ip,
+                    userAgent
+                }
+            });
+
             switch (error.type) {
                 case 'CredentialsSignin':
                     return 'Contraseña incorrecta.';
@@ -23,6 +45,20 @@ export async function authenticate(
                     return 'Algo salió mal.';
             }
         }
+
+        // If it's the NEXT_REDIRECT error, it means SUCCESS
+        if ((error as Error).message === 'NEXT_REDIRECT') {
+            await prisma.accessLog.create({
+                data: {
+                    email,
+                    action: 'LOGIN',
+                    status: 'SUCCESS',
+                    ip,
+                    userAgent
+                }
+            });
+        }
+
         throw error;
     }
 }
