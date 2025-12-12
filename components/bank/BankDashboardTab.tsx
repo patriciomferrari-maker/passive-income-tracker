@@ -60,14 +60,14 @@ export function BankDashboardTab({ stats, operations, showValues }: BankDashboar
     const getCompositionData = () => {
         const data: Record<string, number> = {};
         operations.filter(op => op.currency === 'USD').forEach(op => {
-            const label = op.type.replace(/_/g, ' ');
+            const label = op.alias || op.type.replace(/_/g, ' ');
             data[label] = (data[label] || 0) + op.amount;
         });
         return Object.entries(data).map(([name, value]) => ({ name, value }));
     };
     // Group by Type for Detail View
     const investmentsByType = operations.reduce((acc, op) => {
-        const type = op.type.replace(/_/g, ' ');
+        const type = op.alias || op.type.replace(/_/g, ' ');
         if (!acc[type]) acc[type] = { count: 0, total: 0, currency: op.currency };
         acc[type].count += 1;
         acc[type].total += op.amount;
