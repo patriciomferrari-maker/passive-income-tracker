@@ -150,15 +150,14 @@ export function GlobalDashboardTab() {
     const filterDebt = () => shouldShow('debts');
 
 
-    const historyData = showValues ? stats.history : [];
-    const compositionData = showValues ? stats.composition.filter(filterComposition) : [{ name: 'Oculto', value: 1, fill: '#1e293b' }];
-    const projectedData = showValues ? stats.projected : []; // Projection uses "Interest" generalized, harder to filter by source unless mapped. Keeping as is for now or hiding entirely if no filtering?
-    // Actually, projected has Capital/Interest. We can't easily split Interest by source in current API response for BarChart without changing API.
-    // However, we can toggle the visibility of the entire chart or try to approximate.
-    // For now, let's leave Projection as aggregated but maybe hide the card if NO investment sections are enabled?
+    const historyData = showValues ? (stats.history || []) : [];
+    const compositionData = showValues ? (stats.composition || []).filter(filterComposition) : [{ name: 'Oculto', value: 1, fill: '#1e293b' }];
+    // Consolidated Portfolio Data (Market + Bank)
+    const portfolioDistData = showValues ? (stats.portfolioDistribution || []) : [{ name: 'Oculto', value: 1 }];
+    const projectedData = showValues ? (stats.projected || []) : [];
 
-    // Better: Filter Debt Details
-    const debtDetails = showValues && shouldShow('debts') ? stats.debtDetails : [];
+    // Filter Debt Details
+    const debtDetails = showValues && shouldShow('debts') ? (stats.debtDetails || []) : [];
 
     const renderTotalLabel = (props: any) => {
         const { x, y, width, value } = props;
@@ -187,7 +186,7 @@ export function GlobalDashboardTab() {
                 </button>
             </div>
 
-            {/* ROW 1: Big Totals + TIR (4 Cards) */}
+            {/* ROW 1: KPIs & TIR */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Total Investments (Market) */}
                 {(shouldShow('on') || shouldShow('treasury')) && stats.summary.totalInvested > 0 && (
@@ -204,7 +203,7 @@ export function GlobalDashboardTab() {
                     </Card>
                 )}
 
-                {/* Total Bank (NEW) */}
+                {/* Total Bank */}
                 {shouldShow('bank') && stats.summary.totalBankUSD > 0 && (
                     <Card className="bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
@@ -219,12 +218,12 @@ export function GlobalDashboardTab() {
                     </Card>
                 )}
 
-                {/* TIR */}
+                {/* TIR - UPDATED TITLE */}
                 {(shouldShow('on') || shouldShow('treasury')) && stats.summary.totalInvested > 0 && (
                     <Card className="bg-gradient-to-br from-amber-950/40 to-slate-900 border-amber-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
-                                <Percent size={18} /> TIR Estimada (T.N.A)
+                                <Percent size={18} /> TIR Estimada (ON + Treasuries)
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="flex flex-col items-center">
@@ -234,95 +233,26 @@ export function GlobalDashboardTab() {
                     </Card>
                 )}
 
-                {/* Total Debt Pending */}
-                {shouldShow('debts') && stats.summary.totalDebtPending > 0 && (
-                    <Card className="bg-gradient-to-br from-red-950/40 to-slate-900 border-red-500/20 text-center flex flex-col items-center justify-center">
+                {/* Unrealized P&L */}
+                {(shouldShow('on') || shouldShow('treasury')) && stats.pnl && stats.summary.totalInvested > 0 && (
+                    <Card className="bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
-                                <HandCoins size={18} /> Deuda a Cobrar Total
+                                <TrendingUp size={18} /> Resultado No Realizado
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="flex flex-col items-center">
-                            <div className="text-4xl font-bold text-white mb-1">{formatMoney(stats.summary.totalDebtPending)}</div>
-                            <p className="text-sm text-red-400">Capital Pendiente</p>
+                            <div className={`text-3xl font-bold mb-1 ${stats.pnl.unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatMoney(stats.pnl.unrealized)}
+                            </div>
+                            <p className="text-sm text-slate-500">Valuación de Mercado</p>
                         </CardContent>
                     </Card>
                 )}
-                {/* P&L Cards (Market) */}
-                {(shouldShow('on') || shouldShow('treasury')) && stats.pnl && stats.summary.totalInvested > 0 && (
-                    <>
-                        <Card className="bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
-                            <CardHeader className="pb-2 flex flex-col items-center">
-                                <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
-                                    <TrendingUp size={18} /> Resultado No Realizado
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex flex-col items-center">
-                                <div className={`text-3xl font-bold mb-1 ${stats.pnl.unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    {formatMoney(stats.pnl.unrealized)}
-                                </div>
-                                <p className="text-sm text-slate-500">Valuación de Mercado</p>
-                            </CardContent>
-                        </Card>
-
-                        {stats.pnl.realized !== 0 && (
-                            <Card className="bg-gradient-to-br from-blue-950/40 to-slate-900 border-blue-500/20 text-center flex flex-col items-center justify-center">
-                                <CardHeader className="pb-2 flex flex-col items-center">
-                                    <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
-                                        <HandCoins size={18} /> Resultado Realizado
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="flex flex-col items-center">
-                                    <div className={`text-3xl font-bold mb-1 ${stats.pnl.realized >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
-                                        {formatMoney(stats.pnl.realized)}
-                                    </div>
-                                    <p className="text-sm text-slate-500">Ganancia/Pérdida Cerrada</p>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </>
-                )}
             </div>
 
-            {/* ROW 1.5: Compositions (Bank & Market) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Bank Composition */}
-                {shouldShow('bank') && stats.bankComposition && stats.bankComposition.length > 0 && (
-                    <Card className="bg-slate-950 border-slate-800">
-                        <CardHeader className="text-center">
-                            <CardTitle className="text-white">Composición Bancaria</CardTitle>
-                            <CardDescription className="text-slate-400">Distribución de Activos en Banco</CardDescription>
-                        </CardHeader>
-                        <CardContent className="h-[250px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={stats.bankComposition}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {stats.bankComposition.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#10b981' : '#059669'} stroke="rgba(0,0,0,0)" />
-                                        ))}
-                                        {showValues && <Tooltip formatter={(value: number) => formatMoney(value)} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }} />}
-                                        {showValues && <Legend />}
-                                    </Pie>
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Portfolio Composition (Market) - MOVED TO BOTTOM */}
-            </div>
-
-            {/* ROW 2: Upcoming Events (Adaptive Flex) */}
+            {/* ROW 1.5: Upcoming Events (Adaptive Flex) */}
             <div className="flex flex-wrap gap-6">
-
                 {/* 0. Next Maturity PF */}
                 {shouldShow('bank') && stats.summary.nextMaturitiesPF && stats.summary.nextMaturitiesPF.length > 0 && (
                     <Card className="flex-1 min-w-[220px] bg-gradient-to-br from-cyan-950/40 to-slate-900 border-cyan-500/20 text-center">
@@ -361,24 +291,18 @@ export function GlobalDashboardTab() {
                                 Próximo Interés ON
                             </CardTitle>
                         </CardHeader>
-                        {/* Fixed Height Content + Justify Between = Aligned Bottom */}
                         <CardContent className="h-[160px] flex flex-col items-center justify-between pt-0 pb-4">
                             <>
-                                {/* Block 1: Main Value */}
                                 <div className="h-10 flex items-center justify-center">
                                     <div className="text-3xl font-bold text-white">
                                         {formatMoney(stats.summary.nextInterestON.amount)}
                                     </div>
                                 </div>
-
-                                {/* Block 2: Secondary Info (Name) - Allows 2 lines */}
                                 <div className="h-12 flex items-center justify-center w-full px-2">
                                     <span className="text-indigo-300 font-medium text-sm leading-tight line-clamp-2">
                                         {stats.summary.nextInterestON.name}
                                     </span>
                                 </div>
-
-                                {/* Block 3: Date Pill */}
                                 <div className="h-10 flex items-center justify-center">
                                     <div className="text-lg font-bold text-white bg-slate-800/80 px-6 py-1.5 rounded-full border border-slate-700 shadow-sm">
                                         {formatDate(stats.summary.nextInterestON.date)}
@@ -404,13 +328,11 @@ export function GlobalDashboardTab() {
                                         {formatMoney(stats.summary.nextInterestTreasury.amount)}
                                     </div>
                                 </div>
-
                                 <div className="h-12 flex items-center justify-center w-full px-2">
                                     <span className="text-purple-300 font-medium text-sm leading-tight line-clamp-2">
                                         {stats.summary.nextInterestTreasury.name}
                                     </span>
                                 </div>
-
                                 <div className="h-10 flex items-center justify-center">
                                     <div className="text-lg font-bold text-white bg-slate-800/80 px-6 py-1.5 rounded-full border border-slate-700 shadow-sm">
                                         {formatDate(stats.summary.nextInterestTreasury.date)}
@@ -436,13 +358,11 @@ export function GlobalDashboardTab() {
                                         {stats.summary.nextRentalAdjustment.property}
                                     </div>
                                 </div>
-
                                 <div className="h-12 flex items-center justify-center w-full">
                                     <span className="text-emerald-300 text-sm font-medium">
                                         Faltan {stats.summary.nextRentalAdjustment.monthsTo} meses
                                     </span>
                                 </div>
-
                                 <div className="h-10 flex items-center justify-center">
                                     <div className="text-lg font-bold text-white bg-slate-800/80 px-6 py-1.5 rounded-full border border-slate-700 shadow-sm">
                                         {formatDate(stats.summary.nextRentalAdjustment.date)}
@@ -468,13 +388,11 @@ export function GlobalDashboardTab() {
                                         {stats.summary.nextContractExpiration.property}
                                     </div>
                                 </div>
-
                                 <div className="h-12 flex items-center justify-center w-full">
                                     <span className="text-orange-300 text-sm font-medium">
                                         Faltan {stats.summary.nextContractExpiration.monthsTo} meses
                                     </span>
                                 </div>
-
                                 <div className="h-10 flex items-center justify-center">
                                     <div className="text-lg font-bold text-white bg-slate-800/80 px-6 py-1.5 rounded-full border border-slate-700 shadow-sm">
                                         {formatDate(stats.summary.nextContractExpiration.date)}
@@ -486,15 +404,16 @@ export function GlobalDashboardTab() {
                 )}
             </div>
 
-            {/* ROW 3: Income Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* ROW 2: Bar Charts (History & Projection) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* History */}
                 {historyData.some(h => h.total > 0) && (
-                    <Card className="lg:col-span-2 bg-slate-950 border-slate-800">
+                    <Card className="bg-slate-950 border-slate-800">
                         <CardHeader className="text-center">
                             <CardTitle className="text-white">Ingresos Últimos 12 Meses</CardTitle>
                             <CardDescription className="text-slate-400">Total cobrado mensual</CardDescription>
                         </CardHeader>
-                        <CardContent className="h-[350px]">
+                        <CardContent className="h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={historyData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
@@ -511,9 +430,7 @@ export function GlobalDashboardTab() {
                                     {shouldShow('treasury') && <Bar dataKey="Treasury" stackId="a" fill="#8b5cf6" name="Treasuries" />}
                                     {shouldShow('rentals') && <Bar dataKey="Rentals" stackId="a" fill="#10b981" name="Alquileres" />}
                                     {shouldShow('bank') && (
-                                        <Bar dataKey="Bank" stackId="a" fill="#f59e0b" name="Intereses Banco">
-                                            <LabelList dataKey="total" content={renderTotalLabel} />
-                                        </Bar>
+                                        <Bar dataKey="Bank" stackId="a" fill="#f59e0b" name="Intereses Banco" />
                                     )}
                                 </BarChart>
                             </ResponsiveContainer>
@@ -521,13 +438,48 @@ export function GlobalDashboardTab() {
                     </Card>
                 )}
 
+                {/* Projection */}
+                {projectedData.some(p => p.total > 0) && (
+                    <Card className="bg-slate-950 border-slate-800">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-white">Proyección 12 Meses</CardTitle>
+                            <CardDescription className="text-slate-400">Capital vs Intereses</CardDescription>
+                        </CardHeader>
+                        <CardContent className="h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={projectedData} margin={{ top: 20 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                                    <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide={!showValues} />
+                                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} hide={!showValues} />
+                                    {showValues && <Tooltip
+                                        cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#fff' }}
+                                        formatter={(value: number) => formatMoney(value)}
+                                        itemStyle={{ color: '#fff' }}
+                                    />}
+                                    {showValues && <Legend />}
+                                    <Bar dataKey="Interest" stackId="a" fill="#0ea5e9" name="Interés" />
+                                    <Bar dataKey="BankInterest" stackId="a" fill="#f59e0b" name="Int. Plazo Fijo" />
+                                    <Bar dataKey="Capital" stackId="a" fill="#10b981" name="Capital">
+                                        <LabelList dataKey="total" content={renderTotalLabel} />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+
+            {/* ROW 3: Composition Charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Income Composition */}
                 {compositionData.some((c: any) => c.value > 0 && c.name !== 'Oculto') && (
                     <Card className="bg-slate-950 border-slate-800">
                         <CardHeader className="text-center">
                             <CardTitle className="text-white">Composición de Ingresos</CardTitle>
                             <CardDescription className="text-slate-400">Distribución último mes</CardDescription>
                         </CardHeader>
-                        <CardContent className="h-[350px]">
+                        <CardContent className="h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
@@ -549,128 +501,51 @@ export function GlobalDashboardTab() {
                                             fontSize={24}
                                             fontWeight="bold"
                                         />
+                                        {showValues && <Tooltip
+                                            formatter={(value: number) => formatMoney(value)}
+                                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
+                                            itemStyle={{ color: '#fff' }}
+                                        />}
+                                        {showValues && <Legend formatter={(value, entry: any) => {
+                                            const { payload } = entry;
+                                            const percent = (payload.value / stats.summary.totalMonthlyIncome * 100).toFixed(0);
+                                            return `${value} (${percent}%)`;
+                                        }} />}
                                     </Pie>
-                                    {showValues && <Tooltip
-                                        formatter={(value: number) => formatMoney(value)}
-                                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
-                                        itemStyle={{ color: '#fff' }}
-                                    />}
-                                    {showValues && <Legend formatter={(value, entry: any) => {
-                                        const { payload } = entry;
-                                        const percent = (payload.value / stats.summary.totalMonthlyIncome * 100).toFixed(0);
-                                        return `${value} (${percent}%)`;
-                                    }} />}
                                 </PieChart>
                             </ResponsiveContainer>
                         </CardContent>
                     </Card>
                 )}
-            </div>
 
-            {/* ROW 4: Projections + Debts + Portfolio Distribution (Bottom) */}
-            <div className="grid grid-cols-1 gap-6">
-                <div className={`grid grid-cols-1 ${shouldShow('debts') ? 'lg:grid-cols-2' : ''} gap-6`}>
-                    {stats.projected.some(p => p.total > 0) && (
-                        <Card className="bg-slate-950 border-slate-800">
-                            <CardHeader className="text-center">
-                                <CardTitle className="text-white">Proyección 12 Meses</CardTitle>
-                                <CardDescription className="text-slate-400">Capital vs Intereses</CardDescription>
-                            </CardHeader>
-                            <CardContent className="h-[350px]">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={projectedData} margin={{ top: 20 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                                        <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide={!showValues} />
-                                        <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} hide={!showValues} />
-                                        {showValues && <Tooltip
-                                            cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                                            contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#fff' }}
-                                            formatter={(value: number) => formatMoney(value)}
-                                            itemStyle={{ color: '#fff' }}
-                                        />}
-                                        {showValues && <Legend />}
-                                        <Bar dataKey="Interest" stackId="a" fill="#0ea5e9" name="Interés" />
-                                        <Bar dataKey="BankInterest" stackId="a" fill="#f59e0b" name="Int. Plazo Fijo" />
-                                        <Bar dataKey="Capital" stackId="a" fill="#10b981" name="Capital">
-                                            <LabelList dataKey="total" content={renderTotalLabel} />
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {shouldShow('debts') && debtDetails.length > 0 && (
-                        <Card className="bg-slate-950 border-slate-800 overflow-y-auto custom-scrollbar">
-                            <CardHeader className="text-center">
-                                <CardTitle className="text-white">Estado de Deudas</CardTitle>
-                                <CardDescription className="text-slate-400">Progreso de cobro por deudor</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                {debtDetails.map((d, index) => (
-                                    <div key={index} className="space-y-2">
-                                        <span className="text-white font-medium block text-lg">{d.name}</span>
-                                        {showValues && (
-                                            <div className="relative h-8 w-full bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
-                                                <div
-                                                    className="absolute top-0 left-0 h-full bg-emerald-600 flex items-center justify-start pl-2"
-                                                    style={{ width: `${(d.paid / d.total) * 100}%` }}
-                                                >
-                                                    {d.paid > 0 && (
-                                                        <span className="text-white font-bold text-xs whitespace-nowrap drop-shadow-md">
-                                                            Pagado {formatMoney(d.paid)}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="absolute top-0 right-0 h-full flex items-center pr-2">
-                                                    <span className="text-red-400 font-bold text-xs whitespace-nowrap">
-                                                        Faltan {formatMoney(d.pending)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
-
-                {/* Portfolio Composition (Market) - Bottom Row */}
-                {(shouldShow('on') || shouldShow('treasury')) && stats.portfolioDistribution && stats.portfolioDistribution.length > 0 && (
+                {/* Portfolio Composition (Consolidated) */}
+                {(shouldShow('on') || shouldShow('treasury') || shouldShow('bank')) && portfolioDistData && portfolioDistData.length > 0 && (
                     <Card className="bg-slate-950 border-slate-800">
                         <CardHeader className="text-center">
-                            <CardTitle className="text-white">Composición del Portfolio</CardTitle>
-                            <CardDescription className="text-slate-400">Distribución por Tipo de Activo</CardDescription>
+                            <CardTitle className="text-white">Composición de Inversiones</CardTitle>
+                            <CardDescription className="text-slate-400">Cartera Argentina + USA + Banco</CardDescription>
                         </CardHeader>
                         <CardContent className="h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
-                                        data={stats.portfolioDistribution}
+                                        data={portfolioDistData}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={90}
+                                        innerRadius={70}
+                                        outerRadius={100}
                                         paddingAngle={5}
                                         dataKey="value"
                                     >
-                                        {stats.portfolioDistribution.map((entry, index) => (
-                                            <Cell key={`cell-p-${index}`} fill={`hsl(${210 + (index * 40)}, 80%, 60%)`} stroke="rgba(0,0,0,0)" />
+                                        {portfolioDistData.map((entry, index) => (
+                                            <Cell key={`cell-p-${index}`} fill={`hsl(${210 + (index * 40)}, 70%, 50%)`} stroke="rgba(0,0,0,0)" />
                                         ))}
                                         {showValues && <Tooltip
                                             formatter={(value: number) => formatMoney(value)}
                                             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
                                             itemStyle={{ color: '#fff' }}
                                         />}
-                                        {showValues && <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '14px', color: '#fff' }} />}
-                                        {/* Added LabelList for visibility on chart segments */}
-                                        <LabelList
-                                            dataKey="name"
-                                            position="outside"
-                                            style={{ fill: '#fff', fontSize: '12px', fontWeight: 'bold' }}
-                                            stroke="none"
-                                        />
+                                        {showValues && <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px', color: '#fff' }} />}
                                     </Pie>
                                 </PieChart>
                             </ResponsiveContainer>
@@ -678,6 +553,44 @@ export function GlobalDashboardTab() {
                     </Card>
                 )}
             </div>
+
+            {/* ROW 4: Debts */}
+            {shouldShow('debts') && debtDetails.length > 0 && (
+                <div className="grid grid-cols-1 gap-6">
+                    <Card className="bg-slate-950 border-slate-800 overflow-y-auto custom-scrollbar">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-white">Estado de Deudas</CardTitle>
+                            <CardDescription className="text-slate-400">Progreso de cobro por deudor</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {debtDetails.map((d, index) => (
+                                <div key={index} className="space-y-2">
+                                    <span className="text-white font-medium block text-lg">{d.name}</span>
+                                    {showValues && (
+                                        <div className="relative h-8 w-full bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
+                                            <div
+                                                className="absolute top-0 left-0 h-full bg-emerald-600 flex items-center justify-start pl-2"
+                                                style={{ width: `${(d.paid / d.total) * 100}%` }}
+                                            >
+                                                {d.paid > 0 && (
+                                                    <span className="text-white font-bold text-xs whitespace-nowrap drop-shadow-md">
+                                                        Pagado {formatMoney(d.paid)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="absolute top-0 right-0 h-full flex items-center pr-2">
+                                                <span className="text-red-400 font-bold text-xs whitespace-nowrap">
+                                                    Faltan {formatMoney(d.pending)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 }
