@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { startOfMonth, subMonths, format, endOfMonth, addMonths, isBefore, isAfter, startOfDay, differenceInMonths, differenceInDays, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+import { calculateFIFO, FIFOResult, FIFOTransaction } from '@/app/lib/fifo';
+import { getLatestPrices } from '@/app/lib/market-data';
 
 // XIRR Implementation (Newton-Raphson)
 function calculateXIRR(values: number[], dates: Date[], guess = 0.1): number {
@@ -91,8 +93,8 @@ export async function GET() {
         // A. Total Investment & TIR Data
         const investments = await prisma.investment.findMany({
             where: {
-                userId,
-                OR: [{ type: 'ON' }, { type: 'TREASURY' }]
+                userId
+                // Removed type filter to include CEDEAR, EQUITY, etc.
             },
             include: {
                 transactions: true,
@@ -150,7 +152,68 @@ export async function GET() {
             }
         });
 
-        const totalInvested = totalInvestedON + totalInvestedTreasury;
+
+
+        const totalInvested = investments.reduce((sum, inv) => {
+            // Calculate invested capital for ALL investments (Cost Basis)
+            // Simple sum of Buys
+            const invested = inv.transactions
+                .filter(tx => tx.type === 'BUY')
+                .reduce((s, tx) => s + Math.abs(tx.totalAmount), 0);
+            return sum + invested;
+        }, 0);
+
+        // --- P&L CALCULATION (Realized & Unrealized) ---
+        // 1. Get Prices
+        const tickers = [...new Set(investments.map(i => i.ticker).filter(t => t))];
+        const recentPrices = await getLatestPrices(tickers);
+        const pricesMap = new Map<string, number>(recentPrices.map(p => [p.ticker, p.price]));
+
+        // 2. Calculate FIFO
+        let totalRealizedGL = 0;
+        let totalUnrealizedGL = 0;
+
+        investments.forEach(inv => {
+            const currentPrice = pricesMap.get(inv.ticker) || 0;
+            // Cast transactions to match FIFOTransaction type
+            const fifoTransactions: FIFOTransaction[] = inv.transactions.map(tx => ({
+                date: tx.date,
+                type: tx.type as 'BUY' | 'SELL',
+                quantity: tx.quantity,
+                price: tx.price,
+                currency: tx.currency,
+                commission: tx.commission
+            })).filter(tx => tx.type === 'BUY' || tx.type === 'SELL');
+
+            const result = calculateFIFO(fifoTransactions, inv.ticker);
+
+            // Realized Gain from closed positions
+            totalRealizedGL += result.totalGainAbs;
+
+            // Unrealized Gain from open positions (Market Value - Cost Basis)
+            const unrealized = result.openPositions.reduce((sum, pos) => {
+                return sum + ((currentPrice - pos.buyPrice) * pos.quantity);
+            }, 0);
+            totalUnrealizedGL += unrealized;
+        });
+
+        // --- BANK COMPOSITION ---
+        const bankOperations = await prisma.bankOperation.findMany({
+            where: { userId }
+        });
+
+        const bankCompositionMap = new Map<string, number>();
+        bankOperations.filter(op => op.currency === 'USD').forEach(op => {
+            const type = op.type === 'PLAZO_FIJO' ? 'Plazo Fijo' :
+                op.type === 'FCI' ? 'FCI' :
+                    op.type === 'CAJA_AHORRO' ? 'Caja Ahorro' : 'Otro';
+            const current = bankCompositionMap.get(type) || 0;
+            bankCompositionMap.set(type, current + op.amount);
+        });
+
+        const bankComposition = Array.from(bankCompositionMap.entries()).map(([name, value]) => ({
+            name, value, fill: '#10b981' // Standard color, can randomize in UI
+        }));
 
         // Calculate TIR
         let tir = 0;
@@ -231,10 +294,8 @@ export async function GET() {
             return { name: d.debtorName, paid, pending, total, currency: d.currency };
         }).filter(d => d.pending > 1);
 
-        // D. Bank Data (NEW)
-        const bankOperations = await prisma.bankOperation.findMany({
-            where: { userId }
-        });
+        // D. Bank Data (Already fetched above but need for logic)
+        // const bankOperations = ... (fetched above)
 
         // 1. Total Bank USD
         const totalBankUSD = bankOperations
@@ -405,6 +466,11 @@ export async function GET() {
                 totalBankUSD,
                 nextMaturitiesPF
             },
+            pnl: {
+                realized: totalRealizedGL,
+                unrealized: totalUnrealizedGL
+            },
+            bankComposition,
             history,
             composition,
             projected,

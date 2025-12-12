@@ -323,3 +323,33 @@ export async function updateIPC(): Promise<IPCResult> {
         return { date: new Date(), value: 0, error: e.message };
     }
 }
+
+// Helper: Get Latest Prices for a list of tickers
+export async function getLatestPrices(tickers: string[]): Promise<{ ticker: string; price: number; currency: string; date: Date }[]> {
+    if (tickers.length === 0) return [];
+
+    const prices: { ticker: string; price: number; currency: string; date: Date }[] = [];
+
+    await Promise.all(tickers.map(async (ticker) => {
+        // Use 'contains' or exact match? Exact is better.
+        // findFirst on assetPrice with investment.ticker
+        const lastPrice = await prisma.assetPrice.findFirst({
+            where: {
+                investment: { ticker: ticker }
+            },
+            orderBy: { date: 'desc' },
+            take: 1
+        });
+
+        if (lastPrice) {
+            prices.push({
+                ticker,
+                price: lastPrice.price,
+                currency: lastPrice.currency,
+                date: lastPrice.date
+            });
+        }
+    }));
+
+    return prices;
+}

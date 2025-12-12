@@ -44,6 +44,15 @@ interface GlobalStats {
         currency: string;
     }[];
     enabledSections: string[];
+    pnl?: {
+        realized: number;
+        unrealized: number;
+    };
+    bankComposition?: {
+        name: string;
+        value: number;
+        fill: string;
+    }[];
     debug?: { userId: string, raw: string | null };
 }
 
@@ -177,7 +186,7 @@ export function GlobalDashboardTab() {
             {/* ROW 1: Big Totals + TIR (4 Cards) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Total Investments (Market) */}
-                {(shouldShow('on') || shouldShow('treasury')) && (
+                {(shouldShow('on') || shouldShow('treasury')) && stats.summary.totalInvested > 0 && (
                     <Card className="bg-gradient-to-br from-blue-950/40 to-slate-900 border-blue-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
@@ -186,13 +195,13 @@ export function GlobalDashboardTab() {
                         </CardHeader>
                         <CardContent className="flex flex-col items-center">
                             <div className="text-4xl font-bold text-white mb-1">{formatMoney(stats.summary.totalInvested)}</div>
-                            <p className="text-sm text-blue-400">ONs + Treasuries</p>
+                            <p className="text-sm text-blue-400">Total Activos de Mercado</p>
                         </CardContent>
                     </Card>
                 )}
 
                 {/* Total Bank (NEW) */}
-                {shouldShow('bank') && (
+                {shouldShow('bank') && stats.summary.totalBankUSD > 0 && (
                     <Card className="bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
@@ -207,7 +216,7 @@ export function GlobalDashboardTab() {
                 )}
 
                 {/* TIR */}
-                {(shouldShow('on') || shouldShow('treasury')) && (
+                {(shouldShow('on') || shouldShow('treasury')) && stats.summary.totalInvested > 0 && (
                     <Card className="bg-gradient-to-br from-amber-950/40 to-slate-900 border-amber-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
@@ -222,7 +231,7 @@ export function GlobalDashboardTab() {
                 )}
 
                 {/* Total Debt Pending */}
-                {shouldShow('debts') && (
+                {shouldShow('debts') && stats.summary.totalDebtPending > 0 && (
                     <Card className="bg-gradient-to-br from-red-950/40 to-slate-900 border-red-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
@@ -235,7 +244,72 @@ export function GlobalDashboardTab() {
                         </CardContent>
                     </Card>
                 )}
+                {/* P&L Cards (Market) */}
+                {(shouldShow('on') || shouldShow('treasury')) && stats.pnl && stats.summary.totalInvested > 0 && (
+                    <>
+                        <Card className="bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
+                            <CardHeader className="pb-2 flex flex-col items-center">
+                                <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
+                                    <TrendingUp size={18} /> Resultado No Realizado
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-col items-center">
+                                <div className={`text-3xl font-bold mb-1 ${stats.pnl.unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {formatMoney(stats.pnl.unrealized)}
+                                </div>
+                                <p className="text-sm text-slate-500">Valuación de Mercado</p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-gradient-to-br from-blue-950/40 to-slate-900 border-blue-500/20 text-center flex flex-col items-center justify-center">
+                            <CardHeader className="pb-2 flex flex-col items-center">
+                                <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
+                                    <HandCoins size={18} /> Resultado Realizado
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-col items-center">
+                                <div className={`text-3xl font-bold mb-1 ${stats.pnl.realized >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                                    {formatMoney(stats.pnl.realized)}
+                                </div>
+                                <p className="text-sm text-slate-500">Ganancia/Pérdida Cerrada</p>
+                            </CardContent>
+                        </Card>
+                    </>
+                )}
             </div>
+
+            {/* ROW 1.5: Bank Composition (New Row if Bank is enabled) */}
+            {shouldShow('bank') && stats.bankComposition && stats.bankComposition.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card className="bg-slate-950 border-slate-800">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-white">Composición Bancaria</CardTitle>
+                            <CardDescription className="text-slate-400">Distribución de Activos en Banco</CardDescription>
+                        </CardHeader>
+                        <CardContent className="h-[250px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={stats.bankComposition}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {stats.bankComposition.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#10b981' : '#059669'} stroke="rgba(0,0,0,0)" />
+                                        ))}
+                                        {showValues && <Tooltip formatter={(value: number) => formatMoney(value)} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }} />}
+                                        {showValues && <Legend />}
+                                    </Pie>
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
 
             {/* ROW 2: Upcoming Events (5 Cards) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
