@@ -104,9 +104,9 @@ export async function generateContractCashflows(contract: ContractData) {
         const currentTC = getTCForDate(tcMap, paymentDate);
         const tcClosing = getTCClosingMonth(tcMap, paymentDate);
 
-        if (contract.currency === 'ARS') {
-            ipcMonthly = currentIPC;
+        ipcMonthly = currentIPC;
 
+        if (contract.currency === 'ARS') {
             if (contract.adjustmentType === 'IPC') {
                 if (m === 0) {
                     amountARS = contract.initialRent;
@@ -135,6 +135,18 @@ export async function generateContractCashflows(contract: ContractData) {
         } else if (contract.currency === 'USD') {
             amountUSD = contract.initialRent;
             amountARS = currentTC > 0 ? amountUSD * currentTC : 0;
+
+            // Calculate IPC Accum for display purposes even if not used for adjustment
+            if (isAdjustmentMonth) {
+                const adjustmentStartMonth = m - contract.adjustmentFrequency;
+                let ipcProduct = 1;
+                for (let k = 0; k < contract.adjustmentFrequency; k++) {
+                    const monthDate = addMonths(new Date(contract.startDate), adjustmentStartMonth + k);
+                    const monthIPC = getIPCForMonth(ipcMap, monthDate);
+                    ipcProduct *= (1 + monthIPC);
+                }
+                ipcAccumulated = ipcProduct - 1;
+            }
         }
 
         let inflationAccum: number | null = null;
