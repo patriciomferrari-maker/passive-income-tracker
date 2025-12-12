@@ -8,6 +8,7 @@ interface InvestmentOption {
     ticker: string;
     name: string;
     currency?: string;
+    type?: string;
 }
 
 interface TransactionData {
@@ -35,6 +36,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
     const [price, setPrice] = useState('');
     const [commission, setCommission] = useState('0');
     const [txCurrency, setTxCurrency] = useState<'ARS' | 'USD'>('ARS');
+    const [filterType, setFilterType] = useState('ALL');
     const [submitting, setSubmitting] = useState(false);
 
     const [loading, setLoading] = useState(false);
@@ -141,7 +143,27 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300">Activo / ON</label>
+                            <label className="text-sm font-medium text-slate-300">Tipo de Activo</label>
+                            <select
+                                className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white mb-4"
+                                disabled={!!initialData}
+                                onChange={(e) => {
+                                    // Reset selected ON when type changes
+                                    setSelectedON('');
+                                    // Filter logic handled in render or derived state?
+                                    // Better to just store the type filter state
+                                    setFilterType(e.target.value);
+                                }}
+                                value={filterType}
+                            >
+                                <option value="ALL">Todos</option>
+                                <option value="ON">Obligaciones Negociables</option>
+                                <option value="CEDEAR">CEDEARs</option>
+                                <option value="ETF">ETFs</option>
+                                <option value="TREASURY">Bonos Tesoro (USA)</option>
+                            </select>
+
+                            <label className="text-sm font-medium text-slate-300">Activo / Ticker</label>
                             <select
                                 required
                                 disabled={!!initialData} // Disable changing asset on edit
@@ -150,11 +172,14 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                                 className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white disabled:opacity-50"
                             >
                                 <option value="">Seleccionar...</option>
-                                {assets.map(asset => (
-                                    <option key={asset.id} value={asset.id}>
-                                        {asset.ticker} - {asset.name}
-                                    </option>
-                                ))}
+                                {assets
+                                    .filter(a => filterType === 'ALL' || (a.type === filterType) || (filterType === 'ON' && !a.type)) // Default to ON if no type? Or loose match
+                                    .sort((a, b) => a.ticker.localeCompare(b.ticker))
+                                    .map(asset => (
+                                        <option key={asset.id} value={asset.id}>
+                                            {asset.ticker} - {asset.name}
+                                        </option>
+                                    ))}
                             </select>
                         </div>
 

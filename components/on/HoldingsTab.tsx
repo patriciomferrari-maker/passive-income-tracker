@@ -26,6 +26,7 @@ export function HoldingsTab() {
 
     // Fetch assets for the modal
     useEffect(() => {
+        // Fetch Assets
         fetch('/api/investments/on?market=ARG')
             .then(res => res.json())
             .then(data => {
@@ -38,6 +39,12 @@ export function HoldingsTab() {
                 setAssets(formatted);
             })
             .catch(err => console.error('Error fetching assets:', err));
+
+        // Auto-Sync Prices (Optimistic, don't block render)
+        fetch('/api/investments/sync', { method: 'POST' })
+            .then(() => setRefreshTrigger(prev => prev + 1))
+            .catch(err => console.error('Error syncing prices:', err));
+
     }, []);
 
     const handleEditPosition = (positionId: string) => {
