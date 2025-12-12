@@ -168,12 +168,12 @@ export function GlobalDashboardTab() {
     // So "Projected" chart is Financial Only currently.
     // I will proceed with Frontend assuming Projected is Financial Only for now.
 
-    const historyData = showValues ? stats.history : [];
-    const compositionData = showValues ? stats.composition.filter(filterComposition) : [{ name: 'Oculto', value: 1, fill: '#1e293b' }];
-    const portfolioDistData = showValues ? stats.portfolioDistribution : [{ name: 'Oculto', value: 1 }];
-    const projectedData = showValues ? stats.projected : [];
+    const historyData = showValues ? (stats.history || []) : [];
+    const compositionData = showValues ? (stats.composition || []).filter(filterComposition) : [{ name: 'Oculto', value: 1, fill: '#1e293b' }];
+    const portfolioDistData = showValues ? (stats.portfolioDistribution || []) : [{ name: 'Oculto', value: 1 }];
+    const projectedData = showValues ? (stats.projected || []) : [];
 
-    const debtDetails = showValues && shouldShow('debts') ? stats.debtDetails : [];
+    const debtDetails = showValues && shouldShow('debts') ? (stats.debtDetails || []) : [];
 
     const renderTotalLabel = (props: any) => {
         const { x, y, width, value } = props;
