@@ -206,9 +206,11 @@ export async function GET() {
             totalUnrealizedGL += unrealized;
         });
 
-        const portfolioDistribution = Array.from(portfolioMap.entries())
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value);
+        // Merge Bank Composition into Portfolio Distribution
+        const portfolioDistribution = [
+            ...Array.from(portfolioMap.entries()).map(([name, value]) => ({ name, value })),
+            ...Array.from(bankCompositionMap.entries()).map(([name, value]) => ({ name, value }))
+        ].sort((a, b) => b.value - a.value);
 
         // --- BANK COMPOSITION ---
         const bankOperations = await prisma.bankOperation.findMany({
