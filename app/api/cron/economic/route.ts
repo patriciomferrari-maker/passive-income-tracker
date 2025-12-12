@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { scrapeInflationData } from '@/app/lib/scrapers/inflation';
 import { scrapeDolarBlue } from '@/app/lib/scrapers/dolar';
 import { updateONs } from '@/app/lib/market-data';
+import { regenerateAllCashflows } from '@/lib/rentals';
 
 // Cron jobs should be protected or use a secret key in production, 
 // but for this Vercel setup with 'crons' config, it's open to the scheduler.
@@ -29,6 +30,24 @@ export async function GET(request: Request) {
             });
             ipcCount++;
         }
+
+        // SYNC WITH EconomicIndicator (Required for Rentals)
+        for (const item of ipcData) {
+            const date = new Date(item.year, item.month - 1, 1);
+            date.setUTCHours(12, 0, 0, 0); // Noon UTC
+
+            await prisma.economicIndicator.upsert({
+                where: { type_date: { type: 'IPC', date } },
+                update: { value: item.value },
+                create: { type: 'IPC', date, value: item.value }
+            });
+        }
+
+        if (ipcCount > 0) {
+            // Trigger Regeneration of Rental Cashflows
+            await regenerateAllCashflows();
+        }
+
         results.ipc = { status: 'success', count: ipcCount, error: null };
     } catch (e) {
         results.ipc = { status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e) };

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { regenerateAllCashflows } from '@/lib/rentals';
 
 export async function GET() {
     try {
@@ -50,6 +51,8 @@ export async function POST(request: Request) {
 
             const results = await prisma.$transaction(operations);
 
+            await regenerateAllCashflows();
+
             return NextResponse.json({ created: results.length, message: `Processed ${results.length} records` });
         } else {
             // Single entry
@@ -69,6 +72,8 @@ export async function POST(request: Request) {
                     value: parseFloat(value)
                 }
             });
+
+            await regenerateAllCashflows();
 
             return NextResponse.json(indicator);
         }

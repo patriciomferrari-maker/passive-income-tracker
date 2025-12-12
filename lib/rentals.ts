@@ -204,3 +204,13 @@ export async function regenerateContractCashflows(contractId: string) {
 
     return cashflows;
 }
+
+export async function regenerateAllCashflows() {
+    const contracts = await prisma.contract.findMany();
+    let count = 0;
+    for (const contract of contracts) {
+        await regenerateContractCashflows(contract.id);
+        count++;
+    }
+    return count;
+}
