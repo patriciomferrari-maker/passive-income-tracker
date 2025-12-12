@@ -114,9 +114,25 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
                         <SelectItem value="FCI" className="cursor-pointer hover:bg-slate-800 focus:bg-slate-800 focus:text-white">Fondo Común de Inversión</SelectItem>
                         <SelectItem value="CAJA_SEGURIDAD" className="cursor-pointer hover:bg-slate-800 focus:bg-slate-800 focus:text-white">Caja de Seguridad</SelectItem>
                         <SelectItem value="CAJA_AHORRO" className="cursor-pointer hover:bg-slate-800 focus:bg-slate-800 focus:text-white">Caja de Ahorro</SelectItem>
+                        <SelectItem value="OTRO" className="cursor-pointer hover:bg-slate-800 focus:bg-slate-800 focus:text-white">Otro (Personalizado)</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
+
+            {/* Custom Name for "OTRO" */}
+            {type === 'OTRO' && (
+                <div className="space-y-2">
+                    <Label className="text-white">Nombre de la Inversión</Label>
+                    <Input
+                        type="text"
+                        placeholder="Ej. Caución Bursátil"
+                        value={alias}
+                        onChange={(e) => setAlias(e.target.value)}
+                        required
+                        className="bg-slate-800 border-slate-700 text-white"
+                    />
+                </div>
+            )}
 
             {/* Common Fields */}
             <div className="grid grid-cols-2 gap-4">
