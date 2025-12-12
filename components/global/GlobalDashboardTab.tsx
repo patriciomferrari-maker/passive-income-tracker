@@ -104,6 +104,7 @@ export function GlobalDashboardTab() {
 
     const formatMoney = (amount: number, currency = 'USD') => {
         if (!showValues) return '****';
+        if (amount === undefined || amount === null || isNaN(amount)) return '$0';
         return currency === 'USD'
             ? `$${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
             : `$${amount.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -111,15 +112,21 @@ export function GlobalDashboardTab() {
 
     const formatPercent = (val: number) => {
         if (!showValues) return '****';
+        if (val === undefined || val === null || isNaN(val)) return '0.00%';
         return `${(val * 100).toFixed(2)}%`;
     };
 
     const formatDate = (dateStr: string) => {
         if (!dateStr) return '-';
-        const date = new Date(dateStr);
-        const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-        const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
-        return adjustedDate.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+        try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return '-';
+            const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+            const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+            return adjustedDate.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+        } catch (e) {
+            return '-';
+        }
     };
 
     if (loading) return <div className="text-center py-20 text-slate-400">Cargando dashboard consolidado...</div>;
