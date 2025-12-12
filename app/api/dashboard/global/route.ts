@@ -172,6 +172,7 @@ export async function GET() {
         // 2. Calculate FIFO
         let totalRealizedGL = 0;
         let totalUnrealizedGL = 0;
+        const portfolioMap = new Map<string, number>();
 
         investments.forEach(inv => {
             const currentPrice = pricesMap.get(inv.ticker) || 0;
@@ -191,11 +192,22 @@ export async function GET() {
             totalRealizedGL += result.totalGainAbs;
 
             // Unrealized Gain from open positions (Market Value - Cost Basis)
+            const totalQty = result.openPositions.reduce((sum, pos) => sum + pos.quantity, 0);
+            const marketValue = totalQty * currentPrice;
+
+            if (marketValue > 1) { // Filter out negligible amounts
+                portfolioMap.set(inv.ticker, (portfolioMap.get(inv.ticker) || 0) + marketValue);
+            }
+
             const unrealized = result.openPositions.reduce((sum, pos) => {
                 return sum + ((currentPrice - pos.buyPrice) * pos.quantity);
             }, 0);
             totalUnrealizedGL += unrealized;
         });
+
+        const portfolioDistribution = Array.from(portfolioMap.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
 
         // --- BANK COMPOSITION ---
         const bankOperations = await prisma.bankOperation.findMany({
@@ -471,6 +483,7 @@ export async function GET() {
                 unrealized: totalUnrealizedGL
             },
             bankComposition,
+            portfolioDistribution,
             history,
             composition,
             projected,

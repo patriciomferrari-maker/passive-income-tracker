@@ -53,6 +53,10 @@ interface GlobalStats {
         value: number;
         fill: string;
     }[];
+    portfolioDistribution?: {
+        name: string;
+        value: number;
+    }[];
     debug?: { userId: string, raw: string | null };
 }
 
@@ -278,9 +282,10 @@ export function GlobalDashboardTab() {
                 )}
             </div>
 
-            {/* ROW 1.5: Bank Composition (New Row if Bank is enabled) */}
-            {shouldShow('bank') && stats.bankComposition && stats.bankComposition.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* ROW 1.5: Compositions (Bank & Market) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Bank Composition */}
+                {shouldShow('bank') && stats.bankComposition && stats.bankComposition.length > 0 && (
                     <Card className="bg-slate-950 border-slate-800">
                         <CardHeader className="text-center">
                             <CardTitle className="text-white">Composición Bancaria</CardTitle>
@@ -308,8 +313,39 @@ export function GlobalDashboardTab() {
                             </ResponsiveContainer>
                         </CardContent>
                     </Card>
-                </div>
-            )}
+                )}
+
+                {/* Portfolio Composition (Market) */}
+                {(shouldShow('on') || shouldShow('treasury')) && stats.portfolioDistribution && stats.portfolioDistribution.length > 0 && (
+                    <Card className="bg-slate-950 border-slate-800">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-white">Composición del Portfolio</CardTitle>
+                            <CardDescription className="text-slate-400">Distribución por Activo</CardDescription>
+                        </CardHeader>
+                        <CardContent className="h-[250px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={stats.portfolioDistribution}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {stats.portfolioDistribution.map((entry, index) => (
+                                            <Cell key={`cell-p-${index}`} fill={`hsl(${210 + (index * 40)}, 80%, 60%)`} stroke="rgba(0,0,0,0)" />
+                                        ))}
+                                        {showValues && <Tooltip formatter={(value: number) => formatMoney(value)} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }} />}
+                                        {showValues && <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px' }} />}
+                                    </Pie>
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
 
             {/* ROW 2: Upcoming Events (5 Cards) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
