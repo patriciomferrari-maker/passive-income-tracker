@@ -122,8 +122,11 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
     const unrealizedPercent = totalCostUnrealized !== 0 ? (totalUnrealized / totalCostUnrealized) * 100 : 0;
 
     // Only show P&L cards if there are Equity assets (CEDEAR, ETF, etc.)
-    // If only ONs are present (or nothing), hide these cards as they are typically yield-based.
-    const hasEquityAssets = positions.some(p => ['CEDEAR', 'ETF', 'EQUITY', 'STOCK'].includes(p.type || ''));
+    // Logic inverted: Show if there is ANY asset that is NOT a Bond (ON/TREASURY)
+    const hasEquityAssets = positions.some(p => {
+        const t = (p.type || '').toUpperCase();
+        return !['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(t);
+    });
 
     return (
         <div className="mt-8 space-y-4">
