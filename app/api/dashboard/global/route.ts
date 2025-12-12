@@ -196,7 +196,8 @@ export async function GET() {
             const marketValue = totalQty * currentPrice;
 
             if (marketValue > 1) { // Filter out negligible amounts
-                portfolioMap.set(inv.ticker, (portfolioMap.get(inv.ticker) || 0) + marketValue);
+                const type = inv.type || 'OTRO';
+                portfolioMap.set(type, (portfolioMap.get(type) || 0) + marketValue);
             }
 
             const unrealized = result.openPositions.reduce((sum, pos) => {

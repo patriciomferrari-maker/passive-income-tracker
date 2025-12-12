@@ -265,19 +265,21 @@ export function GlobalDashboardTab() {
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-gradient-to-br from-blue-950/40 to-slate-900 border-blue-500/20 text-center flex flex-col items-center justify-center">
-                            <CardHeader className="pb-2 flex flex-col items-center">
-                                <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
-                                    <HandCoins size={18} /> Resultado Realizado
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex flex-col items-center">
-                                <div className={`text-3xl font-bold mb-1 ${stats.pnl.realized >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
-                                    {formatMoney(stats.pnl.realized)}
-                                </div>
-                                <p className="text-sm text-slate-500">Ganancia/Pérdida Cerrada</p>
-                            </CardContent>
-                        </Card>
+                        {stats.pnl.realized !== 0 && (
+                            <Card className="bg-gradient-to-br from-blue-950/40 to-slate-900 border-blue-500/20 text-center flex flex-col items-center justify-center">
+                                <CardHeader className="pb-2 flex flex-col items-center">
+                                    <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
+                                        <HandCoins size={18} /> Resultado Realizado
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex flex-col items-center">
+                                    <div className={`text-3xl font-bold mb-1 ${stats.pnl.realized >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                                        {formatMoney(stats.pnl.realized)}
+                                    </div>
+                                    <p className="text-sm text-slate-500">Ganancia/Pérdida Cerrada</p>
+                                </CardContent>
+                            </Card>
+                        )}
                     </>
                 )}
             </div>
@@ -315,36 +317,7 @@ export function GlobalDashboardTab() {
                     </Card>
                 )}
 
-                {/* Portfolio Composition (Market) */}
-                {(shouldShow('on') || shouldShow('treasury')) && stats.portfolioDistribution && stats.portfolioDistribution.length > 0 && (
-                    <Card className="bg-slate-950 border-slate-800">
-                        <CardHeader className="text-center">
-                            <CardTitle className="text-white">Composición del Portfolio</CardTitle>
-                            <CardDescription className="text-slate-400">Distribución por Activo</CardDescription>
-                        </CardHeader>
-                        <CardContent className="h-[250px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={stats.portfolioDistribution}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {stats.portfolioDistribution.map((entry, index) => (
-                                            <Cell key={`cell-p-${index}`} fill={`hsl(${210 + (index * 40)}, 80%, 60%)`} stroke="rgba(0,0,0,0)" />
-                                        ))}
-                                        {showValues && <Tooltip formatter={(value: number) => formatMoney(value)} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }} />}
-                                        {showValues && <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px' }} />}
-                                    </Pie>
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
-                )}
+                {/* Portfolio Composition (Market) - MOVED TO BOTTOM */}
             </div>
 
             {/* ROW 2: Upcoming Events (5 Cards) */}
@@ -529,8 +502,9 @@ export function GlobalDashboardTab() {
                                     <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} hide={!showValues} />
                                     {showValues && <Tooltip
                                         cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px' }}
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#fff' }}
                                         formatter={(value: number) => formatMoney(value)}
+                                        itemStyle={{ color: '#fff' }}
                                     />}
                                     {showValues && <Legend />}
                                     {shouldShow('on') && <Bar dataKey="ON" stackId="a" fill="#0ea5e9" name="ONs" />}
@@ -576,7 +550,11 @@ export function GlobalDashboardTab() {
                                             fontWeight="bold"
                                         />
                                     </Pie>
-                                    {showValues && <Tooltip formatter={(value: number) => formatMoney(value)} />}
+                                    {showValues && <Tooltip
+                                        formatter={(value: number) => formatMoney(value)}
+                                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
+                                        itemStyle={{ color: '#fff' }}
+                                    />}
                                     {showValues && <Legend formatter={(value, entry: any) => {
                                         const { payload } = entry;
                                         const percent = (payload.value / stats.summary.totalMonthlyIncome * 100).toFixed(0);
@@ -589,68 +567,113 @@ export function GlobalDashboardTab() {
                 )}
             </div>
 
-            {/* ROW 4: Projections + Debts */}
-            <div className={`grid grid-cols-1 ${shouldShow('debts') ? 'lg:grid-cols-2' : ''} gap-6`}>
-                {stats.projected.some(p => p.total > 0) && (
+            {/* ROW 4: Projections + Debts + Portfolio Distribution (Bottom) */}
+            <div className="grid grid-cols-1 gap-6">
+                <div className={`grid grid-cols-1 ${shouldShow('debts') ? 'lg:grid-cols-2' : ''} gap-6`}>
+                    {stats.projected.some(p => p.total > 0) && (
+                        <Card className="bg-slate-950 border-slate-800">
+                            <CardHeader className="text-center">
+                                <CardTitle className="text-white">Proyección 12 Meses</CardTitle>
+                                <CardDescription className="text-slate-400">Capital vs Intereses</CardDescription>
+                            </CardHeader>
+                            <CardContent className="h-[350px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={projectedData} margin={{ top: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                                        <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide={!showValues} />
+                                        <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} hide={!showValues} />
+                                        {showValues && <Tooltip
+                                            cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                                            contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#fff' }}
+                                            formatter={(value: number) => formatMoney(value)}
+                                            itemStyle={{ color: '#fff' }}
+                                        />}
+                                        {showValues && <Legend />}
+                                        <Bar dataKey="Interest" stackId="a" fill="#0ea5e9" name="Interés" />
+                                        <Bar dataKey="BankInterest" stackId="a" fill="#f59e0b" name="Int. Plazo Fijo" />
+                                        <Bar dataKey="Capital" stackId="a" fill="#10b981" name="Capital">
+                                            <LabelList dataKey="total" content={renderTotalLabel} />
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {shouldShow('debts') && debtDetails.length > 0 && (
+                        <Card className="bg-slate-950 border-slate-800 overflow-y-auto custom-scrollbar">
+                            <CardHeader className="text-center">
+                                <CardTitle className="text-white">Estado de Deudas</CardTitle>
+                                <CardDescription className="text-slate-400">Progreso de cobro por deudor</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                {debtDetails.map((d, index) => (
+                                    <div key={index} className="space-y-2">
+                                        <span className="text-white font-medium block text-lg">{d.name}</span>
+                                        {showValues && (
+                                            <div className="relative h-8 w-full bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
+                                                <div
+                                                    className="absolute top-0 left-0 h-full bg-emerald-600 flex items-center justify-start pl-2"
+                                                    style={{ width: `${(d.paid / d.total) * 100}%` }}
+                                                >
+                                                    {d.paid > 0 && (
+                                                        <span className="text-white font-bold text-xs whitespace-nowrap drop-shadow-md">
+                                                            Pagado {formatMoney(d.paid)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="absolute top-0 right-0 h-full flex items-center pr-2">
+                                                    <span className="text-red-400 font-bold text-xs whitespace-nowrap">
+                                                        Faltan {formatMoney(d.pending)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+
+                {/* Portfolio Composition (Market) - Bottom Row */}
+                {(shouldShow('on') || shouldShow('treasury')) && stats.portfolioDistribution && stats.portfolioDistribution.length > 0 && (
                     <Card className="bg-slate-950 border-slate-800">
                         <CardHeader className="text-center">
-                            <CardTitle className="text-white">Proyección 12 Meses</CardTitle>
-                            <CardDescription className="text-slate-400">Capital vs Intereses</CardDescription>
+                            <CardTitle className="text-white">Composición del Portfolio</CardTitle>
+                            <CardDescription className="text-slate-400">Distribución por Tipo de Activo</CardDescription>
                         </CardHeader>
-                        <CardContent className="h-[350px]">
+                        <CardContent className="h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={projectedData} margin={{ top: 20 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                                    <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide={!showValues} />
-                                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} hide={!showValues} />
-                                    {showValues && <Tooltip
-                                        cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px' }}
-                                        formatter={(value: number) => formatMoney(value)}
-                                    />}
-                                    {showValues && <Legend />}
-                                    <Bar dataKey="Interest" stackId="a" fill="#0ea5e9" name="Interés" />
-                                    <Bar dataKey="BankInterest" stackId="a" fill="#f59e0b" name="Int. Plazo Fijo" />
-                                    <Bar dataKey="Capital" stackId="a" fill="#10b981" name="Capital">
-                                        <LabelList dataKey="total" content={renderTotalLabel} />
-                                    </Bar>
-                                </BarChart>
+                                <PieChart>
+                                    <Pie
+                                        data={stats.portfolioDistribution}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={90}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {stats.portfolioDistribution.map((entry, index) => (
+                                            <Cell key={`cell-p-${index}`} fill={`hsl(${210 + (index * 40)}, 80%, 60%)`} stroke="rgba(0,0,0,0)" />
+                                        ))}
+                                        {showValues && <Tooltip
+                                            formatter={(value: number) => formatMoney(value)}
+                                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
+                                            itemStyle={{ color: '#fff' }}
+                                        />}
+                                        {showValues && <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '14px', color: '#fff' }} />}
+                                        {/* Added LabelList for visibility on chart segments */}
+                                        <LabelList
+                                            dataKey="name"
+                                            position="outside"
+                                            style={{ fill: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                                            stroke="none"
+                                        />
+                                    </Pie>
+                                </PieChart>
                             </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {shouldShow('debts') && debtDetails.length > 0 && (
-                    <Card className="bg-slate-950 border-slate-800 overflow-y-auto custom-scrollbar">
-                        <CardHeader className="text-center">
-                            <CardTitle className="text-white">Estado de Deudas</CardTitle>
-                            <CardDescription className="text-slate-400">Progreso de cobro por deudor</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {debtDetails.map((d, index) => (
-                                <div key={index} className="space-y-2">
-                                    <span className="text-white font-medium block text-lg">{d.name}</span>
-                                    {showValues && (
-                                        <div className="relative h-8 w-full bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
-                                            <div
-                                                className="absolute top-0 left-0 h-full bg-emerald-600 flex items-center justify-start pl-2"
-                                                style={{ width: `${(d.paid / d.total) * 100}%` }}
-                                            >
-                                                {d.paid > 0 && (
-                                                    <span className="text-white font-bold text-xs whitespace-nowrap drop-shadow-md">
-                                                        Pagado {formatMoney(d.paid)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="absolute top-0 right-0 h-full flex items-center pr-2">
-                                                <span className="text-red-400 font-bold text-xs whitespace-nowrap">
-                                                    Faltan {formatMoney(d.pending)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
                         </CardContent>
                     </Card>
                 )}
