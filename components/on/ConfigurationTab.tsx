@@ -35,7 +35,12 @@ export function ConfigurationTab() {
         try {
             const res = await fetch('/api/investments/on');
             const data = await res.json();
-            setOns(data);
+            setOns(data.sort((a: any, b: any) => {
+                const typeA = a.type || '';
+                const typeB = b.type || '';
+                if (typeA !== typeB) return typeA.localeCompare(typeB);
+                return a.ticker.localeCompare(b.ticker);
+            }));
         } catch (error) {
             console.error('Error loading ONs:', error);
         } finally {
