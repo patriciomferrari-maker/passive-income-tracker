@@ -452,7 +452,7 @@ export function GlobalDashboardTab() {
                                 <BarChart data={projectedData} margin={{ top: 20 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
                                     <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide={!showValues} />
-                                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} hide={!showValues} />
+                                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} hide={!showValues} scale="sqrt" />
                                     {showValues && <Tooltip
                                         cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
                                         contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#fff' }}

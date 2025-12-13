@@ -136,13 +136,7 @@ export function ConsolidatedCashflowTab() {
                                     style={{ fill: '#e2e8f0', fontSize: '11px' }}
                                     hide={!showValues}
                                 />
-                                <YAxis
-                                    stroke="#94a3b8"
-                                    tickFormatter={(value) => `$${value.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-                                    scale="sqrt"
-                                    domain={['auto', 'auto']}
-                                    hide={!showValues}
-                                />
+                                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} width={60} scale="sqrt" />
                                 <Tooltip
                                     contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
                                     itemStyle={{ color: '#e2e8f0' }}
