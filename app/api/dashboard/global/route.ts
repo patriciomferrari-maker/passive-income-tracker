@@ -167,15 +167,30 @@ export async function GET() {
         // 1. Get Prices
         const tickers = [...new Set(investments.map(i => i.ticker).filter(t => t))];
         const recentPrices = await getLatestPrices(tickers);
-        const pricesMap = new Map<string, number>(recentPrices.map(p => [p.ticker, p.price]));
+        const pricesMap = new Map<string, { price: number, currency: string }>(recentPrices.map(p => [p.ticker, { price: p.price, currency: p.currency }]));
 
         // 2. Calculate FIFO
         let totalRealizedGL = 0;
         let totalUnrealizedGL = 0;
         const portfolioMap = new Map<string, number>();
 
+        // Fetch Exchange Rate (USD Blue / MEP) for conversion
+        const usdRate = await prisma.economicIndicator.findFirst({
+            where: { type: 'USD_BLUE' }, // Or 'USD_MEP'
+            orderBy: { date: 'desc' }
+        });
+        const exchangeRate = usdRate?.value || 1100; // Fallback if missing
+
         investments.forEach(inv => {
-            const currentPrice = pricesMap.get(inv.ticker) || 0;
+            const priceInfo = pricesMap.get(inv.ticker);
+            let currentPrice = priceInfo?.price || 0;
+            const currency = priceInfo?.currency || 'USD';
+
+            // Convert ARS Price to USD if necessary
+            if (currency === 'ARS') {
+                currentPrice = currentPrice / exchangeRate;
+            }
+
             // Cast transactions to match FIFOTransaction type
             const fifoTransactions: FIFOTransaction[] = inv.transactions.map(tx => ({
                 date: tx.date,
@@ -209,10 +224,13 @@ export async function GET() {
                 portfolioMap.set(type, (portfolioMap.get(type) || 0) + effectiveMarketValue);
             }
 
-            const unrealized = result.openPositions.reduce((sum, pos) => {
-                return sum + ((currentPrice - pos.buyPrice) * pos.quantity);
-            }, 0);
-            totalUnrealizedGL += unrealized;
+            // Exclude ON and TREASURY from Unrealized P&L as requested
+            if (inv.type !== 'ON' && inv.type !== 'TREASURY') {
+                const unrealized = result.openPositions.reduce((sum, pos) => {
+                    return sum + ((currentPrice - pos.buyPrice) * pos.quantity);
+                }, 0);
+                totalUnrealizedGL += unrealized;
+            }
         });
 
         // --- BANK COMPOSITION ---

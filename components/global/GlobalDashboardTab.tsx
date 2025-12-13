@@ -462,8 +462,7 @@ export function GlobalDashboardTab() {
                                         axisLine={false}
                                         tickFormatter={(value) => `$${value}`}
                                         hide={!showValues}
-                                        scale="log"
-                                        domain={['auto', 'auto']}
+                                        scale="sqrt"
                                     />
                                     {showValues && <Tooltip
                                         cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
