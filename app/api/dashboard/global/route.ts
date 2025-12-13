@@ -186,15 +186,18 @@ export async function GET() {
             let currentPrice = priceInfo?.price || 0;
             const currency = priceInfo?.currency || 'USD';
 
-            // Heuristic: If Price is > 200 and labeled USD, it's likely ARS (Data Error from Source like IOL)
-            // ONs usually trade near 1.0 or 100.0 USD. Prices like 4000 are definitely ARS.
-            if (currency === 'USD' && currentPrice > 200) {
+            // Heuristic 1: Detect ARS disguised as USD or just plain ARS
+            // If Price > 400 (even distressed bonds are rarely > 200% parity), it is ARS.
+            if (currency === 'ARS' || (currency === 'USD' && currentPrice > 400)) {
                 currentPrice = currentPrice / exchangeRate;
+                // We don't change 'currency' var effectively, but we treated it.
             }
 
-            // Convert ARS Price to USD if necessary
-            if (currency === 'ARS') {
-                currentPrice = currentPrice / exchangeRate;
+            // Heuristic 2: Detect Percentage Quotation for ONs
+            // If Price is still > 2.0 (i.e. > 200% parity), and it's an ON, it's likely a percentage (e.g. 98.50)
+            // We need to normalize to per-unit factor (0.985)
+            if (inv.type === 'ON' && currentPrice > 2.0) {
+                currentPrice = currentPrice / 100;
             }
 
             // Cast transactions to match FIFOTransaction type
