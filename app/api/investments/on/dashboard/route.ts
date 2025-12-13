@@ -194,12 +194,51 @@ export async function GET() {
 
       const tir = calculateXIRR(amounts, dates);
 
+      // Calculate Theoretical TIR (market-based)
+      let theoreticalTir: number | null = null;
+      let currentPrice = priceMap[inv.id] || inv.lastPrice || 0;
+
+      // Apply same price normalization as positions API
+      if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND') {
+        if (currentPrice > 2.0) currentPrice = currentPrice / 100;
+      }
+
+      if (currentPrice > 0) {
+        // Calculate total holding from open positions (using FIFO)
+        const fifoTxs = inv.transactions.map(t => ({
+          id: t.id,
+          date: t.date,
+          type: t.type as 'BUY' | 'SELL',
+          quantity: t.quantity,
+          price: t.price,
+          commission: t.commission,
+          currency: t.currency
+        }));
+        const fifoResult = calculateFIFO(fifoTxs, inv.ticker);
+        const totalHolding = fifoResult.openPositions.reduce((s, p) => s + p.quantity, 0);
+
+        if (totalHolding > 0) {
+          const marketValue = totalHolding * currentPrice;
+          const flows = [-marketValue];
+          const flowDates = [new Date()];
+
+          inv.cashflows.forEach(cf => {
+            flows.push(cf.amount);
+            flowDates.push(new Date(cf.date));
+          });
+
+          const marketTir = calculateXIRR(flows, flowDates);
+          if (marketTir) theoreticalTir = marketTir * 100;
+        }
+      }
+
       return {
         ticker: inv.ticker,
         name: inv.name,
         invested,
         percentage: capitalInvertido > 0 ? (invested / capitalInvertido) * 100 : 0,
         tir: tir ? tir * 100 : 0,
+        theoreticalTir: theoreticalTir,
         type: inv.type
       };
     }).filter(item => item.invested > 0);

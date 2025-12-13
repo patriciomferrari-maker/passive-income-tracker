@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { TrendingUp, DollarSign, Calendar, Percent, PieChart, Wallet, ArrowUpRight, ArrowDownRight, Eye, EyeOff, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LabelList } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LabelList, Scatter, ScatterChart, ZAxis, Line, LineChart } from 'recharts';
 
 interface DashboardData {
     capitalInvertido: number;
@@ -36,6 +36,7 @@ interface DashboardData {
         invested: number;
         percentage: number;
         tir: number;
+        theoreticalTir?: number | null;
         type?: string;
     }>;
     totalONs: number;
@@ -139,14 +140,17 @@ export function DashboardTab() {
     // If hidden, show empty array for Bar Chart (empty axes)
     const chartDataArray = showValues ? Object.values(chartData).slice(0, 12) : [];
 
-    // Prepare TIR chart data (Only for ONs/Bonds)
+    // Prepare TIR chart data (Only for ONs/Bonds) - Lollipop format
     const tirChartData = showValues ? data.portfolioBreakdown
         .filter(item => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(item.type || ''))
         .map(item => ({
             ticker: item.ticker,
-            tir: item.tir
+            purchaseTir: item.tir,
+            marketTir: item.theoreticalTir || 0,
+            diff: item.tir - (item.theoreticalTir || 0),
+            better: item.tir > (item.theoreticalTir || 0)
         }))
-        .sort((a, b) => b.tir - a.tir) : [];
+        .sort((a, b) => b.purchaseTir - a.purchaseTir) : [];
 
     // Pie visualization data
     const pieChartData = showValues ? data.portfolioBreakdown : [{ ticker: 'Oculto', invested: 1, percentage: 100, tir: 0 }];
@@ -459,54 +463,102 @@ export function DashboardTab() {
                 </div>
             )}
 
-            {/* Charts Row 2: TIR */}
+            {/* Charts Row 2: TIR Comparison (Lollipop) */}
             {tirChartData.length > 0 && (
                 <div className="grid grid-cols-1 gap-6">
                     <Card className={cardClass}>
                         <CardHeader>
                             <CardTitle className="text-white flex items-center gap-2">
                                 <Percent className="h-5 w-5" />
-                                TIR por Obligación Negociable
+                                TIR: Compra vs Mercado
                             </CardTitle>
                             <CardDescription className="text-slate-300">
-                                Tasa Interna de Retorno estimada para cada inversión
+                                Comparación entre tu TIR de compra y la TIR actual del mercado
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="h-[300px] w-full">
+                            <div className="h-[400px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={tirChartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" horizontal={false} />
+                                    <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" vertical={false} />
                                         <XAxis
+                                            type="category"
+                                            dataKey="ticker"
+                                            allowDuplicatedCategory={false}
+                                            stroke="#e2e8f0"
+                                            style={{ fontSize: '12px', fontWeight: 'bold' }}
+                                        />
+                                        <YAxis
                                             type="number"
                                             stroke="#94a3b8"
                                             tickFormatter={(value) => `${value}%`}
                                             domain={[0, 'auto']}
                                             hide={!showValues}
                                         />
-                                        <YAxis
-                                            dataKey="ticker"
-                                            type="category"
-                                            stroke="#e2e8f0"
-                                            width={60}
-                                            style={{ fontSize: '12px', fontWeight: 'bold' }}
-                                        />
+                                        <ZAxis range={[100, 100]} />
                                         <Tooltip
                                             contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
                                             itemStyle={{ color: '#e2e8f0' }}
-                                            formatter={(value: number) => [showValues ? `${value.toFixed(2)}%` : '****', 'TIR']}
-                                            cursor={{ fill: '#ffffff10' }}
+                                            formatter={(value: number, name: string) => {
+                                                if (!showValues) return ['****', name];
+                                                const label = name === 'purchaseTir' ? 'Tu TIR' : 'TIR Mercado';
+                                                return [`${value.toFixed(2)}%`, label];
+                                            }}
+                                            cursor={{ strokeDasharray: '3 3' }}
                                         />
-                                        <Bar dataKey="tir" fill="#8b5cf6" radius={[0, 4, 4, 0]}>
-                                            <LabelList
-                                                dataKey="tir"
-                                                position="right"
-                                                formatter={(value: any) => showValues ? `${Number(value).toFixed(2)}%` : ''}
-                                                style={{ fill: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                                        {/* Purchase TIR Points (Green) */}
+                                        <Scatter
+                                            name="purchaseTir"
+                                            data={tirChartData}
+                                            fill="#10b981"
+                                            shape="circle"
+                                            dataKey="purchaseTir"
+                                        />
+                                        {/* Market TIR Points (Purple) */}
+                                        <Scatter
+                                            name="marketTir"
+                                            data={tirChartData}
+                                            fill="#8b5cf6"
+                                            shape="diamond"
+                                            dataKey="marketTir"
+                                        />
+                                        {/* Connecting Lines */}
+                                        {tirChartData.map((item, index) => (
+                                            <Line
+                                                key={`line-${index}`}
+                                                type="monotone"
+                                                dataKey="value"
+                                                data={[
+                                                    { ticker: item.ticker, value: item.marketTir },
+                                                    { ticker: item.ticker, value: item.purchaseTir }
+                                                ]}
+                                                stroke={item.better ? '#10b981' : '#ef4444'}
+                                                strokeWidth={3}
+                                                dot={false}
+                                                strokeDasharray="5 5"
                                             />
-                                        </Bar>
-                                    </BarChart>
+                                        ))}
+                                    </ScatterChart>
                                 </ResponsiveContainer>
+                            </div>
+                            {/* Legend */}
+                            <div className="flex items-center justify-center gap-6 mt-4 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-green-500" />
+                                    <span className="text-slate-300">Tu TIR de Compra</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-purple-500" style={{ transform: 'rotate(45deg)' }} />
+                                    <span className="text-slate-300">TIR Mercado Actual</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-0.5 bg-green-500" style={{ borderTop: '2px dashed' }} />
+                                    <span className="text-slate-300">Compraste Mejor</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-0.5 bg-red-500" style={{ borderTop: '2px dashed' }} />
+                                    <span className="text-slate-300">Mercado Mejor</span>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
