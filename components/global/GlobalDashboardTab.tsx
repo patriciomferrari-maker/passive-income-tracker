@@ -24,6 +24,7 @@ interface GlobalStats {
         ON: number;
         Treasury: number;
         Rentals: number;
+        Bank?: number;
     }[];
     composition: {
         name: string;
@@ -35,6 +36,7 @@ interface GlobalStats {
         total: number;
         Capital: number;
         Interest: number;
+        BankInterest?: number;
     }[];
     debtDetails: {
         name: string;
@@ -429,7 +431,7 @@ export function GlobalDashboardTab() {
                                     {shouldShow('on') && <Bar dataKey="ON" stackId="a" fill="#0ea5e9" name="ONs" />}
                                     {shouldShow('treasury') && <Bar dataKey="Treasury" stackId="a" fill="#8b5cf6" name="Treasuries" />}
                                     {shouldShow('rentals') && <Bar dataKey="Rentals" stackId="a" fill="#10b981" name="Alquileres" />}
-                                    {shouldShow('bank') && (
+                                    {shouldShow('bank') && historyData.some(h => (h.Bank || 0) > 0) && (
                                         <Bar dataKey="Bank" stackId="a" fill="#f59e0b" name="Intereses Banco" />
                                     )}
                                 </BarChart>
@@ -459,7 +461,9 @@ export function GlobalDashboardTab() {
                                     />}
                                     {showValues && <Legend />}
                                     <Bar dataKey="Interest" stackId="a" fill="#0ea5e9" name="Interés" />
-                                    <Bar dataKey="BankInterest" stackId="a" fill="#f59e0b" name="Int. Plazo Fijo" />
+                                    {projectedData.some(p => (p.BankInterest || 0) > 0) && (
+                                        <Bar dataKey="BankInterest" stackId="a" fill="#f59e0b" name="Int. Plazo Fijo" />
+                                    )}
                                     <Bar dataKey="Capital" stackId="a" fill="#10b981" name="Capital">
                                         <LabelList dataKey="total" content={renderTotalLabel} />
                                     </Bar>

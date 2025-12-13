@@ -108,17 +108,21 @@ export async function GET() {
                 tir = result ? result * 100 : 0;
             }
 
+            // Calculate Net Quantity to filter out closed positions (e.g., Sold ARKK)
+            const quantity = inv.transactions.reduce((acc, tx) => {
+                return acc + (tx.type === 'BUY' ? tx.quantity : -tx.quantity);
+            }, 0);
+
             return {
                 ticker: inv.ticker,
                 name: inv.name,
                 invested,
                 percentage: capitalInvertido > 0 ? (invested / capitalInvertido) * 100 : 0,
                 tir: tir,
-                type: inv.type
+                type: inv.type,
+                quantity // Return quantity for filtering
             };
-        });
-        // Removed filter to show 0-invested items in breakdown
-        // .filter(item => item.invested > 0);
+        }).filter(item => item.quantity > 0.01); // Filter out items with 0 holdings
 
         // Calculate Consolidated TIR (XIRR) - TREASURIES ONLY
         const allAmounts: number[] = [];

@@ -195,9 +195,18 @@ export async function GET() {
             const totalQty = result.openPositions.reduce((sum, pos) => sum + pos.quantity, 0);
             const marketValue = totalQty * currentPrice;
 
-            if (marketValue > 1) { // Filter out negligible amounts
-                const type = inv.type || 'OTRO';
-                portfolioMap.set(type, (portfolioMap.get(type) || 0) + marketValue);
+            let effectiveMarketValue = marketValue;
+            if (effectiveMarketValue <= 1) {
+                // FALLBACK: If Market Value is 0 (missing price), use Cost Basis
+                const costBasis = result.openPositions.reduce((sum, pos) => sum + (pos.quantity * pos.buyPrice), 0);
+                if (costBasis > 1) {
+                    effectiveMarketValue = costBasis;
+                }
+            }
+
+            if (effectiveMarketValue > 1) { // Filter out negligible amounts
+                const type = inv.type === 'TREASURY' ? 'Treasuries' : (inv.type || 'OTRO');
+                portfolioMap.set(type, (portfolioMap.get(type) || 0) + effectiveMarketValue);
             }
 
             const unrealized = result.openPositions.reduce((sum, pos) => {

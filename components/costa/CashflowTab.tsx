@@ -81,9 +81,14 @@ export function CashflowTab() {
         expenseRows.set(c.name, new Array(columns.length).fill(0));
     });
 
-    const getColumnIndex = (date: Date) => {
+    const getColumnIndex = (date: Date | string) => {
+        // Handle timezone shift: Treat the date string as local or use UTC strictly
         const d = new Date(date);
-        const monthYear = format(d, 'yyyy-MM');
+        // Adjust for timezone offset to keep the same day as server (UTC)
+        const userTimezoneOffset = d.getTimezoneOffset() * 60000;
+        const adjustedDate = new Date(d.getTime() + userTimezoneOffset);
+
+        const monthYear = format(adjustedDate, 'yyyy-MM');
         return columns.findIndex(col => format(col, 'yyyy-MM') === monthYear);
     };
 
