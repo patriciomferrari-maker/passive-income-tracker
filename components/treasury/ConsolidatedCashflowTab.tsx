@@ -137,7 +137,7 @@ export function ConsolidatedCashflowTab() {
                                 <YAxis
                                     stroke="#94a3b8"
                                     tickFormatter={(value) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-                                    scale="sqrt"
+                                    scale="log"
                                     domain={['auto', 'auto']}
                                     hide={!showValues}
                                 />

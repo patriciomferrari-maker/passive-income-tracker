@@ -239,8 +239,11 @@ export function GlobalDashboardTab() {
                 {(shouldShow('on') || shouldShow('treasury')) && stats.pnl && stats.summary.totalInvested > 0 && (
                     <Card className="bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
-                            <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
+                            <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2 group relative cursor-help">
                                 <TrendingUp size={18} /> Resultado No Realizado
+                                <span className="absolute bottom-full mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-xs text-white rounded shadow-lg z-50">
+                                    Diferencia entre el Valor de Mercado actual y el Costo de Inversión (Compras).
+                                </span>
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="flex flex-col items-center">
@@ -452,7 +455,16 @@ export function GlobalDashboardTab() {
                                 <BarChart data={projectedData} margin={{ top: 20 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
                                     <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide={!showValues} />
-                                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} hide={!showValues} scale="sqrt" />
+                                    <YAxis
+                                        stroke="#94a3b8"
+                                        fontSize={12}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={(value) => `$${value}`}
+                                        hide={!showValues}
+                                        scale="log"
+                                        domain={['auto', 'auto']}
+                                    />
                                     {showValues && <Tooltip
                                         cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
                                         contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#fff' }}
@@ -475,13 +487,14 @@ export function GlobalDashboardTab() {
             </div>
 
             {/* ROW 3: Portfolio Composition */}
+            {/* ROW 3: Cost & Income Composition */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Portfolio Composition (Consolidated) */}
+                {/* 1. Portfolio Composition (Assets) */}
                 {(shouldShow('on') || shouldShow('treasury') || shouldShow('bank')) && portfolioDistData && portfolioDistData.length > 0 && (
-                    <Card className="bg-slate-950 border-slate-800 md:col-span-2 lg:col-span-1 lg:col-start-1">
+                    <Card className="bg-slate-950 border-slate-800">
                         <CardHeader className="text-center">
                             <CardTitle className="text-white">Composición de Cartera</CardTitle>
-                            <CardDescription className="text-slate-400">Cartera Argentina + USA + Banco</CardDescription>
+                            <CardDescription className="text-slate-400">Distribución de Activos (Stock)</CardDescription>
                         </CardHeader>
                         <CardContent className="h-[350px]">
                             <ResponsiveContainer width="100%" height="100%">
@@ -502,15 +515,57 @@ export function GlobalDashboardTab() {
                                             value={formatMoney(stats.summary.totalInvested + stats.summary.totalBankUSD)}
                                             position="center"
                                             fill="#fff"
-                                            fontSize={20}
+                                            fontSize={18}
                                             fontWeight="bold"
                                         />
-                                        {showValues && <Tooltip
+                                        <Tooltip
                                             formatter={(value: number) => formatMoney(value)}
                                             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
                                             itemStyle={{ color: '#fff' }}
-                                        />}
-                                        {showValues && <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px', color: '#fff' }} />}
+                                        />
+                                        <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px', color: '#fff', paddingTop: '20px' }} />
+                                    </Pie>
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* 2. Income Composition (Last Month) - RESTORED */}
+                {compositionData && compositionData.length > 0 && (
+                    <Card className="bg-slate-950 border-slate-800">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-white">Composición de Ingresos</CardTitle>
+                            <CardDescription className="text-slate-400">Fuente de Ingresos (Último Mes Reg.)</CardDescription>
+                        </CardHeader>
+                        <CardContent className="h-[350px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={compositionData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={70}
+                                        outerRadius={100}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {compositionData.map((entry, index) => (
+                                            <Cell key={`cell-c-${index}`} fill={entry.fill} stroke="rgba(0,0,0,0)" />
+                                        ))}
+                                        <Label
+                                            value={formatMoney(stats.summary.totalMonthlyIncome)}
+                                            position="center"
+                                            fill="#fff"
+                                            fontSize={18}
+                                            fontWeight="bold"
+                                        />
+                                        <Tooltip
+                                            formatter={(value: number) => formatMoney(value)}
+                                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
+                                            itemStyle={{ color: '#fff' }}
+                                        />
+                                        <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px', color: '#fff', paddingTop: '20px' }} />
                                     </Pie>
                                 </PieChart>
                             </ResponsiveContainer>
