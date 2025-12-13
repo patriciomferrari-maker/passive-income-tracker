@@ -63,6 +63,16 @@ interface GlobalStats {
 }
 
 export function GlobalDashboardTab() {
+    const COLORS: any = {
+        'Cartera Argentina': '#3b82f6',
+        'Cartera USA': '#8b5cf6',
+        'Inversiones Banco': '#f59e0b',
+        'Plazo Fijo': '#4f46e5',
+        'FCI': '#f59e0b',
+        'Caja Ahorro': '#10b981',
+        'Alquileres': '#10b981',
+        'Otro': '#64748b'
+    };
     const [stats, setStats] = useState<GlobalStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [showValues, setShowValues] = useState(true);

@@ -268,24 +268,22 @@ export async function GET() {
             bankCompositionMap.set(type, current + amountUSD);
         });
 
-        // Merge Bank Composition into Portfolio Distribution
-        const portfolioDistribution = [
-            ...Array.from(portfolioMap.entries()).map(([name, value]) => ({ name, value })),
-            ...Array.from(bankCompositionMap.entries()).map(([name, value]) => ({ name, value }))
-        ].sort((a, b) => b.value - a.value);
+        // Aggregate into 3 main categories as requested
+        let valArg = portfolioMap.get('Cartera Argentina') || 0;
+        let valUSA = portfolioMap.get('Cartera USA') || 0;
+        let valBank = 0;
+        bankCompositionMap.forEach(v => valBank += v);
 
-        // DEBUG: Log values to file
-        const fs = require('fs');
-        const debugPath = 'C:\\Users\\patri\\.gemini\\antigravity\\playground\\passive_income_tracker\\public\\debug_log.txt';
-        const logData = `
-Time: ${new Date().toISOString()}
-Exchange Rate: ${exchangeRate}
-Portfolio Map: ${JSON.stringify(Array.from(portfolioMap.entries()), null, 2)}
-Bank Map: ${JSON.stringify(Array.from(bankCompositionMap.entries()), null, 2)}
-Distribution: ${JSON.stringify(portfolioDistribution, null, 2)}
----------------------------------------------------
-`;
-        try { fs.appendFileSync(debugPath, logData); } catch (e) { console.error('Log failed', e); }
+        // Handle 'Other' types if any (add to Arg or keep separate? User asked for 3 specific ones. I'll add 'OTRO' to Arg for safe-keeping or ignore?)
+        // Safer: If it's not USA, it's likely local.
+        const valOther = portfolioMap.get('OTRO') || 0;
+        valArg += valOther;
+
+        const portfolioDistribution = [
+            { name: 'Cartera Argentina', value: valArg },
+            { name: 'Cartera USA', value: valUSA },
+            { name: 'Inversiones Banco', value: valBank }
+        ].filter(i => i.value > 1).sort((a, b) => b.value - a.value);
 
 
 
