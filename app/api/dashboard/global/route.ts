@@ -226,7 +226,16 @@ export async function GET() {
             }
 
             if (effectiveMarketValue > 1) { // Filter out negligible amounts
-                const type = inv.type === 'TREASURY' ? 'Treasuries' : (inv.type || 'OTRO');
+                // Rename Types for Display
+                let type = inv.type || 'OTRO';
+                if (inv.type === 'ON') type = 'Cartera Argentina';
+                if (inv.type === 'TREASURY') type = 'Cartera USA';
+
+                // Sanity Check: If Value is > 1 Million for ONs, it's definitely ARS (even if price was < 200)
+                if (type === 'Cartera Argentina' && effectiveMarketValue > 1000000) {
+                    effectiveMarketValue = effectiveMarketValue / exchangeRate;
+                }
+
                 portfolioMap.set(type, (portfolioMap.get(type) || 0) + effectiveMarketValue);
             }
 
@@ -264,6 +273,19 @@ export async function GET() {
             ...Array.from(portfolioMap.entries()).map(([name, value]) => ({ name, value })),
             ...Array.from(bankCompositionMap.entries()).map(([name, value]) => ({ name, value }))
         ].sort((a, b) => b.value - a.value);
+
+        // DEBUG: Log values to file
+        const fs = require('fs');
+        const debugPath = 'C:\\Users\\patri\\.gemini\\antigravity\\playground\\passive_income_tracker\\public\\debug_log.txt';
+        const logData = `
+Time: ${new Date().toISOString()}
+Exchange Rate: ${exchangeRate}
+Portfolio Map: ${JSON.stringify(Array.from(portfolioMap.entries()), null, 2)}
+Bank Map: ${JSON.stringify(Array.from(bankCompositionMap.entries()), null, 2)}
+Distribution: ${JSON.stringify(portfolioDistribution, null, 2)}
+---------------------------------------------------
+`;
+        try { fs.appendFileSync(debugPath, logData); } catch (e) { console.error('Log failed', e); }
 
 
 
@@ -459,8 +481,8 @@ export async function GET() {
             const lastMonth = history[history.length - 1];
             totalMonthlyIncome = lastMonth.total;
             composition = [
-                { name: 'Obligaciones Negociables', value: lastMonth.ON, fill: '#3b82f6' },
-                { name: 'Treasuries', value: lastMonth.Treasury, fill: '#8b5cf6' },
+                { name: 'Cartera Argentina', value: lastMonth.ON, fill: '#3b82f6' },
+                { name: 'Cartera USA', value: lastMonth.Treasury, fill: '#8b5cf6' },
                 { name: 'Alquileres', value: lastMonth.Rentals, fill: '#10b981' },
                 { name: 'Intereses Banco', value: lastMonth.Bank, fill: '#f59e0b' }
             ].filter(item => item.value > 0);
