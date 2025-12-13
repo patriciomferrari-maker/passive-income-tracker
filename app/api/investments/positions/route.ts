@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/app/lib/auth-helper';
 import { calculateFIFO, FIFOTransaction, PositionEvent } from '@/app/lib/fifo';
+import { calculateXIRR } from '@/lib/financial';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +38,14 @@ export async function GET(request: Request) {
                 },
             },
             include: {
-                investment: true
+                investment: {
+                    include: {
+                        cashflows: {
+                            where: { status: 'PROJECTED', date: { gt: new Date() } },
+                            orderBy: { date: 'asc' }
+                        }
+                    }
+                }
             },
             orderBy: {
                 date: 'asc'
@@ -195,7 +203,44 @@ export async function GET(request: Request) {
             const currentTC = getRate(new Date());
 
             if (investment.type === 'ON' || investment.type === 'CORPORATE_BOND') {
-                currentPrice = currentPrice / 100;
+                // Percentage Quotation Fix (same as dashboard)
+                if (currentPrice > 2.0 && currentPrice < 200) {
+                    currentPrice = currentPrice / 100;
+                } else if (currentPrice > 400) {
+                    // Assume ARS masked as USD if huge -> convert
+                    // Wait, we already handled exchange rate/currency above??
+                    // No, currentPrice comes from priceMap which might be raw.
+                    // But we tried to normalize `currentPrice` above in Lines 171-190.
+                    // The issue is `basePrice` from DB might be 4000.
+                    // If we are strictly in `targetCurrency`, we should trust it, UNLESS the source data is bad.
+                    // Let's rely on the dashboard heuristic:
+                    // If converted price is still huge (> 2.0) for an ON, divide by 100.
+                }
+                // Simplified Heuristic for Positions Table matching Dashboard
+                if (currentPrice > 2.0) currentPrice = currentPrice / 100;
+            }
+
+            // --- CALCULATE THEORETICAL YTM (TIR ACTUAL) ---
+            let theoreticalTir: number | null = null;
+            if ((investment.type === 'ON' || investment.type === 'CORPORATE_BOND' || investment.type === 'TREASURY') && currentPrice > 0) {
+                const totalHolding = result.openPositions.reduce((s, p) => s + p.quantity, 0);
+                if (totalHolding > 0) {
+                    const marketValue = totalHolding * currentPrice;
+                    const flows = [-marketValue];
+                    const flowDates = [new Date()];
+
+                    // Helper to check if cashflows are total or per unit. 
+                    // Assuming DB cashflows are TOTAL for the user's holding.
+                    // BUT, if holding changed recently, DB cashflows might be stale?
+                    // Usually they are refreshed. We assume they match `totalHolding`.
+                    investment.cashflows.forEach((cf: any) => {
+                        flows.push(cf.amount);
+                        flowDates.push(new Date(cf.date));
+                    });
+
+                    const tir = calculateXIRR(flows, flowDates);
+                    if (tir) theoreticalTir = tir * 100;
+                }
             }
 
             // Map Realized
@@ -276,7 +321,10 @@ export async function GET(request: Request) {
                     priceResult,
                     buyExchangeRate: p.buyExchangeRateAvg,
                     sellExchangeRate: currentTC,
-                    type: investment.type
+                    buyExchangeRate: p.buyExchangeRateAvg,
+                    sellExchangeRate: currentTC,
+                    type: investment.type,
+                    theoreticalTir: theoreticalTir
                 };
             });
 

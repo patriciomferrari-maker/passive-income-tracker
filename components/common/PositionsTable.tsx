@@ -16,7 +16,9 @@ interface PositionEvent {
     resultAbs: number;
     resultPercent: number;
     currency: string;
+    currency: string;
     type?: string;
+    theoreticalTir?: number; // New field
 }
 
 interface PositionsTableProps {
@@ -184,6 +186,7 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                 <th className="px-4 py-3 text-right font-medium">Com. Venta</th>
                                 <th className="px-4 py-3 text-right font-medium">Resultado</th>
                                 <th className="px-4 py-3 text-right font-medium">%</th>
+                                <th className="px-4 py-3 text-right font-medium text-xs text-purple-400">TIR Esp.</th>
                                 {currency === 'ARS' && (
                                     <>
                                         <th className="px-4 py-3 text-right font-medium text-xs text-yellow-500">Res. TC</th>
@@ -254,6 +257,10 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                         </td>
                                         <td className={`px-4 py-3 text-right font-medium tabular-nums ${pos.resultPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                             {(pos.sellPrice > 0 || pos.status === 'CLOSED') && pos.resultPercent !== undefined ? `${pos.resultPercent?.toFixed(2)}%` : '-'}
+                                        </td>
+
+                                        <td className="px-4 py-3 text-right font-medium tabular-nums text-purple-400">
+                                            {(pos as any).theoreticalTir ? `${(pos as any).theoreticalTir.toFixed(2)}%` : '-'}
                                         </td>
 
                                         {currency === 'ARS' && (
