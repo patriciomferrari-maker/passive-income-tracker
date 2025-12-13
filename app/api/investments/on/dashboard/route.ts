@@ -207,7 +207,7 @@ export async function GET() {
         // Calculate total holding from open positions (using FIFO)
         const fifoTxs = inv.transactions.map(t => ({
           id: t.id,
-          date: t.date,
+          date: new Date(t.date),
           type: t.type as 'BUY' | 'SELL',
           quantity: t.quantity,
           price: t.price,
