@@ -430,9 +430,12 @@ export function GlobalDashboardTab() {
                                         itemStyle={{ color: '#fff' }}
                                         formatter={(value: number) => showValues ? formatMoney(value) : '***'}
                                     />
-                                    <Bar dataKey="total" name="Ingresos" radius={[4, 4, 0, 0]} fill="#3b82f6">
-                                        {showValues && <LabelList dataKey="total" position="top" fill="#ffffff" fontSize={11} formatter={(val: any) => `$${Math.round(Number(val))}`} />}
-                                    </Bar>
+                                    <Bar dataKey="ON" stackId="a" fill="#3b82f6" name="ONs" />
+                                    <Bar dataKey="Treasury" stackId="a" fill="#8b5cf6" name="Treasuries" />
+                                    <Bar dataKey="Rentals" stackId="a" fill="#10b981" name="Alquileres" />
+                                    {historyData.some((h: any) => (h.Bank || 0) > 0) && (
+                                        <Bar dataKey="Bank" stackId="a" fill="#f59e0b" name="Plazo Fijo / Bank" />
+                                    )}
                                 </BarChart>
                             </ResponsiveContainer>
                         </CardContent>

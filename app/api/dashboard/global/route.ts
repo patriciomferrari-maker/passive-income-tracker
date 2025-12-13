@@ -245,12 +245,18 @@ export async function GET() {
         });
 
         const bankCompositionMap = new Map<string, number>();
-        bankOperations.filter(op => op.currency === 'USD').forEach(op => {
+        bankOperations.forEach(op => {
             const type = op.type === 'PLAZO_FIJO' ? 'Plazo Fijo' :
                 op.type === 'FCI' ? 'FCI' :
                     op.type === 'CAJA_AHORRO' ? 'Caja Ahorro' : 'Otro';
+
+            let amountUSD = op.amount;
+            if (op.currency === 'ARS') {
+                amountUSD = op.amount / exchangeRate;
+            }
+
             const current = bankCompositionMap.get(type) || 0;
-            bankCompositionMap.set(type, current + op.amount);
+            bankCompositionMap.set(type, current + amountUSD);
         });
 
         // Merge Bank Composition into Portfolio Distribution
