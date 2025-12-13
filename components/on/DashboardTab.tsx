@@ -463,7 +463,7 @@ export function DashboardTab() {
                 </div>
             )}
 
-            {/* Charts Row 2: TIR Comparison (Lollipop) */}
+            {/* Charts Row 2: TIR Comparison */}
             {tirChartData.length > 0 && (
                 <div className="grid grid-cols-1 gap-6">
                     <Card className={cardClass}>
@@ -479,23 +479,19 @@ export function DashboardTab() {
                         <CardContent>
                             <div className="h-[400px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" vertical={false} />
+                                    <BarChart data={tirChartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" />
                                         <XAxis
-                                            type="category"
                                             dataKey="ticker"
-                                            allowDuplicatedCategory={false}
                                             stroke="#e2e8f0"
                                             style={{ fontSize: '12px', fontWeight: 'bold' }}
                                         />
                                         <YAxis
-                                            type="number"
                                             stroke="#94a3b8"
                                             tickFormatter={(value) => `${value}%`}
                                             domain={[0, 'auto']}
                                             hide={!showValues}
                                         />
-                                        <ZAxis range={[100, 100]} />
                                         <Tooltip
                                             contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
                                             itemStyle={{ color: '#e2e8f0' }}
@@ -504,60 +500,49 @@ export function DashboardTab() {
                                                 const label = name === 'purchaseTir' ? 'Tu TIR' : 'TIR Mercado';
                                                 return [`${value.toFixed(2)}%`, label];
                                             }}
-                                            cursor={{ strokeDasharray: '3 3' }}
+                                            cursor={{ fill: '#ffffff10' }}
                                         />
-                                        {/* Purchase TIR Points (Green) */}
-                                        <Scatter
-                                            name="purchaseTir"
-                                            data={tirChartData}
-                                            fill="#10b981"
-                                            shape="circle"
-                                            dataKey="purchaseTir"
-                                        />
-                                        {/* Market TIR Points (Purple) */}
-                                        <Scatter
-                                            name="marketTir"
-                                            data={tirChartData}
-                                            fill="#8b5cf6"
-                                            shape="diamond"
-                                            dataKey="marketTir"
-                                        />
-                                        {/* Connecting Lines */}
-                                        {tirChartData.map((item, index) => (
-                                            <Line
-                                                key={`line-${index}`}
-                                                type="monotone"
-                                                dataKey="value"
-                                                data={[
-                                                    { ticker: item.ticker, value: item.marketTir },
-                                                    { ticker: item.ticker, value: item.purchaseTir }
-                                                ]}
-                                                stroke={item.better ? '#10b981' : '#ef4444'}
-                                                strokeWidth={3}
-                                                dot={false}
-                                                strokeDasharray="5 5"
+                                        <Legend />
+                                        {/* Purchase TIR Bars (Green) */}
+                                        <Bar dataKey="purchaseTir" name="Tu TIR" fill="#10b981" radius={[4, 4, 0, 0]}>
+                                            <LabelList
+                                                dataKey="purchaseTir"
+                                                position="top"
+                                                formatter={(value: any) => showValues ? `${Number(value).toFixed(1)}%` : ''}
+                                                style={{ fill: '#10b981', fontSize: '11px', fontWeight: 'bold' }}
                                             />
-                                        ))}
-                                    </ScatterChart>
+                                        </Bar>
+                                        {/* Market TIR Bars (Purple) */}
+                                        <Bar dataKey="marketTir" name="TIR Mercado" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
+                                            <LabelList
+                                                dataKey="marketTir"
+                                                position="top"
+                                                formatter={(value: any) => showValues ? `${Number(value).toFixed(1)}%` : ''}
+                                                style={{ fill: '#8b5cf6', fontSize: '11px', fontWeight: 'bold' }}
+                                            />
+                                        </Bar>
+                                    </BarChart>
                                 </ResponsiveContainer>
                             </div>
-                            {/* Legend */}
-                            <div className="flex items-center justify-center gap-6 mt-4 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-green-500" />
-                                    <span className="text-slate-300">Tu TIR de Compra</span>
+                            {/* Summary Stats */}
+                            <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-800">
+                                <div className="text-center">
+                                    <div className="text-xs text-slate-400 mb-1">Mejor que Mercado</div>
+                                    <div className="text-lg font-bold text-green-400">
+                                        {tirChartData.filter(d => d.better).length} / {tirChartData.length}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 bg-purple-500" style={{ transform: 'rotate(45deg)' }} />
-                                    <span className="text-slate-300">TIR Mercado Actual</span>
+                                <div className="text-center">
+                                    <div className="text-xs text-slate-400 mb-1">Alpha Promedio</div>
+                                    <div className="text-lg font-bold text-white">
+                                        {showValues ? `+${(tirChartData.reduce((sum, d) => sum + d.diff, 0) / tirChartData.length).toFixed(1)}%` : '****'}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-0.5 bg-green-500" style={{ borderTop: '2px dashed' }} />
-                                    <span className="text-slate-300">Compraste Mejor</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-0.5 bg-red-500" style={{ borderTop: '2px dashed' }} />
-                                    <span className="text-slate-300">Mercado Mejor</span>
+                                <div className="text-center">
+                                    <div className="text-xs text-slate-400 mb-1">TIR Promedio</div>
+                                    <div className="text-lg font-bold text-white">
+                                        {showValues ? `${(tirChartData.reduce((sum, d) => sum + d.purchaseTir, 0) / tirChartData.length).toFixed(1)}%` : '****'}
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
