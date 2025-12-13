@@ -470,62 +470,16 @@ export function GlobalDashboardTab() {
                 )}
             </div>
 
-            {/* ROW 3: Composition Charts */}
+            {/* ROW 3: Portfolio Composition */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Income Composition */}
-                {compositionData.some((c: any) => c.value > 0 && c.name !== 'Oculto') && (
-                    <Card className="bg-slate-950 border-slate-800">
-                        <CardHeader className="text-center">
-                            <CardTitle className="text-white">Composición de Ingresos</CardTitle>
-                            <CardDescription className="text-slate-400">Distribución último mes</CardDescription>
-                        </CardHeader>
-                        <CardContent className="h-[300px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={compositionData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={70}
-                                        outerRadius={100}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {compositionData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.fill} stroke="rgba(0,0,0,0)" />
-                                        ))}
-                                        <Label
-                                            value={formatMoney(stats.summary.totalMonthlyIncome)}
-                                            position="center"
-                                            fill="#fff"
-                                            fontSize={24}
-                                            fontWeight="bold"
-                                        />
-                                        {showValues && <Tooltip
-                                            formatter={(value: number) => formatMoney(value)}
-                                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
-                                            itemStyle={{ color: '#fff' }}
-                                        />}
-                                        {showValues && <Legend formatter={(value, entry: any) => {
-                                            const { payload } = entry;
-                                            const percent = (payload.value / stats.summary.totalMonthlyIncome * 100).toFixed(0);
-                                            return `${value} (${percent}%)`;
-                                        }} />}
-                                    </Pie>
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
-                )}
-
                 {/* Portfolio Composition (Consolidated) */}
                 {(shouldShow('on') || shouldShow('treasury') || shouldShow('bank')) && portfolioDistData && portfolioDistData.length > 0 && (
-                    <Card className="bg-slate-950 border-slate-800">
+                    <Card className="bg-slate-950 border-slate-800 md:col-span-2 lg:col-span-1 lg:col-start-1">
                         <CardHeader className="text-center">
-                            <CardTitle className="text-white">Composición de Inversiones</CardTitle>
+                            <CardTitle className="text-white">Composición de Cartera</CardTitle>
                             <CardDescription className="text-slate-400">Cartera Argentina + USA + Banco</CardDescription>
                         </CardHeader>
-                        <CardContent className="h-[300px]">
+                        <CardContent className="h-[350px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
@@ -540,6 +494,13 @@ export function GlobalDashboardTab() {
                                         {portfolioDistData.map((entry, index) => (
                                             <Cell key={`cell-p-${index}`} fill={`hsl(${210 + (index * 40)}, 70%, 50%)`} stroke="rgba(0,0,0,0)" />
                                         ))}
+                                        <Label
+                                            value={formatMoney(stats.summary.totalInvested + stats.summary.totalBankUSD)}
+                                            position="center"
+                                            fill="#fff"
+                                            fontSize={20}
+                                            fontWeight="bold"
+                                        />
                                         {showValues && <Tooltip
                                             formatter={(value: number) => formatMoney(value)}
                                             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
