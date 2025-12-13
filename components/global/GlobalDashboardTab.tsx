@@ -430,17 +430,9 @@ export function GlobalDashboardTab() {
                                         itemStyle={{ color: '#fff' }}
                                         formatter={(value: number) => showValues ? formatMoney(value) : '***'}
                                     />
-                                    <Bar dataKey="total" name="Ingresos" radius={[4, 4, 0, 0]}>
-                                        {historyData.map((entry: any, index: number) => (
-                                            <Cell key={`cell-${index}`} fill={entry.total > entry.average ? '#10b981' : '#3b82f6'} fillOpacity={0.8} />
-                                        ))}
+                                    <Bar dataKey="total" name="Ingresos" radius={[4, 4, 0, 0]} fill="#3b82f6">
                                         {showValues && <LabelList dataKey="total" position="top" fill="#ffffff" fontSize={11} formatter={(val: any) => `$${Math.round(Number(val))}`} />}
                                     </Bar>
-                                    {historyData.some((d: any) => d.average > 0) && (
-                                        <ReferenceLine y={historyData[0]?.average || 0} stroke="#f59e0b" strokeDasharray="3 3">
-                                            <Label value="Promedio" position="right" fill="#f59e0b" fontSize={10} />
-                                        </ReferenceLine>
-                                    )}
                                 </BarChart>
                             </ResponsiveContainer>
                         </CardContent>

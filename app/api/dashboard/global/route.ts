@@ -186,8 +186,9 @@ export async function GET() {
             let currentPrice = priceInfo?.price || 0;
             const currency = priceInfo?.currency || 'USD';
 
-            // Heuristic: If Price is > 1000 and labeled USD, it's likely ARS (Data Error from Source like IOL)
-            if (currency === 'USD' && currentPrice > 1000) {
+            // Heuristic: If Price is > 200 and labeled USD, it's likely ARS (Data Error from Source like IOL)
+            // ONs usually trade near 1.0 or 100.0 USD. Prices like 4000 are definitely ARS.
+            if (currency === 'USD' && currentPrice > 200) {
                 currentPrice = currentPrice / exchangeRate;
             }
 
