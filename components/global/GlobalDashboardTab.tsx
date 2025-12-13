@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LabelList, Label } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LabelList, Label, ReferenceLine } from 'recharts';
 import { TrendingUp, Wallet, ArrowUpRight, Eye, EyeOff, CalendarClock, HandCoins, Building2, Landmark, DollarSign, Calendar, Percent } from 'lucide-react';
 
 interface GlobalStats {
@@ -236,7 +236,7 @@ export function GlobalDashboardTab() {
                 )}
 
                 {/* Unrealized P&L */}
-                {(shouldShow('on') || shouldShow('treasury')) && stats.pnl && stats.summary.totalInvested > 0 && (
+                {(shouldShow('on') || shouldShow('treasury')) && stats.pnl && stats.summary.totalInvested > 0 && Math.abs(Math.round(stats.pnl.unrealized)) > 0 && (
                     <Card className="bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2 group relative cursor-help">
@@ -412,30 +412,34 @@ export function GlobalDashboardTab() {
             {/* ROW 2: Bar Charts (History & Projection) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* History */}
-                {historyData.some(h => h.total > 0) && (
+                {historyData.length > 0 && (
                     <Card className="bg-slate-950 border-slate-800">
                         <CardHeader className="text-center">
                             <CardTitle className="text-white">Ingresos Últimos 12 Meses</CardTitle>
-                            <CardDescription className="text-slate-400">Total cobrado mensual</CardDescription>
+                            <CardDescription className="text-slate-400">Distribución de Ingresos (Real)</CardDescription>
                         </CardHeader>
                         <CardContent className="h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={historyData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                                <BarChart data={historyData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
                                     <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide={!showValues} />
                                     <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} hide={!showValues} />
-                                    {showValues && <Tooltip
+                                    <Tooltip
                                         cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
                                         contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#fff' }}
-                                        formatter={(value: number) => formatMoney(value)}
                                         itemStyle={{ color: '#fff' }}
-                                    />}
-                                    {showValues && <Legend />}
-                                    {shouldShow('on') && <Bar dataKey="ON" stackId="a" fill="#0ea5e9" name="ONs" />}
-                                    {shouldShow('treasury') && <Bar dataKey="Treasury" stackId="a" fill="#8b5cf6" name="Treasuries" />}
-                                    {shouldShow('rentals') && <Bar dataKey="Rentals" stackId="a" fill="#10b981" name="Alquileres" />}
-                                    {shouldShow('bank') && historyData.some(h => (h.Bank || 0) > 0) && (
-                                        <Bar dataKey="Bank" stackId="a" fill="#f59e0b" name="Intereses Banco" />
+                                        formatter={(value: number) => showValues ? formatMoney(value) : '***'}
+                                    />
+                                    <Bar dataKey="total" name="Ingresos" radius={[4, 4, 0, 0]}>
+                                        {historyData.map((entry: any, index: number) => (
+                                            <Cell key={`cell-${index}`} fill={entry.total > entry.average ? '#10b981' : '#3b82f6'} fillOpacity={0.8} />
+                                        ))}
+                                        {showValues && <LabelList dataKey="total" position="top" fill="#ffffff" fontSize={11} formatter={(val: any) => `$${Math.round(Number(val))}`} />}
+                                    </Bar>
+                                    {historyData.some((d: any) => d.average > 0) && (
+                                        <ReferenceLine y={historyData[0]?.average || 0} stroke="#f59e0b" strokeDasharray="3 3">
+                                            <Label value="Promedio" position="right" fill="#f59e0b" fontSize={10} />
+                                        </ReferenceLine>
                                     )}
                                 </BarChart>
                             </ResponsiveContainer>
@@ -452,7 +456,7 @@ export function GlobalDashboardTab() {
                         </CardHeader>
                         <CardContent className="h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={projectedData} margin={{ top: 20 }}>
+                                <BarChart data={projectedData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
                                     <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide={!showValues} />
                                     <YAxis

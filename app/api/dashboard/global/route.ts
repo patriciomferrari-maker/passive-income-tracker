@@ -186,6 +186,11 @@ export async function GET() {
             let currentPrice = priceInfo?.price || 0;
             const currency = priceInfo?.currency || 'USD';
 
+            // Heuristic: If Price is > 1000 and labeled USD, it's likely ARS (Data Error from Source like IOL)
+            if (currency === 'USD' && currentPrice > 1000) {
+                currentPrice = currentPrice / exchangeRate;
+            }
+
             // Convert ARS Price to USD if necessary
             if (currency === 'ARS') {
                 currentPrice = currentPrice / exchangeRate;
@@ -434,6 +439,12 @@ export async function GET() {
                 };
             });
 
+        // Calculate Average
+        const totalSum = history.reduce((sum, item) => sum + item.total, 0);
+        const average = history.length > 0 ? totalSum / history.length : 0;
+        // Re-map to include average
+        const historyWithAvg = history.map(h => ({ ...h, average }));
+
         // Composition (Last valid month)
         let composition: any[] = [];
         let totalMonthlyIncome = 0;
@@ -516,7 +527,7 @@ export async function GET() {
             },
             bankComposition,
             portfolioDistribution,
-            history,
+            history: historyWithAvg,
             composition,
             projected,
             debtDetails,
