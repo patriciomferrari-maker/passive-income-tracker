@@ -8,7 +8,7 @@ export async function GET() {
     try {
         await getUserId(); // Verify authentication
 
-        // Get all IPC records
+        // Get all IPC records (monthly variations in %)
         const ipcRecords = await prisma.economicIndicator.findMany({
             where: { type: 'IPC' },
             orderBy: { date: 'asc' },
@@ -40,21 +40,26 @@ export async function GET() {
             tcMonthlyAvg.set(key, value.sum / value.count);
         });
 
-        // Calculate interannual variations
-        const data: Array<{ date: string; inflacion: number | null; devaluacion: number | null }> = [];
+        // Build accumulated IPC index from monthly variations
+        // Start with base 100 at first month
+        const ipcIndex = new Map<string, number>();
+        let accumulatedIndex = 100;
 
-        // Process IPC (already monthly)
-        const ipcByMonth = new Map<string, number>();
         ipcRecords.forEach(record => {
             const monthKey = new Date(record.date).toISOString().slice(0, 7);
-            ipcByMonth.set(monthKey, record.value);
+            // Apply monthly variation: index * (1 + variation/100)
+            accumulatedIndex = accumulatedIndex * (1 + record.value / 100);
+            ipcIndex.set(monthKey, accumulatedIndex);
         });
 
         // Get all unique months (sorted)
         const allMonths = Array.from(new Set([
-            ...Array.from(ipcByMonth.keys()),
+            ...Array.from(ipcIndex.keys()),
             ...Array.from(tcMonthlyAvg.keys())
         ])).sort();
+
+        // Calculate interannual variations
+        const data: Array<{ date: string; inflacion: number; devaluacion: number }> = [];
 
         // Calculate interannual for each month (need 12 months prior)
         allMonths.forEach((monthKey, index) => {
@@ -62,9 +67,9 @@ export async function GET() {
 
             const date12MonthsAgo = allMonths[index - 12];
 
-            // Calculate IPC interannual
-            const ipcCurrent = ipcByMonth.get(monthKey);
-            const ipc12MonthsAgo = ipcByMonth.get(date12MonthsAgo);
+            // Calculate IPC interannual using accumulated index
+            const ipcCurrent = ipcIndex.get(monthKey);
+            const ipc12MonthsAgo = ipcIndex.get(date12MonthsAgo);
             const inflacion = (ipcCurrent && ipc12MonthsAgo)
                 ? ((ipcCurrent / ipc12MonthsAgo) - 1) * 100
                 : null;
@@ -76,8 +81,8 @@ export async function GET() {
                 ? ((tcCurrent / tc12MonthsAgo) - 1) * 100
                 : null;
 
-            // Only include if we have at least one value
-            if (inflacion !== null || devaluacion !== null) {
+            // Only include if we have BOTH values
+            if (inflacion !== null && devaluacion !== null) {
                 data.push({
                     date: `${monthKey}-01`, // First day of month for consistency
                     inflacion,
