@@ -59,7 +59,7 @@ export default function AdminPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
                 {/* ONs Card */}
-                <Card className="bg-slate-900 border-slate-800 h-fit">
+                <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <CardTitle className="text-slate-100 text-lg">Cotización ONs/Bonos</CardTitle>
@@ -69,7 +69,7 @@ export default function AdminPage() {
                             Cotización ONs (IOL)
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex-1 overflow-hidden">
                         {loadingONs ? (
                             <div className="flex flex-col gap-2">
                                 <span className="text-xs text-yellow-500 animate-pulse">Actualizando cotizaciones...</span>
@@ -83,7 +83,7 @@ export default function AdminPage() {
                 </Card>
 
                 {/* US ETFs Card */}
-                <Card className="bg-slate-900 border-slate-800 h-fit">
+                <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <CardTitle className="text-slate-100 text-lg">US ETFs/Treasuries</CardTitle>
@@ -93,7 +93,7 @@ export default function AdminPage() {
                             Cotización desde Yahoo Finance (Automático)
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex-1 overflow-hidden">
                         <PriceList prices={usEtfPrices} />
                     </CardContent>
                 </Card>
@@ -124,7 +124,7 @@ function DollarCard() {
     }, []);
 
     return (
-        <Card className="bg-slate-900 border-slate-800 h-fit">
+        <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-slate-100 text-lg">Dólar Blue</CardTitle>
@@ -134,7 +134,7 @@ function DollarCard() {
                     Cotización histórica y scraping diario (Automático).
                 </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-hidden">
                 <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
                     <div className="grid grid-cols-4 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
                         <span>Fecha</span>
@@ -142,7 +142,7 @@ function DollarCard() {
                         <span className="text-right">Venta</span>
                         <span className="text-right">Promedio</span>
                     </div>
-                    <div className="max-h-[400px] overflow-y-auto">
+                    <div className="h-full overflow-y-auto">
                         {dollarData.length > 0 ? (
                             dollarData.map((item, i) => (
                                 <div key={i} className="grid grid-cols-4 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
@@ -177,7 +177,7 @@ function IPCCard() {
     }, []);
 
     return (
-        <Card className="bg-slate-900 border-slate-800 h-fit">
+        <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-slate-100 text-lg">Inflación (IPC)</CardTitle>
@@ -187,7 +187,7 @@ function IPCCard() {
                     Scraping de datosmacro.expansion.com (Automático).
                 </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-hidden">
                 <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
                     <div className="grid grid-cols-4 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
                         <span>Año</span>
@@ -195,7 +195,7 @@ function IPCCard() {
                         <span className="text-right">Mensual</span>
                         <span className="text-right">Interanual</span>
                     </div>
-                    <div className="max-h-[300px] overflow-y-auto">
+                    <div className="h-full overflow-y-auto">
                         {inflationData.length > 0 ? (
                             inflationData.map((item, i) => (
                                 <div key={i} className="grid grid-cols-4 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
@@ -300,7 +300,7 @@ function CedearCard() {
     }, []);
 
     return (
-        <Card className="bg-slate-900 border-slate-800 h-fit">
+        <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-slate-100 text-lg">CEDEARs & ETFs (Rava)</CardTitle>
@@ -310,20 +310,20 @@ function CedearCard() {
                     Cotización ARS y USD (Implícito)
                 </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-hidden">
                 {loading ? (
                     <div className="p-4 text-center text-xs text-slate-500">
                         Cargando Rava...
                     </div>
                 ) : (
-                    <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
+                    <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden h-full flex flex-col">
                         <div className="grid grid-cols-4 bg-slate-900 p-2 text-[10px] font-medium text-slate-400 border-b border-slate-800">
                             <span>Ticker</span>
                             <span className="text-right">ARS</span>
                             <span className="text-right">USD</span>
                             <span className="text-right">TC Imp.</span>
                         </div>
-                        <div>
+                        <div className="flex-1 overflow-y-auto">
                             {quotes.length > 0 ? (
                                 quotes.map((q, i) => (
                                     <div key={i} className="grid grid-cols-4 p-2 text-[10px] border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors items-center">
