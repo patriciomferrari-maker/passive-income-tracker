@@ -14,9 +14,10 @@ const MONTH_MAP: Record<string, number> = {
     'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12
 };
 
-export async function scrapeInflationData(): Promise<InflationDataPoint[]> {
+async function scrapeYearData(year: number): Promise<InflationDataPoint[]> {
     try {
-        const response = await fetch('https://datosmacro.expansion.com/ipc-paises/argentina?sc=IPC-IG', {
+        const url = `https://datosmacro.expansion.com/ipc-paises/argentina?sector=IPC+General&sc=IPC-IG&anio=${year}`;
+        const response = await fetch(url, {
             cache: 'no-store',
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -24,17 +25,15 @@ export async function scrapeInflationData(): Promise<InflationDataPoint[]> {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to fetch datosmacro: ${response.status} ${response.statusText}`);
+            console.error(`Failed to fetch datosmacro for year ${year}: ${response.status}`);
+            return [];
         }
 
         const html = await response.text();
         const $ = cheerio.load(html);
         const data: InflationDataPoint[] = [];
 
-        // Find table with 'IPC - IPC General' in header or caption, 
-        // but based on inspection it seems to be the first main table.
-        // We look for rows where we can extract a date and a variation.
-
+        // Find table with inflation data
         $('table tbody tr').each((_, row) => {
             const cells = $(row).find('td');
             // Based on observation:
@@ -50,12 +49,10 @@ export async function scrapeInflationData(): Promise<InflationDataPoint[]> {
                 const variationText = $(cells[5]).text().trim(); // e.g. "2,7%" - MENSUAL
 
                 // Parse Date
-                // Usually format is "Month Year". Sometimes data might have day.
-                // We look for month name and year.
                 const yearMatch = dateText.match(/20\d{2}/);
                 if (!yearMatch) return;
 
-                const year = parseInt(yearMatch[0]);
+                const parsedYear = parseInt(yearMatch[0]);
                 let month = 0;
 
                 for (const [name, num] of Object.entries(MONTH_MAP)) {
@@ -68,7 +65,6 @@ export async function scrapeInflationData(): Promise<InflationDataPoint[]> {
                 if (month === 0) return;
 
                 // Parse Monthly Variation
-                // Remove % and replace comma with dot
                 const cleanVariation = variationText.replace('%', '').replace(',', '.').trim();
                 const value = parseFloat(cleanVariation);
 
@@ -78,7 +74,7 @@ export async function scrapeInflationData(): Promise<InflationDataPoint[]> {
 
                 if (!isNaN(value)) {
                     data.push({
-                        year,
+                        year: parsedYear,
                         month,
                         value,
                         interannualValue: !isNaN(interannualValue) ? interannualValue : undefined
@@ -89,7 +85,28 @@ export async function scrapeInflationData(): Promise<InflationDataPoint[]> {
 
         return data;
     } catch (error) {
-        console.error('Error scraping inflation data:', error);
-        throw error;
+        console.error(`Error scraping inflation data for year ${year}:`, error);
+        return [];
     }
+}
+
+export async function scrapeInflationData(): Promise<InflationDataPoint[]> {
+    const currentYear = new Date().getFullYear();
+    const startYear = 2019;
+    const allData: InflationDataPoint[] = [];
+
+    // Scrape data for each year from 2019 to current year
+    for (let year = startYear; year <= currentYear; year++) {
+        console.log(`Scraping inflation data for year ${year}...`);
+        const yearData = await scrapeYearData(year);
+        allData.push(...yearData);
+
+        // Small delay between requests to be respectful
+        if (year < currentYear) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    }
+
+    console.log(`Total inflation data points scraped: ${allData.length}`);
+    return allData;
 }
