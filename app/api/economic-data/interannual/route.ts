@@ -84,12 +84,12 @@ export async function GET() {
                 ? ((tcCurrent / tc12MonthsAgo) - 1) * 100
                 : null;
 
-            // Only include if we have BOTH values
-            if (inflacion !== null && devaluacion !== null) {
+            // Include if we have at least ONE value (inflation OR devaluation)
+            if (inflacion !== null || devaluacion !== null) {
                 data.push({
                     date: `${monthKey}-01`, // First day of month for consistency
-                    inflacion,
-                    devaluacion
+                    inflacion: inflacion || 0, // Use 0 if null to avoid chart issues
+                    devaluacion: devaluacion || 0
                 });
             }
         });
