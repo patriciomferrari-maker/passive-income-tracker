@@ -8,11 +8,11 @@ export async function GET() {
     try {
         await getUserId(); // Verify authentication
 
-        // Get all IPC records (monthly variations in %)
+        // Get all IPC records (with interannual values if available)
         const ipcRecords = await prisma.economicIndicator.findMany({
             where: { type: 'IPC' },
             orderBy: { date: 'asc' },
-            select: { date: true, value: true }
+            select: { date: true, value: true, interannualValue: true }
         });
 
         // Get all TC records
@@ -40,44 +40,37 @@ export async function GET() {
             tcMonthlyAvg.set(key, value.sum / value.count);
         });
 
-        // Build accumulated IPC index from monthly variations
-        // Start with base 100 at first month
-        // IMPORTANT: Normalize data format - some values are decimals (0.027), others are percentages (2.7)
-        const ipcIndex = new Map<string, number>();
-        let accumulatedIndex = 100;
-
+        // Map IPC records by month (use scraped interannual value if available)
+        const ipcByMonth = new Map<string, { value: number; interannualValue: number | null }>();
         ipcRecords.forEach(record => {
             const monthKey = new Date(record.date).toISOString().slice(0, 7);
-            // Normalize: if value < 1, it's a decimal (0.027 = 2.7%), multiply by 100
-            const monthlyVariationPercent = record.value < 1 ? record.value * 100 : record.value;
-            // Apply monthly variation: index * (1 + variation/100)
-            accumulatedIndex = accumulatedIndex * (1 + monthlyVariationPercent / 100);
-            ipcIndex.set(monthKey, accumulatedIndex);
+            ipcByMonth.set(monthKey, {
+                value: record.value,
+                interannualValue: record.interannualValue
+            });
         });
 
         // Get all unique months (sorted)
         const allMonths = Array.from(new Set([
-            ...Array.from(ipcIndex.keys()),
+            ...Array.from(ipcByMonth.keys()),
             ...Array.from(tcMonthlyAvg.keys())
         ])).sort();
 
         // Calculate interannual variations
         const data: Array<{ date: string; inflacion: number; devaluacion: number }> = [];
 
-        // Calculate interannual for each month (need 12 months prior)
-        allMonths.forEach((monthKey, index) => {
-            if (index < 12) return; // Skip first 12 months (no data to compare)
+        // Calculate interannual for each month
+        allMonths.forEach((monthKey) => {
+            const ipcData = ipcByMonth.get(monthKey);
 
-            const date12MonthsAgo = allMonths[index - 12];
-
-            // Calculate IPC interannual using accumulated index
-            const ipcCurrent = ipcIndex.get(monthKey);
-            const ipc12MonthsAgo = ipcIndex.get(date12MonthsAgo);
-            const inflacion = (ipcCurrent && ipc12MonthsAgo)
-                ? ((ipcCurrent / ipc12MonthsAgo) - 1) * 100
-                : null;
+            // Use scraped interannual value if available, otherwise null
+            const inflacion = ipcData?.interannualValue ?? null;
 
             // Calculate TC interannual
+            const monthIndex = allMonths.indexOf(monthKey);
+            if (monthIndex < 12) return; // Need 12 months of history for TC
+
+            const date12MonthsAgo = allMonths[monthIndex - 12];
             const tcCurrent = tcMonthlyAvg.get(monthKey);
             const tc12MonthsAgo = tcMonthlyAvg.get(date12MonthsAgo);
             const devaluacion = (tcCurrent && tc12MonthsAgo)

@@ -228,7 +228,9 @@ model EconomicIndicator {
   id        String   @id @default(cuid())
   type      String   // IPC, TC_USD_ARS, etc.
   date      DateTime
-  value     Float
+  value     Float    // Monthly variation (for IPC)
+  
+  interannualValue Float?  // Interannual inflation (scraped from datosmacro)
   
   buyRate   Float?   // Tipo de cambio comprador
   sellRate  Float?   // Tipo de cambio vendedor
