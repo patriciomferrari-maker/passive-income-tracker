@@ -111,7 +111,7 @@ export default function InterannualChart() {
                                 itemStyle={{ color: '#ffffff' }}
                                 labelStyle={{ color: '#ffffff' }}
                                 labelFormatter={(value) => format(new Date(value), 'MMMM yyyy', { locale: es })}
-                                formatter={(value: number) => [`${value.toFixed(1)}%`, '']}
+                                formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
                             />
                             <Legend />
                             <Line
