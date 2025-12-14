@@ -93,13 +93,16 @@ export default function InterannualChart() {
                 {/* Chart */}
                 <div className="h-[350px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 25 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" />
                             <XAxis
                                 dataKey="date"
                                 stroke="#94a3b8"
                                 tickFormatter={(value) => format(new Date(value), 'MMM yy', { locale: es })}
                                 style={{ fontSize: '12px' }}
+                                angle={-45}
+                                textAnchor="end"
+                                height={60}
                             />
                             <YAxis
                                 stroke="#94a3b8"
@@ -114,6 +117,17 @@ export default function InterannualChart() {
                                 formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
                             />
                             <Legend />
+                            {/* Reference line at Y=0 */}
+                            <Line
+                                type="monotone"
+                                dataKey={() => 0}
+                                stroke="#64748b"
+                                strokeWidth={1}
+                                strokeDasharray="5 5"
+                                dot={false}
+                                activeDot={false}
+                                legendType="none"
+                            />
                             <Line
                                 type="monotone"
                                 dataKey="inflacion"
