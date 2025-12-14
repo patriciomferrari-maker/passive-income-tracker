@@ -108,7 +108,8 @@ export default function InterannualChart() {
                             />
                             <Tooltip
                                 contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                itemStyle={{ color: '#e2e8f0' }}
+                                itemStyle={{ color: '#ffffff' }}
+                                labelStyle={{ color: '#ffffff' }}
                                 labelFormatter={(value) => format(new Date(value), 'MMMM yyyy', { locale: es })}
                                 formatter={(value: number) => [`${value.toFixed(1)}%`, '']}
                             />
