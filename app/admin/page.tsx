@@ -166,15 +166,41 @@ function DollarCard() {
 
 function IPCCard() {
     const [inflationData, setInflationData] = useState<any[]>([]);
+    const [scraping, setScraping] = useState(false);
 
-    useEffect(() => {
+    const loadData = () => {
         fetch('/api/admin/inflation')
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) setInflationData(data);
             })
             .catch(err => console.error(err));
+    };
+
+    useEffect(() => {
+        loadData();
     }, []);
+
+    const handleScrape = async () => {
+        setScraping(true);
+        try {
+            const res = await fetch('/api/admin/scrape-interannual-inflation', {
+                method: 'POST'
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert(`✅ Scraping completado!\n${result.message}`);
+                loadData(); // Reload data
+            } else {
+                alert('❌ Error en scraping: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Scraping error:', error);
+            alert('❌ Error ejecutando scraping');
+        } finally {
+            setScraping(false);
+        }
+    };
 
     return (
         <Card className="bg-slate-900 border-slate-800 h-fit">
@@ -188,19 +214,30 @@ function IPCCard() {
                 </CardDescription>
             </CardHeader>
             <CardContent>
+                <button
+                    onClick={handleScrape}
+                    disabled={scraping}
+                    className="w-full mb-3 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 text-white text-xs rounded-md transition-colors"
+                >
+                    {scraping ? '🔄 Scrapeando...' : '🔄 Actualizar desde DatosMacro'}
+                </button>
                 <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
-                    <div className="grid grid-cols-3 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
+                    <div className="grid grid-cols-4 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
                         <span>Año</span>
                         <span>Mes</span>
-                        <span className="text-right">Valor</span>
+                        <span className="text-right">Mensual</span>
+                        <span className="text-right">Interanual</span>
                     </div>
                     <div className="max-h-[300px] overflow-y-auto">
                         {inflationData.length > 0 ? (
                             inflationData.map((item, i) => (
-                                <div key={i} className="grid grid-cols-3 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
+                                <div key={i} className="grid grid-cols-4 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
                                     <span className="text-slate-300">{item.year}</span>
                                     <span className="text-slate-500">{getMonthName(item.month)}</span>
                                     <span className="text-right font-bold text-slate-200">{item.value.toFixed(1)}%</span>
+                                    <span className="text-right font-bold text-green-400">
+                                        {item.interannualValue ? `${item.interannualValue.toFixed(1)}%` : '-'}
+                                    </span>
                                 </div>
                             ))
                         ) : (

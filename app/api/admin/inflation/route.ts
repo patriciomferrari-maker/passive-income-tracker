@@ -5,15 +5,29 @@ import { scrapeInflationData } from '@/app/lib/scrapers/inflation';
 
 export async function GET() {
     try {
-        const data = await prisma.inflationData.findMany({
-            orderBy: [
-                { year: 'desc' },
-                { month: 'desc' }
-            ]
-            // take: 24 -- Removed to show full history (2019+)
+        // Fetch from EconomicIndicator (which has interannualValue)
+        const data = await prisma.economicIndicator.findMany({
+            where: { type: 'IPC' },
+            orderBy: { date: 'desc' },
+            select: {
+                date: true,
+                value: true,
+                interannualValue: true
+            }
         });
 
-        return NextResponse.json(data);
+        // Transform to match expected format (year, month, value, interannualValue)
+        const formatted = data.map(item => {
+            const date = new Date(item.date);
+            return {
+                year: date.getFullYear(),
+                month: date.getMonth() + 1, // 1-indexed
+                value: item.value,
+                interannualValue: item.interannualValue
+            };
+        });
+
+        return NextResponse.json(formatted);
     } catch (error) {
         console.error('Error fetching inflation data:', error);
         return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
