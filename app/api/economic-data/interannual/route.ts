@@ -42,13 +42,16 @@ export async function GET() {
 
         // Build accumulated IPC index from monthly variations
         // Start with base 100 at first month
+        // IMPORTANT: Normalize data format - some values are decimals (0.027), others are percentages (2.7)
         const ipcIndex = new Map<string, number>();
         let accumulatedIndex = 100;
 
         ipcRecords.forEach(record => {
             const monthKey = new Date(record.date).toISOString().slice(0, 7);
+            // Normalize: if value < 1, it's a decimal (0.027 = 2.7%), multiply by 100
+            const monthlyVariationPercent = record.value < 1 ? record.value * 100 : record.value;
             // Apply monthly variation: index * (1 + variation/100)
-            accumulatedIndex = accumulatedIndex * (1 + record.value / 100);
+            accumulatedIndex = accumulatedIndex * (1 + monthlyVariationPercent / 100);
             ipcIndex.set(monthKey, accumulatedIndex);
         });
 
