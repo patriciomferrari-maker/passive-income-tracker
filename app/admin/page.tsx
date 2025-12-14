@@ -166,41 +166,15 @@ function DollarCard() {
 
 function IPCCard() {
     const [inflationData, setInflationData] = useState<any[]>([]);
-    const [scraping, setScraping] = useState(false);
 
-    const loadData = () => {
+    useEffect(() => {
         fetch('/api/admin/inflation')
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) setInflationData(data);
             })
             .catch(err => console.error(err));
-    };
-
-    useEffect(() => {
-        loadData();
     }, []);
-
-    const handleScrape = async () => {
-        setScraping(true);
-        try {
-            const res = await fetch('/api/admin/scrape-interannual-inflation', {
-                method: 'POST'
-            });
-            const result = await res.json();
-            if (result.success) {
-                alert(`✅ Scraping completado!\n${result.message}`);
-                loadData(); // Reload data
-            } else {
-                alert('❌ Error en scraping: ' + (result.error || 'Unknown error'));
-            }
-        } catch (error) {
-            console.error('Scraping error:', error);
-            alert('❌ Error ejecutando scraping');
-        } finally {
-            setScraping(false);
-        }
-    };
 
     return (
         <Card className="bg-slate-900 border-slate-800 h-fit">
@@ -214,13 +188,6 @@ function IPCCard() {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <button
-                    onClick={handleScrape}
-                    disabled={scraping}
-                    className="w-full mb-3 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 text-white text-xs rounded-md transition-colors"
-                >
-                    {scraping ? '🔄 Scrapeando...' : '🔄 Actualizar desde DatosMacro'}
-                </button>
                 <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
                     <div className="grid grid-cols-4 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
                         <span>Año</span>

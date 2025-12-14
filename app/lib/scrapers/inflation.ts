@@ -5,6 +5,7 @@ export interface InflationDataPoint {
     year: number;
     month: number;
     value: number;
+    interannualValue?: number; // NEW: Interannual inflation
 }
 
 const MONTH_MAP: Record<string, number> = {
@@ -45,7 +46,8 @@ export async function scrapeInflationData(): Promise<InflationDataPoint[]> {
             // 5: Monthly Variation Value
             if (cells.length >= 6) {
                 const dateText = $(cells[0]).text().trim().toLowerCase(); // e.g. "octubre 2025"
-                const variationText = $(cells[5]).text().trim(); // e.g. "2,7%"
+                const interannualText = $(cells[1]).text().trim(); // e.g. "31,3%" - INTERANUAL
+                const variationText = $(cells[5]).text().trim(); // e.g. "2,7%" - MENSUAL
 
                 // Parse Date
                 // Usually format is "Month Year". Sometimes data might have day.
@@ -65,13 +67,22 @@ export async function scrapeInflationData(): Promise<InflationDataPoint[]> {
 
                 if (month === 0) return;
 
-                // Parse Variation
+                // Parse Monthly Variation
                 // Remove % and replace comma with dot
                 const cleanVariation = variationText.replace('%', '').replace(',', '.').trim();
                 const value = parseFloat(cleanVariation);
 
+                // Parse Interannual Variation
+                const cleanInterannual = interannualText.replace('%', '').replace(',', '.').trim();
+                const interannualValue = parseFloat(cleanInterannual);
+
                 if (!isNaN(value)) {
-                    data.push({ year, month, value });
+                    data.push({
+                        year,
+                        month,
+                        value,
+                        interannualValue: !isNaN(interannualValue) ? interannualValue : undefined
+                    });
                 }
             }
         });

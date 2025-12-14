@@ -45,7 +45,30 @@ export async function POST() {
         let savedCount = 0;
 
         for (const item of scrapedData) {
-            // Upsert to update if exists (e.g. data correction)
+            // Convert year/month to Date
+            const date = new Date(item.year, item.month - 1, 1, 12, 0, 0, 0); // Noon UTC
+
+            // Save to EconomicIndicator (which has interannualValue field)
+            await prisma.economicIndicator.upsert({
+                where: {
+                    type_date: {
+                        type: 'IPC',
+                        date: date
+                    }
+                },
+                update: {
+                    value: item.value,
+                    interannualValue: item.interannualValue
+                },
+                create: {
+                    type: 'IPC',
+                    date: date,
+                    value: item.value,
+                    interannualValue: item.interannualValue
+                }
+            });
+
+            // Also save to InflationData for backward compatibility
             await prisma.inflationData.upsert({
                 where: {
                     year_month: {
@@ -62,6 +85,7 @@ export async function POST() {
                     value: item.value
                 }
             });
+
             savedCount++;
         }
 
