@@ -31,8 +31,18 @@ async function cleanAndPopulateData() {
         for (const item of scrapedData) {
             const date = new Date(item.year, item.month - 1, 1, 12, 0, 0, 0);
 
-            await prisma.economicIndicator.create({
-                data: {
+            await prisma.economicIndicator.upsert({
+                where: {
+                    type_date: {
+                        type: 'IPC',
+                        date: date
+                    }
+                },
+                update: {
+                    value: item.value,
+                    interannualValue: item.interannualValue
+                },
+                create: {
                     type: 'IPC',
                     date: date,
                     value: item.value,
