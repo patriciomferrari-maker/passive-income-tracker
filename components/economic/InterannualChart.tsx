@@ -98,7 +98,7 @@ export default function InterannualChart() {
                             <XAxis
                                 dataKey="date"
                                 stroke="#94a3b8"
-                                tickFormatter={(value) => format(new Date(value), 'MMM yy', { locale: es })}
+                                tickFormatter={(value) => format(new Date(`${value}T12:00:00`), 'MMM yy', { locale: es })}
                                 style={{ fontSize: '12px' }}
                                 angle={-45}
                                 textAnchor="end"
@@ -113,7 +113,7 @@ export default function InterannualChart() {
                                 contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
                                 itemStyle={{ color: '#ffffff' }}
                                 labelStyle={{ color: '#ffffff' }}
-                                labelFormatter={(value) => format(new Date(value), 'MMMM yyyy', { locale: es })}
+                                labelFormatter={(value) => format(new Date(`${value}T12:00:00`), 'MMMM yyyy', { locale: es })}
                                 formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
                             />
                             <Legend />
