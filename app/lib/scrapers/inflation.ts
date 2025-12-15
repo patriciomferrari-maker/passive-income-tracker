@@ -107,6 +107,16 @@ export async function scrapeInflationData(): Promise<InflationDataPoint[]> {
         }
     }
 
+    // Deduplicate by year+month (keep last occurrence)
+    const uniqueData = new Map<string, InflationDataPoint>();
+    allData.forEach(item => {
+        const key = `${item.year}-${item.month}`;
+        uniqueData.set(key, item);
+    });
+
+    const deduplicatedData = Array.from(uniqueData.values());
     console.log(`Total inflation data points scraped: ${allData.length}`);
-    return allData;
+    console.log(`After deduplication: ${deduplicatedData.length}`);
+
+    return deduplicatedData;
 }
