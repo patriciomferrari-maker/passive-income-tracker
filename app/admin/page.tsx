@@ -135,14 +135,14 @@ function DollarCard() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
-                <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
+                <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden h-full flex flex-col">
                     <div className="grid grid-cols-4 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
                         <span>Fecha</span>
                         <span className="text-right">Compra</span>
                         <span className="text-right">Venta</span>
                         <span className="text-right">Promedio</span>
                     </div>
-                    <div className="h-full overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto">
                         {dollarData.length > 0 ? (
                             dollarData.map((item, i) => (
                                 <div key={i} className="grid grid-cols-4 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
@@ -188,14 +188,14 @@ function IPCCard() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
-                <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden">
+                <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden h-full flex flex-col">
                     <div className="grid grid-cols-4 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
                         <span>Año</span>
                         <span>Mes</span>
                         <span className="text-right">Mensual</span>
                         <span className="text-right">Interanual</span>
                     </div>
-                    <div className="h-full overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto">
                         {inflationData.length > 0 ? (
                             inflationData.map((item, i) => (
                                 <div key={i} className="grid grid-cols-4 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
