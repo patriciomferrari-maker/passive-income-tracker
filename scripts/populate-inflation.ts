@@ -1,6 +1,6 @@
 // Script to manually populate inflation data from 2019-2025
 import { prisma } from '../lib/prisma';
-import { scrapeInflationData } from '../lib/scrapers/inflation';
+import { scrapeInflationData } from '../app/lib/scrapers/inflation';
 
 async function populateInflationData() {
     console.log('Starting inflation data population...');
