@@ -45,7 +45,9 @@ export async function POST(request: Request) {
             currency,
             adjustmentType,
             adjustmentFrequency,
-            documentUrl
+            documentUrl,
+            warrantyAmount,
+            warrantyCurrency
         } = body;
 
         // Verify property ownership
@@ -64,7 +66,9 @@ export async function POST(request: Request) {
                 currency,
                 adjustmentType,
                 adjustmentFrequency: parseInt(adjustmentFrequency),
-                documentUrl
+                documentUrl,
+                warrantyAmount: warrantyAmount ? parseFloat(warrantyAmount) : null,
+                warrantyCurrency: warrantyCurrency || 'USD'
             }
         });
 

@@ -8,7 +8,8 @@ import { TrendingUp, Wallet, ArrowUpRight, Eye, EyeOff, CalendarClock, HandCoins
 interface GlobalStats {
     summary: {
         totalInvested: number;
-        totalDebtPending: number;
+        totalIdle: number;
+        totalDebtReceivable: number;
         tir: number;
         nextInterestON: { date: string, amount: number, name: string } | null;
         nextInterestTreasury: { date: string, amount: number, name: string } | null;
@@ -203,70 +204,65 @@ export function GlobalDashboardTab() {
 
             {/* ROW 1: KPIs & TIR */}
             <div className="flex flex-wrap gap-6">
-                {/* Total Investments (Market) */}
-                {(shouldShow('on') || shouldShow('treasury')) && stats.summary.totalInvested > 0 && (
+                {/* 1. Inversiones (Cartera + PF/FCI) */}
+                {(shouldShow('on') || shouldShow('treasury') || shouldShow('bank')) && (
                     <Card className="flex-1 min-w-[240px] bg-gradient-to-br from-blue-950/40 to-slate-900 border-blue-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
-                                <Landmark size={18} /> Inversiones Mercado
+                                <Landmark size={18} /> Inversiones Totales
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="flex flex-col items-center">
                             <div className="text-4xl font-bold text-white mb-1">{formatMoney(stats.summary.totalInvested)}</div>
-                            <p className="text-sm text-blue-400">Total Activos de Mercado</p>
+                            <p className="text-sm text-blue-400">Cartera + Banco (Inv)</p>
                         </CardContent>
                     </Card>
                 )}
 
-                {/* Total Bank */}
-                {shouldShow('bank') && stats.summary.totalBankUSD > 0 && (
+                {/* 2. Monto sin invertir (Caja Ahorro/Seguridad/Cash) */}
+                {shouldShow('bank') && (
+                    <Card className="flex-1 min-w-[240px] bg-gradient-to-br from-slate-800 to-slate-950 border-slate-700 text-center flex flex-col items-center justify-center">
+                        <CardHeader className="pb-2 flex flex-col items-center">
+                            <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
+                                <Wallet size={18} /> Monto sin Invertir
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-center">
+                            <div className="text-4xl font-bold text-white mb-1">{formatMoney(stats.summary.totalIdle)}</div>
+                            <p className="text-sm text-slate-400">Cajas Ahorro + Cash</p>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* 3. Debts (Receivables) */}
+                {shouldShow('debts') && (
                     <Card className="flex-1 min-w-[240px] bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
-                                <Building2 size={18} /> Inversiones Banco
+                                <HandCoins size={18} /> Deudas a Cobrar
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="flex flex-col items-center">
-                            <div className="text-4xl font-bold text-white mb-1">{formatMoney(stats.summary.totalBankUSD)}</div>
-                            <p className="text-sm text-emerald-400">Cajas + PF + FCI (USD)</p>
+                            <div className="text-4xl font-bold text-white mb-1">{formatMoney(stats.summary.totalDebtReceivable)}</div>
+                            <p className="text-sm text-emerald-400">Préstamos Activos</p>
                         </CardContent>
                     </Card>
                 )}
 
-                {/* TIR - UPDATED TITLE */}
-                {(shouldShow('on') || shouldShow('treasury')) && stats.summary.totalInvested > 0 && (
-                    <Card className="flex-1 min-w-[240px] bg-gradient-to-br from-amber-950/40 to-slate-900 border-amber-500/20 text-center flex flex-col items-center justify-center">
-                        <CardHeader className="pb-2 flex flex-col items-center">
-                            <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
-                                <Percent size={18} /> TIR Estimada (ON + Treasuries)
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex flex-col items-center">
-                            <div className="text-4xl font-bold text-amber-500 mb-1">{formatPercent(stats.summary.tir)}</div>
-                            <p className="text-sm text-slate-400">Rendimiento Anualizado</p>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Unrealized P&L */}
-                {(shouldShow('on') || shouldShow('treasury')) && stats.pnl && stats.summary.totalInvested > 0 && Math.abs(Math.round(stats.pnl.unrealized)) > 0 && (
-                    <Card className="flex-1 min-w-[240px] bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
-                        <CardHeader className="pb-2 flex flex-col items-center">
-                            <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2 group relative cursor-help">
-                                <TrendingUp size={18} /> Resultado No Realizado
-                                <span className="absolute bottom-full mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-xs text-white rounded shadow-lg z-50">
-                                    Diferencia entre el Valor de Mercado actual y el Costo de Inversión (Compras).
-                                </span>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex flex-col items-center">
-                            <div className={`text-3xl font-bold mb-1 ${stats.pnl.unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {formatMoney(stats.pnl.unrealized)}
-                            </div>
-                            <p className="text-sm text-slate-500">Valuación de Mercado</p>
-                        </CardContent>
-                    </Card>
-                )}
+                {/* 4. Total Consolidation */}
+                <Card className="flex-1 min-w-[240px] bg-slate-950 border-slate-600 shadow-xl text-center flex flex-col items-center justify-center ring-1 ring-slate-700">
+                    <CardHeader className="pb-2 flex flex-col items-center">
+                        <CardTitle className="text-slate-300 text-sm font-bold flex items-center gap-2 uppercase tracking-widest">
+                            Patrimonio Total
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-col items-center">
+                        <div className="text-4xl font-bold text-white mb-1 bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+                            {formatMoney(stats.summary.totalInvested + stats.summary.totalIdle + stats.summary.totalDebtReceivable)}
+                        </div>
+                        <p className="text-xs text-slate-500">Sumatoria Global</p>
+                    </CardContent>
+                </Card>
             </div>
 
             {/* ROW 1.5: Upcoming Events (Adaptive Flex) */}

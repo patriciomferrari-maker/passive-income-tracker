@@ -11,8 +11,18 @@ interface Property {
     address: string | null;
     _count: {
         contracts: number;
-    };
-}
+        id: string;
+        name: string;
+        address: string | null;
+        electricityId: string | null;
+        gasId: string | null;
+        municipalId: string | null;
+        hasGarage: boolean;
+        garageMunicipalId: string | null;
+        _count: {
+            contracts: number;
+        };
+    }
 
 interface PropertiesTabProps {
     showValues?: boolean;
@@ -27,6 +37,11 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
     // Form state
     const [name, setName] = useState('');
     const [address, setAddress] = useState('');
+    const [electricityId, setElectricityId] = useState('');
+    const [gasId, setGasId] = useState('');
+    const [municipalId, setMunicipalId] = useState('');
+    const [hasGarage, setHasGarage] = useState(false);
+    const [garageMunicipalId, setGarageMunicipalId] = useState('');
 
     useEffect(() => {
         loadProperties();
@@ -57,10 +72,21 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, address })
-            });
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        address,
+                        electricityId: electricityId || null,
+                        gasId: gasId || null,
+                        municipalId: municipalId || null,
+                        hasGarage,
+                        garageMunicipalId: garageMunicipalId || null
+                    })
+                });
 
-            if (!res.ok) throw new Error('Failed to save property');
+                if(!res.ok) throw new Error('Failed to save property');
 
             await loadProperties();
             resetForm();
@@ -73,7 +99,13 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
     const handleEdit = (property: Property) => {
         setEditingProperty(property);
         setName(property.name);
+        setName(property.name);
         setAddress(property.address || '');
+        setElectricityId(property.electricityId || '');
+        setGasId(property.gasId || '');
+        setMunicipalId(property.municipalId || '');
+        setHasGarage(property.hasGarage || false);
+        setGarageMunicipalId(property.garageMunicipalId || '');
         setShowForm(true);
     };
 
@@ -93,6 +125,13 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
     const resetForm = () => {
         setName('');
         setAddress('');
+        setName('');
+        setAddress('');
+        setElectricityId('');
+        setGasId('');
+        setMunicipalId('');
+        setHasGarage(false);
+        setGarageMunicipalId('');
         setEditingProperty(null);
         setShowForm(false);
     };
@@ -193,6 +232,69 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                                         onChange={e => setAddress(e.target.value)}
                                         className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
                                     />
+                                    <input
+                                        type="text"
+                                        value={address}
+                                        onChange={e => setAddress(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-1">ID Luz</label>
+                                        <input
+                                            type="text"
+                                            value={electricityId}
+                                            onChange={e => setElectricityId(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-1">ID Gas</label>
+                                        <input
+                                            type="text"
+                                            value={gasId}
+                                            onChange={e => setGasId(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-1">ID Municipal</label>
+                                        <input
+                                            type="text"
+                                            value={municipalId}
+                                            onChange={e => setMunicipalId(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-slate-800 pt-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <input
+                                            type="checkbox"
+                                            id="hasGarage"
+                                            checked={hasGarage}
+                                            onChange={e => setHasGarage(e.target.checked)}
+                                            className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <label htmlFor="hasGarage" className="text-sm font-medium text-slate-300 select-none cursor-pointer">
+                                            Incluye Cochera
+                                        </label>
+                                    </div>
+
+                                    {hasGarage && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-300 mb-1">ID Municipal Cochera</label>
+                                            <input
+                                                type="text"
+                                                value={garageMunicipalId}
+                                                onChange={e => setGarageMunicipalId(e.target.value)}
+                                                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex gap-3 pt-4">
                                     <Button

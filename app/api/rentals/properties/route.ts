@@ -43,13 +43,18 @@ export async function POST(request: Request) {
     try {
         const userId = await getUserId();
         const body = await request.json();
-        const { name, address } = body;
+        const { name, address, electricityId, gasId, municipalId, hasGarage, garageMunicipalId } = body;
 
         const property = await prisma.property.create({
             data: {
                 userId,
                 name,
-                address: address || null
+                address: address || null,
+                electricityId: electricityId || null,
+                gasId: gasId || null,
+                municipalId: municipalId || null,
+                hasGarage: hasGarage || false,
+                garageMunicipalId: garageMunicipalId || null
             }
         });
 

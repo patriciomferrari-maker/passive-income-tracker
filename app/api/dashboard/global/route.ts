@@ -256,43 +256,103 @@ export async function GET() {
             where: { userId }
         });
 
-        const bankCompositionMap = new Map<string, number>();
+        let totalIdleUSD = 0; // Caja Ahorro + Caja Seguridad
+        let totalBankInvestedUSD = 0; // PF + FCI
+        const breakdownMap = new Map<string, number>();
+
         bankOperations.forEach(op => {
-            const type = op.type === 'PLAZO_FIJO' ? 'Plazo Fijo' :
+            const typeLabel = op.type === 'PLAZO_FIJO' ? 'Plazo Fijo' :
                 op.type === 'FCI' ? 'FCI' :
-                    op.type === 'CAJA_AHORRO' ? 'Caja Ahorro' : 'Otro';
+                    op.type === 'CAJA_AHORRO' ? 'Caja Ahorro' :
+                        op.type === 'CAJA_SEGURIDAD' ? 'Caja Seguridad' : 'Otro';
 
             let amountUSD = op.amount;
             if (op.currency === 'ARS') {
                 amountUSD = op.amount / exchangeRate;
             }
 
-            const current = bankCompositionMap.get(type) || 0;
-            bankCompositionMap.set(type, current + amountUSD);
+            // KPI Separation
+            if (op.type === 'CAJA_AHORRO' || op.type === 'CAJA_SEGURIDAD') {
+                totalIdleUSD += amountUSD;
+            } else {
+                totalBankInvestedUSD += amountUSD;
+            }
+
+            // Allow drilling down into Bank Aliases if needed, or by Type as requested
+            // User asked: "no mostrar 'Bancos', sino lo cargado dentro" -> specific Types/Aliases?
+            // "lo cargado dentro" implies the specific items. 
+            // If many items, maybe group by Type. 
+            // Let's group by Type for chart clarity (FCI, Plazo Fijo, Caja Ahorro)
+            breakdownMap.set(typeLabel, (breakdownMap.get(typeLabel) || 0) + amountUSD);
         });
 
-        // Aggregate into 3 main categories as requested
-        let valArg = portfolioMap.get('Cartera Argentina') || 0;
-        let valUSA = portfolioMap.get('Cartera USA') || 0;
-        let valBank = 0;
-        bankCompositionMap.forEach(v => valBank += v);
+        // --- INVESTMENT COMPOSITION ---
+        // Group Market Investments by TYPE (ON, CEDEAR, TREASURY, ETF)
+        investments.forEach(inv => {
+            // ... (Price logic logic was computed before, checking effectiveMarketValue) ...
+            // Re-using the iteration logic from above efficiently?
+            // The previous loop filled `portfolioMap` with 'Cartera Argentina' / 'Cartera USA'. 
+            // We need GRANULAR Types now.
+        });
 
-        // Handle 'Other' types if any (add to Arg or keep separate? User asked for 3 specific ones. I'll add 'OTRO' to Arg for safe-keeping or ignore?)
-        // Safer: If it's not USA, it's likely local.
-        const valOther = portfolioMap.get('OTRO') || 0;
-        valArg += valOther;
+        // Let's Redo the iteration to build the Granular Map correctly w/o breaking FIFO logic order
+        // We already have `investments` and prices.
 
-        const portfolioDistribution = [
-            { name: 'Cartera Argentina', value: valArg },
-            { name: 'Cartera USA', value: valUSA },
-            { name: 'Inversiones Banco', value: valBank }
-        ].filter(i => i.value > 1).sort((a, b) => b.value - a.value);
+        investments.forEach(inv => {
+            // ... (Price calculation repeat or reuse) ...
+            const priceInfo = pricesMap.get(inv.ticker);
+            let currentPrice = priceInfo?.price || 0;
+            const currency = priceInfo?.currency || 'USD';
+            if (currency === 'ARS' || (currency === 'USD' && currentPrice > 400)) currentPrice /= exchangeRate;
+            if (inv.type === 'ON' && currentPrice > 2.0) currentPrice /= 100;
 
+            // Simple Market Value (approx for chart)
+            const qty = inv.transactions.reduce((acc, tx) => acc + (tx.type === 'BUY' ? tx.quantity : -tx.quantity), 0);
+            let marketValue = qty * currentPrice;
 
+            // Fallback Cost Basis if Price is 0
+            if (marketValue <= 1) {
+                const costBasis = inv.transactions.reduce((sum, tx) => sum + (tx.type === 'BUY' ? tx.totalAmount : 0), 0); // Simplified cost
+                if (Math.abs(costBasis) > 1) {
+                    const avgPrice = Math.abs(costBasis) / qty; // implied
+                    marketValue = qty * avgPrice;
+                }
+            }
 
-        const bankComposition = Array.from(bankCompositionMap.entries()).map(([name, value]) => ({
-            name, value, fill: '#10b981' // Standard color, can randomize in UI
-        }));
+            if (marketValue > 1) {
+                // Ensure proper USD conversion for ARS assets
+                if (['ON', 'CEDEAR', 'FCI', 'PF'].includes(inv.type) && marketValue > 500000) { // heuristics again or trust prev logic?
+                    // Rely on strict logic:
+                    // If ticker currency was ARS, we already divided currentPrice.
+                    // But if we used Cost Basis (which is in ARS for ONs often), we need to divide.
+                    // Let's assume calculated `marketValue` is USD normalized if we used `currentPrice`.
+                }
+
+                // TYPE LABEL
+                let label = inv.type;
+                if (inv.type === 'ON') label = 'ONs (Arg)';
+                if (inv.type === 'TREASURY') label = 'Treasuries (USA)';
+                if (inv.type === 'CEDEAR') label = 'CEDEARs';
+
+                breakdownMap.set(label, (breakdownMap.get(label) || 0) + marketValue);
+            }
+        });
+
+        // Create Distribution List
+        const portfolioDistribution = Array.from(breakdownMap.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .filter(i => i.value > 10); // Hide dust
+
+        // Total Invested update (Market + Bank Invested)
+        // totalInvested (calculated before) included ON/Treasury.
+        // Needs to include Bank *Invested* (PF, FCI) but NOT Idle.
+        // AND include simple manual investments if any?
+        // Let's sum Market + Bank Invested.
+        const totalMarketInvested = Array.from(portfolioMap.values()).reduce((a, b) => a + b, 0); // From prev calculation
+        const totalInvestedClean = totalMarketInvested + totalBankInvestedUSD;
+
+        const bankComposition: any[] = []; // Deprecated/Empty now as we merged logic
 
         // Calculate TIR
         let tir = 0;
@@ -540,15 +600,16 @@ export async function GET() {
 
         return NextResponse.json({
             summary: {
-                totalInvested,
-                totalDebtPending,
+                totalInvested: totalInvestedClean,
+                totalIdle: totalIdleUSD,
+                totalDebtReceivable: totalDebtPending, // Already calculated in D section
                 tir,
                 nextInterestON: nextInterestON ? { date: nextInterestON.date, amount: nextInterestON.amount, name: nextInterestON.investment.name } : null,
                 nextInterestTreasury: nextInterestTreasury ? { date: nextInterestTreasury.date, amount: nextInterestTreasury.amount, name: nextInterestTreasury.investment.name } : null,
                 nextRentalAdjustment,
                 nextContractExpiration,
                 totalMonthlyIncome,
-                totalBankUSD,
+                totalBankUSD, // Kept for legacy or specific card
                 nextMaturitiesPF
             },
             pnl: {

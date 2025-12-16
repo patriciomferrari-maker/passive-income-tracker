@@ -54,6 +54,16 @@ model Property {
   
   name      String
   address   String?
+  
+  // Utilities & Taxes IDs
+  electricityId String?
+  gasId         String?
+  municipalId   String?
+  
+  // Garage
+  hasGarage     Boolean    @default(false)
+  garageMunicipalId String?
+
   contracts Contract[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -74,6 +84,10 @@ model Contract {
   currency            String           @default("ARS") // ARS, USD
   documentUrl         String?          // URL del contrato (Word/PDF)
   
+  // Warranty
+  warrantyAmount      Float?
+  warrantyCurrency    String           @default("USD")
+
   adjustmentType      String           @default("IPC") // IPC, NONE
   adjustmentFrequency Int              @default(12) // Meses entre ajustes (6, 12, etc.)
   
