@@ -9,6 +9,8 @@ export function CashflowTab() {
     const [year, setYear] = useState(new Date().getFullYear());
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    // State for collapsible categories
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
     const months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -51,11 +53,7 @@ export function CashflowTab() {
     };
 
     const incomeTotal = (m: number) => getMonthlyTotal('INCOME', m);
-    const expenseTotal = (m: number) => getMonthlyTotal('EXPENSE', m);
     const netTotal = (m: number) => incomeTotal(m) - expenseTotal(m);
-
-    // State for collapsible categories
-    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
     const toggleCategory = (catName: string) => {
         setExpandedCategories(prev => ({ ...prev, [catName]: !prev[catName] }));
