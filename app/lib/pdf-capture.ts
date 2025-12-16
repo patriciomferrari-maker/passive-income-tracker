@@ -4,7 +4,7 @@ import chromium from '@sparticuz/chromium';
 // Cache browser instance check
 let isLocal = process.env.NODE_ENV === 'development';
 
-export async function generateDashboardPdf(userId: string, type: 'rentals' | 'investments', baseUrl: string): Promise<Buffer> {
+export async function generateDashboardPdf(userId: string, type: 'rentals' | 'investments', baseUrl: string, secret: string): Promise<Buffer> {
     const isRentals = type === 'rentals';
 
     // Hybrid Strategy: Remote in Prod (Browserless), Local in Dev
@@ -49,7 +49,7 @@ export async function generateDashboardPdf(userId: string, type: 'rentals' | 'in
         const page = await browser.newPage();
 
         // Pass the secret to bypass auth check in the print route
-        const url = `${baseUrl}/print/${userId}/${type}?secret=${process.env.CRON_SECRET}`;
+        const url = `${baseUrl}/print/${userId}/${type}?secret=${secret}`;
 
         // Optimize loading
         await page.setRequestInterception(true);
