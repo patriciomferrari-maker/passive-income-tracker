@@ -171,6 +171,9 @@ export function GlobalDashboardTab() {
     // Filter Debt Details
     const debtDetails = showValues && shouldShow('debts') ? (stats.debtDetails || []) : [];
 
+    // Check if Bank history exists for Chart Rendering
+    const showBankHistory = historyData.some((h: any) => (h.Bank || 0) > 0);
+
     const renderTotalLabel = (props: any) => {
         const { x, y, width, value } = props;
         if (!showValues || !value) return null;
@@ -442,9 +445,13 @@ export function GlobalDashboardTab() {
                                     />
                                     <Bar dataKey="ON" stackId="a" fill="#3b82f6" name="ONs" />
                                     <Bar dataKey="Treasury" stackId="a" fill="#8b5cf6" name="Treasuries" />
-                                    <Bar dataKey="Rentals" stackId="a" fill="#10b981" name="Alquileres" />
-                                    {historyData.some((h: any) => (h.Bank || 0) > 0) && (
-                                        <Bar dataKey="Bank" stackId="a" fill="#f59e0b" name="Plazo Fijo / Bank" />
+                                    <Bar dataKey="Rentals" stackId="a" fill="#10b981" name="Alquileres">
+                                        {!showBankHistory && <LabelList dataKey="total" content={renderTotalLabel} />}
+                                    </Bar>
+                                    {showBankHistory && (
+                                        <Bar dataKey="Bank" stackId="a" fill="#f59e0b" name="Plazo Fijo / Bank">
+                                            <LabelList dataKey="total" content={renderTotalLabel} />
+                                        </Bar>
                                     )}
                                 </BarChart>
                             </ResponsiveContainer>
