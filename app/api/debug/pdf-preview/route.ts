@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateRentalsPdfBuffer, generateInvestmentsPdfBuffer } from '@/app/lib/pdf-generator';
 import { generateDashboardPdf } from '@/app/lib/pdf-capture';
+import os from 'os';
+import fs from 'fs';
 import { getUserId } from '@/app/lib/auth-helper';
 
 export async function GET(req: NextRequest) {
@@ -34,12 +36,50 @@ export async function GET(req: NextRequest) {
             return new NextResponse(buffer, {
                 headers: {
                     'Content-Type': 'application/pdf',
-                    'Content-Disposition': `inline; filename="preview_headless_${type}.pdf"`
-                }
+                    'Content-Disposition': `inline; filename="${type}-report.pdf"`,
+                },
             });
         } catch (error: any) {
-            console.error('Headless Generation Error:', error);
-            return NextResponse.json({ error: 'Headless Generation Failed', details: error.message }, { status: 500 });
+            console.error('Debug Generation Error:', error);
+
+            // Gather diagnostics
+            const diagnostics: any = {
+                node_version: process.version,
+                os_platform: os.platform(),
+                os_release: os.release(),
+                os_type: os.type(),
+                env_vars: {
+                    VERCEL: process.env.VERCEL,
+                    AWS_LAMBDA_FUNCTION_NAME: process.env.AWS_LAMBDA_FUNCTION_NAME,
+                }
+            };
+
+            try {
+                // Attempt to check chromium path availability
+                const chromium = require('@sparticuz/chromium');
+                const execPath = await chromium.executablePath();
+                diagnostics.chromium_executable_path = execPath;
+                diagnostics.executable_exists = fs.existsSync(execPath);
+                diagnostics.directory_contents = fs.existsSync(execPath) ? 'Exists' : 'Not Found';
+
+                // Check if /tmp/chromium exists (where it usually unpacks)
+                diagnostics.tmp_chromium_exists = fs.existsSync('/tmp/chromium');
+                if (fs.existsSync('/tmp')) {
+                    diagnostics.tmp_files = fs.readdirSync('/tmp');
+                }
+            } catch (diagError: any) {
+                diagnostics.diagnosis_error = diagError.message;
+            }
+
+            return NextResponse.json(
+                {
+                    error: 'Headless Generation Failed',
+                    details: error.message,
+                    stack: error.stack,
+                    diagnostics
+                },
+                { status: 500 }
+            );
         }
     }
 
