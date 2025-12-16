@@ -194,12 +194,23 @@ export function CashflowTab() {
 
                         {/* RESULTADO ARS */}
                         <tr className="bg-slate-800 text-white font-bold border-t-4 border-slate-800 shadow-inner">
-                            <td className="px-4 py-3 text-right border-r border-slate-700">AHORRO</td>
+                            <td className="px-4 py-3 text-right border-r border-slate-700">AHORRO (ARS)</td>
                             {periods.map((p: string) => (
                                 <td key={p} className={`px-2 py-3 text-right text-xs ${netTotal(p) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                     ${netTotal(p).toLocaleString()}
                                 </td>
                             ))}
+                        </tr>
+
+                        {/* SEPARATOR USD */}
+                        <tr className="bg-slate-950/50">
+                            <td colSpan={periods.length + 1} className="py-4 border-l border-r border-slate-800">
+                                <div className="flex items-center gap-2 px-4">
+                                    <div className="h-px bg-slate-800 flex-1"></div>
+                                    <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Resumen en Dólares</span>
+                                    <div className="h-px bg-slate-800 flex-1"></div>
+                                </div>
+                            </td>
                         </tr>
 
                         {/* TC USD */}
@@ -212,13 +223,13 @@ export function CashflowTab() {
                             ))}
                         </tr>
 
-                        {/* RESULTADO USD */}
-                        <tr className="bg-slate-900 text-blue-300 font-bold border-t border-slate-800">
-                            <td className="px-4 py-3 text-right border-r border-slate-800">Ahorro USD</td>
+                        {/* INGRESOS USD */}
+                        <tr className="bg-slate-900 text-emerald-300 font-bold border-t border-slate-800">
+                            <td className="px-4 py-3 text-right border-r border-slate-800">INGRESOS (USD)</td>
                             {periods.map((p: string) => {
-                                const net = netTotal(p);
+                                const inc = incomeTotal(p);
                                 const rate = data.rates[p];
-                                const usd = rate ? net / rate : 0;
+                                const usd = rate ? inc / rate : 0;
                                 return (
                                     <td key={p} className="px-2 py-3 text-right text-xs">
                                         {rate ? `US$${Math.round(usd).toLocaleString()}` : '-'}
@@ -226,6 +237,7 @@ export function CashflowTab() {
                                 );
                             })}
                         </tr>
+
                         {/* GASTOS USD */}
                         <tr className="bg-slate-900 text-purple-300 font-bold border-t border-slate-800">
                             <td className="px-4 py-3 text-right border-r border-slate-800">GASTOS (USD)</td>
@@ -233,6 +245,21 @@ export function CashflowTab() {
                                 const exp = expenseTotal(p);
                                 const rate = data.rates[p];
                                 const usd = rate ? exp / rate : 0;
+                                return (
+                                    <td key={p} className="px-2 py-3 text-right text-xs">
+                                        {rate ? `US$${Math.round(usd).toLocaleString()}` : '-'}
+                                    </td>
+                                );
+                            })}
+                        </tr>
+
+                        {/* RESULTADO USD (Ahorro) */}
+                        <tr className="bg-blue-950/30 text-blue-300 font-bold border-t border-slate-800">
+                            <td className="px-4 py-3 text-right border-r border-slate-800">AHORRO (USD)</td>
+                            {periods.map((p: string) => {
+                                const net = netTotal(p);
+                                const rate = data.rates[p];
+                                const usd = rate ? net / rate : 0;
                                 return (
                                     <td key={p} className="px-2 py-3 text-right text-xs">
                                         {rate ? `US$${Math.round(usd).toLocaleString()}` : '-'}
