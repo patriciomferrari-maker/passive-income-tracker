@@ -1,9 +1,11 @@
-
 import { prisma } from '@/lib/prisma';
 import { Resend } from 'resend';
 import { generateMonthlyReportEmail } from '@/app/lib/email-template';
 import { startOfMonth, endOfMonth, isSameMonth, addMonths, isBefore, isAfter, differenceInMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import React from 'react';
+import { renderToBuffer } from '@react-pdf/renderer';
+import { MonthlyReportPdf } from '@/components/pdf/MonthlyReportPdf';
 
 // Helper to format currency
 const formatUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -283,52 +285,76 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             month: monthName,
                             year: year.toString(),
                             dashboardUrl: appUrl + '/dashboard/global',
-
-                            totalDebtPending: debtTotalPendingUSD, // Updated field
+                            totalDebtPending: debtTotalPendingUSD,
                             totalArg: totalArg,
                             totalUSA: totalUSA,
-
                             maturities: maturities,
-
                             rentalEvents: {
                                 nextExpiration: nextRentalExpiration,
                                 nextAdjustment: nextRentalAdjustment
                             },
-
                             nextPFMaturity
                         });
 
-                        const resend = new Resend(process.env.RESEND_API_KEY);
-                        await resend.emails.send({
-                            from: 'Passive Income Tracker <onboarding@resend.dev>',
-                            to: recipientEmail.split(',').map((e: string) => e.trim()),
-                            subject: `Resumen Mensual: ${monthName} ${year}`,
-                            html: htmlContent
-                        });
-                        userResult.success = true;
-                        userResult.message = `Enhanced Email sent to ${recipientEmail}`;
-                    } else {
-                        userResult.success = false;
-                        userResult.message = 'Missing RESEND_API_KEY or Recipient Email';
-                    }
+                        // Prepare PDF Data
+                        const enabledSections = settings.enabledSections ? settings.enabledSections.split(',').map(s => s.trim()) : ['on', 'bank', 'rentals']; // Default fallback if empty
+
+                        // Generate PDF
+                        // Note: renderToBuffer might be async depending on version, treating as Promise
+                        const pdfBuffer = await renderToBuffer(
+                            <MonthlyReportPdf 
+                                data={{
+                            userName: user.name || 'Usuario',
+                            month: monthName,
+                            year: year.toString(),
+                            totalNetWorthUSD,
+                            bank: { totalUSD: bankTotalUSD },
+                            investments: { totalUSD: investmentsTotalUSD, totalArg, totalUSA },
+                            rentals: { monthlyIncomeUSD: monthlyRentalIncomeUSD, activeContracts: activeContracts.length },
+                            debts: { totalPendingUSD: debtTotalPendingUSD },
+                            maturities: maturities
+                        }}
+                    enabledSections = { enabledSections }
+                        />
+                        );
+
+                    const resend = new Resend(process.env.RESEND_API_KEY);
+                    await resend.emails.send({
+                        from: 'Passive Income Tracker <onboarding@resend.dev>',
+                        to: recipientEmail.split(',').map((e: string) => e.trim()),
+                        subject: `Resumen Mensual: ${monthName} ${year}`,
+                        html: htmlContent,
+                        attachments: [
+                            {
+                                filename: `Reporte_${monthName}_${year}.pdf`,
+                                content: pdfBuffer
+                            }
+                        ]
+                    });
+                    userResult.success = true;
+                    userResult.message = `Enhanced Email with PDF sent to ${recipientEmail}`;
                 } else {
-                    userResult.message = `Skipped: Not time (Day ${reportDay}, Hour ${reportHour})`;
+                    userResult.success = false;
+                    userResult.message = 'Missing RESEND_API_KEY or Recipient Email';
                 }
-
-            } catch (uError: any) {
-                console.error(`Error processing user ${user.id}:`, uError);
-                userResult.success = false;
-                userResult.message = uError.message;
+            } else {
+                userResult.message = `Skipped: Not time (Day ${reportDay}, Hour ${reportHour})`;
             }
-            results.reports.push(userResult);
-        }
-    } catch (error: any) {
-        console.error('Reports Loop Error:', error);
-    }
 
-    return {
-        success: true,
-        timestamp: new Date().toISOString(),
-        details: results
-    };
+        } catch (uError: any) {
+            console.error(`Error processing user ${user.id}:`, uError);
+            userResult.success = false;
+            userResult.message = uError.message;
+        }
+        results.reports.push(userResult);
+    }
+    } catch (error: any) {
+    console.error('Reports Loop Error:', error);
+}
+
+return {
+    success: true,
+    timestamp: new Date().toISOString(),
+    details: results
+};
 }
