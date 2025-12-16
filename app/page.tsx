@@ -47,7 +47,7 @@ export default function HomePage() {
 
   const loadStats = async () => {
     try {
-      const res = await fetch('/api/dashboard/stats');
+      const res = await fetch(`/api/dashboard/stats?t=${new Date().getTime()}`);
       const data = await res.json();
       setStats(data);
     } catch (error) {
@@ -182,8 +182,8 @@ export default function HomePage() {
                           />
                         )}
 
-                        {/* Costa Card - Only show if specifically allowed (which is never for new users currently) OR legacy (showAll) */}
-                        {showAll && (
+                        {/* Costa Card - Only show if specifically allowed OR legacy (showAll) */}
+                        {(showAll || shouldShow('costa')) && (
                           <DashboardCard
                             title="Costa Esmeralda"
                             description="Alquileres y Mantenimiento"
