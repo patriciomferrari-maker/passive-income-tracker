@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
         // --- DATA PROCESSING ---
 
         // 1. Trend Data (Last 12 Months)
-        const monthlyData: Record<string, { income: number; expense: number; incomeUSD: number; expenseUSD: number; savingsUSD: number; date: Date }> = {};
+        const monthlyData: Record<string, { income: number; expense: number; expenseCosta: number; incomeUSD: number; expenseUSD: number; expenseCostaUSD: number; savingsUSD: number; date: Date }> = {};
 
         // Init months
         let current = new Date(startDate);
@@ -37,21 +37,29 @@ export async function GET(req: NextRequest) {
             const y = current.getFullYear();
             const m = current.getMonth();
             const key = `${y}-${(m + 1).toString().padStart(2, '0')}`;
-            monthlyData[key] = { income: 0, expense: 0, incomeUSD: 0, expenseUSD: 0, savingsUSD: 0, date: new Date(y, m, 1) };
+            monthlyData[key] = {
+                income: 0,
+                expense: 0,
+                expenseCosta: 0,
+                incomeUSD: 0,
+                expenseUSD: 0,
+                expenseCostaUSD: 0,
+                savingsUSD: 0,
+                date: new Date(y, m, 1)
+            };
             current.setMonth(current.getMonth() + 1);
         }
 
         let totalSavingsUSD12M = 0;
-        const categoryExpenses: Record<string, number> = {};
+        const lastMonthKey = `${endDate.getFullYear()}-${(endDate.getMonth() + 1).toString().padStart(2, '0')}`;
+        const lastMonthExpenses: Record<string, number> = {};
 
         txs.forEach(tx => {
             const key = `${tx.date.getFullYear()}-${(tx.date.getMonth() + 1).toString().padStart(2, '0')}`;
             const amount = tx.amount;
-            const rate = tx.exchangeRate || 0; // We might need to fetch rates if not in TX, but assuming TX has it for simplicity or 0
-
-            // If we don't have rate on TX, we can't calc USD precisely per TX without a lookup map. 
-            // For dashboard speed, let's use what we have or skip USD if rate missing.
+            const rate = tx.exchangeRate || 0;
             const amountUSD = rate > 0 ? amount / rate : 0;
+            const isCosta = tx.category.name.toLowerCase().includes('costa esmeralda');
 
             if (monthlyData[key]) {
                 if (tx.category.type === 'INCOME') {
@@ -61,9 +69,15 @@ export async function GET(req: NextRequest) {
                     monthlyData[key].expense += amount;
                     monthlyData[key].expenseUSD += amountUSD;
 
-                    // Category Breakdown (Overall last 12m? Or last month?)
-                    // Let's do Last 12M Breakdown for better significance
-                    categoryExpenses[tx.category.name] = (categoryExpenses[tx.category.name] || 0) + amountUSD; // USD distribution is better for comparison
+                    if (isCosta) {
+                        monthlyData[key].expenseCosta += amount;
+                        monthlyData[key].expenseCostaUSD += amountUSD;
+                    }
+
+                    // Distribution: ONLY for the Last Month (most recent in range)
+                    if (key === lastMonthKey) {
+                        lastMonthExpenses[tx.category.name] = (lastMonthExpenses[tx.category.name] || 0) + amountUSD;
+                    }
                 }
             }
         });
@@ -72,6 +86,8 @@ export async function GET(req: NextRequest) {
         const trend = Object.entries(monthlyData).sort().map(([key, val]) => {
             const savings = val.income - val.expense;
             const savingsUSD = val.incomeUSD - val.expenseUSD;
+            const expenseOtherUSD = val.expenseUSD - val.expenseCostaUSD;
+
             totalSavingsUSD12M += savingsUSD;
 
             return {
@@ -80,6 +96,8 @@ export async function GET(req: NextRequest) {
                 date: val.date,
                 income: val.income,
                 expense: val.expense,
+                expenseCostaUSD: val.expenseCostaUSD,
+                expenseOtherUSD: expenseOtherUSD,
                 savings: savings,
                 savingsUSD: savingsUSD
             };
@@ -95,8 +113,8 @@ export async function GET(req: NextRequest) {
         // Average Monthly Savings (USD)
         const avgSavingsUSD = totalSavingsUSD12M / 12;
 
-        // 3. Category Distribution (Top 5)
-        const categoryDist = Object.entries(categoryExpenses)
+        // 3. Category Distribution (Top 5 - Last Month Only)
+        const categoryDist = Object.entries(lastMonthExpenses)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value)
             .slice(0, 5); // Top 5

@@ -103,25 +103,15 @@ export function DashboardTab() {
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                {/* Main Trend Chart */}
+                {/* Main Trend Chart - Costa vs Others */}
                 <div className="lg:col-span-2 bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
                     <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5 text-blue-500" />
-                        Evolución del Ahorro (USD)
+                        <DollarSign className="h-5 w-5 text-purple-500" />
+                        Gastos: Costa Esmeralda vs Resto (USD)
                     </h3>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={trend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorSavings" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
+                            <BarChart data={trend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                                 <XAxis
                                     dataKey="shortDate"
@@ -137,24 +127,30 @@ export function DashboardTab() {
                                     axisLine={false}
                                     tickFormatter={(value) => `$${value}`}
                                 />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Area
-                                    type="monotone"
-                                    dataKey="savingsUSD"
-                                    name="Ahorro USD"
-                                    stroke="#10b981"
-                                    strokeWidth={3}
-                                    fillOpacity={1}
-                                    fill="url(#colorSavings)"
+                                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.5 }} />
+                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                                <Bar
+                                    dataKey="expenseOtherUSD"
+                                    name="Otros Gastos"
+                                    stackId="a"
+                                    fill="#64748b"
+                                    radius={[0, 0, 4, 4]}
                                 />
-                            </AreaChart>
+                                <Bar
+                                    dataKey="expenseCostaUSD"
+                                    name="Costa Esmeralda"
+                                    stackId="a"
+                                    fill="#22d3ee"
+                                    radius={[4, 4, 0, 0]}
+                                />
+                            </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
                 {/* Distribution Chart */}
                 <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
-                    <h3 className="text-lg font-bold text-white mb-6">Top Gastos (USD)</h3>
+                    <h3 className="text-lg font-bold text-white mb-6">Top Gastos (Último Mes)</h3>
                     <div className="h-[300px] w-full relative">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
@@ -176,7 +172,7 @@ export function DashboardTab() {
                         </ResponsiveContainer>
                         {/* Legend Overlay */}
                         <div className="absolute bottom-0 w-full flex flex-col justify-center items-center gap-2 pointer-events-none">
-                            <div className="text-xs text-slate-500">Distribución de últimos 12 meses</div>
+                            <div className="text-xs text-slate-500">Distribución de mes actual</div>
                         </div>
                     </div>
                     <div className="mt-4 space-y-2">
