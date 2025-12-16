@@ -5,6 +5,8 @@ import os from 'os';
 import fs from 'fs';
 import { getUserId } from '@/app/lib/auth-helper';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const type = searchParams.get('type') || 'rentals';
@@ -14,14 +16,13 @@ export async function GET(req: NextRequest) {
     // HEADLESS MODE (Puppeteer)
     if (mode === 'headless') {
         try {
-            // Use provided userId or fallback to current session user (if available, though typically debugging is easier with explicit ID)
+            // Use provided userId or fallback to current session user
             let userId = targetUserId;
             if (!userId) {
-                // Try to get from session
                 try {
                     userId = await getUserId();
                 } catch (e) {
-                    return NextResponse.json({ error: 'User ID required for headless preview. Pass ?userId=...' }, { status: 400 });
+                    return NextResponse.json({ error: 'User ID required. Pass ?userId=...' }, { status: 400 });
                 }
             }
 
@@ -30,13 +31,15 @@ export async function GET(req: NextRequest) {
             }
 
             const appUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-            // Note: This requires CRON_SECRET to be set in .env
             const buffer = await generateDashboardPdf(userId, type as 'rentals' | 'investments', appUrl, process.env.CRON_SECRET!);
 
             return new NextResponse(buffer, {
                 headers: {
                     'Content-Type': 'application/pdf',
-                    'Content-Disposition': `inline; filename="${type}-report.pdf"`,
+                    'Content-Disposition': `inline; filename="${type}-report-${userId}-${Date.now()}.pdf"`,
+                    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0',
                 },
             });
         } catch (error: any) {
