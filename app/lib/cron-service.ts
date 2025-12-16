@@ -299,60 +299,59 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
 
                         // Generate PDF
                         // Note: renderToBuffer might be async depending on version, treating as Promise
-                        const pdfBuffer = await renderToBuffer(
-                            <MonthlyReportPdf 
-                                data={{
-                            userName: user.name || 'Usuario',
-                            month: monthName,
-                            year: year.toString(),
-                            totalNetWorthUSD,
-                            bank: { totalUSD: bankTotalUSD },
-                            investments: { totalUSD: investmentsTotalUSD, totalArg, totalUSA },
-                            rentals: { monthlyIncomeUSD: monthlyRentalIncomeUSD, activeContracts: activeContracts.length },
-                            debts: { totalPendingUSD: debtTotalPendingUSD },
-                            maturities: maturities
-                        }}
-                    enabledSections = { enabledSections }
-                        />
+                        // Generate PDF
+                        const pdfBuffer = await generateMonthlyReportPdfBuffer(
+                            {
+                                userName: user.name || 'Usuario',
+                                month: monthName,
+                                year: year.toString(),
+                                totalNetWorthUSD,
+                                bank: { totalUSD: bankTotalUSD },
+                                investments: { totalUSD: investmentsTotalUSD, totalArg, totalUSA },
+                                rentals: { monthlyIncomeUSD: monthlyRentalIncomeUSD, activeContracts: activeContracts.length },
+                                debts: { totalPendingUSD: debtTotalPendingUSD },
+                                maturities: maturities
+                            },
+                            enabledSections
                         );
 
-                    const resend = new Resend(process.env.RESEND_API_KEY);
-                    await resend.emails.send({
-                        from: 'Passive Income Tracker <onboarding@resend.dev>',
-                        to: recipientEmail.split(',').map((e: string) => e.trim()),
-                        subject: `Resumen Mensual: ${monthName} ${year}`,
-                        html: htmlContent,
-                        attachments: [
-                            {
-                                filename: `Reporte_${monthName}_${year}.pdf`,
-                                content: pdfBuffer
-                            }
-                        ]
-                    });
-                    userResult.success = true;
-                    userResult.message = `Enhanced Email with PDF sent to ${recipientEmail}`;
+                        const resend = new Resend(process.env.RESEND_API_KEY);
+                        await resend.emails.send({
+                            from: 'Passive Income Tracker <onboarding@resend.dev>',
+                            to: recipientEmail.split(',').map((e: string) => e.trim()),
+                            subject: `Resumen Mensual: ${monthName} ${year}`,
+                            html: htmlContent,
+                            attachments: [
+                                {
+                                    filename: `Reporte_${monthName}_${year}.pdf`,
+                                    content: pdfBuffer
+                                }
+                            ]
+                        });
+                        userResult.success = true;
+                        userResult.message = `Enhanced Email with PDF sent to ${recipientEmail}`;
+                    } else {
+                        userResult.success = false;
+                        userResult.message = 'Missing RESEND_API_KEY or Recipient Email';
+                    }
                 } else {
-                    userResult.success = false;
-                    userResult.message = 'Missing RESEND_API_KEY or Recipient Email';
+                    userResult.message = `Skipped: Not time (Day ${reportDay}, Hour ${reportHour})`;
                 }
-            } else {
-                userResult.message = `Skipped: Not time (Day ${reportDay}, Hour ${reportHour})`;
+
+            } catch (uError: any) {
+                console.error(`Error processing user ${user.id}:`, uError);
+                userResult.success = false;
+                userResult.message = uError.message;
             }
-
-        } catch (uError: any) {
-            console.error(`Error processing user ${user.id}:`, uError);
-            userResult.success = false;
-            userResult.message = uError.message;
+            results.reports.push(userResult);
         }
-        results.reports.push(userResult);
-    }
     } catch (error: any) {
-    console.error('Reports Loop Error:', error);
-}
+        console.error('Reports Loop Error:', error);
+    }
 
-return {
-    success: true,
-    timestamp: new Date().toISOString(),
-    details: results
-};
+    return {
+        success: true,
+        timestamp: new Date().toISOString(),
+        details: results
+    };
 }
