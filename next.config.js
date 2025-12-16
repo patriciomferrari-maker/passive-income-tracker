@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-// Force rebuild for Node 18 (Legacy AL2 compatibility)
+// Force rebuild for Node 22 (AL2023)
 const nextConfig = {
     typescript: {
         // !! WARN !!
