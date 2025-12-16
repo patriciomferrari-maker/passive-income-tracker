@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-// Force rebuild for Node 20 (Amazon Linux 2023 migration)
+// Force rebuild for Node 18 (Legacy AL2 compatibility)
 const nextConfig = {
     typescript: {
         // !! WARN !!
