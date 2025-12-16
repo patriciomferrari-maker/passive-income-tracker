@@ -10,44 +10,58 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Mail, Save, Send, CheckCircle, AlertCircle, ArrowLeft, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
 
+// Definition of sections
+const allSections = [
+    { id: 'on', label: 'Cartera Argentina (ONs/Cedears)' },
+    { id: 'treasury', label: 'Cartera USA (Treasuries)' },
+    { id: 'rentals', label: 'Alquileres' },
+    { id: 'costa', label: 'Costa Esmeralda' },
+    { id: 'debts', label: 'Deudas a Cobrar' },
+    { id: 'bank', label: 'Banco (PF/FCI)' },
+    // Hidden by default, only for specific users
+    { id: 'barbosa', label: 'Barbosa (Hogar)', restricted: true },
+];
+
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [sendingTest, setSendingTest] = useState(false);
 
+    const [emails, setEmails] = useState("");
+    const [reportDay, setReportDay] = useState("1");
+    const [reportHour, setReportHour] = useState("10");
+    const [enabledSections, setEnabledSections] = useState<string[]>([]);
+
+    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
     const [userEmail, setUserEmail] = useState("");
-
-    // Definition of sections
-    const allSections = [
-        { id: 'on', label: 'Cartera Argentina (ONs/Cedears)' },
-        { id: 'treasury', label: 'Cartera USA (Treasuries)' },
-        { id: 'rentals', label: 'Alquileres' },
-        { id: 'costa', label: 'Costa Esmeralda' },
-        { id: 'debts', label: 'Deudas a Cobrar' },
-        { id: 'bank', label: 'Banco (PF/FCI)' },
-        // Hidden by default, only for specific users
-        { id: 'barbosa', label: 'Barbosa (Hogar)', restricted: true },
-    ];
-
     const [availableSections, setAvailableSections] = useState(allSections.filter(s => !s.restricted));
 
     useEffect(() => {
         fetch('/api/settings')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error("API Error");
+                return res.json();
+            })
             .then(data => {
-                if (data.notificationEmails !== undefined) {
-                    setEmails(data.notificationEmails);
-                    setReportDay(data.reportDay.toString());
+                // Ensure data exists
+                if (data && data.notificationEmails !== undefined) {
+                    setEmails(data.notificationEmails || "");
+                    setReportDay((data.reportDay || 1).toString());
                     setReportHour((data.reportHour ?? 10).toString());
                     setEnabledSections(data.enabledSections ? data.enabledSections.split(',') : []);
 
                     // Handle restriction
-                    if (data.email === 'patriciomferrari@gmail.com') {
+                    const email = data.email ? data.email.toLowerCase() : '';
+                    console.log('Settings fetched for:', email);
+
+                    if (email === 'patriciomferrari@gmail.com') {
                         setAvailableSections(allSections);
                     } else {
+                        // Reset to default if not generic
                         setAvailableSections(allSections.filter(s => !s.restricted));
                     }
-                    setUserEmail(data.email);
+                    setUserEmail(email);
                 }
             })
             .catch(err => {
@@ -119,6 +133,7 @@ export default function SettingsPage() {
                     </CardTitle>
                     <CardDescription className="text-slate-400">
                         Configura cuándo y a quién se envían los resúmenes automáticos.
+                        {userEmail && <span className="block mt-1 text-xs text-sky-400">Usuario detectado: {userEmail}</span>}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
