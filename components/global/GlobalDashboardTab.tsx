@@ -199,10 +199,10 @@ export function GlobalDashboardTab() {
             </div>
 
             {/* ROW 1: KPIs & TIR */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="flex flex-wrap gap-6">
                 {/* Total Investments (Market) */}
                 {(shouldShow('on') || shouldShow('treasury')) && stats.summary.totalInvested > 0 && (
-                    <Card className="bg-gradient-to-br from-blue-950/40 to-slate-900 border-blue-500/20 text-center flex flex-col items-center justify-center">
+                    <Card className="flex-1 min-w-[240px] bg-gradient-to-br from-blue-950/40 to-slate-900 border-blue-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
                                 <Landmark size={18} /> Inversiones Mercado
@@ -217,7 +217,7 @@ export function GlobalDashboardTab() {
 
                 {/* Total Bank */}
                 {shouldShow('bank') && stats.summary.totalBankUSD > 0 && (
-                    <Card className="bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
+                    <Card className="flex-1 min-w-[240px] bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
                                 <Building2 size={18} /> Inversiones Banco
@@ -232,7 +232,7 @@ export function GlobalDashboardTab() {
 
                 {/* TIR - UPDATED TITLE */}
                 {(shouldShow('on') || shouldShow('treasury')) && stats.summary.totalInvested > 0 && (
-                    <Card className="bg-gradient-to-br from-amber-950/40 to-slate-900 border-amber-500/20 text-center flex flex-col items-center justify-center">
+                    <Card className="flex-1 min-w-[240px] bg-gradient-to-br from-amber-950/40 to-slate-900 border-amber-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
                                 <Percent size={18} /> TIR Estimada (ON + Treasuries)
@@ -247,7 +247,7 @@ export function GlobalDashboardTab() {
 
                 {/* Unrealized P&L */}
                 {(shouldShow('on') || shouldShow('treasury')) && stats.pnl && stats.summary.totalInvested > 0 && Math.abs(Math.round(stats.pnl.unrealized)) > 0 && (
-                    <Card className="bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
+                    <Card className="flex-1 min-w-[240px] bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2 group relative cursor-help">
                                 <TrendingUp size={18} /> Resultado No Realizado
