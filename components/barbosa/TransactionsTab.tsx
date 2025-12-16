@@ -158,31 +158,40 @@ export function TransactionsTab() {
 
                         <div className="space-y-2">
                             <Label className="text-slate-300">Categoría</Label>
-                            <Input
-                                list="categories-list"
-                                value={formData.categoryName}
-                                onChange={e => setFormData({ ...formData, categoryName: e.target.value })}
-                                className="bg-slate-950 border-slate-700 text-white"
-                                placeholder="Escribe o selecciona..."
-                                required
-                            />
-                            <datalist id="categories-list">
-                                {uniqueCategories.map(c => <option key={c} value={c} />)}
-                            </datalist>
+                            <Select
+                                value={formData.categoryId}
+                                onValueChange={v => {
+                                    // Reset subcategory when category changes
+                                    setFormData({ ...formData, categoryId: v, subCategoryId: '' });
+                                }}
+                            >
+                                <SelectTrigger className="bg-slate-950 border-slate-700 text-white">
+                                    <SelectValue placeholder="Seleccionar..." />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                                    {uniqueCategories.map((c: any) => (
+                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="space-y-2">
                             <Label className="text-slate-300">Sub Categoría</Label>
-                            <Input
-                                list="sub-categories-list"
-                                value={formData.subCategoryName}
-                                onChange={e => setFormData({ ...formData, subCategoryName: e.target.value })}
-                                className="bg-slate-950 border-slate-700 text-white"
-                                placeholder="Opcional..."
-                            />
-                            <datalist id="sub-categories-list">
-                                {availableSubCategories.map((s: string) => <option key={s} value={s} />)}
-                            </datalist>
+                            <Select
+                                value={formData.subCategoryId}
+                                onValueChange={v => setFormData({ ...formData, subCategoryId: v })}
+                                disabled={!availableSubCategories.length}
+                            >
+                                <SelectTrigger className="bg-slate-950 border-slate-700 text-white disabled:opacity-50">
+                                    <SelectValue placeholder={availableSubCategories.length ? "Seleccionar..." : "N/A"} />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                                    {availableSubCategories.map((s: any) => (
+                                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="space-y-2">
@@ -194,23 +203,7 @@ export function TransactionsTab() {
                             />
                         </div>
 
-                        {formData.currency === 'ARS' && (
-                            <div className="space-y-2">
-                                <div className="flex justify-between">
-                                    <Label className="text-slate-300">Tipo de Cambio (Admin)</Label>
-                                </div>
-                                <Input
-                                    type="number" step="0.01"
-                                    value={formData.exchangeRate}
-                                    onChange={e => setFormData({ ...formData, exchangeRate: e.target.value })}
-                                    className="bg-slate-950 border-slate-700 text-white"
-                                    placeholder="Valor del dólar..."
-                                />
-                                <p className="text-xs text-slate-500">
-                                    * Se usará para calcular el monto en USD automáticamente.
-                                </p>
-                            </div>
-                        )}
+                        {/* Exchange rate input removed as per user request */}
 
                         <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                             <Save className="mr-2 h-4 w-4" /> Guardar

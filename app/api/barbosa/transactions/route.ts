@@ -44,39 +44,34 @@ export async function POST(req: NextRequest) {
         date,
         amount,
         currency,
-        categoryName,
-        subCategoryName,
+        categoryId,
+        subCategoryId,
         type,
         description,
         exchangeRate
     } = body;
 
-    // 1. Find or Create Category
-    let category = await prisma.barbosaCategory.findFirst({
-        where: { userId, name: categoryName, type }
+    // Validate Category Exists (and belongs to user)
+    const category = await prisma.barbosaCategory.findFirst({
+        where: { id: categoryId, userId }
     });
 
     if (!category) {
-        category = await prisma.barbosaCategory.create({
-            data: { userId, name: categoryName, type }
-        });
+        return NextResponse.json({ error: 'Invalid Category' }, { status: 400 });
     }
 
-    // 2. Find or Create SubCategory
-    let subCategory = null;
-    if (subCategoryName) {
-        subCategory = await prisma.barbosaSubCategory.findFirst({
-            where: { categoryId: category.id, name: subCategoryName }
+    // Validate SubCategory (if provided)
+    let validSubCategoryId = null;
+    if (subCategoryId) {
+        const subCategory = await prisma.barbosaSubCategory.findFirst({
+            where: { id: subCategoryId, categoryId: category.id }
         });
-
-        if (!subCategory) {
-            subCategory = await prisma.barbosaSubCategory.create({
-                data: { categoryId: category.id, name: subCategoryName }
-            });
+        if (subCategory) {
+            validSubCategoryId = subCategory.id;
         }
     }
 
-    // 3. Create Transaction
+    // Create Transaction
     const tx = await prisma.barbosaTransaction.create({
         data: {
             userId,
@@ -88,7 +83,7 @@ export async function POST(req: NextRequest) {
             amountUSD: currency === 'USD' ? parseFloat(amount) : (exchangeRate ? parseFloat(amount) / parseFloat(exchangeRate) : null),
             description,
             categoryId: category.id,
-            subCategoryId: subCategory?.id
+            subCategoryId: validSubCategoryId
         },
         include: {
             category: true,
