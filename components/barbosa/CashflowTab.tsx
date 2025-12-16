@@ -54,22 +54,52 @@ export function CashflowTab() {
     const expenseTotal = (m: number) => getMonthlyTotal('EXPENSE', m);
     const netTotal = (m: number) => incomeTotal(m) - expenseTotal(m);
 
-    // Render Rows for a Type
+    // State for collapsible categories
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+    const toggleCategory = (catName: string) => {
+        setExpandedCategories(prev => ({ ...prev, [catName]: !prev[catName] }));
+    };
+
+    // Render Rows for a Type (Grouped)
     const renderCategoryRows = (type: string) => {
         const typeGroup = data.data[type] || {};
         return Object.keys(typeGroup).map(catName => {
             const cat = typeGroup[catName];
+            const isExpanded = expandedCategories[catName];
+
+            // Calculate Category Totals
+            const catTotals = months.map(m => cat.total[m] || 0);
+
             return (
                 <>
-                    {/* Category Header Row (Optional summary) */}
-                    {Object.keys(cat.subs).map(subName => (
-                        <tr key={`${type}-${catName}-${subName}`} className="hover:bg-slate-900/50 border-b border-slate-900 last:border-0">
-                            <td className="px-4 py-2 text-slate-300 font-medium border-r border-slate-800">
-                                <span className="text-xs text-slate-500 mr-2 uppercase">{catName}</span>
+                    {/* Category Header Row (Clickable) */}
+                    <tr
+                        key={`${type}-${catName}`}
+                        className="hover:bg-slate-900/50 border-b border-slate-900 cursor-pointer"
+                        onClick={() => toggleCategory(catName)}
+                    >
+                        <td className="px-4 py-2 text-slate-300 font-bold border-r border-slate-800 flex items-center gap-2">
+                            <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                            </div>
+                            {catName}
+                        </td>
+                        {catTotals.map((val, idx) => (
+                            <td key={idx} className="px-2 py-2 text-right text-slate-300 font-mono text-xs font-semibold">
+                                {val > 0 ? `$${val.toLocaleString()}` : '-'}
+                            </td>
+                        ))}
+                    </tr>
+
+                    {/* SubCategories List (Collapsible) */}
+                    {isExpanded && Object.keys(cat.subs).map(subName => (
+                        <tr key={`${type}-${catName}-${subName}`} className="bg-slate-950/50 hover:bg-slate-900/50 border-b border-slate-900 last:border-00 animate-in fade-in slide-in-from-top-1">
+                            <td className="px-4 py-1 text-slate-500 font-medium border-r border-slate-800 pl-8 text-xs">
                                 {subName}
                             </td>
                             {months.map(m => (
-                                <td key={m} className="px-2 py-2 text-right text-slate-400 font-mono text-xs">
+                                <td key={m} className="px-2 py-1 text-right text-slate-500 font-mono text-[10px]">
                                     {getValue(type, catName, subName, m) > 0 ? `$${getValue(type, catName, subName, m).toLocaleString()}` : '-'}
                                 </td>
                             ))}
@@ -113,7 +143,7 @@ export function CashflowTab() {
                             <td colSpan={12}></td>
                         </tr>
                         {renderCategoryRows('INCOME')}
-                        <tr className="bg-slate-900 font-bold text-emerald-400">
+                        <tr className="bg-slate-900 font-bold text-emerald-400 border-t border-slate-800">
                             <td className="px-4 py-2 text-right border-r border-slate-800">TOTAL INGRESOS</td>
                             {months.map(m => (
                                 <td key={m} className="px-2 py-2 text-right text-xs">
@@ -128,7 +158,7 @@ export function CashflowTab() {
                             <td colSpan={12}></td>
                         </tr>
                         {renderCategoryRows('EXPENSE')}
-                        <tr className="bg-slate-900 font-bold text-red-400">
+                        <tr className="bg-slate-900 font-bold text-red-400 border-t border-slate-800">
                             <td className="px-4 py-2 text-right border-r border-slate-800">TOTAL GASTOS</td>
                             {months.map(m => (
                                 <td key={m} className="px-2 py-2 text-right text-xs">
@@ -139,7 +169,7 @@ export function CashflowTab() {
 
                         {/* NETO ARS */}
                         <tr className="bg-slate-800 text-white font-bold border-t-2 border-slate-700">
-                            <td className="px-4 py-3 text-right border-r border-slate-700">RESULTADO (ARS)</td>
+                            <td className="px-4 py-3 text-right border-r border-slate-700">AHORRO</td>
                             {months.map(m => (
                                 <td key={m} className={`px-2 py-3 text-right text-xs ${netTotal(m) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                     ${netTotal(m).toLocaleString()}
@@ -159,7 +189,7 @@ export function CashflowTab() {
 
                         {/* RESULTADO USD */}
                         <tr className="bg-slate-900 text-blue-300 font-bold border-t border-slate-800">
-                            <td className="px-4 py-3 text-right border-r border-slate-800">RESULTADO (USD)</td>
+                            <td className="px-4 py-3 text-right border-r border-slate-800">Ahorro USD</td>
                             {months.map(m => {
                                 const net = netTotal(m);
                                 const rate = data.rates[m];
