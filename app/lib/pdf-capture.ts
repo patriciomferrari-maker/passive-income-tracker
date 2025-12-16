@@ -49,7 +49,7 @@ export async function generateDashboardPdf(userId: string, type: 'rentals' | 'in
         const page = await browser.newPage();
 
         // Pass the secret to bypass auth check in the print route
-        const url = `${baseUrl}/print/${userId}/${type}?secret=${secret}`;
+        const url = `${baseUrl}/print/${userId}/${type}?secret=${encodeURIComponent(secret)}`;
 
         // Optimize loading
         await page.setRequestInterception(true);
