@@ -3,9 +3,7 @@ import { Resend } from 'resend';
 import { generateMonthlyReportEmail } from '@/app/lib/email-template';
 import { startOfMonth, endOfMonth, isSameMonth, addMonths, isBefore, isAfter, differenceInMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
-import React from 'react';
-import { renderToBuffer } from '@react-pdf/renderer';
-import { MonthlyReportPdf } from '@/components/pdf/MonthlyReportPdf';
+import { generateMonthlyReportPdfBuffer } from '@/app/lib/pdf-generator';
 
 // Helper to format currency
 const formatUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
