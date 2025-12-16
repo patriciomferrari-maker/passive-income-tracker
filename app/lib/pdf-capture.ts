@@ -7,30 +7,43 @@ let isLocal = process.env.NODE_ENV === 'development';
 export async function generateDashboardPdf(userId: string, type: 'rentals' | 'investments', baseUrl: string): Promise<Buffer> {
     const isRentals = type === 'rentals';
 
-    // Configure Chromium for Serverless
-    // Note: In local dev, you might need a local chrome path or full puppeteer
-    // This logic attempts to find a local path if we are in dev and executablePath is missing
-    let executablePath = await chromium.executablePath();
+    // Hybrid Strategy: Remote in Prod (Browserless), Local in Dev
+    const browserlessToken = process.env.BROWSERLESS_TOKEN;
 
-    if (isLocal && !executablePath) {
-        // Try common local paths or just assume the user has Chrome installed
-        // If this fails locally, we might need 'puppeteer' (full) devDependency
-        const { platform } = process;
-        if (platform === 'win32') {
-            executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-        } else if (platform === 'darwin') {
-            executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-        } else {
-            executablePath = '/usr/bin/google-chrome';
+    let browser;
+
+    if (browserlessToken) {
+        console.log('Connecting to Remote Browserless.io instance...');
+        browser = await puppeteer.connect({
+            browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessToken}&stealth`,
+        });
+    } else {
+        // Fallback to local Chrome (mostly for Dev)
+        // Configure Chromium for Serverless
+        // Note: In local dev, you might need a local chrome path or full puppeteer
+        // This logic attempts to find a local path if we are in dev and executablePath is missing
+        let executablePath = await chromium.executablePath();
+
+        if (isLocal && !executablePath) {
+            // Try common local paths or just assume the user has Chrome installed
+            // If this fails locally, we might need 'puppeteer' (full) devDependency
+            const { platform } = process;
+            if (platform === 'win32') {
+                executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+            } else if (platform === 'darwin') {
+                executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+            } else {
+                executablePath = '/usr/bin/google-chrome';
+            }
         }
-    }
 
-    const browser = await puppeteer.launch({
-        args: isLocal ? ['--no-sandbox'] : chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: executablePath || undefined,
-        headless: chromium.headless,
-    });
+        browser = await puppeteer.launch({
+            args: isLocal ? ['--no-sandbox'] : chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: executablePath || undefined,
+            headless: chromium.headless,
+        });
+    }
 
     try {
         const page = await browser.newPage();
