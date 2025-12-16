@@ -12,17 +12,33 @@ export async function GET() {
 
         if (!settings) {
             // Create default settings for this user if not exist
-            settings = await prisma.appSettings.create({
+            const newSettings = await prisma.appSettings.create({
                 data: {
                     userId,
                     notificationEmails: "",
                     reportDay: 1,
                     reportHour: 10,
                     enabledSections: ""
-                }
+                },
+                include: { user: true }
+            });
+            // Return here to avoid type mess
+            return NextResponse.json({
+                ...newSettings,
+                email: newSettings.user?.email
             });
         }
-        return NextResponse.json(settings);
+
+        // Refetch with user included if it exists (to get the email)
+        const settingsWithUser = await prisma.appSettings.findUnique({
+            where: { userId },
+            include: { user: true }
+        });
+
+        return NextResponse.json({
+            ...settingsWithUser,
+            email: settingsWithUser?.user?.email
+        });
     } catch (e) {
         return unauthorized();
     }

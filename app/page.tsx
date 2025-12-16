@@ -192,6 +192,20 @@ export default function HomePage() {
                             count={0}
                             totalValue={0}
                             currency="USD"
+                            enabled={true}
+                          />
+                        )}
+
+                        {(showAll || shouldShow('barbosa')) && (
+                          <DashboardCard
+                            title="Barbosa"
+                            description="Gastos y Limpieza"
+                            icon="🏠"
+                            href="/barbosa"
+                            count={0}
+                            totalValue={0}
+                            currency="ARS"
+                            enabled={true}
                           />
                         )}
                       </>

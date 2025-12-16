@@ -15,12 +15,21 @@ export default function SettingsPage() {
     const [saving, setSaving] = useState(false);
     const [sendingTest, setSendingTest] = useState(false);
 
-    const [emails, setEmails] = useState("");
-    const [reportDay, setReportDay] = useState("1");
-    const [reportHour, setReportHour] = useState("10");
-    const [enabledSections, setEnabledSections] = useState<string[]>([]);
+    const [userEmail, setUserEmail] = useState("");
 
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    // Definition of sections
+    const allSections = [
+        { id: 'on', label: 'Cartera Argentina (ONs/Cedears)' },
+        { id: 'treasury', label: 'Cartera USA (Treasuries)' },
+        { id: 'rentals', label: 'Alquileres' },
+        { id: 'costa', label: 'Costa Esmeralda' },
+        { id: 'debts', label: 'Deudas a Cobrar' },
+        { id: 'bank', label: 'Banco (PF/FCI)' },
+        // Hidden by default, only for specific users
+        { id: 'barbosa', label: 'Barbosa (Hogar)', restricted: true },
+    ];
+
+    const [availableSections, setAvailableSections] = useState(allSections.filter(s => !s.restricted));
 
     useEffect(() => {
         fetch('/api/settings')
@@ -31,6 +40,14 @@ export default function SettingsPage() {
                     setReportDay(data.reportDay.toString());
                     setReportHour((data.reportHour ?? 10).toString());
                     setEnabledSections(data.enabledSections ? data.enabledSections.split(',') : []);
+
+                    // Handle restriction
+                    if (data.email === 'patriciomferrari@gmail.com') {
+                        setAvailableSections(allSections);
+                    } else {
+                        setAvailableSections(allSections.filter(s => !s.restricted));
+                    }
+                    setUserEmail(data.email);
                 }
             })
             .catch(err => {
@@ -176,13 +193,7 @@ export default function SettingsPage() {
                         </p>
 
                         <div className="grid grid-cols-1 gap-3">
-                            {[
-                                { id: 'on', label: 'Cartera Argentina (ONs)' },
-                                { id: 'treasury', label: 'Cartera USA (Treasuries)' },
-                                { id: 'rentals', label: 'Alquileres' },
-                                { id: 'debts', label: 'Deudas' },
-                                { id: 'bank', label: 'Banco' }
-                            ].map((section) => (
+                            {availableSections.map((section) => (
                                 <div key={section.id} className="flex items-center space-x-2">
                                     <input
                                         type="checkbox"

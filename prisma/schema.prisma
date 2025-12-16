@@ -30,6 +30,12 @@ model User {
   costaCategories CostaCategory[]
   costaTransactions CostaTransaction[]
   costaNotes      CostaNote[]
+  
+  // Barbosa Relations
+  barbosaCategories BarbosaCategory[]
+  barbosaTransactions BarbosaTransaction[]
+  barbosaCleaning BarbosaCleaning[]
+
   monthlySummaries MonthlySummary[]
   appSettings     AppSettings[]
 
@@ -446,4 +452,99 @@ model AccessLog {
   
   @@index([email])
   @@index([createdAt])
+}
+
+// =================================================================
+// BARBOSA (HIDDEN SECTION)
+// =================================================================
+
+model BarbosaCategory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name      String   // e.g. "Auto"
+  type      String   // INCOME, EXPENSE
+  
+  subCategories BarbosaSubCategory[]
+  transactions  BarbosaTransaction[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model BarbosaSubCategory {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   BarbosaCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  name       String   // e.g. "Seguro"
+  
+  transactions BarbosaTransaction[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([categoryId])
+}
+
+model BarbosaTransaction {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  date           DateTime
+  type           String   // INCOME, EXPENSE
+  
+  // Amounts
+  amount         Float    // Value in original currency
+  currency       String   @default("ARS") // ARS, USD
+  
+  // Dollarized Value
+  exchangeRate   Float?   // TC USD at moment of transaction
+  amountUSD      Float?   // Calculated USD value
+  
+  // Categorization
+  categoryId     String
+  category       BarbosaCategory @relation(fields: [categoryId], references: [id])
+  
+  subCategoryId  String?
+  subCategory    BarbosaSubCategory? @relation(fields: [subCategoryId], references: [id])
+  
+  description    String?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([date])
+}
+
+model BarbosaCleaning {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  month          Int
+  year           Int
+  
+  // Inputs
+  weeklyValue    Float    // Valor de la semana (Base)
+  hoursPerWeek   Int      // Horas por semana
+  
+  // Calculated/Input
+  pricePerHour   Float    // Precio por hora
+  monthlyIncrease Float   // Aumento mensual (%) 
+  
+  paidValue      Float    // Valor pagado final
+  
+  // Comparison
+  legalHourlyRate Float?   // Precio por hora segun ley
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@unique([userId, month, year])
 }
