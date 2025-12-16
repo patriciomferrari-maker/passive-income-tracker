@@ -3,7 +3,8 @@ import { Resend } from 'resend';
 import { generateMonthlyReportEmail } from '@/app/lib/email-template';
 import { startOfMonth, endOfMonth, isSameMonth, addMonths, isBefore, isAfter, differenceInMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { generateMonthlyReportPdfBuffer, generateRentalsPdfBuffer, generateInvestmentsPdfBuffer } from '@/app/lib/pdf-generator';
+import { generateMonthlyReportPdfBuffer } from '@/app/lib/pdf-generator';
+import { generateDashboardPdf } from '@/app/lib/pdf-capture';
 
 // Helper to format currency
 const formatUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -294,42 +295,73 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             nextPFMaturity
                         });
 
-                        // Prepare PDF Data
-                        const enabledSections = settings.enabledSections ? settings.enabledSections.split(',').map(s => s.trim()) : ['on', 'bank', 'rentals']; // Default fallback if empty
+                        // Prepare PDF Attachments
+                        const enabledSections = settings.enabledSections ? settings.enabledSections.split(',').map(s => s.trim()) : ['on', 'bank', 'rentals'];
+                        const attachments = [];
 
-                        // Generate PDF
-                        // Note: renderToBuffer might be async depending on version, treating as Promise
-                        // Generate PDF
-                        const pdfBuffer = await generateMonthlyReportPdfBuffer(
-                            {
-                                userName: user.name || 'Usuario',
-                                month: monthName,
-                                year: year.toString(),
-                                totalNetWorthUSD,
-                                bank: { totalUSD: bankTotalUSD },
-                                investments: { totalUSD: investmentsTotalUSD, totalArg, totalUSA },
-                                rentals: { monthlyIncomeUSD: monthlyRentalIncomeUSD, activeContracts: activeContracts.length },
-                                debts: { totalPendingUSD: debtTotalPendingUSD },
-                                maturities: maturities
-                            },
-                            enabledSections
-                        );
+                        // 1. Consolidated Summary Report (React-PDF)
+                        try {
+                            const summaryPdfBuffer = await generateMonthlyReportPdfBuffer(
+                                {
+                                    userName: user.name || 'Usuario',
+                                    month: monthName,
+                                    year: year.toString(),
+                                    totalNetWorthUSD,
+                                    bank: { totalUSD: bankTotalUSD },
+                                    investments: { totalUSD: investmentsTotalUSD, totalArg, totalUSA },
+                                    rentals: { monthlyIncomeUSD: monthlyRentalIncomeUSD, activeContracts: activeContracts.length },
+                                    debts: { totalPendingUSD: debtTotalPendingUSD },
+                                    maturities: maturities
+                                },
+                                enabledSections
+                            );
+                            attachments.push({
+                                filename: `Reporte_Resumen_${monthName}_${year}.pdf`,
+                                content: summaryPdfBuffer
+                            });
+                        } catch (e) {
+                            console.error('Error generating Summary PDF:', e);
+                        }
 
+                        // 2. Headless Rentals Report
+                        if (enabledSections.includes('rentals')) {
+                            try {
+                                console.log(`Generating Rentals PDF for user ${user.id}...`);
+                                const rentalsPdf = await generateDashboardPdf(user.id, 'rentals', appUrl);
+                                attachments.push({
+                                    filename: `Reporte_Alquileres_${monthName}_${year}.pdf`,
+                                    content: rentalsPdf
+                                });
+                            } catch (e) {
+                                console.error('Error generating Rentals PDF:', e);
+                            }
+                        }
+
+                        // 3. Headless Investments Report
+                        if (enabledSections.some(s => ['on', 'cedear', 'treasury'].includes(s))) {
+                            try {
+                                console.log(`Generating Investments PDF for user ${user.id}...`);
+                                const investmentsPdf = await generateDashboardPdf(user.id, 'investments', appUrl);
+                                attachments.push({
+                                    filename: `Reporte_Inversiones_${monthName}_${year}.pdf`,
+                                    content: investmentsPdf
+                                });
+                            } catch (e) {
+                                console.error('Error generating Investments PDF:', e);
+                            }
+                        }
+
+                        // Send Email with Attachments
                         const resend = new Resend(process.env.RESEND_API_KEY);
                         await resend.emails.send({
                             from: 'Passive Income Tracker <onboarding@resend.dev>',
                             to: recipientEmail.split(',').map((e: string) => e.trim()),
                             subject: `Resumen Mensual: ${monthName} ${year}`,
                             html: htmlContent,
-                            attachments: [
-                                {
-                                    filename: `Reporte_${monthName}_${year}.pdf`,
-                                    content: pdfBuffer
-                                }
-                            ]
+                            attachments: attachments
                         });
                         userResult.success = true;
-                        userResult.message = `Enhanced Email with PDF sent to ${recipientEmail}`;
+                        userResult.message = `Enhanced Email with ${attachments.length} PDFs sent to ${recipientEmail}`;
                     } else {
                         userResult.success = false;
                         userResult.message = 'Missing RESEND_API_KEY or Recipient Email';

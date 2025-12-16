@@ -1,10 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateRentalsPdfBuffer, generateInvestmentsPdfBuffer } from '@/app/lib/pdf-generator';
+import { generateDashboardPdf } from '@/app/lib/pdf-capture';
+import { getUserId } from '@/app/lib/auth-helper';
 
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const type = searchParams.get('type') || 'rentals';
+    const mode = searchParams.get('mode'); // 'headless' or undefined
+    const targetUserId = searchParams.get('userId');
 
+    // HEADLESS MODE (Puppeteer)
+    if (mode === 'headless') {
+        try {
+            // Use provided userId or fallback to current session user (if available, though typically debugging is easier with explicit ID)
+            let userId = targetUserId;
+            if (!userId) {
+                // Try to get from session
+                try {
+                    userId = await getUserId();
+                } catch (e) {
+                    return NextResponse.json({ error: 'User ID required for headless preview. Pass ?userId=...' }, { status: 400 });
+                }
+            }
+
+            if (!userId) {
+                return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+            }
+
+            const appUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+            // Note: This requires CRON_SECRET to be set in .env
+            const buffer = await generateDashboardPdf(userId, type as 'rentals' | 'investments', appUrl);
+
+            return new NextResponse(buffer, {
+                headers: {
+                    'Content-Type': 'application/pdf',
+                    'Content-Disposition': `inline; filename="preview_headless_${type}.pdf"`
+                }
+            });
+        } catch (error: any) {
+            console.error('Headless Generation Error:', error);
+            return NextResponse.json({ error: 'Headless Generation Failed', details: error.message }, { status: 500 });
+        }
+    }
+
+    // LEGACY / MOCK MODE (React-PDF with Dummy Data)
     // Dummy Data for Preview Micking the Real Dashboard
     const mockRentalsData = {
         month: 'Diciembre',
