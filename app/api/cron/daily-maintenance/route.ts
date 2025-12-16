@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import { runDailyMaintenance } from '@/app/lib/cron-service';
 
+export const maxDuration = 60; // Increase timeout to 60s for Puppeteer
+
 export async function GET(req: Request) {
     try {
         const url = new URL(req.url);
