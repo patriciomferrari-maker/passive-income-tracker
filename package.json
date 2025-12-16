@@ -41,7 +41,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "prisma": "5.22.0",
-    "sqlite3": "^5.1.7",
+    "prisma": "5.22.0",
+    "tailwindcss": "^4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
