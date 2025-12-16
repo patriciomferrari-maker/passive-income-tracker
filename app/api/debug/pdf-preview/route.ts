@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
             const appUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
             // Note: This requires CRON_SECRET to be set in .env
-            const buffer = await generateDashboardPdf(userId, type as 'rentals' | 'investments', appUrl);
+            const buffer = await generateDashboardPdf(userId, type as 'rentals' | 'investments', appUrl, process.env.CRON_SECRET!);
 
             return new NextResponse(buffer, {
                 headers: {

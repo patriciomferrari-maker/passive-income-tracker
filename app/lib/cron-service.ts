@@ -327,7 +327,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         if (enabledSections.includes('rentals')) {
                             try {
                                 console.log(`Generating Rentals PDF for user ${user.id}...`);
-                                const rentalsPdf = await generateDashboardPdf(user.id, 'rentals', appUrl);
+                                const rentalsPdf = await generateDashboardPdf(user.id, 'rentals', appUrl, process.env.CRON_SECRET!);
                                 attachments.push({
                                     filename: `Reporte_Alquileres_${monthName}_${year}.pdf`,
                                     content: rentalsPdf
@@ -341,7 +341,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         if (enabledSections.some(s => ['on', 'cedear', 'treasury'].includes(s))) {
                             try {
                                 console.log(`Generating Investments PDF for user ${user.id}...`);
-                                const investmentsPdf = await generateDashboardPdf(user.id, 'investments', appUrl);
+                                const investmentsPdf = await generateDashboardPdf(user.id, 'investments', appUrl, process.env.CRON_SECRET!);
                                 attachments.push({
                                     filename: `Reporte_Inversiones_${monthName}_${year}.pdf`,
                                     content: investmentsPdf
