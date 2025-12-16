@@ -377,7 +377,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
             )}
 
             {/* Individual Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-1 print:gap-8">
                 {activeContracts.map((contract) => {
                     const lastInf = [...contract.chartData].reverse().find(d => d.inflationAccum !== 0)?.inflationAccum ?? 0;
                     const lastDev = [...contract.chartData].reverse().find(d => d.devaluationAccum !== 0)?.devaluationAccum ?? 0;
