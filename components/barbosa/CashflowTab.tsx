@@ -93,12 +93,12 @@ export function CashflowTab() {
 
                     {/* SubCategories List (Collapsible) */}
                     {isExpanded && Object.keys(cat.subs).map(subName => (
-                        <tr key={`${type}-${catName}-${subName}`} className="bg-slate-950/50 hover:bg-slate-900/50 border-b border-slate-900 last:border-00 animate-in fade-in slide-in-from-top-1">
-                            <td className="px-4 py-1 text-slate-500 font-medium border-r border-slate-800 pl-8 text-xs">
+                        <tr key={`${type}-${catName}-${subName}`} className="bg-slate-950/30 hover:bg-slate-900/50 border-b border-slate-900 last:border-0 animate-in fade-in slide-in-from-top-1">
+                            <td className="px-4 py-1 text-slate-400 font-medium border-r border-slate-800 pl-12 text-xs border-l-4 border-l-slate-900">
                                 {subName}
                             </td>
                             {months.map(m => (
-                                <td key={m} className="px-2 py-1 text-right text-slate-500 font-mono text-[10px]">
+                                <td key={m} className="px-2 py-1 text-right text-slate-400 font-mono text-[10px]">
                                     {getValue(type, catName, subName, m) > 0 ? `$${getValue(type, catName, subName, m).toLocaleString()}` : '-'}
                                 </td>
                             ))}
