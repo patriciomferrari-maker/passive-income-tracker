@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+// Force rebuild for Node 20 (Amazon Linux 2023 migration)
 const nextConfig = {
     typescript: {
         // !! WARN !!
