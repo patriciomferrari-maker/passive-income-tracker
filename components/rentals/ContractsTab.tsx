@@ -15,8 +15,6 @@ interface Contract {
     currency: string;
     adjustmentType: string;
     adjustmentFrequency: number;
-    adjustmentType: string;
-    adjustmentFrequency: number;
     warrantyAmount: number | null;
     warrantyCurrency: string;
     documentUrl: string | null;
@@ -176,8 +174,6 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                     currency,
                     adjustmentType,
                     adjustmentFrequency: parseInt(adjustmentFrequency),
-                    adjustmentType,
-                    adjustmentFrequency: parseInt(adjustmentFrequency),
                     warrantyAmount: warrantyAmount ? parseFloat(warrantyAmount) : null,
                     warrantyCurrency,
                     documentUrl: uploadedUrl
@@ -207,7 +203,6 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
         setInitialRent(contract.initialRent.toString());
         setCurrency(contract.currency);
         setAdjustmentType(contract.adjustmentType);
-        setAdjustmentType(contract.adjustmentType);
         setAdjustmentFrequency(contract.adjustmentFrequency.toString());
         setWarrantyAmount(contract.warrantyAmount ? contract.warrantyAmount.toString() : '');
         setWarrantyCurrency(contract.warrantyCurrency || 'USD');
@@ -236,7 +231,6 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
         setDurationMonths('12');
         setInitialRent('');
         setCurrency('ARS');
-        setAdjustmentType('IPC');
         setAdjustmentType('IPC');
         setAdjustmentFrequency('12');
         setWarrantyAmount('');
@@ -500,85 +494,82 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                                             <option value="6">6 meses</option>
                                             <option value="12">12 meses</option>
                                         </select>
-                                        <option value="12">12 meses</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">
-                                        Garantía
-                                    </label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={warrantyAmount}
-                                            onChange={e => setWarrantyAmount(e.target.value)}
-                                            placeholder="Monto"
-                                            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
-                                        />
-                                        <select
-                                            value={warrantyCurrency}
-                                            onChange={e => setWarrantyCurrency(e.target.value)}
-                                            className="w-24 px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
-                                        >
-                                            <option value="USD">USD</option>
-                                            <option value="ARS">ARS</option>
-                                        </select>
                                     </div>
-                                </div>
 
-                                <div className="col-span-2">
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">
-                                        Contrato (Documento)
-                                    </label>
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="file"
-                                            accept=".pdf,.doc,.docx"
-                                            onChange={e => setInputFile(e.target.files?.[0] || null)}
-                                            className="block w-full text-sm text-slate-400
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-1">
+                                            Garantía
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={warrantyAmount}
+                                                onChange={e => setWarrantyAmount(e.target.value)}
+                                                placeholder="Monto"
+                                                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
+                                            />
+                                            <select
+                                                value={warrantyCurrency}
+                                                onChange={e => setWarrantyCurrency(e.target.value)}
+                                                className="w-24 px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
+                                            >
+                                                <option value="USD">USD</option>
+                                                <option value="ARS">ARS</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium text-slate-300 mb-1">
+                                            Contrato (Documento)
+                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="file"
+                                                accept=".pdf,.doc,.docx"
+                                                onChange={e => setInputFile(e.target.files?.[0] || null)}
+                                                className="block w-full text-sm text-slate-400
                                                     file:mr-4 file:py-2 file:px-4
                                                     file:rounded-full file:border-0
                                                     file:text-sm file:font-semibold
                                                     file:bg-blue-600 file:text-white
                                                     hover:file:bg-blue-700
                                                     cursor-pointer bg-slate-800 rounded border border-slate-700"
-                                        />
-                                        {documentUrl && !inputFile && (
-                                            <div className="text-emerald-400 text-xs flex items-center">
-                                                <FileText size={14} className="mr-1" /> Guardado
-                                            </div>
-                                        )}
+                                            />
+                                            {documentUrl && !inputFile && (
+                                                <div className="text-emerald-400 text-xs flex items-center">
+                                                    <FileText size={14} className="mr-1" /> Guardado
+                                                </div>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1">PDF o Word. Máx 50MB.</p>
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-1">PDF o Word. Máx 50MB.</p>
                                 </div>
-                            </div>
 
-                            <div className="flex gap-3 pt-4">
-                                <Button
-                                    type="button"
-                                    onClick={resetForm}
-                                    variant="outline"
-                                    className="flex-1"
-                                >
-                                    Cancelar
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={uploading}
-                                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                                >
-                                    {uploading ? <span className="flex items-center"><Upload className="animate-spin mr-2" size={16} /> Subiendo...</span> : (editingContract ? 'Actualizar' : 'Crear') + ' Contrato'}
-                                </Button>
-                            </div>
-                        </form>
-                    </CardContent>
-                </Card>
+                                <div className="flex gap-3 pt-4">
+                                    <Button
+                                        type="button"
+                                        onClick={resetForm}
+                                        variant="outline"
+                                        className="flex-1"
+                                    >
+                                        Cancelar
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={uploading}
+                                        className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                                    >
+                                        {uploading ? <span className="flex items-center"><Upload className="animate-spin mr-2" size={16} /> Subiendo...</span> : (editingContract ? 'Actualizar' : 'Crear') + ' Contrato'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </CardContent>
+                    </Card>
                 </div>
-    )
-}
-        </div >
+            )}
+        </div>
     );
 }
