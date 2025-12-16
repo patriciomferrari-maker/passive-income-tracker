@@ -6,26 +6,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from 'lucide-react';
 
 export function CashflowTab() {
-    const [year, setYear] = useState(new Date().getFullYear());
+    const [viewMode, setViewMode] = useState<string>("LAST_12"); // "LAST_12" or "2025" etc
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     // State for collapsible categories
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
-    const months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-
     useEffect(() => {
         fetchData();
-    }, [year]);
+    }, [viewMode]);
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/barbosa/cashflow?year=${year}`);
+            let url = '/api/barbosa/cashflow?';
+            if (viewMode === 'LAST_12') {
+                url += 'mode=LAST_12';
+            } else {
+                url += `mode=YEAR&year=${viewMode}`;
+            }
+            const res = await fetch(url);
             const json = await res.json();
-            setData(json.data);
-            // We also need rates which are in json.rates, so let's store whole json
             setData(json);
         } catch (e) {
             console.error(e);
@@ -37,24 +38,36 @@ export function CashflowTab() {
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-500" /></div>;
     if (!data) return <div className="text-center text-slate-500">No data</div>;
 
+    const periods = data.periods || []; // ["2024-01", "2024-02"...]
+
+    // Helper: Format period label (e.g. "2024-01" -> "Ene 24")
+    const formatPeriod = (p: string) => {
+        const [y, m] = p.split('-');
+        const date = new Date(parseInt(y), parseInt(m) - 1, 1);
+        // If viewing specific year, just Month name is fine. If Last 12, maybe Month+Year?
+        // Let's use short MMM always, if Last 12 show Year too?
+        // User asked for "Last 12", likely spans years.
+        return date.toLocaleDateString('es-ES', { month: 'short', year: viewMode === 'LAST_12' ? '2-digit' : undefined }).toUpperCase();
+    };
+
     // Helpers to access nested data safely
-    const getValue = (type: string, cat: string, sub: string, month: number) => {
-        return data.data[type]?.[cat]?.subs?.[sub]?.[month] || 0;
+    const getValue = (type: string, cat: string, sub: string, period: string) => {
+        return data.data[type]?.[cat]?.subs?.[sub]?.[period] || 0;
     };
 
     // Calculate Monthly Totals for Types
-    const getMonthlyTotal = (type: string, month: number) => {
+    const getMonthlyTotal = (type: string, period: string) => {
         let total = 0;
         const typeGroup = data.data[type] || {};
         Object.values(typeGroup).forEach((cat: any) => {
-            total += cat.total[month] || 0;
+            total += cat.total[period] || 0;
         });
         return total;
     };
 
-    const incomeTotal = (m: number) => getMonthlyTotal('INCOME', m);
-    const expenseTotal = (m: number) => getMonthlyTotal('EXPENSE', m);
-    const netTotal = (m: number) => incomeTotal(m) - expenseTotal(m);
+    const incomeTotal = (p: string) => getMonthlyTotal('INCOME', p);
+    const expenseTotal = (p: string) => getMonthlyTotal('EXPENSE', p);
+    const netTotal = (p: string) => incomeTotal(p) - expenseTotal(p);
 
     const toggleCategory = (catName: string) => {
         setExpandedCategories(prev => ({ ...prev, [catName]: !prev[catName] }));
@@ -63,28 +76,30 @@ export function CashflowTab() {
     // Render Rows for a Type (Grouped)
     const renderCategoryRows = (type: string) => {
         const typeGroup = data.data[type] || {};
-        return Object.keys(typeGroup).map(catName => {
+        const categories = Object.keys(typeGroup).sort();
+
+        return categories.map(catName => {
             const cat = typeGroup[catName];
             const isExpanded = expandedCategories[catName];
 
             // Calculate Category Totals
-            const catTotals = months.map(m => cat.total[m] || 0);
+            const catTotals = periods.map((p: string) => cat.total[p] || 0);
 
             return (
                 <>
                     {/* Category Header Row (Clickable) */}
                     <tr
                         key={`${type}-${catName}`}
-                        className="hover:bg-slate-900/50 border-b border-slate-900 cursor-pointer"
+                        className="hover:bg-slate-900/50 border-b border-slate-900 cursor-pointer group"
                         onClick={() => toggleCategory(catName)}
                     >
-                        <td className="px-4 py-2 text-slate-300 font-bold border-r border-slate-800 flex items-center gap-2">
+                        <td className="px-4 py-2 text-slate-300 font-bold border-r border-slate-800 flex items-center gap-2 group-hover:text-white">
                             <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
                             </div>
                             {catName}
                         </td>
-                        {catTotals.map((val, idx) => (
+                        {catTotals.map((val: number, idx: number) => (
                             <td key={idx} className="px-2 py-2 text-right text-slate-300 font-mono text-xs font-semibold">
                                 {val > 0 ? `$${val.toLocaleString()}` : '-'}
                             </td>
@@ -97,9 +112,9 @@ export function CashflowTab() {
                             <td className="px-4 py-1 text-slate-400 font-medium border-r border-slate-800 pl-12 text-xs border-l-4 border-l-slate-900">
                                 {subName}
                             </td>
-                            {months.map(m => (
-                                <td key={m} className="px-2 py-1 text-right text-slate-400 font-mono text-[10px]">
-                                    {getValue(type, catName, subName, m) > 0 ? `$${getValue(type, catName, subName, m).toLocaleString()}` : '-'}
+                            {periods.map((p: string) => (
+                                <td key={p} className="px-2 py-1 text-right text-slate-400 font-mono text-[10px]">
+                                    {getValue(type, catName, subName, p) > 0 ? `$${getValue(type, catName, subName, p).toLocaleString()}` : '-'}
                                 </td>
                             ))}
                         </tr>
@@ -111,67 +126,78 @@ export function CashflowTab() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-white">Cashflow Anual</h2>
-                <Select value={year.toString()} onValueChange={v => setYear(parseInt(v))}>
-                    <SelectTrigger className="w-[120px] bg-slate-950 border-slate-800">
+            <div className="flex justify-between items-center bg-slate-950 p-4 rounded-xl border border-slate-900 shadow-sm">
+                <div>
+                    <h2 className="text-xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Cashflow Anual</h2>
+                    <p className="text-xs text-slate-500">Resumen financiero detallado</p>
+                </div>
+
+                <Select value={viewMode} onValueChange={setViewMode}>
+                    <SelectTrigger className="w-[180px] bg-gradient-to-r from-blue-900/50 to-indigo-900/50 border-blue-800/50 text-blue-100 ring-offset-0 focus:ring-2 focus:ring-blue-500 font-medium">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-900 border-slate-800">
-                        <SelectItem value="2024">2024</SelectItem>
-                        <SelectItem value="2025">2025</SelectItem>
-                        <SelectItem value="2026">2026</SelectItem>
+                        <SelectItem value="LAST_12" className="text-emerald-400 font-medium">Últimos 12 meses</SelectItem>
+                        <SelectItem value="2024">Año 2024</SelectItem>
+                        <SelectItem value="2025">Año 2025</SelectItem>
+                        <SelectItem value="2026">Año 2026</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
 
-            <div className="border border-slate-800 rounded-lg overflow-x-auto">
+            <div className="border border-slate-800 rounded-lg overflow-x-auto shadow-xl bg-slate-950/50">
                 <table className="w-full text-sm text-left text-slate-300">
-                    <thead className="bg-slate-900 text-slate-400 uppercase font-bold text-xs">
+                    <thead className="bg-slate-900/80 text-slate-400 uppercase font-bold text-[10px] tracking-wider sticky top-0 backdrop-blur-sm z-10">
                         <tr>
                             <th className="px-4 py-3 min-w-[200px] border-r border-slate-800">Concepto</th>
-                            {monthNames.map(m => (
-                                <th key={m} className="px-2 py-3 text-right min-w-[80px]">{m}</th>
+                            {periods.map((p: string) => (
+                                <th key={p} className="px-2 py-3 text-right min-w-[80px]">{formatPeriod(p)}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="bg-slate-950 text-sm">
                         {/* INGRESOS */}
-                        <tr className="bg-emerald-950/20 text-emerald-400 font-bold">
-                            <td className="px-4 py-2 border-r border-slate-800">INGRESOS</td>
-                            <td colSpan={12}></td>
+                        <tr className="bg-emerald-950/30 text-emerald-400 font-bold">
+                            <td className="px-4 py-2 border-r border-slate-800 flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                                INGRESOS
+                            </td>
+                            <td colSpan={periods.length}></td>
                         </tr>
                         {renderCategoryRows('INCOME')}
                         <tr className="bg-slate-900 font-bold text-emerald-400 border-t border-slate-800">
                             <td className="px-4 py-2 text-right border-r border-slate-800">TOTAL INGRESOS</td>
-                            {months.map(m => (
-                                <td key={m} className="px-2 py-2 text-right text-xs">
-                                    ${incomeTotal(m).toLocaleString()}
+                            {periods.map((p: string) => (
+                                <td key={p} className="px-2 py-2 text-right text-xs">
+                                    ${incomeTotal(p).toLocaleString()}
                                 </td>
                             ))}
                         </tr>
 
                         {/* GASTOS */}
-                        <tr className="bg-red-950/20 text-red-400 font-bold border-t border-slate-800 mt-4">
-                            <td className="px-4 py-2 border-r border-slate-800">GASTOS</td>
-                            <td colSpan={12}></td>
+                        <tr className="bg-red-950/30 text-red-400 font-bold border-t border-slate-800 mt-4">
+                            <td className="px-4 py-2 border-r border-slate-800 flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
+                                GASTOS
+                            </td>
+                            <td colSpan={periods.length}></td>
                         </tr>
                         {renderCategoryRows('EXPENSE')}
                         <tr className="bg-slate-900 font-bold text-red-400 border-t border-slate-800">
                             <td className="px-4 py-2 text-right border-r border-slate-800">TOTAL GASTOS</td>
-                            {months.map(m => (
-                                <td key={m} className="px-2 py-2 text-right text-xs">
-                                    ${expenseTotal(m).toLocaleString()}
+                            {periods.map((p: string) => (
+                                <td key={p} className="px-2 py-2 text-right text-xs">
+                                    ${expenseTotal(p).toLocaleString()}
                                 </td>
                             ))}
                         </tr>
 
-                        {/* NETO ARS */}
-                        <tr className="bg-slate-800 text-white font-bold border-t-2 border-slate-700">
+                        {/* RESULTADO ARS */}
+                        <tr className="bg-slate-800 text-white font-bold border-t-4 border-slate-800 shadow-inner">
                             <td className="px-4 py-3 text-right border-r border-slate-700">AHORRO</td>
-                            {months.map(m => (
-                                <td key={m} className={`px-2 py-3 text-right text-xs ${netTotal(m) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    ${netTotal(m).toLocaleString()}
+                            {periods.map((p: string) => (
+                                <td key={p} className={`px-2 py-3 text-right text-xs ${netTotal(p) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    ${netTotal(p).toLocaleString()}
                                 </td>
                             ))}
                         </tr>
@@ -179,9 +205,9 @@ export function CashflowTab() {
                         {/* TC USD */}
                         <tr className="bg-slate-950 text-slate-500 font-mono text-xs border-t border-slate-800">
                             <td className="px-4 py-2 text-right border-r border-slate-800">TIPO DE CAMBIO</td>
-                            {months.map(m => (
-                                <td key={m} className="px-2 py-2 text-right">
-                                    {data.rates[m] ? `$${data.rates[m]}` : '-'}
+                            {periods.map((p: string) => (
+                                <td key={p} className="px-2 py-2 text-right">
+                                    {data.rates[p] ? `$${data.rates[p]}` : '-'}
                                 </td>
                             ))}
                         </tr>
@@ -189,12 +215,12 @@ export function CashflowTab() {
                         {/* RESULTADO USD */}
                         <tr className="bg-slate-900 text-blue-300 font-bold border-t border-slate-800">
                             <td className="px-4 py-3 text-right border-r border-slate-800">Ahorro USD</td>
-                            {months.map(m => {
-                                const net = netTotal(m);
-                                const rate = data.rates[m];
+                            {periods.map((p: string) => {
+                                const net = netTotal(p);
+                                const rate = data.rates[p];
                                 const usd = rate ? net / rate : 0;
                                 return (
-                                    <td key={m} className="px-2 py-3 text-right text-xs">
+                                    <td key={p} className="px-2 py-3 text-right text-xs">
                                         {rate ? `US$${Math.round(usd).toLocaleString()}` : '-'}
                                     </td>
                                 );
@@ -203,12 +229,12 @@ export function CashflowTab() {
                         {/* GASTOS USD */}
                         <tr className="bg-slate-900 text-purple-300 font-bold border-t border-slate-800">
                             <td className="px-4 py-3 text-right border-r border-slate-800">GASTOS (USD)</td>
-                            {months.map(m => {
-                                const exp = expenseTotal(m);
-                                const rate = data.rates[m];
+                            {periods.map((p: string) => {
+                                const exp = expenseTotal(p);
+                                const rate = data.rates[p];
                                 const usd = rate ? exp / rate : 0;
                                 return (
-                                    <td key={m} className="px-2 py-3 text-right text-xs">
+                                    <td key={p} className="px-2 py-3 text-right text-xs">
                                         {rate ? `US$${Math.round(usd).toLocaleString()}` : '-'}
                                     </td>
                                 );
