@@ -53,6 +53,7 @@ export function CashflowTab() {
     };
 
     const incomeTotal = (m: number) => getMonthlyTotal('INCOME', m);
+    const expenseTotal = (m: number) => getMonthlyTotal('EXPENSE', m);
     const netTotal = (m: number) => incomeTotal(m) - expenseTotal(m);
 
     const toggleCategory = (catName: string) => {
