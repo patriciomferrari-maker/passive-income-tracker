@@ -32,12 +32,29 @@ export function TransactionsTab() {
 
     const loadData = async () => {
         try {
-            const [txRes, catRes] = await Promise.all([
+            const [txRes, catRes, rateRes] = await Promise.all([
                 fetch('/api/barbosa/transactions'),
-                fetch('/api/barbosa/categories')
+                fetch('/api/barbosa/categories'),
+                fetch('/api/barbosa/exchange-rate')
             ]);
-            setTransactions(await txRes.json());
-            setCategories(await catRes.json());
+
+            const transactions = await txRes.json();
+            const categories = await catRes.json();
+            const rateData = await rateRes.json();
+
+            setTransactions(transactions);
+            setCategories(categories);
+
+            // Set default exchange rate if available and not already set manually?
+            // Actually, we want to prefill it for new entries. 
+            // We'll store it in a default, or update formData if it's currently empty.
+            if (rateData.rate) {
+                setFormData(prev => ({
+                    ...prev,
+                    exchangeRate: prev.exchangeRate || rateData.rate.toString()
+                }));
+            }
+
         } catch (e) {
             console.error(e);
         } finally {
@@ -88,22 +105,22 @@ export function TransactionsTab() {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Fecha</Label>
+                                <Label className="text-slate-300">Fecha</Label>
                                 <Input
                                     type="date"
                                     value={formData.date}
                                     onChange={e => setFormData({ ...formData, date: e.target.value })}
-                                    className="bg-slate-950 border-slate-800"
+                                    className="bg-slate-950 border-slate-700 text-white"
                                     required
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label>Tipo</Label>
+                                <Label className="text-slate-300">Tipo</Label>
                                 <Select value={formData.type} onValueChange={v => setFormData({ ...formData, type: v })}>
-                                    <SelectTrigger className="bg-slate-950 border-slate-800">
+                                    <SelectTrigger className="bg-slate-950 border-slate-700 text-white">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-slate-900 border-slate-800">
+                                    <SelectContent className="bg-slate-900 border-slate-800 text-white">
                                         <SelectItem value="EXPENSE">Gasto</SelectItem>
                                         <SelectItem value="INCOME">Ingreso</SelectItem>
                                     </SelectContent>
@@ -113,22 +130,25 @@ export function TransactionsTab() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Monto</Label>
-                                <Input
-                                    type="number" step="0.01"
-                                    value={formData.amount}
-                                    onChange={e => setFormData({ ...formData, amount: e.target.value })}
-                                    className="bg-slate-950 border-slate-800"
-                                    required
-                                />
+                                <Label className="text-slate-300">Monto</Label>
+                                <div className="relative">
+                                    <span className="absolute left-2 top-2.5 text-slate-500">$</span>
+                                    <Input
+                                        type="number" step="0.01"
+                                        value={formData.amount}
+                                        onChange={e => setFormData({ ...formData, amount: e.target.value })}
+                                        className="bg-slate-950 border-slate-700 text-white pl-6"
+                                        required
+                                    />
+                                </div>
                             </div>
                             <div className="space-y-2">
-                                <Label>Moneda</Label>
+                                <Label className="text-slate-300">Moneda</Label>
                                 <Select value={formData.currency} onValueChange={v => setFormData({ ...formData, currency: v })}>
-                                    <SelectTrigger className="bg-slate-950 border-slate-800">
+                                    <SelectTrigger className="bg-slate-950 border-slate-700 text-white">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-slate-900 border-slate-800">
+                                    <SelectContent className="bg-slate-900 border-slate-800 text-white">
                                         <SelectItem value="ARS">ARS</SelectItem>
                                         <SelectItem value="USD">USD</SelectItem>
                                     </SelectContent>
@@ -137,12 +157,12 @@ export function TransactionsTab() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Categoría</Label>
+                            <Label className="text-slate-300">Categoría</Label>
                             <Input
                                 list="categories-list"
                                 value={formData.categoryName}
                                 onChange={e => setFormData({ ...formData, categoryName: e.target.value })}
-                                className="bg-slate-950 border-slate-800"
+                                className="bg-slate-950 border-slate-700 text-white"
                                 placeholder="Escribe o selecciona..."
                                 required
                             />
@@ -152,12 +172,12 @@ export function TransactionsTab() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Sub Categoría</Label>
+                            <Label className="text-slate-300">Sub Categoría</Label>
                             <Input
                                 list="sub-categories-list"
                                 value={formData.subCategoryName}
                                 onChange={e => setFormData({ ...formData, subCategoryName: e.target.value })}
-                                className="bg-slate-950 border-slate-800"
+                                className="bg-slate-950 border-slate-700 text-white"
                                 placeholder="Opcional..."
                             />
                             <datalist id="sub-categories-list">
@@ -166,28 +186,33 @@ export function TransactionsTab() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Descripción</Label>
+                            <Label className="text-slate-300">Descripción</Label>
                             <Input
                                 value={formData.description}
                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                className="bg-slate-950 border-slate-800"
+                                className="bg-slate-950 border-slate-700 text-white"
                             />
                         </div>
 
                         {formData.currency === 'ARS' && (
                             <div className="space-y-2">
-                                <Label className="text-slate-400">Tipo de Cambio (Opcional)</Label>
+                                <div className="flex justify-between">
+                                    <Label className="text-slate-300">Tipo de Cambio (Admin)</Label>
+                                </div>
                                 <Input
                                     type="number" step="0.01"
                                     value={formData.exchangeRate}
                                     onChange={e => setFormData({ ...formData, exchangeRate: e.target.value })}
-                                    className="bg-slate-950 border-slate-800"
-                                    placeholder="Para dolarizar..."
+                                    className="bg-slate-950 border-slate-700 text-white"
+                                    placeholder="Valor del dólar..."
                                 />
+                                <p className="text-xs text-slate-500">
+                                    * Se usará para calcular el monto en USD automáticamente.
+                                </p>
                             </div>
                         )}
 
-                        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
+                        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                             <Save className="mr-2 h-4 w-4" /> Guardar
                         </Button>
                     </form>

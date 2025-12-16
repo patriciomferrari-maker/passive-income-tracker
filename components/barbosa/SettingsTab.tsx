@@ -92,9 +92,15 @@ export function SettingsTab() {
                             setNewCatName(e.target.value);
                         }}
                         onKeyDown={e => { if (e.key === 'Enter') addCategory(); }}
-                        className="bg-slate-950 border-slate-800"
+                        className="bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
                     />
-                    <Button onClick={addCategory} size="sm" variant="secondary">
+                    <Button
+                        type="button"
+                        onClick={addCategory}
+                        size="sm"
+                        variant="secondary"
+                        disabled={loading || (newCatType === type && !newCatName.trim())}
+                    >
                         <Plus className="h-4 w-4" />
                     </Button>
                 </div>
@@ -130,12 +136,18 @@ export function SettingsTab() {
                                     <div className="flex gap-2 mt-2">
                                         <Input
                                             placeholder="+ Subcategoría"
-                                            className="h-7 text-xs bg-slate-950 border-slate-800 w-40"
+                                            className="h-7 text-xs bg-slate-950 border-slate-700 text-slate-300 placeholder:text-slate-600 w-40"
                                             value={newSubCats[cat.id] || ""}
                                             onChange={e => setNewSubCats({ ...newSubCats, [cat.id]: e.target.value })}
                                             onKeyDown={e => { if (e.key === 'Enter') addSubCategory(cat.id); }}
                                         />
-                                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-slate-800" onClick={() => addSubCategory(cat.id)}>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-7 w-7 p-0 hover:bg-slate-800 text-slate-400 hover:text-white"
+                                            onClick={() => addSubCategory(cat.id)}
+                                        >
                                             <Plus className="h-3 w-3" />
                                         </Button>
                                     </div>
