@@ -15,8 +15,13 @@ interface PageProps {
     };
 }
 
+import { headers } from 'next/headers';
+
 export default async function InvestmentsPrintPage({ params, searchParams }: PageProps) {
-    if (searchParams.secret !== process.env.CRON_SECRET) {
+    const headerList = await headers();
+    const secret = headerList.get('X-Cron-Secret') || searchParams.secret;
+
+    if (secret !== process.env.CRON_SECRET) {
         return notFound();
     }
 

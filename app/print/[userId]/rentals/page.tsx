@@ -13,18 +13,25 @@ interface PageProps {
     };
 }
 
+import { headers } from 'next/headers';
+
 export default async function RentalsPrintPage({ params, searchParams }: PageProps) {
+    const headerList = await headers();
+    const secretHeader = headerList.get('X-Cron-Secret');
+    const secret = secretHeader || searchParams.secret;
+
     // 1. Security Check
-    if (searchParams.secret !== process.env.CRON_SECRET) {
+    if (secret !== process.env.CRON_SECRET) {
         return (
             <div className="p-10 text-red-600 bg-white">
                 <h1 className="text-2xl font-bold mb-4">Access Denied (Debug Mode)</h1>
                 <p><strong>Reason:</strong> Secret Mismatch</p>
                 <div className="mt-4 p-4 bg-gray-100 rounded font-mono text-sm max-w-xl break-all">
+                    <p>Received (Header): {secretHeader ? `"${secretHeader}"` : 'undefined'}</p>
                     <p>Received (URL): {searchParams.secret ? `"${searchParams.secret}"` : 'undefined'}</p>
                     <p>Expected (Env): {process.env.CRON_SECRET ? '"[HIDDEN/SET]"' : '"undefined (MISSING IN ENV)"'}</p>
                     <p>Expected Length: {process.env.CRON_SECRET?.length || 0}</p>
-                    <p>Received Length: {searchParams.secret?.length || 0}</p>
+                    <p>Received Length: {secret?.length || 0}</p>
                 </div>
                 <p className="mt-4 text-sm text-gray-500">
                     If Expected is "undefined", you forgot to add CRON_SECRET to Vercel Environment Variables.
