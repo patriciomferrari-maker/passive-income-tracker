@@ -18,6 +18,7 @@ import {
     Cell
 } from 'recharts';
 import { DollarSign, Calendar, Clock, Building2, TrendingUp, AlertCircle, Triangle, Minus, PieChart as PieChartIcon, Eye, EyeOff } from 'lucide-react';
+import InterannualChart from '@/components/economic/InterannualChart';
 
 interface ChartPoint {
     date: string;
@@ -534,6 +535,9 @@ export function DashboardTab({ showValues }: DashboardTabProps) {
                     );
                 })}
             </div>
+
+            {/* Economic Context */}
+            <InterannualChart />
         </div>
     );
 }
