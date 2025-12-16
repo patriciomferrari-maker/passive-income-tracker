@@ -20,8 +20,8 @@ export function TransactionsTab() {
         type: 'EXPENSE',
         amount: '',
         currency: 'ARS',
-        categoryName: '',
-        subCategoryName: '',
+        categoryId: '',
+        subCategoryId: '',
         description: '',
         exchangeRate: ''
     });
@@ -38,16 +38,11 @@ export function TransactionsTab() {
                 fetch('/api/barbosa/exchange-rate')
             ]);
 
-            const transactions = await txRes.json();
-            const categories = await catRes.json();
+            setTransactions(await txRes.json());
+            setCategories(await catRes.json());
             const rateData = await rateRes.json();
 
-            setTransactions(transactions);
-            setCategories(categories);
-
-            // Set default exchange rate if available and not already set manually?
-            // Actually, we want to prefill it for new entries. 
-            // We'll store it in a default, or update formData if it's currently empty.
+            // Store Exchange Rate if available, to be used in background calculation
             if (rateData.rate) {
                 setFormData(prev => ({
                     ...prev,
@@ -71,28 +66,26 @@ export function TransactionsTab() {
                 body: JSON.stringify(formData)
             });
             if (res.ok) {
-                // Reset form but keep date/rate/type potentially? No, reset logic.
                 setFormData({
                     ...formData,
                     amount: '',
                     description: '',
-                    categoryName: '',
-                    subCategoryName: ''
+                    categoryId: '', // Reset ID selection
+                    subCategoryId: '' // Reset ID selection
                 });
-                loadData(); // Refresh list and categories
+                loadData();
             }
         } catch (error) {
             console.error(error);
         }
     };
 
-    // Derived: Current available subcategories based on typed category
-    // For simple UI: List existing categories as datalist options
-    const uniqueCategories = Array.from(new Set(categories.filter(c => c.type === formData.type).map(c => c.name)));
+    // Derived: Current available categories based on type
+    const uniqueCategories = categories.filter(c => c.type === formData.type);
 
     // Find selected category object to show subcategories
-    const selectedCategoryObj = categories.find(c => c.name === formData.categoryName && c.type === formData.type);
-    const availableSubCategories = selectedCategoryObj ? selectedCategoryObj.subCategories.map((s: any) => s.name) : [];
+    const selectedCategoryObj = categories.find(c => c.id === formData.categoryId);
+    const availableSubCategories = selectedCategoryObj ? selectedCategoryObj.subCategories : [];
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -202,8 +195,6 @@ export function TransactionsTab() {
                                 className="bg-slate-950 border-slate-700 text-white"
                             />
                         </div>
-
-                        {/* Exchange rate input removed as per user request */}
 
                         <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                             <Save className="mr-2 h-4 w-4" /> Guardar
