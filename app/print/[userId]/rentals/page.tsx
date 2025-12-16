@@ -127,7 +127,7 @@ export default async function RentalsPrintPage({ params, searchParams }: PagePro
                 </p>
             </div>
 
-            <RentalsDashboardView data={dashboardData} />
+            <RentalsDashboardView contractsData={dashboardData} globalData={null} showValues={true} />
         </div>
     );
 }
