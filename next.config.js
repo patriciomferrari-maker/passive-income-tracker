@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-// Force rebuild for Node 22 (AL2023)
+// Force rebuild for Node 22 (Attempt 2)
 const nextConfig = {
     typescript: {
         // !! WARN !!
