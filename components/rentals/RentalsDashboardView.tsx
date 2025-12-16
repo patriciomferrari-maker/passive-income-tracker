@@ -377,7 +377,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
             )}
 
             {/* Individual Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-1 print:gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
                 {activeContracts.map((contract) => {
                     const lastInf = [...contract.chartData].reverse().find(d => d.inflationAccum !== 0)?.inflationAccum ?? 0;
                     const lastDev = [...contract.chartData].reverse().find(d => d.devaluationAccum !== 0)?.devaluationAccum ?? 0;
@@ -437,8 +437,8 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                     </div>
                                 </div>
                             </CardHeader>
-                            <CardContent className="pt-6">
-                                <div className="h-[300px] w-full">
+                            <CardContent className="pt-6 print:pt-2">
+                                <div className="h-[300px] print:h-[200px] w-full">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <ComposedChart
                                             data={showValues ? contract.chartData : []}
