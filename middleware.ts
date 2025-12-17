@@ -17,5 +17,7 @@ export default auth((req) => {
     return response;
 });
 
-matcher: ['/((?!_next/static|_next/image|print|.*\\.png$).*)'],
+export const config = {
+    // https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
+    matcher: ['/((?!_next/static|_next/image|print|.*\\.png$).*)'],
 };
