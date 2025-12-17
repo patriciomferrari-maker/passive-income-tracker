@@ -11,17 +11,25 @@ interface DashboardTabProps {
 export function DashboardTab({ showValues, onTogglePrivacy }: DashboardTabProps) {
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [errorType, setErrorType] = useState<'401' | 'generic' | null>(null);
 
     useEffect(() => {
         const loadDashboard = async () => {
             try {
                 const res = await fetch('/api/investments/on/dashboard');
+
+                if (res.status === 401) {
+                    setErrorType('401');
+                    return;
+                }
+
                 if (res.ok) {
                     const data = await res.json();
                     setDashboardData(data);
                 }
             } catch (error) {
                 console.error('Error fetching dashboard:', error);
+                setErrorType('generic');
             } finally {
                 setLoading(false);
             }
@@ -32,6 +40,18 @@ export function DashboardTab({ showValues, onTogglePrivacy }: DashboardTabProps)
 
     if (loading) {
         return <div className="p-8 text-center text-slate-400">Cargando dashboard...</div>;
+    }
+
+    if (errorType === '401') {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <div className="text-amber-500 text-xl font-medium">Sesión Expirada</div>
+                <div className="text-slate-400">Por favor, iniciá sesión nuevamente para ver el dashboard.</div>
+                <a href="/login" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                    Ir al Login
+                </a>
+            </div>
+        );
     }
 
     if (!dashboardData) {
