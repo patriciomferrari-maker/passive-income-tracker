@@ -518,11 +518,26 @@ export async function GET() {
         });
 
         // 2. Add Bank Assets (Grouped)
-        if (totalPF > 0) assetGroupMap.set('Plazo Fijo', (assetGroupMap.get('Plazo Fijo') || 0) + totalPF);
-        if (totalFCI > 0) assetGroupMap.set('FCI', (assetGroupMap.get('FCI') || 0) + totalFCI);
-        if (totalCajaAhorro > 0) assetGroupMap.set('Caja de Ahorro', (assetGroupMap.get('Caja de Ahorro') || 0) + totalCajaAhorro);
-        if (totalCajaSeguridad > 0) assetGroupMap.set('Caja de Seguridad', (assetGroupMap.get('Caja de Seguridad') || 0) + totalCajaSeguridad);
-        if (totalBankOther > 0) assetGroupMap.set('Otros Banco', (assetGroupMap.get('Otros Banco') || 0) + totalBankOther);
+        bankOperations.forEach(op => {
+            let amountUSD = op.amount;
+            if (op.currency === 'ARS') {
+                amountUSD = op.amount / exchangeRate;
+            }
+
+            if (op.type === 'PLAZO_FIJO') {
+                assetGroupMap.set('Plazo Fijo', (assetGroupMap.get('Plazo Fijo') || 0) + amountUSD);
+            } else if (op.type === 'FCI') {
+                assetGroupMap.set('FCI', (assetGroupMap.get('FCI') || 0) + amountUSD);
+            } else if (op.type === 'CAJA_AHORRO') {
+                assetGroupMap.set('Caja de Ahorro', (assetGroupMap.get('Caja de Ahorro') || 0) + amountUSD);
+            } else if (op.type === 'CAJA_SEGURIDAD') {
+                assetGroupMap.set('Caja de Seguridad', (assetGroupMap.get('Caja de Seguridad') || 0) + amountUSD);
+            } else {
+                // For "OTRO" or undefined types, use the Alias
+                const label = op.alias || 'Otros Banco';
+                assetGroupMap.set(label, (assetGroupMap.get(label) || 0) + amountUSD);
+            }
+        });
 
         const portfolioDistribution = Array.from(assetGroupMap.entries())
             .map(([name, value]) => ({ name, value }))
@@ -611,15 +626,12 @@ export async function GET() {
         // --- KPI CORRECTIONS ---
         // 1. Total Invested: Cartera Arg + Cartera USA + Plazo Fijo
         // We can get Cartera Arg (ON + CEDEAR + BONO) and USA (Treasury + ETF) from our Asset Map
-        const totalMarketInvested = Array.from(portfolioMap.values()).reduce((a, b) => a + b, 0); // This was previous logic, need new
+        const totalMarketInvested = Array.from(portfolioMap.values()).reduce((a, b) => a + b, 0);
 
-        let kpiTotalInvested = 0;
-        assetGroupMap.forEach((val, key) => {
-            // Exclude "Caja de Ahorro", "Caja de Seguridad", "Otros Banco"
-            if (!['Caja de Ahorro', 'Caja de Seguridad', 'Otros Banco'].includes(key)) {
-                kpiTotalInvested += val;
-            }
-        });
+        // Robust KPI Calculation: Explicitly sum Invested Components
+        // Market Assets + Plazo Fijo + FCI
+        // This avoids issues with dynamic keys in assetGroupMap (like specific Bank Aliases) being counted as invested.
+        const kpiTotalInvested = totalMarketInvested + totalPF + totalFCI;
 
         // 2. Monto sin Invertir: Total Bancos - Plazo Fijo
         // Essentially this is Caja Ahorro + Caja Seguridad + Otros
