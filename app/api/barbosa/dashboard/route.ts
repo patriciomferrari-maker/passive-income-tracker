@@ -79,6 +79,8 @@ export async function GET(req: NextRequest) {
                         lastMonthExpenses[tx.category.name] = (lastMonthExpenses[tx.category.name] || 0) + amountUSD;
                     }
                 }
+            } else {
+                console.warn(`Transaction date ${tx.date} generated key ${key} which is out of range.`);
             }
         });
 

@@ -23,7 +23,8 @@ export function DashboardTab() {
     }, []);
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-500" /></div>;
-    if (!data) return <div className="text-center text-slate-500">No data</div>;
+    if (!data || data.error) return <div className="text-center text-red-500 p-8">Error cargando datos: {data?.error || 'Unknown Error'}</div>;
+    if (!data.kpis) return <div className="text-center text-slate-500">No data structure found</div>;
 
     const { kpis, trend, distribution, recentActivity } = data;
 
