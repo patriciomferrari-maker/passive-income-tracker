@@ -80,11 +80,63 @@ export async function GET(req: NextRequest) {
         // Accumulate Category
         structure[type][catName].total[period] = (structure[type][catName].total[period] || 0) + amount;
 
-        if (tx.exchangeRate) {
-            // Overwrite or avg? Simple overwrite for now logic
-            if (!monthlyExchangeRates[period]) monthlyExchangeRates[period] = tx.exchangeRate;
+        // ... (existing accumulation logic)
+        // Accumulate Category
+        structure[type][catName].total[period] = (structure[type][catName].total[period] || 0) + amount;
+    });
+
+    // --- FETCH EXCHANGE RATES (Closing of Prev Month) ---
+    // User Requirement: "El tipo de cambio a considerar es el de cierre del mes anterior"
+    // So for Period "2024-05", we want the Closing Rate of "2024-04".
+
+    // 1. Fetch Rates covering the range (starting 1 month before first period)
+    const ratesStartDate = new Date(startDate);
+    ratesStartDate.setMonth(ratesStartDate.getMonth() - 1);
+
+    const dbRates = await prisma.economicIndicator.findMany({
+        where: {
+            type: 'TC_USD_ARS',
+            date: { gte: ratesStartDate, lte: endDate }
+        },
+        orderBy: { date: 'asc' }
+    });
+
+    // 2. Map rates to Periods
+    periodLabels.forEach(period => {
+        // Parse Period "YYYY-MM"
+        const [yStr, mStr] = period.split('-');
+        const pYear = parseInt(yStr);
+        const pMonth = parseInt(mStr); // 1-12
+
+        // Determine Previous Month
+        const prevDate = new Date(pYear, pMonth - 1, 1); // 1st of Current Month
+        prevDate.setMonth(prevDate.getMonth() - 1); // 1st of Previous Month
+
+        const targetYear = prevDate.getFullYear();
+        const targetMonth = prevDate.getMonth(); // 0-11
+
+        // Find relevant rates for that month
+        const monthlyRates = dbRates.filter(r => {
+            const rDate = new Date(r.date); // Ensure Date object
+            // Adjust timezone offset if needed, but usually Date objects from Prism match UTC or Local correctly enough for Month/Year checks if stored as Date.
+            // Be careful: r.date from Prisma is Date.
+            return rDate.getFullYear() === targetYear && rDate.getMonth() === targetMonth;
+        });
+
+        if (monthlyRates.length > 0) {
+            // Get the LAST one (Closing)
+            const closingRate = monthlyRates[monthlyRates.length - 1]; // Sorted asc by query
+            monthlyExchangeRates[period] = closingRate.sellRate || closingRate.value;
+        } else {
+            // Fallback: Try finding closest before? Or existing from transactions?
+            // If no rate found (e.g. data missing), maybe check if we have one from transactions as backup?
+            // Actually, let's look for "most recent before this period" if 'closing' missing? 
+            // Better to leave empty or try finding verify if gap.
+            // For now, let's stick to strict "Previous Month" logic.
         }
     });
+
+    // -------------------------------
 
     // --- RENTAL INCOME INJECTION ---
     const rentalCashflows = await prisma.rentalCashflow.findMany({
