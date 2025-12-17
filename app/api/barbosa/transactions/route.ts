@@ -91,5 +91,61 @@ export async function POST(req: NextRequest) {
         }
     });
 
+    // --- COSTA SYNC LOGIC ---
+    // If the category is "Costa Esmeralda", also create a transaction in the Costa module.
+    // Logic: Barbosa SubCategory -> Costa Category.
+    if (category.name.toLowerCase().includes('costa')) {
+        try {
+            console.log('Syncing to Costa module...');
+
+            // 1. Determine Target Category Name in Costa
+            // If subcategory exists, use its name. Otherwise fallback to "Varios" or the generic Category name.
+            let targetCategoryName = 'Varios';
+            if (validSubCategoryId) {
+                // We need to fetch the subcategory name if we checked validSubCategoryId but didn't keep the object reference
+                const subCatObj = await prisma.barbosaSubCategory.findUnique({ where: { id: validSubCategoryId } });
+                if (subCatObj) targetCategoryName = subCatObj.name;
+            } else {
+                targetCategoryName = 'General'; // Fallback if no subcategory
+            }
+
+            // 2. Find or Create Costa Category
+            let costaCategory = await prisma.costaCategory.findFirst({
+                where: { userId, name: targetCategoryName, type: 'EXPENSE' }
+            });
+
+            if (!costaCategory) {
+                console.log(`Creating new Costa Category: ${targetCategoryName}`);
+                costaCategory = await prisma.costaCategory.create({
+                    data: {
+                        userId,
+                        name: targetCategoryName,
+                        type: 'EXPENSE'
+                    }
+                });
+            }
+
+            // 3. Create Costa Transaction
+            await prisma.costaTransaction.create({
+                data: {
+                    userId,
+                    date: new Date(date),
+                    type: 'EXPENSE', // Always expense for now when syncing from generic Barbosa expense
+                    amount: parseFloat(amount),
+                    currency,
+                    description: description || `Sync desde Barbosa (${category.name})`,
+                    categoryId: costaCategory.id
+                }
+            });
+
+            console.log('Costa Sync successful.');
+
+        } catch (error) {
+            console.error('Error syncing to Costa:', error);
+            // Non-blocking error. We don't fail the main request if sync fails.
+        }
+    }
+    // ------------------------
+
     return NextResponse.json(tx);
 }
