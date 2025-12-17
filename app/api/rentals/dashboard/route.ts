@@ -10,7 +10,7 @@ export async function GET() {
 
         const allContracts = await prisma.contract.findMany({
             where: {
-                property: { userId } // Filter strictly by user's properties
+                property: { userId, isConsolidated: true } // Filter strictly by user's properties AND consolidated status
             },
             include: {
                 property: true
