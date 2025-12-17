@@ -294,6 +294,14 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
-    return unauthorized();
+
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return unauthorized();
+    }
+
+    return NextResponse.json(
+      { error: 'Internal Server Error', details: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
   }
 }
