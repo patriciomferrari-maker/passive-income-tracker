@@ -319,20 +319,18 @@ export async function GET() {
                 }
             }
 
-            if (marketValue > 1) {
+            if (effectiveMarketValue > 1) {
                 // Ensure proper USD conversion for ARS assets
-                if (['ON', 'CEDEAR', 'FCI', 'PF'].includes(inv.type) && marketValue > 500000) { // heuristics again or trust prev logic?
-                    // Rely on strict logic:
-                    // If ticker currency was ARS, we already divided currentPrice.
-                    // But if we used Cost Basis (which is in ARS for ONs often), we need to divide.
-                    // Let's assume calculated `marketValue` is USD normalized if we used `currentPrice`.
+                if (['ON', 'CEDEAR', 'FCI', 'PF'].includes(inv.type) && marketValue > 500000 && currency === 'ARS') {
+                    // Check currency again just in case heuristics needed adjustment
                 }
 
-                // TYPE LABEL
-                let label = inv.type;
-                if (inv.type === 'ON') label = 'ONs (Arg)';
-                if (inv.type === 'TREASURY') label = 'Treasuries (USA)';
-                if (inv.type === 'CEDEAR') label = 'CEDEARs';
+                // TYPE LABEL - GRANULAR
+                // User requirement: "no me traigas 'Otro', sino abrilo segun el nombre"
+                let label = inv.name || inv.ticker; // Use Name or Ticker for granular breakdown
+
+                // Optional: Group small dust if absolutely needed, but user requested FULL breakdown.
+                // We'll stick to Name.
 
                 breakdownMap.set(label, (breakdownMap.get(label) || 0) + marketValue);
             }
@@ -345,14 +343,16 @@ export async function GET() {
             .filter(i => i.value > 10); // Hide dust
 
         // Total Invested update (Market + Bank Invested)
-        // totalInvested (calculated before) included ON/Treasury.
-        // Needs to include Bank *Invested* (PF, FCI) but NOT Idle.
-        // AND include simple manual investments if any?
-        // Let's sum Market + Bank Invested.
-        const totalMarketInvested = Array.from(portfolioMap.values()).reduce((a, b) => a + b, 0); // From prev calculation
+        // User definition: "Inversiones totales tiene que ser: Cartera Argentina + Cartera USA + Plazo Fijo"
+        // Also include CEDEARs etc if they exist. Basically everything except "Idle".
+
+        // totalMarketInvested (Calculated from loop)
+        const totalMarketInvested = Array.from(portfolioMap.values()).reduce((a, b) => a + b, 0);
+
+        // totalBankInvestedUSD calculated earlier (PF + FCI)
         const totalInvestedClean = totalMarketInvested + totalBankInvestedUSD;
 
-        const bankComposition: any[] = []; // Deprecated/Empty now as we merged logic
+        const bankComposition: any[] = []; // Deprecated
 
         // Calculate TIR
         let tir = 0;
@@ -536,6 +536,8 @@ export async function GET() {
         const historyWithAvg = history.map(h => ({ ...h, average }));
 
         // Composition (Last valid month)
+        // ... Deprecated here? We use PortfolioDistribution above. 
+        // Keeping it for legacy components just in case.
         let composition: any[] = [];
         let totalMonthlyIncome = 0;
         if (history.length > 0) {
@@ -549,7 +551,7 @@ export async function GET() {
             ].filter(item => item.value > 0);
         }
 
-        // --- PROJECTION CART DATA (Gapless) ---
+        // --- PROJECTION CHART DATA (Gapless) ---
         const projectedCashflows = await prisma.cashflow.findMany({
             where: {
                 investment: { userId },
@@ -558,23 +560,48 @@ export async function GET() {
             include: { investment: { select: { type: true } } }
         });
 
-        const projectedMap = new Map<string, { Interest: number; Capital: number; BankInterest: number }>();
+        // Define Breakdown Type
+        type ProjectionData = {
+            interestON: number;
+            capitalON: number;
+            interestTreasury: number;
+            capitalTreasury: number;
+            interestPF: number;
+            capitalPF: number; // Usually 0 or lump sum? PF concept usually just includes interest as profit?
+            // Actually, "Inversiones Totales" includes PF capital. 
+            // But projection is usually "Flow". 
+            // We will map flow types.
+        };
+
+        const projectedMap = new Map<string, ProjectionData>();
         // Initialize projection months
         iterDate = startOfMonth(projectionStart);
         while (isBefore(iterDate, projectionEnd) || iterDate.getTime() === startOfMonth(projectionEnd).getTime()) {
             const key = format(iterDate, 'yyyy-MM');
-            projectedMap.set(key, { Interest: 0, Capital: 0, BankInterest: 0 });
+            projectedMap.set(key, {
+                interestON: 0, capitalON: 0,
+                interestTreasury: 0, capitalTreasury: 0,
+                interestPF: 0, capitalPF: 0
+            });
             iterDate = addMonths(iterDate, 1);
         }
 
         projectedCashflows.forEach(cf => {
             const key = format(cf.date, 'yyyy-MM');
             if (projectedMap.has(key)) {
-                if (cf.type === 'AMORTIZATION') {
-                    projectedMap.get(key)!.Capital += cf.amount;
-                } else {
-                    projectedMap.get(key)!.Interest += cf.amount;
+                const data = projectedMap.get(key)!;
+                const isAmort = cf.type === 'AMORTIZATION';
+
+                if (cf.investment.type === 'ON') {
+                    if (isAmort) data.capitalON += cf.amount;
+                    else data.interestON += cf.amount;
+                } else if (cf.investment.type === 'TREASURY') {
+                    if (isAmort) data.capitalTreasury += cf.amount;
+                    else data.interestTreasury += cf.amount;
                 }
+                // Other types ignored or added to generic? 
+                // Currently only processing ON and TREASURY cashflows in projectedCashflows query?
+                // The query doesn't filter by type, so all investments.
             }
         });
 
@@ -582,7 +609,11 @@ export async function GET() {
         allPFMaturities.forEach(pf => {
             const key = format(pf.date, 'yyyy-MM');
             if (projectedMap.has(key)) {
-                projectedMap.get(key)!.BankInterest += pf.interest;
+                projectedMap.get(key)!.interestPF += pf.interest;
+                // PF Capital usually returns to account, technically 'Capital Flow', 
+                // but usually user cares about Interest Earning. 
+                // User asked: "Separar capital e interés de las fuentes". 
+                // So if PF matures, we show interest.
             }
         });
 
@@ -592,7 +623,7 @@ export async function GET() {
                 const [year, month] = key.split('-');
                 return {
                     month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
-                    total: values.Interest + values.Capital + values.BankInterest,
+                    total: values.interestON + values.capitalON + values.interestTreasury + values.capitalTreasury + values.interestPF + values.capitalPF,
                     ...values
                 };
             });

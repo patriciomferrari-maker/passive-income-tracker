@@ -290,6 +290,7 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                                         </th>
                                         <th className="text-center py-3 px-4 text-slate-300">Duración</th>
                                         <th className="text-right py-3 px-4 text-slate-300">Monto</th>
+                                        <th className="text-right py-3 px-4 text-slate-300">Garantía</th>
                                         <th className="text-center py-3 px-4 text-slate-300">Ajuste</th>
                                         <th className="text-center py-3 px-4 text-slate-300">Contrato</th>
                                         <th className="text-right py-3 px-4 text-slate-300">Acciones</th>
@@ -308,6 +309,9 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                                             </td>
                                             <td className="py-3 px-4 text-right text-emerald-400 font-mono">
                                                 {showValues ? `${contract.currency} $${contract.initialRent.toLocaleString()}` : '****'}
+                                            </td>
+                                            <td className="py-3 px-4 text-right text-amber-400 font-mono">
+                                                {showValues ? (contract.warrantyAmount ? `${contract.warrantyCurrency || 'USD'} $${contract.warrantyAmount}` : '-') : '****'}
                                             </td>
                                             <td className="py-3 px-4 text-center text-slate-400">
                                                 {contract.adjustmentType} ({contract.adjustmentFrequency}m)

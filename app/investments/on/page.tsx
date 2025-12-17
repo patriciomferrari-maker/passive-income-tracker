@@ -14,6 +14,7 @@ import Link from 'next/link';
 
 export default function ONManagementPage() {
     const [activeTab, setActiveTab] = useState('dashboard');
+    const [showValues, setShowValues] = useState(false);
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -60,7 +61,7 @@ export default function ONManagementPage() {
 
                 {/* Tab Content */}
                 <div className="min-h-[600px]">
-                    {activeTab === 'dashboard' && <DashboardTab />}
+                    {activeTab === 'dashboard' && <DashboardTab showValues={showValues} onTogglePrivacy={() => setShowValues(!showValues)} />}
                     {activeTab === 'config' && <ConfigurationTab />}
                     {activeTab === 'holdings' && <HoldingsTab />}
                     {activeTab === 'purchases' && <PurchasesTab />}
