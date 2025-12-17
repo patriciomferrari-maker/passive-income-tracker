@@ -154,6 +154,10 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                                 <tr className="border-b border-slate-800">
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Nombre</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Dirección</th>
+                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">ID Municipal</th>
+                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">ID Cochera</th>
+                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">ID Luz</th>
+                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">ID Gas</th>
                                     <th className="text-center py-3 px-4 text-slate-300 font-medium">Contratos</th>
                                     <th className="text-right py-3 px-4 text-slate-300 font-medium">Acciones</th>
                                 </tr>
@@ -163,6 +167,10 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                                     <tr key={property.id} className="border-b border-slate-800 hover:bg-slate-900">
                                         <td className="py-3 px-4 text-white font-medium">{property.name}</td>
                                         <td className="py-3 px-4 text-slate-400">{property.address || '-'}</td>
+                                        <td className="py-3 px-4 text-slate-400 font-mono text-xs">{property.municipalId || '-'}</td>
+                                        <td className="py-3 px-4 text-slate-400 font-mono text-xs">{property.garageMunicipalId || '-'}</td>
+                                        <td className="py-3 px-4 text-slate-400 font-mono text-xs">{property.electricityId || '-'}</td>
+                                        <td className="py-3 px-4 text-slate-400 font-mono text-xs">{property.gasId || '-'}</td>
                                         <td className="py-3 px-4 text-center text-white">{property._count.contracts}</td>
                                         <td className="py-3 px-4 text-right">
                                             <div className="flex items-center justify-end gap-2">

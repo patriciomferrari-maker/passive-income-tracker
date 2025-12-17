@@ -14,7 +14,7 @@ import Link from 'next/link';
 
 export default function ONManagementPage() {
     const [activeTab, setActiveTab] = useState('dashboard');
-    const [showValues, setShowValues] = useState(false);
+    const [showValues, setShowValues] = useState(true);
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
