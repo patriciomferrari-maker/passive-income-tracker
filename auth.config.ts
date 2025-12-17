@@ -8,7 +8,7 @@ export const authConfig = {
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
-            const isOnDashboard = nextUrl.pathname !== '/login' && nextUrl.pathname !== '/register'; // Protect everything except login and register
+            const isOnDashboard = nextUrl.pathname !== '/login' && nextUrl.pathname !== '/register' && !nextUrl.pathname.startsWith('/api'); // Protect everything except login, register and API (API handles its own auth)
 
             if (isOnDashboard) {
                 if (isLoggedIn) return true;
@@ -16,6 +16,7 @@ export const authConfig = {
             } else if (isLoggedIn) {
                 return Response.redirect(new URL('/', nextUrl));
             }
+            return true;
             return true;
         },
     },
