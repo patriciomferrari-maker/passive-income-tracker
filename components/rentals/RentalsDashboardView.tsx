@@ -39,6 +39,7 @@ export interface ContractDashboardData {
     durationMonths: number;
     adjustmentType: string;
     adjustmentFrequency: number | null;
+    isConsolidated: boolean;
     chartData: ChartPoint[];
 }
 
@@ -60,8 +61,12 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
         });
     }, [contractsData]);
 
+    const consolidatedContracts = useMemo(() => {
+        return activeContracts.filter(c => c.isConsolidated);
+    }, [activeContracts]);
+
     const summaryMetrics = useMemo(() => {
-        if (activeContracts.length === 0) return null;
+        if (consolidatedContracts.length === 0) return null;
 
         const now = new Date();
 
@@ -69,7 +74,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
         let totalUSD = 0;
         let totalARS = 0;
 
-        activeContracts.forEach(c => {
+        consolidatedContracts.forEach(c => {
             const current = c.chartData.find(d => {
                 const date = new Date(d.date);
                 return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
@@ -87,7 +92,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
         });
 
         // 2. Next Expiration
-        const expirations = activeContracts.map(c => {
+        const expirations = consolidatedContracts.map(c => {
             const start = new Date(c.startDate);
             const end = new Date(start);
             end.setMonth(end.getMonth() + c.durationMonths);
@@ -106,7 +111,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
         }
 
         // 3. Next Adjustment
-        const upcomingAdjustments = activeContracts.map(c => {
+        const upcomingAdjustments = consolidatedContracts.map(c => {
             if (c.adjustmentType !== 'IPC') return null;
 
             const start = new Date(c.startDate);
@@ -139,10 +144,10 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
             totalARS,
             nextExpiration,
             nextAdjustment,
-            count: activeContracts.length
+            count: consolidatedContracts.length
         };
 
-    }, [activeContracts]);
+    }, [consolidatedContracts]);
 
 
     const CustomTooltip = ({ active, payload, label }: any) => {
@@ -395,6 +400,11 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                             <span className={`text-xs px-2 py-0.5 rounded border ${contract.currency === 'USD' ? 'bg-emerald-950 text-emerald-400 border-emerald-800' : 'bg-blue-950 text-blue-400 border-blue-800'}`}>
                                                 {contract.currency}
                                             </span>
+                                            {!contract.isConsolidated && (
+                                                <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">
+                                                    No Consolida
+                                                </span>
+                                            )}
                                         </CardTitle>
                                         <p className="text-sm text-slate-400 mt-1">{contract.tenantName || 'Inquilino'}</p>
                                     </div>
