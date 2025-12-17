@@ -155,7 +155,7 @@ export function RecurrenceTab() {
                         <SelectContent className="bg-slate-900 border-slate-700 text-white">{Array.from({ length: 12 }).map((_, i) => <SelectItem key={i} value={(i + 1).toString()}>{format(new Date(2024, i, 1), 'MMMM')}</SelectItem>)}</SelectContent>
                     </Select>
                     <Select value={applyData.targetYear} onValueChange={v => setApplyData({ ...applyData, targetYear: v })}>
-                        <SelectTrigger className="w-[80px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-[90px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
                         <SelectContent className="bg-slate-900 border-slate-700 text-white">{['2025', '2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
                     </Select>
                     <Button size="sm" onClick={handleApply} className="h-8 bg-purple-600 hover:bg-purple-700 text-xs text-white">

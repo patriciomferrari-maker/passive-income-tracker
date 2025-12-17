@@ -175,7 +175,11 @@ export function TransactionsTab() {
     return (
         <div className="space-y-6">
             {/* Toolbar */}
-            <div className="flex justify-end bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+            <div className="flex justify-end bg-slate-900/50 p-2 rounded-lg border border-slate-800 gap-2">
+                <Button variant="outline" size="sm" onClick={() => setInstallmentsDialogOpen(true)} className="border-slate-700 text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800">
+                    <span className="mr-2 text-xs font-bold">💳</span> Cargar Cuotas
+                </Button>
+
                 <div className="flex items-center gap-2">
                     {/* Clone Dialog Trigger */}
                     {!cloneDialogOpen ? (
