@@ -72,7 +72,9 @@ export async function PUT(
                 currency,
                 adjustmentType,
                 adjustmentFrequency: parseInt(adjustmentFrequency),
-                documentUrl
+                documentUrl,
+                warrantyAmount: body.warrantyAmount ? parseFloat(body.warrantyAmount) : null,
+                warrantyCurrency: body.warrantyCurrency || 'USD'
             }
         });
 

@@ -152,7 +152,6 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-slate-800">
-                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">ID</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Nombre</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Dirección</th>
                                     <th className="text-center py-3 px-4 text-slate-300 font-medium">Contratos</th>
@@ -162,7 +161,6 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                             <tbody>
                                 {properties.map(property => (
                                     <tr key={property.id} className="border-b border-slate-800 hover:bg-slate-900">
-                                        <td className="py-3 px-4 text-slate-500 font-mono text-xs">{property.id.split('-')[0]}...</td>
                                         <td className="py-3 px-4 text-white font-medium">{property.name}</td>
                                         <td className="py-3 px-4 text-slate-400">{property.address || '-'}</td>
                                         <td className="py-3 px-4 text-center text-white">{property._count.contracts}</td>

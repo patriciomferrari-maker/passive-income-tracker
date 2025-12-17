@@ -105,10 +105,29 @@ export function GlobalDashboardTab() {
     const loadStats = async () => {
         try {
             const res = await fetch('/api/dashboard/global', { cache: 'no-store' });
+
+            if (res.status === 401) {
+                console.error('Unauthorized access to dashboard');
+                setStats(null);
+                return;
+            }
+
+            if (!res.ok) {
+                throw new Error(`API Error: ${res.status}`);
+            }
+
             const data = await res.json();
+
+            if (!data || !data.summary) {
+                console.error('Invalid data format received:', data);
+                setStats(null);
+                return;
+            }
+
             setStats(data);
         } catch (error) {
             console.error('Error loading global stats:', error);
+            setStats(null);
         } finally {
             setLoading(false);
         }
