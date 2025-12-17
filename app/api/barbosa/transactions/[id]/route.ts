@@ -19,7 +19,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         subCategoryId,
         type,
         description,
-        exchangeRate
+        exchangeRate,
+        status
     } = body;
 
     // Verify ownership
@@ -63,7 +64,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             amountUSD: currency === 'USD' ? parseFloat(amount) : (exchangeRate ? parseFloat(amount) / parseFloat(exchangeRate) : null),
             description,
             categoryId: category.id,
-            subCategoryId: validSubCategoryId
+            subCategoryId: validSubCategoryId,
+            status: status || 'REAL'
         },
         include: {
             category: true,

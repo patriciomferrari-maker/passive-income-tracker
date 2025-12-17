@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
         subCategoryId,
         type,
         description,
-        exchangeRate
+        exchangeRate,
+        status
     } = body;
 
     // Validate Category Exists (and belongs to user)
@@ -83,7 +84,8 @@ export async function POST(req: NextRequest) {
             amountUSD: currency === 'USD' ? parseFloat(amount) : (exchangeRate ? parseFloat(amount) / parseFloat(exchangeRate) : null),
             description,
             categoryId: category.id,
-            subCategoryId: validSubCategoryId
+            subCategoryId: validSubCategoryId,
+            status: status || 'REAL'
         },
         include: {
             category: true,

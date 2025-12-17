@@ -35,6 +35,7 @@ model User {
   barbosaCategories BarbosaCategory[]
   barbosaTransactions BarbosaTransaction[]
   barbosaCleaning BarbosaCleaning[]
+  barbosaRecurrences BarbosaRecurrence[]
 
   monthlySummaries MonthlySummary[]
   appSettings     AppSettings[]
@@ -485,6 +486,7 @@ model BarbosaCategory {
   
   subCategories BarbosaSubCategory[]
   transactions  BarbosaTransaction[]
+  recurrences   BarbosaRecurrence[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -500,6 +502,7 @@ model BarbosaSubCategory {
   name       String   // e.g. "Seguro"
   
   transactions BarbosaTransaction[]
+  recurrences  BarbosaRecurrence[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -533,12 +536,40 @@ model BarbosaTransaction {
   description    String?
   
   linkedTransactionId String? // ID of the synced transaction in another module (e.g. Costa)
+  
+  status         String   @default("REAL") // REAL, PROJECTED
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   
   @@index([userId])
   @@index([date])
+}
+
+model BarbosaRecurrence {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name           String   // e.g. "Seguro Auto"
+  dayOfMonth     Int      // 1-31
+  
+  amount         Float
+  currency       String   @default("ARS")
+  
+  type           String   // INCOME, EXPENSE
+  categoryId     String
+  category       BarbosaCategory @relation(fields: [categoryId], references: [id])
+  
+  subCategoryId  String?
+  subCategory    BarbosaSubCategory? @relation(fields: [subCategoryId], references: [id])
+  
+  active         Boolean  @default(true)
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([userId])
 }
 
 model BarbosaCleaning {
