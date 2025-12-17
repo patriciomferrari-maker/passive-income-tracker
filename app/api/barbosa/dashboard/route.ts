@@ -144,8 +144,12 @@ export async function GET(req: NextRequest) {
             recentActivity
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Dashboard Error:", error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({
+            error: error.message || 'Unknown Error',
+            stack: error.stack,
+            details: JSON.stringify(error)
+        }, { status: 500 });
     }
 }
