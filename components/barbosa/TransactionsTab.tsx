@@ -181,26 +181,26 @@ export function TransactionsTab() {
                         </Button>
                     ) : (
                         <div className="flex items-center gap-2 bg-slate-900 p-2 rounded border border-slate-700 animate-in slide-in-from-right">
-                            <span className="text-xs text-slate-400">Origen:</span>
+                            <span className="text-xs font-bold text-slate-300">Origen:</span>
                             <Select value={cloneData.sourceMonth} onValueChange={v => setCloneData({ ...cloneData, sourceMonth: v })}>
-                                <SelectTrigger className="w-[100px] h-8 text-xs"><SelectValue /></SelectTrigger>
-                                <SelectContent>{Array.from({ length: 12 }).map((_, i) => <SelectItem key={i} value={i.toString()}>{i + 1}</SelectItem>)}</SelectContent>
+                                <SelectTrigger className="w-[120px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-slate-700 text-white">{Array.from({ length: 12 }).map((_, i) => <SelectItem key={i} value={i.toString()}>{format(new Date(2024, i, 1), 'MMMM')}</SelectItem>)}</SelectContent>
                             </Select>
                             <Select value={cloneData.sourceYear} onValueChange={v => setCloneData({ ...cloneData, sourceYear: v })}>
-                                <SelectTrigger className="w-[80px] h-8 text-xs"><SelectValue /></SelectTrigger>
-                                <SelectContent>{['2024', '2025', '2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+                                <SelectTrigger className="w-[80px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-slate-700 text-white">{['2024', '2025', '2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
                             </Select>
-                            <span className="text-xs text-slate-400">→ Destino:</span>
+                            <span className="text-xs font-bold text-slate-300 mx-1">→ Destino:</span>
                             <Select value={cloneData.targetMonth} onValueChange={v => setCloneData({ ...cloneData, targetMonth: v })}>
-                                <SelectTrigger className="w-[100px] h-8 text-xs"><SelectValue /></SelectTrigger>
-                                <SelectContent>{Array.from({ length: 12 }).map((_, i) => <SelectItem key={i} value={i.toString()}>{i + 1}</SelectItem>)}</SelectContent>
+                                <SelectTrigger className="w-[120px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-slate-700 text-white">{Array.from({ length: 12 }).map((_, i) => <SelectItem key={i} value={i.toString()}>{format(new Date(2024, i, 1), 'MMMM')}</SelectItem>)}</SelectContent>
                             </Select>
                             <Select value={cloneData.targetYear} onValueChange={v => setCloneData({ ...cloneData, targetYear: v })}>
-                                <SelectTrigger className="w-[80px] h-8 text-xs"><SelectValue /></SelectTrigger>
-                                <SelectContent>{['2025', '2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+                                <SelectTrigger className="w-[80px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-slate-700 text-white">{['2025', '2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
                             </Select>
-                            <Button size="sm" onClick={handleClone} className="h-8 bg-blue-600 hover:bg-blue-700 text-xs">Clonar</Button>
-                            <Button size="sm" variant="ghost" onClick={() => setCloneDialogOpen(false)} className="h-8 w-8 p-0 text-slate-500">X</Button>
+                            <Button size="sm" onClick={handleClone} className="h-8 bg-blue-600 hover:bg-blue-700 text-xs ml-2 text-white">Clonar</Button>
+                            <Button size="sm" variant="ghost" onClick={() => setCloneDialogOpen(false)} className="h-8 w-8 p-0 text-slate-400 hover:text-white">X</Button>
                         </div>
                     )}
                 </div>
