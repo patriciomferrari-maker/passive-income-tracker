@@ -442,155 +442,162 @@ export function TransactionsTab() {
                     )}
                 </div>
             </div>
+            <InstallmentsDialog
+                open={installmentsDialogOpen}
+                onOpenChange={setInstallmentsDialogOpen}
+                onSuccess={loadData}
+                categories={categories}
+            />
         </div>
-// ... (Previous content of TransactionsTab)
+    );
+}
 
 function InstallmentsDialog({ open, onOpenChange, onSuccess, categories }: any) {
-        const [loading, setLoading] = useState(false);
-        const [data, setData] = useState({
-            description: '',
-            categoryId: '',
-            subCategoryId: '',
-            currency: 'ARS',
-            startDate: new Date().toISOString().split('T')[0],
-            installmentsCount: '12',
-            amountMode: 'TOTAL', // TOTAL | INSTALLMENT
-            amountValue: '',
-            status: 'PROJECTED'
-        });
+    const [loading, setLoading] = useState(false);
+    const [data, setData] = useState({
+        description: '',
+        categoryId: '',
+        subCategoryId: '',
+        currency: 'ARS',
+        startDate: new Date().toISOString().split('T')[0],
+        installmentsCount: '12',
+        amountMode: 'TOTAL', // TOTAL | INSTALLMENT
+        amountValue: '',
+        status: 'PROJECTED'
+    });
 
-        // Helper for derived state
-        const count = parseInt(data.installmentsCount) || 1;
-        const value = parseFloat(data.amountValue) || 0;
-        const amountPerQuota = data.amountMode === 'TOTAL' ? value / count : value;
-        const totalAmount = data.amountMode === 'TOTAL' ? value : value * count;
+    // Helper for derived state
+    const count = parseInt(data.installmentsCount) || 1;
+    const value = parseFloat(data.amountValue) || 0;
+    const amountPerQuota = data.amountMode === 'TOTAL' ? value / count : value;
+    const totalAmount = data.amountMode === 'TOTAL' ? value : value * count;
 
-        const uniqueCategories = categories.filter((c: any) => c.type === 'EXPENSE');
-        const selectedCategoryObj = categories.find((c: any) => c.id === data.categoryId);
-        const availableSubCategories = selectedCategoryObj ? selectedCategoryObj.subCategories : [];
+    const uniqueCategories = categories.filter((c: any) => c.type === 'EXPENSE');
+    const selectedCategoryObj = categories.find((c: any) => c.id === data.categoryId);
+    const availableSubCategories = selectedCategoryObj ? selectedCategoryObj.subCategories : [];
 
-        const handleSubmit = async (e: React.FormEvent) => {
-            e.preventDefault();
-            setLoading(true);
-            try {
-                const res = await fetch('/api/barbosa/transactions/installments', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const res = await fetch('/api/barbosa/transactions/installments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
 
-                if (res.ok) {
-                    onSuccess();
-                    onOpenChange(false);
-                    // Reset minimal
-                    setData({ ...data, description: '', amountValue: '' });
-                } else {
-                    alert('Error al crear cuotas');
-                }
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setLoading(false);
+            if (res.ok) {
+                onSuccess();
+                onOpenChange(false);
+                // Reset minimal
+                setData({ ...data, description: '', amountValue: '' });
+            } else {
+                alert('Error al crear cuotas');
             }
-        };
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        return (
-            <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="bg-slate-900 border-slate-800 text-white sm:max-w-[425px]">
-                    <DialogHeader>
-                        <DialogTitle>Cargar en Cuotas</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="bg-slate-900 border-slate-800 text-white sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Cargar en Cuotas</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                    <div className="space-y-2">
+                        <Label>Descripción (Ej: TV Samsung)</Label>
+                        <Input value={data.description} onChange={e => setData({ ...data, description: e.target.value })} className="bg-slate-950 border-slate-700" required />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label>Descripción (Ej: TV Samsung)</Label>
-                            <Input value={data.description} onChange={e => setData({ ...data, description: e.target.value })} className="bg-slate-950 border-slate-700" required />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Categoría</Label>
-                                <Select value={data.categoryId} onValueChange={v => setData({ ...data, categoryId: v, subCategoryId: '' })}>
-                                    <SelectTrigger className="bg-slate-950 border-slate-700"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-                                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                                        {uniqueCategories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Sub Categoría</Label>
-                                <Select value={data.subCategoryId} onValueChange={v => setData({ ...data, subCategoryId: v })} disabled={!availableSubCategories.length}>
-                                    <SelectTrigger className="bg-slate-950 border-slate-700 disabled:opacity-50"><SelectValue placeholder="..." /></SelectTrigger>
-                                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                                        {availableSubCategories.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Inicio (1ra Cuota)</Label>
-                                <Input type="date" value={data.startDate} onChange={e => setData({ ...data, startDate: e.target.value })} className="bg-slate-950 border-slate-700" required />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Cant. Cuotas</Label>
-                                <Input type="number" min="2" max="120" value={data.installmentsCount} onChange={e => setData({ ...data, installmentsCount: e.target.value })} className="bg-slate-950 border-slate-700" required />
-                            </div>
-                        </div>
-
-                        <div className="bg-slate-950/50 p-3 rounded border border-slate-800 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <Label className="text-xs font-bold text-slate-400">MODO DE CARGA</Label>
-                                <div className="flex bg-slate-900 rounded p-1 border border-slate-800">
-                                    <button type="button" onClick={() => setData({ ...data, amountMode: 'TOTAL' })} className={`text-[10px] px-2 py-1 rounded ${data.amountMode === 'TOTAL' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>TOTAL</button>
-                                    <button type="button" onClick={() => setData({ ...data, amountMode: 'INSTALLMENT' })} className={`text-[10px] px-2 py-1 rounded ${data.amountMode === 'INSTALLMENT' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>POR CUOTA</button>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="space-y-1">
-                                    <Label className="text-xs">Moneda</Label>
-                                    <Select value={data.currency} onValueChange={v => setData({ ...data, currency: v })}>
-                                        <SelectTrigger className="bg-slate-900 border-slate-700 h-8 text-xs"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ARS">ARS</SelectItem>
-                                            <SelectItem value="USD">USD</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-xs">{data.amountMode === 'TOTAL' ? 'Monto TOTAL' : 'Monto CUOTA'}</Label>
-                                    <Input type="number" value={data.amountValue} onChange={e => setData({ ...data, amountValue: e.target.value })} className="bg-slate-900 border-slate-700 h-8 text-xs" required />
-                                </div>
-                            </div>
-
-                            <div className="text-xs text-center pt-1 text-slate-300">
-                                {data.amountMode === 'TOTAL' ? (
-                                    <span>~ ${amountPerQuota.toLocaleString()} / cuota</span>
-                                ) : (
-                                    <span>Total: ${totalAmount.toLocaleString()}</span>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                            <Label>Estado Cuotas</Label>
-                            <Select value={data.status} onValueChange={v => setData({ ...data, status: v })}>
-                                <SelectTrigger className="w-[140px] bg-slate-950 border-slate-700"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="PROJECTED">Proyectado (A futuro)</SelectItem>
-                                    <SelectItem value="REAL">Real (Confirmado)</SelectItem>
+                            <Label>Categoría</Label>
+                            <Select value={data.categoryId} onValueChange={v => setData({ ...data, categoryId: v, subCategoryId: '' })}>
+                                <SelectTrigger className="bg-slate-950 border-slate-700"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                                    {uniqueCategories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div className="space-y-2">
+                            <Label>Sub Categoría</Label>
+                            <Select value={data.subCategoryId} onValueChange={v => setData({ ...data, subCategoryId: v })} disabled={!availableSubCategories.length}>
+                                <SelectTrigger className="bg-slate-950 border-slate-700 disabled:opacity-50"><SelectValue placeholder="..." /></SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                                    {availableSubCategories.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
 
-                        <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700">
-                            {loading ? 'Generando...' : 'Generar Cuotas'}
-                        </Button>
-                    </form>
-                </DialogContent>
-            </Dialog>
-        );
-    }
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>Inicio (1ra Cuota)</Label>
+                            <Input type="date" value={data.startDate} onChange={e => setData({ ...data, startDate: e.target.value })} className="bg-slate-950 border-slate-700" required />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Cant. Cuotas</Label>
+                            <Input type="number" min="2" max="120" value={data.installmentsCount} onChange={e => setData({ ...data, installmentsCount: e.target.value })} className="bg-slate-950 border-slate-700" required />
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-950/50 p-3 rounded border border-slate-800 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-xs font-bold text-slate-400">MODO DE CARGA</Label>
+                            <div className="flex bg-slate-900 rounded p-1 border border-slate-800">
+                                <button type="button" onClick={() => setData({ ...data, amountMode: 'TOTAL' })} className={`text-[10px] px-2 py-1 rounded ${data.amountMode === 'TOTAL' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>TOTAL</button>
+                                <button type="button" onClick={() => setData({ ...data, amountMode: 'INSTALLMENT' })} className={`text-[10px] px-2 py-1 rounded ${data.amountMode === 'INSTALLMENT' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>POR CUOTA</button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <Label className="text-xs">Moneda</Label>
+                                <Select value={data.currency} onValueChange={v => setData({ ...data, currency: v })}>
+                                    <SelectTrigger className="bg-slate-900 border-slate-700 h-8 text-xs"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ARS">ARS</SelectItem>
+                                        <SelectItem value="USD">USD</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs">{data.amountMode === 'TOTAL' ? 'Monto TOTAL' : 'Monto CUOTA'}</Label>
+                                <Input type="number" value={data.amountValue} onChange={e => setData({ ...data, amountValue: e.target.value })} className="bg-slate-900 border-slate-700 h-8 text-xs" required />
+                            </div>
+                        </div>
+
+                        <div className="text-xs text-center pt-1 text-slate-300">
+                            {data.amountMode === 'TOTAL' ? (
+                                <span>~ ${amountPerQuota.toLocaleString()} / cuota</span>
+                            ) : (
+                                <span>Total: ${totalAmount.toLocaleString()}</span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                        <Label>Estado Cuotas</Label>
+                        <Select value={data.status} onValueChange={v => setData({ ...data, status: v })}>
+                            <SelectTrigger className="w-[140px] bg-slate-950 border-slate-700"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="PROJECTED">Proyectado (A futuro)</SelectItem>
+                                <SelectItem value="REAL">Real (Confirmado)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700">
+                        {loading ? 'Generando...' : 'Generar Cuotas'}
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 // ... (Exported TransactionsTab)
