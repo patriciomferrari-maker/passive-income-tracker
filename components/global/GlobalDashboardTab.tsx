@@ -236,6 +236,21 @@ export function GlobalDashboardTab() {
         );
     };
 
+    const renderCustomPieLabel = (props: any) => {
+        const { cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, x, y } = props;
+        if (!showValues || percent <= 0.01) return null;
+
+        // Calculate text anchor based on position relative to center
+        const textAnchor = x > cx ? 'start' : 'end';
+
+        return (
+            <text x={x} y={y} fill="#fff" textAnchor={textAnchor} dominantBaseline="central" fontSize={11}>
+                <tspan x={x} dy="-0.5em" fontWeight="bold" fill="#e2e8f0">{name}</tspan>
+                <tspan x={x} dy="1.1em" fill="#94a3b8" fontSize={10}>{`${(percent * 100).toFixed(1)}%`}</tspan>
+            </text>
+        );
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header */}
@@ -570,12 +585,7 @@ export function GlobalDashboardTab() {
                                         outerRadius={80}
                                         paddingAngle={2}
                                         dataKey="value"
-                                        label={({ name, percent }: any) => {
-                                            if (!showValues || percent <= 0.01) return '';
-                                            // Truncate name if too long
-                                            const safeName = name.length > 15 ? name.substring(0, 15) + '...' : name;
-                                            return `${safeName} ${(percent * 100).toFixed(1)}%`;
-                                        }}
+                                        label={renderCustomPieLabel}
                                         labelLine={showValues}
                                     >
                                         {portfolioDistData.map((entry, index) => {
@@ -626,11 +636,7 @@ export function GlobalDashboardTab() {
                                         outerRadius={80}
                                         paddingAngle={5}
                                         dataKey="value"
-                                        label={({ name, percent }: any) => {
-                                            if (!showValues) return '';
-                                            const safeName = name.length > 15 ? name.substring(0, 15) + '...' : name;
-                                            return `${safeName} ${(percent * 100).toFixed(1)}%`;
-                                        }}
+                                        label={renderCustomPieLabel}
                                         labelLine={showValues}
                                     >
                                         {compositionData.map((entry, index) => (
