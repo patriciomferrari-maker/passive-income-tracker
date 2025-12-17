@@ -102,6 +102,8 @@ export function GlobalDashboardTab() {
         window.dispatchEvent(new Event('privacy-changed'));
     };
 
+    const [errorType, setErrorType] = useState<'401' | 'generic' | null>(null);
+
     const loadStats = async () => {
         try {
             const res = await fetch('/api/dashboard/global', { cache: 'no-store' });
@@ -109,6 +111,7 @@ export function GlobalDashboardTab() {
             if (res.status === 401) {
                 console.error('Unauthorized access to dashboard');
                 setStats(null);
+                setErrorType('401');
                 return;
             }
 
@@ -121,17 +124,36 @@ export function GlobalDashboardTab() {
             if (!data || !data.summary) {
                 console.error('Invalid data format received:', data);
                 setStats(null);
+                setErrorType('generic');
                 return;
             }
 
             setStats(data);
+            setErrorType(null);
         } catch (error) {
             console.error('Error loading global stats:', error);
             setStats(null);
+            setErrorType('generic');
         } finally {
             setLoading(false);
         }
     };
+
+    if (loading) return <div className="text-center py-20 text-slate-400">Cargando dashboard consolidado...</div>;
+
+    if (errorType === '401') {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <div className="text-amber-500 text-xl font-medium">Sesión Expirada</div>
+                <div className="text-slate-400">Por favor, iniciá sesión nuevamente para ver el dashboard.</div>
+                <a href="/login" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                    Ir al Login
+                </a>
+            </div>
+        );
+    }
+
+    if (!stats) return <div className="text-center py-20 text-slate-400">No se pudieron cargar los datos.</div>;
 
     const formatMoney = (amount: number, currency = 'USD') => {
         if (!showValues) return '****';
