@@ -190,7 +190,7 @@ export function TransactionsTab() {
                                 <SelectTrigger className="w-[80px] h-8 text-xs"><SelectValue /></SelectTrigger>
                                 <SelectContent>{['2024', '2025', '2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
                             </Select>
-                            <span className="text-xs text-slate-400">-> Destino:</span>
+                            <span className="text-xs text-slate-400">→ Destino:</span>
                             <Select value={cloneData.targetMonth} onValueChange={v => setCloneData({ ...cloneData, targetMonth: v })}>
                                 <SelectTrigger className="w-[100px] h-8 text-xs"><SelectValue /></SelectTrigger>
                                 <SelectContent>{Array.from({ length: 12 }).map((_, i) => <SelectItem key={i} value={i.toString()}>{i + 1}</SelectItem>)}</SelectContent>
