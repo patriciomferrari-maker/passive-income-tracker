@@ -15,10 +15,10 @@ const allSections = [
     { id: 'on', label: 'Cartera Argentina (ONs/Cedears)' },
     { id: 'treasury', label: 'Cartera USA (Treasuries)' },
     { id: 'rentals', label: 'Alquileres' },
-    { id: 'costa', label: 'Costa Esmeralda' },
     { id: 'debts', label: 'Deudas a Cobrar' },
     { id: 'bank', label: 'Banco (PF/FCI)' },
     // Hidden by default, only for specific users
+    { id: 'costa', label: 'Costa Esmeralda', restricted: true },
     { id: 'barbosa', label: 'Barbosa (Hogar)', restricted: true },
 ];
 

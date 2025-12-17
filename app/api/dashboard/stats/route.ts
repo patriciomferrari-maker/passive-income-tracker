@@ -8,11 +8,23 @@ export async function GET() {
     try {
         const userId = await getUserId();
 
+        const user = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
         // Get User Settings
         const settings = await prisma.appSettings.findUnique({
             where: { userId }
         });
-        const enabledSections = settings?.enabledSections ? settings.enabledSections.split(',') : [];
+
+        let enabledSections = settings?.enabledSections ? settings.enabledSections.split(',') : [];
+
+        // STRICT ACCESS CONTROL
+        // Only allow 'barbosa' and 'costa' for the specific admin email
+        const ADMIN_EMAIL = 'patriciomferrari@gmail.com';
+        if (user?.email !== ADMIN_EMAIL) {
+            enabledSections = enabledSections.filter(s => s !== 'barbosa' && s !== 'costa' && s !== 'costa-esmeralda');
+        }
 
         // Get ON stats
         const onInvestments = await prisma.investment.findMany({

@@ -58,20 +58,32 @@ export async function PUT(req: Request) {
             return NextResponse.json({ error: 'Hour must be between 0 and 23' }, { status: 400 });
         }
 
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        const ADMIN_EMAIL = 'patriciomferrari@gmail.com';
+
+        let cleanEnabledSections = enabledSections || '';
+
+        // Sanitize restricted sections if not admin
+        if (user?.email !== ADMIN_EMAIL) {
+            const sections = cleanEnabledSections.split(',');
+            const filtered = sections.filter((s: string) => s !== 'barbosa' && s !== 'costa' && s !== 'costa-esmeralda');
+            cleanEnabledSections = filtered.join(',');
+        }
+
         const settings = await prisma.appSettings.upsert({
             where: { userId },
             update: {
                 notificationEmails,
                 reportDay,
                 reportHour: reportHour || 10,
-                enabledSections: enabledSections || ''
+                enabledSections: cleanEnabledSections
             },
             create: {
                 userId,
                 notificationEmails,
                 reportDay,
                 reportHour: reportHour || 10,
-                enabledSections: enabledSections || ''
+                enabledSections: cleanEnabledSections
             }
         });
 
