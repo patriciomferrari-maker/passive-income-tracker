@@ -5,11 +5,11 @@ import { getUserId } from '@/app/lib/auth-helper';
 
 export const dynamic = 'force-dynamic';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
     const {
         date,
@@ -74,11 +74,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json(updatedTx);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { id } = params;
+    const { id } = await params;
 
     // Verify ownership
     const existingTx = await prisma.barbosaTransaction.findFirst({
