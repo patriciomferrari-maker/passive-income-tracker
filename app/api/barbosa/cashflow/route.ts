@@ -126,7 +126,13 @@ export async function GET(req: NextRequest) {
         if (monthlyRates.length > 0) {
             // Get the LAST one (Closing)
             const closingRate = monthlyRates[monthlyRates.length - 1]; // Sorted asc by query
-            monthlyExchangeRates[period] = closingRate.sellRate || closingRate.value;
+
+            // User Requirement: Use Average of Buy and Sell
+            if (closingRate.buyRate && closingRate.sellRate) {
+                monthlyExchangeRates[period] = (closingRate.buyRate + closingRate.sellRate) / 2;
+            } else {
+                monthlyExchangeRates[period] = closingRate.value; // 'value' typically stores the average or single available rate
+            }
         } else {
             // Fallback: Try finding closest before? Or existing from transactions?
             // If no rate found (e.g. data missing), maybe check if we have one from transactions as backup?
