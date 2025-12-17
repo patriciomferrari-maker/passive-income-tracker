@@ -567,9 +567,11 @@ export function GlobalDashboardTab() {
                                         cx="50%"
                                         cy="50%"
                                         innerRadius={70}
-                                        outerRadius={100}
+                                        outerRadius={90}
                                         paddingAngle={2}
                                         dataKey="value"
+                                        label={({ percent }: any) => showValues && percent > 0.01 ? `${(percent * 100).toFixed(1)}%` : ''}
+                                        labelLine={showValues}
                                     >
                                         {portfolioDistData.map((entry, index) => {
                                             // Colors by type name
@@ -616,9 +618,11 @@ export function GlobalDashboardTab() {
                                         cx="50%"
                                         cy="50%"
                                         innerRadius={70}
-                                        outerRadius={100}
+                                        outerRadius={90}
                                         paddingAngle={5}
                                         dataKey="value"
+                                        label={({ percent }: any) => showValues ? `${(percent * 100).toFixed(1)}%` : ''}
+                                        labelLine={showValues}
                                     >
                                         {compositionData.map((entry, index) => (
                                             <Cell key={`cell-c-${index}`} fill={entry.fill} stroke="rgba(0,0,0,0)" />
