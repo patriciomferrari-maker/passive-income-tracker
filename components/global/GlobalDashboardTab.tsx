@@ -570,7 +570,7 @@ export function GlobalDashboardTab() {
                                         outerRadius={90}
                                         paddingAngle={2}
                                         dataKey="value"
-                                        label={({ percent }: any) => showValues && percent > 0.01 ? `${(percent * 100).toFixed(1)}%` : ''}
+                                        label={({ name, percent }: any) => showValues && percent > 0.01 ? `${name} ${(percent * 100).toFixed(1)}%` : ''}
                                         labelLine={showValues}
                                     >
                                         {portfolioDistData.map((entry, index) => {
@@ -621,7 +621,7 @@ export function GlobalDashboardTab() {
                                         outerRadius={90}
                                         paddingAngle={5}
                                         dataKey="value"
-                                        label={({ percent }: any) => showValues ? `${(percent * 100).toFixed(1)}%` : ''}
+                                        label={({ name, percent }: any) => showValues ? `${name} ${(percent * 100).toFixed(1)}%` : ''}
                                         labelLine={showValues}
                                     >
                                         {compositionData.map((entry, index) => (
