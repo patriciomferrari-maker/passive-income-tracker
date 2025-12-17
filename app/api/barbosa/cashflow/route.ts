@@ -86,6 +86,42 @@ export async function GET(req: NextRequest) {
         }
     });
 
+    // --- RENTAL INCOME INJECTION ---
+    const rentalCashflows = await prisma.rentalCashflow.findMany({
+        where: {
+            contract: {
+                property: {
+                    userId,
+                    isConsolidated: true
+                }
+            },
+            date: { gte: startDate, lte: endDate }
+        },
+        include: {
+            contract: {
+                include: { property: true }
+            }
+        }
+    });
+
+    rentalCashflows.forEach(cf => {
+        const period = getPeriodKey(cf.date);
+        const amount = cf.amountARS || 0; // Use ARS amount
+        const catName = 'Alquileres';
+        const subName = cf.contract.property.name || 'General';
+
+        // Init Category
+        if (!structure['INCOME'][catName]) structure['INCOME'][catName] = { total: {}, subs: {} };
+
+        // Init SubCategory
+        if (!structure['INCOME'][catName].subs[subName]) structure['INCOME'][catName].subs[subName] = {};
+
+        // Accumulate (Rental Income is positive for us, so add it)
+        structure['INCOME'][catName].subs[subName][period] = (structure['INCOME'][catName].subs[subName][period] || 0) + amount;
+        structure['INCOME'][catName].total[period] = (structure['INCOME'][catName].total[period] || 0) + amount;
+    });
+    // -------------------------------
+
     return NextResponse.json({
         year: paramYear,
         mode,

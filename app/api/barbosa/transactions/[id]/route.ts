@@ -71,6 +71,25 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         }
     });
 
+    // --- SYNC UPDATE LOGIC ---
+    if (existingTx.linkedTransactionId) {
+        try {
+            await prisma.costaTransaction.update({
+                where: { id: existingTx.linkedTransactionId },
+                data: {
+                    date: new Date(date),
+                    amount: parseFloat(amount),
+                    currency,
+                    description: description || `Sync desde Barbosa`
+                }
+            });
+            console.log('Synced Delete/Update to Costa');
+        } catch (e) {
+            console.error('Failed to sync update:', e);
+        }
+    }
+    // -------------------------
+
     return NextResponse.json(updatedTx);
 }
 
@@ -88,6 +107,19 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     if (!existingTx) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
+
+    // --- SYNC DELETE LOGIC ---
+    if (existingTx.linkedTransactionId) {
+        try {
+            await prisma.costaTransaction.delete({
+                where: { id: existingTx.linkedTransactionId }
+            });
+            console.log('Synced Delete to Costa');
+        } catch (e) {
+            console.error('Failed to sync delete:', e);
+        }
+    }
+    // -------------------------
 
     await prisma.barbosaTransaction.delete({
         where: { id }

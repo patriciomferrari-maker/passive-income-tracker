@@ -366,9 +366,10 @@ model CostaTransaction {
   category    CostaCategory? @relation(fields: [categoryId], references: [id])
 
   // Rental Specifics (Only for INCOME/RENTAL)
-  rentalCheckIn  DateTime?
   rentalCheckOut DateTime?
   contractUrl    String?
+
+  linkedTransactionId String? // ID of the synced transaction in another module (e.g. Barbosa)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -531,6 +532,8 @@ model BarbosaTransaction {
   
   description    String?
   
+  linkedTransactionId String? // ID of the synced transaction in another module (e.g. Costa)
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   

@@ -260,60 +260,85 @@ export function TransactionsTab() {
             {/* List */}
             <div className="lg:col-span-2 space-y-4">
                 <h3 className="text-lg font-bold text-white mb-4">Últimos Movimientos</h3>
-                <div className="border border-slate-800 rounded-lg overflow-hidden">
-                    <table className="w-full text-sm text-left text-slate-300">
-                        <thead className="bg-slate-900 text-slate-400 uppercase font-bold text-xs">
-                            <tr>
-                                <th className="px-4 py-3">Fecha</th>
-                                <th className="px-4 py-3">Categoría</th>
-                                <th className="px-4 py-3">Sub</th>
-                                <th className="px-4 py-3">Desc</th>
-                                <th className="px-4 py-3 text-right">Monto</th>
-                                <th className="px-4 py-3 text-right">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800 bg-slate-950">
-                            {transactions.length === 0 ? (
-                                <tr><td colSpan={6} className="p-4 text-center text-slate-500">Sin movimientos</td></tr>
-                            ) : transactions.map(tx => (
-                                <tr key={tx.id} className="hover:bg-slate-900/50">
-                                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
-                                        {format(new Date(tx.date), 'dd/MM/yyyy')}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <span className={`inline-block w-2 h-2 rounded-full mr-2 ${tx.type === 'INCOME' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                        {tx.category.name}
-                                    </td>
-                                    <td className="px-4 py-3 text-slate-500">{tx.subCategory?.name || '-'}</td>
-                                    <td className="px-4 py-3 text-slate-500 truncate max-w-[150px]">{tx.description}</td>
-                                    <td className="px-4 py-3 text-right font-mono font-medium text-white">
-                                        {tx.currency === 'USD' ? 'US$' : '$'} {tx.amount.toLocaleString()}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-8 w-8 p-0 text-slate-400 hover:text-white"
-                                                onClick={() => handleEdit(tx)}
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
-                                                onClick={() => handleDelete(tx.id)}
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
-                                            </Button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+
+                {transactions.reduce((groups: any[], tx) => {
+                    const date = new Date(tx.date);
+                    // Force UTC to avoid timezone shifts
+                    const utcDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60000);
+                    const key = format(utcDate, 'MMMM yyyy', { locale: undefined }); // Use default or Spanish locale if configured
+
+                    const group = groups.find(g => g.key === key);
+                    if (group) {
+                        group.items.push({ ...tx, utcDate });
+                    } else {
+                        groups.push({ key, items: [{ ...tx, utcDate }] });
+                    }
+                    return groups;
+                }, []).map((group: any) => (
+                    <div key={group.key} className="space-y-2">
+                        <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider pl-1">{group.key}</h4>
+                        <div className="border border-slate-800 rounded-lg overflow-hidden">
+                            <table className="w-full text-sm text-left text-slate-300">
+                                <thead className="bg-slate-900/50 text-slate-500 uppercase font-bold text-[10px]">
+                                    <tr>
+                                        <th className="px-4 py-2 w-[100px]">Fecha</th>
+                                        <th className="px-4 py-2">Categoría</th>
+                                        <th className="px-4 py-2">Sub</th>
+                                        <th className="px-4 py-2">Desc</th>
+                                        <th className="px-4 py-2 text-right">Monto</th>
+                                        <th className="px-4 py-2 text-right w-[80px]">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800 bg-slate-950">
+                                    {group.items.map((tx: any) => (
+                                        <tr key={tx.id} className="hover:bg-slate-900/50">
+                                            <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
+                                                {format(tx.utcDate, 'dd/MM/yyyy')}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center">
+                                                    <span className={`inline-block w-2 h-2 rounded-full mr-2 ${tx.type === 'INCOME' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                                    {tx.category.name}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-500">{tx.subCategory?.name || '-'}</td>
+                                            <td className="px-4 py-3 text-slate-500 truncate max-w-[150px]">{tx.description}</td>
+                                            <td className="px-4 py-3 text-right font-mono font-medium text-white">
+                                                {tx.currency === 'USD' ? 'US$' : '$'} {tx.amount.toLocaleString()}
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0 text-slate-400 hover:text-white"
+                                                        onClick={() => handleEdit(tx)}
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
+                                                        onClick={() => handleDelete(tx.id)}
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                ))}
+
+                {transactions.length === 0 && (
+                    <div className="border border-slate-800 rounded-lg p-8 text-center text-slate-500">
+                        No hay movimientos registrados
+                    </div>
+                )}
             </div>
         </div>
     );
