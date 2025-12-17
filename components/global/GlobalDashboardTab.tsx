@@ -476,7 +476,7 @@ export function GlobalDashboardTab() {
                     <Card className="bg-slate-950 border-slate-800">
                         <CardHeader className="text-center">
                             <CardTitle className="text-white">Ingresos Últimos 12 Meses</CardTitle>
-                            <CardDescription className="text-slate-400">Distribución de Ingresos (Real)</CardDescription>
+                            <CardDescription className="text-slate-400">Distribución de Ingresos</CardDescription>
                         </CardHeader>
                         <CardContent className="h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
@@ -490,13 +490,14 @@ export function GlobalDashboardTab() {
                                         itemStyle={{ color: '#fff' }}
                                         formatter={(value: number) => showValues ? formatMoney(value) : '***'}
                                     />
+                                    <Legend wrapperStyle={{ paddingTop: '10px' }} />
                                     <Bar dataKey="ON" stackId="a" fill="#3b82f6" name="ONs" />
                                     <Bar dataKey="Treasury" stackId="a" fill="#8b5cf6" name="Treasuries" />
                                     <Bar dataKey="Rentals" stackId="a" fill="#10b981" name="Alquileres">
                                         {!showBankHistory && <LabelList dataKey="total" content={renderTotalLabel} />}
                                     </Bar>
                                     {showBankHistory && (
-                                        <Bar dataKey="Bank" stackId="a" fill="#f59e0b" name="Plazo Fijo / Bank">
+                                        <Bar dataKey="Bank" stackId="a" fill="#f59e0b" name="Plazo Fijo / Banco">
                                             <LabelList dataKey="total" content={renderTotalLabel} />
                                         </Bar>
                                     )}
@@ -507,56 +508,56 @@ export function GlobalDashboardTab() {
                 )}
 
                 {/* Projection */}
-                {projectedData.some(p => p.total > 0) && (
-                    <Card className="bg-slate-950 border-slate-800">
-                        <CardHeader className="text-center">
-                            <CardTitle className="text-white">Proyección 12 Meses</CardTitle>
-                            <CardDescription className="text-slate-400">Capital vs Intereses</CardDescription>
-                        </CardHeader>
-                        <CardContent className="h-[300px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={projectedData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                                    <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide={!showValues} />
-                                    <YAxis
-                                        stroke="#94a3b8"
-                                        fontSize={12}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickFormatter={(value) => `$${value}`}
-                                        hide={!showValues}
-                                        scale="sqrt"
-                                    />
-                                    {showValues && <Tooltip
-                                        cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#fff' }}
-                                        formatter={(value: number) => formatMoney(value)}
-                                        itemStyle={{ color: '#fff' }}
-                                    />}
-                                    {showValues && <Legend />}
-                                    <Bar dataKey="Interest" stackId="a" fill="#0ea5e9" name="Interés" />
-                                    {projectedData.some(p => (p.BankInterest || 0) > 0) && (
-                                        <Bar dataKey="BankInterest" stackId="a" fill="#f59e0b" name="Int. Plazo Fijo" />
-                                    )}
-                                    <Bar dataKey="Capital" stackId="a" fill="#10b981" name="Capital">
-                                        <LabelList dataKey="total" content={renderTotalLabel} />
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
-                )}
+                {/* Always render container if we have projection data structure, even if empty values, to avoid layout shift? 
+                    Actually, logic says "some(p => p.total > 0)". 
+                    If chart is "vacio" it might be because totals are 0. 
+                */}
+                <Card className="bg-slate-950 border-slate-800">
+                    <CardHeader className="text-center">
+                        <CardTitle className="text-white">Proyección 12 Meses</CardTitle>
+                        <CardDescription className="text-slate-400">Flujo de Fondos por Activo</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={projectedData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                                <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide={!showValues} />
+                                <YAxis
+                                    stroke="#94a3b8"
+                                    fontSize={12}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickFormatter={(value) => `$${value}`}
+                                    hide={!showValues}
+                                    scale="sqrt"
+                                />
+                                {showValues && <Tooltip
+                                    cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#fff' }}
+                                    formatter={(value: number) => formatMoney(value)}
+                                    itemStyle={{ color: '#fff' }}
+                                />}
+                                {showValues && <Legend />}
+                                <Bar dataKey="ON" stackId="a" fill="#3b82f6" name="ONs" />
+                                <Bar dataKey="Treasury" stackId="a" fill="#8b5cf6" name="Treasuries" />
+                                <Bar dataKey="Rentals" stackId="a" fill="#10b981" name="Alquileres" />
+                                <Bar dataKey="PF" stackId="a" fill="#f59e0b" name="Plazo Fijo">
+                                    <LabelList dataKey="total" content={renderTotalLabel} />
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </CardContent>
+                </Card>
             </div>
 
             {/* ROW 3: Portfolio Composition */}
-            {/* ROW 3: Cost & Income Composition */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* 1. Portfolio Composition (Assets) */}
                 {(shouldShow('on') || shouldShow('treasury') || shouldShow('bank')) && portfolioDistData && portfolioDistData.length > 0 && (
                     <Card className="bg-slate-950 border-slate-800">
                         <CardHeader className="text-center">
                             <CardTitle className="text-white">Composición de Cartera</CardTitle>
-                            <CardDescription className="text-slate-400">Distribución de Activos (Stock)</CardDescription>
+                            <CardDescription className="text-slate-400">Distribución de Activos</CardDescription>
                         </CardHeader>
                         <CardContent className="h-[350px]">
                             <ResponsiveContainer width="100%" height="100%">
@@ -567,17 +568,24 @@ export function GlobalDashboardTab() {
                                         cy="50%"
                                         innerRadius={70}
                                         outerRadius={100}
-                                        paddingAngle={5}
+                                        paddingAngle={2}
                                         dataKey="value"
                                     >
-                                        {portfolioDistData.map((entry, index) => (
-                                            <Cell key={`cell-p-${index}`} fill={`hsl(${210 + (index * 40)}, 70%, 50%)`} stroke="rgba(0,0,0,0)" />
-                                        ))}
+                                        {portfolioDistData.map((entry, index) => {
+                                            // Colors by type name
+                                            let color = `hsl(${210 + (index * 40)}, 70%, 50%)`;
+                                            if (entry.name === 'ON') color = '#3b82f6';
+                                            else if (entry.name === 'Treasury') color = '#8b5cf6';
+                                            else if (entry.name === 'Plazo Fijo') color = '#f59e0b';
+                                            else if (entry.name === 'Caja de Ahorro') color = '#10b981';
+                                            else if (entry.name === 'Caja de Seguridad') color = '#64748b';
+                                            return <Cell key={`cell-p-${index}`} fill={color} stroke="rgba(0,0,0,0)" />;
+                                        })}
                                         <Label
-                                            value={formatMoney(stats.summary.totalInvested + stats.summary.totalBankUSD)}
+                                            value={formatMoney(stats.summary.totalInvested + stats.summary.totalIdle)} // Total Assets
                                             position="center"
                                             fill="#fff"
-                                            fontSize={18}
+                                            fontSize={16}
                                             fontWeight="bold"
                                         />
                                         <Tooltip
@@ -585,7 +593,7 @@ export function GlobalDashboardTab() {
                                             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
                                             itemStyle={{ color: '#fff' }}
                                         />
-                                        <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px', color: '#fff', paddingTop: '20px' }} />
+                                        <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '11px', color: '#fff', paddingTop: '20px' }} />
                                     </Pie>
                                 </PieChart>
                             </ResponsiveContainer>
@@ -593,7 +601,7 @@ export function GlobalDashboardTab() {
                     </Card>
                 )}
 
-                {/* 2. Income Composition (Last Month) - RESTORED */}
+                {/* 2. Income Composition (Last Month) */}
                 {compositionData && compositionData.length > 0 && (
                     <Card className="bg-slate-950 border-slate-800">
                         <CardHeader className="text-center">
