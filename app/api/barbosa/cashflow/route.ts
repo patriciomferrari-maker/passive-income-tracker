@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
 
     rentalCashflows.forEach(cf => {
         const period = getPeriodKey(cf.date);
-        const amount = cf.amountARS || 0; // Use ARS amount
+        const amount = Math.round(cf.amountARS || 0); // Use ARS amount, rounded to integer
         const catName = 'Alquileres';
         const subName = cf.contract.property.name || 'General';
 
