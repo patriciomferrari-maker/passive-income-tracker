@@ -319,10 +319,12 @@ export async function GET() {
                 }
             }
 
+            let effectiveMarketValue = marketValue;
+
             if (effectiveMarketValue > 1) {
                 // Ensure proper USD conversion for ARS assets
-                if (['ON', 'CEDEAR', 'FCI', 'PF'].includes(inv.type) && marketValue > 500000 && currency === 'ARS') {
-                    // Check currency again just in case heuristics needed adjustment
+                if (['ON', 'CEDEAR', 'FCI', 'PF'].includes(inv.type || '') && marketValue > 500000 && currency === 'ARS') {
+                    effectiveMarketValue = effectiveMarketValue / exchangeRate;
                 }
 
                 // TYPE LABEL - GRANULAR
@@ -332,7 +334,7 @@ export async function GET() {
                 // Optional: Group small dust if absolutely needed, but user requested FULL breakdown.
                 // We'll stick to Name.
 
-                breakdownMap.set(label, (breakdownMap.get(label) || 0) + marketValue);
+                breakdownMap.set(label, (breakdownMap.get(label) || 0) + effectiveMarketValue);
             }
         });
 
