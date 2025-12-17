@@ -566,11 +566,16 @@ export function GlobalDashboardTab() {
                                         data={portfolioDistData}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={70}
-                                        outerRadius={90}
+                                        innerRadius={60}
+                                        outerRadius={80}
                                         paddingAngle={2}
                                         dataKey="value"
-                                        label={({ name, percent }: any) => showValues && percent > 0.01 ? `${name} ${(percent * 100).toFixed(1)}%` : ''}
+                                        label={({ name, percent }: any) => {
+                                            if (!showValues || percent <= 0.01) return '';
+                                            // Truncate name if too long
+                                            const safeName = name.length > 15 ? name.substring(0, 15) + '...' : name;
+                                            return `${safeName} ${(percent * 100).toFixed(1)}%`;
+                                        }}
                                         labelLine={showValues}
                                     >
                                         {portfolioDistData.map((entry, index) => {
@@ -617,11 +622,15 @@ export function GlobalDashboardTab() {
                                         data={compositionData}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={70}
-                                        outerRadius={90}
+                                        innerRadius={60}
+                                        outerRadius={80}
                                         paddingAngle={5}
                                         dataKey="value"
-                                        label={({ name, percent }: any) => showValues ? `${name} ${(percent * 100).toFixed(1)}%` : ''}
+                                        label={({ name, percent }: any) => {
+                                            if (!showValues) return '';
+                                            const safeName = name.length > 15 ? name.substring(0, 15) + '...' : name;
+                                            return `${safeName} ${(percent * 100).toFixed(1)}%`;
+                                        }}
                                         labelLine={showValues}
                                     >
                                         {compositionData.map((entry, index) => (

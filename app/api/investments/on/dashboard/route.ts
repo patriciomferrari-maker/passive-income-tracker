@@ -222,9 +222,12 @@ export async function GET() {
           const flows = [-marketValue];
           const flowDates = [new Date()];
 
+          const today = new Date();
           inv.cashflows.forEach(cf => {
-            flows.push(cf.amount);
-            flowDates.push(new Date(cf.date));
+            if (new Date(cf.date) > today) {
+              flows.push(cf.amount);
+              flowDates.push(new Date(cf.date));
+            }
           });
 
           const marketTir = calculateXIRR(flows, flowDates);
