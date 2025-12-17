@@ -14,6 +14,8 @@ export function TransactionsTab() {
     const [categories, setCategories] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const [editingId, setEditingId] = useState<string | null>(null);
+
     // Form
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
@@ -43,7 +45,7 @@ export function TransactionsTab() {
             const rateData = await rateRes.json();
 
             // Store Exchange Rate if available, to be used in background calculation
-            if (rateData.rate) {
+            if (rateData.rate && !editingId) {
                 setFormData(prev => ({
                     ...prev,
                     exchangeRate: prev.exchangeRate || rateData.rate.toString()
@@ -60,11 +62,18 @@ export function TransactionsTab() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch('/api/barbosa/transactions', {
-                method: 'POST',
+            const url = editingId
+                ? `/api/barbosa/transactions/${editingId}`
+                : '/api/barbosa/transactions';
+
+            const method = editingId ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
+
             if (res.ok) {
                 setFormData({
                     ...formData,
@@ -73,11 +82,47 @@ export function TransactionsTab() {
                     categoryId: '', // Reset ID selection
                     subCategoryId: '' // Reset ID selection
                 });
+                setEditingId(null);
                 loadData();
             }
         } catch (error) {
             console.error(error);
         }
+    };
+
+    const handleEdit = (tx: any) => {
+        setEditingId(tx.id);
+        setFormData({
+            date: new Date(tx.date).toISOString().split('T')[0],
+            type: tx.type,
+            amount: tx.amount.toString(),
+            currency: tx.currency,
+            categoryId: tx.categoryId,
+            subCategoryId: tx.subCategoryId || '',
+            description: tx.description || '',
+            exchangeRate: tx.exchangeRate ? tx.exchangeRate.toString() : ''
+        });
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('¿Estás seguro de eliminar este movimiento?')) return;
+        try {
+            await fetch(`/api/barbosa/transactions/${id}`, { method: 'DELETE' });
+            loadData();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleCancel = () => {
+        setEditingId(null);
+        setFormData({
+            ...formData,
+            amount: '',
+            description: '',
+            categoryId: '',
+            subCategoryId: ''
+        });
     };
 
     // Derived: Current available categories based on type
@@ -92,7 +137,9 @@ export function TransactionsTab() {
             {/* Input Form */}
             <Card className="bg-slate-900 border-slate-800 lg:col-span-1 h-fit">
                 <CardHeader>
-                    <CardTitle className="text-white">Nueva Transacción</CardTitle>
+                    <CardTitle className="text-white">
+                        {editingId ? 'Editar Transacción' : 'Nueva Transacción'}
+                    </CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -196,9 +243,16 @@ export function TransactionsTab() {
                             />
                         </div>
 
-                        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                            <Save className="mr-2 h-4 w-4" /> Guardar
-                        </Button>
+                        <div className="flex gap-2">
+                            {editingId && (
+                                <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800">
+                                    Cancelar
+                                </Button>
+                            )}
+                            <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+                                <Save className="mr-2 h-4 w-4" /> {editingId ? 'Actualizar' : 'Guardar'}
+                            </Button>
+                        </div>
                     </form>
                 </CardContent>
             </Card>
@@ -215,11 +269,12 @@ export function TransactionsTab() {
                                 <th className="px-4 py-3">Sub</th>
                                 <th className="px-4 py-3">Desc</th>
                                 <th className="px-4 py-3 text-right">Monto</th>
+                                <th className="px-4 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800 bg-slate-950">
                             {transactions.length === 0 ? (
-                                <tr><td colSpan={5} className="p-4 text-center text-slate-500">Sin movimientos</td></tr>
+                                <tr><td colSpan={6} className="p-4 text-center text-slate-500">Sin movimientos</td></tr>
                             ) : transactions.map(tx => (
                                 <tr key={tx.id} className="hover:bg-slate-900/50">
                                     <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
@@ -233,6 +288,26 @@ export function TransactionsTab() {
                                     <td className="px-4 py-3 text-slate-500 truncate max-w-[150px]">{tx.description}</td>
                                     <td className="px-4 py-3 text-right font-mono font-medium text-white">
                                         {tx.currency === 'USD' ? 'US$' : '$'} {tx.amount.toLocaleString()}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0 text-slate-400 hover:text-white"
+                                                onClick={() => handleEdit(tx)}
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
+                                                onClick={() => handleDelete(tx.id)}
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                            </Button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
