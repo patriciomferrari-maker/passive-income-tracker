@@ -45,9 +45,20 @@ export default function HomePage() {
     loadStats();
   }, []);
 
+  const [isUnauthenticated, setIsUnauthenticated] = useState(false);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
   const loadStats = async () => {
     try {
       const res = await fetch(`/api/dashboard/stats?t=${new Date().getTime()}`);
+      if (res.status === 401) {
+        setIsUnauthenticated(true);
+        setLoading(false);
+        return;
+      }
       const data = await res.json();
       setStats(data);
     } catch (error) {
@@ -56,6 +67,29 @@ export default function HomePage() {
       setLoading(false);
     }
   };
+
+  if (!loading && isUnauthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div className="text-center space-y-6 max-w-lg">
+          <h1 className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
+            Passive Income
+          </h1>
+          <p className="text-slate-400 text-lg">
+            Gestiona tus inversiones, controla tus gastos y seguí la evolución de tu patrimonio en un solo lugar.
+          </p>
+          <div className="pt-4">
+            <Link
+              href="/api/auth/signin"
+              className="inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-blue-600 text-white hover:bg-blue-700 h-11 px-8"
+            >
+              Iniciar Sesión
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-950">

@@ -151,8 +151,10 @@ export function RecurrenceTab() {
                 <div className="flex items-center gap-2 bg-slate-900 p-2 rounded border border-slate-700">
                     <span className="text-xs text-slate-300 font-bold uppercase mr-2">Proyección Automática</span>
                     <Select value={applyData.targetMonth} onValueChange={v => setApplyData({ ...applyData, targetMonth: v })}>
-                        <SelectTrigger className="w-[120px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-slate-700 text-white">{Array.from({ length: 12 }).map((_, i) => <SelectItem key={i} value={(i + 1).toString()}>{format(new Date(2024, i, 1), 'MMMM')}</SelectItem>)}</SelectContent>
+                        <SelectTrigger className="w-[140px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-700 text-white max-h-[300px]">
+                            {Array.from({ length: 12 }).map((_, i) => <SelectItem key={i} value={(i + 1).toString()}>{format(new Date(2024, i, 1), 'MMMM')}</SelectItem>)}
+                        </SelectContent>
                     </Select>
                     <Select value={applyData.targetYear} onValueChange={v => setApplyData({ ...applyData, targetYear: v })}>
                         <SelectTrigger className="w-[90px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
