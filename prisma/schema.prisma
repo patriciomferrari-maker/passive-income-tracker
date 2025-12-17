@@ -64,6 +64,8 @@ model Property {
   hasGarage     Boolean    @default(false)
   garageMunicipalId String?
 
+  isConsolidated Boolean   @default(true) // Whether to include in Global Dashboard
+
   contracts Contract[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt

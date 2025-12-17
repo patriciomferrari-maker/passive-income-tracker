@@ -53,8 +53,10 @@ export async function POST(request: Request) {
                 electricityId: electricityId || null,
                 gasId: gasId || null,
                 municipalId: municipalId || null,
+                municipalId: municipalId || null,
                 hasGarage: hasGarage || false,
-                garageMunicipalId: garageMunicipalId || null
+                garageMunicipalId: garageMunicipalId || null,
+                isConsolidated: body.isConsolidated !== undefined ? body.isConsolidated : true
             }
         });
 

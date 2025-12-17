@@ -14,6 +14,7 @@ interface Property {
     municipalId: string | null;
     hasGarage: boolean;
     garageMunicipalId: string | null;
+    isConsolidated: boolean;
     _count: {
         contracts: number;
     };
@@ -37,6 +38,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
     const [municipalId, setMunicipalId] = useState('');
     const [hasGarage, setHasGarage] = useState(false);
     const [garageMunicipalId, setGarageMunicipalId] = useState('');
+    const [isConsolidated, setIsConsolidated] = useState(true);
 
     useEffect(() => {
         loadProperties();
@@ -74,7 +76,8 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                     gasId: gasId || null,
                     municipalId: municipalId || null,
                     hasGarage,
-                    garageMunicipalId: garageMunicipalId || null
+                    garageMunicipalId: garageMunicipalId || null,
+                    isConsolidated
                 })
             });
 
@@ -97,6 +100,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
         setMunicipalId(property.municipalId || '');
         setHasGarage(property.hasGarage || false);
         setGarageMunicipalId(property.garageMunicipalId || '');
+        setIsConsolidated(property.isConsolidated !== undefined ? property.isConsolidated : true);
         setShowForm(true);
     };
 
@@ -121,6 +125,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
         setMunicipalId('');
         setHasGarage(false);
         setGarageMunicipalId('');
+        setIsConsolidated(true);
         setEditingProperty(null);
         setShowForm(false);
     };
@@ -164,8 +169,11 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                             </thead>
                             <tbody>
                                 {properties.map(property => (
-                                    <tr key={property.id} className="border-b border-slate-800 hover:bg-slate-900">
-                                        <td className="py-3 px-4 text-white font-medium">{property.name}</td>
+                                    <tr key={property.id} className={`border-b border-slate-800 hover:bg-slate-900 ${!property.isConsolidated ? 'opacity-60' : ''}`}>
+                                        <td className="py-3 px-4 text-white font-medium">
+                                            {property.name}
+                                            {!property.isConsolidated && <span className="ml-2 text-[10px] bg-slate-700 text-slate-300 px-1 py-0.5 rounded">No Consolida</span>}
+                                        </td>
                                         <td className="py-3 px-4 text-slate-400">{property.address || '-'}</td>
                                         <td className="py-3 px-4 text-slate-400 font-mono text-xs">{property.municipalId || '-'}</td>
                                         <td className="py-3 px-4 text-slate-400 font-mono text-xs">{property.garageMunicipalId || '-'}</td>
@@ -286,6 +294,26 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                                             />
                                         </div>
                                     )}
+                                </div>
+
+                                <div className="border-t border-slate-800 pt-4">
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id="isConsolidated"
+                                            checked={isConsolidated}
+                                            onChange={e => setIsConsolidated(e.target.checked)}
+                                            className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <div className="flex flex-col">
+                                            <label htmlFor="isConsolidated" className="text-sm font-medium text-slate-300 select-none cursor-pointer">
+                                                Consolidar en Dashboard Global
+                                            </label>
+                                            <span className="text-xs text-slate-500">
+                                                Si está activo, los ingresos se suman al total general.
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="flex gap-3 pt-4">
                                     <Button
