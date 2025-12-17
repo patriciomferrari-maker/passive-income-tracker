@@ -48,7 +48,21 @@ export default function HomePage() {
   const [isUnauthenticated, setIsUnauthenticated] = useState(false);
 
   useEffect(() => {
+    // Initial fetch
     loadStats();
+
+    // BFCache fix: Force reload/re-fetch if backend navigation restores page from cache
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        window.location.reload();
+      } else {
+        // Even if not persisted, re-check auth when showing page (e.g. tab switch/back sometimes)
+        loadStats();
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
 
   const loadStats = async () => {
