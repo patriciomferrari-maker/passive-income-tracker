@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { DashboardCard } from '@/components/DashboardCard';
-import { signOutAction } from '@/app/lib/actions';
+import { signOut } from 'next-auth/react';
 import { Loader2, Clock, Menu, Settings, LogOut } from 'lucide-react';
 import { FlagARG, FlagUSA } from '@/components/ui/CountryFlags';
 import Link from 'next/link';
@@ -104,11 +104,12 @@ export default function HomePage() {
             <Link href="/settings" className="text-slate-500 hover:text-blue-400 transition-colors">
               <Settings size={20} />
             </Link>
-            <form action={signOutAction}>
-              <button type="submit" className="text-slate-500 hover:text-red-400 transition-colors pt-1">
-                <LogOut size={20} />
-              </button>
-            </form>
+            <button
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="text-slate-500 hover:text-red-400 transition-colors pt-1"
+            >
+              <LogOut size={20} />
+            </button>
           </div>
         </div>
 
