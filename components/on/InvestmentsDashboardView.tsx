@@ -41,6 +41,7 @@ export interface DashboardData {
     }>;
     totalONs: number;
     totalTransactions: number;
+    totalCurrentValue?: number;
     pnl?: {
         realized: number;
         realizedPercent: number;
@@ -131,7 +132,7 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
             {/* HERO CARD: Unified Investment, TIR, and Next Payment */}
             {data.totalTransactions > 0 || data.capitalInvertido > 0 ?
                 <Card className="bg-slate-950 border-slate-800 overflow-hidden print:border-slate-300 print:bg-white print:text-slate-900">
-                    <div className={`grid grid-cols-1 ${data.totalONs > 0 ? 'md:grid-cols-3 divide-y md:divide-y-0 md:divide-x' : 'md:grid-cols-1'} divide-slate-800 print:divide-slate-300`}>
+                    <div className={`grid grid-cols-1 ${data.totalONs > 0 ? 'md:grid-cols-4 divide-y md:divide-y-0 md:divide-x' : 'md:grid-cols-1'} divide-slate-800 print:divide-slate-300`}>
                         {/* Total Investment */}
                         <div className="p-6 flex flex-col justify-center items-center text-center hover:bg-slate-900/50 transition-colors print:bg-white">
                             <div className="mb-3 p-3 rounded-full bg-emerald-500/10 text-emerald-500">
@@ -145,6 +146,22 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
                                 {data.totalTransactions} operaciones activas
                             </p>
                         </div>
+
+                        {/* Current Value (New Card) */}
+                        {data.totalONs > 0 && (
+                            <div className="p-6 flex flex-col justify-center items-center text-center hover:bg-slate-900/50 transition-colors print:bg-white">
+                                <div className="mb-3 p-3 rounded-full bg-cyan-500/10 text-cyan-500">
+                                    <DollarSign className="h-6 w-6" />
+                                </div>
+                                <p className="text-sm font-medium text-slate-400 print:text-slate-600 uppercase tracking-wider mb-1">Valor Actual</p>
+                                <div className="text-3xl font-bold text-cyan-400 print:text-cyan-700 tracking-tight">
+                                    {formatMoney(data.totalCurrentValue || 0)}
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">
+                                    Market Value Estimado
+                                </p>
+                            </div>
+                        )}
 
                         {/* Consolidated TIR (Only if ONs exist) */}
                         {data.totalONs > 0 && (

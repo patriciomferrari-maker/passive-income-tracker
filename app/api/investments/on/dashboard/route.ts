@@ -284,6 +284,7 @@ export async function GET() {
       totalInvestments: investments.length, // Total count including equities
       totalTransactions: investments.reduce((sum, inv) => sum + inv.transactions.length, 0),
       // P&L Data for Cards
+      totalCurrentValue: totalCostUnrealized + totalUnrealized,
       pnl: hasEquity ? {
         realized: totalRealized,
         realizedPercent: roiRealized,
