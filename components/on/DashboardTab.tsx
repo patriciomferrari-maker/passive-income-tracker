@@ -23,6 +23,17 @@ export function DashboardTab({ showValues, onTogglePrivacy }: DashboardTabProps)
                     return;
                 }
 
+                if (!res.ok) {
+                    try {
+                        const errorJson = await res.json();
+                        console.error('Server returned detailed error (ON):', errorJson);
+                        if (errorJson.details) {
+                            console.error('SPECIFIC SERVER ERROR (ON):', errorJson.details);
+                        }
+                    } catch (e) { /* ignore parse error */ }
+                    throw new Error(`API Error: ${res.status}`);
+                }
+
                 if (res.ok) {
                     const data = await res.json();
                     setDashboardData(data);

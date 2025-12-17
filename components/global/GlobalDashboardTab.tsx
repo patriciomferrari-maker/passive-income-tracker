@@ -116,6 +116,16 @@ export function GlobalDashboardTab() {
             }
 
             if (!res.ok) {
+                // Try to parse the error details from the server
+                try {
+                    const errorJson = await res.json();
+                    console.error('Server returned detailed error:', errorJson);
+                    if (errorJson.details) {
+                        // We log it so the user can send us the screenshot of this specific error
+                        console.error('SPECIFIC SERVER ERROR:', errorJson.details);
+                    }
+                } catch (e) { /* ignore parse error */ }
+
                 throw new Error(`API Error: ${res.status}`);
             }
 

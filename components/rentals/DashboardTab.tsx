@@ -26,6 +26,19 @@ export function DashboardTab({ showValues }: DashboardTabProps) {
                     return; // Stop processing
                 }
 
+                if (!contractsRes.ok) {
+                    try {
+                        const err = await contractsRes.json();
+                        console.error('Error Rentals Contracts:', err);
+                    } catch (e) { }
+                }
+                if (!globalRes.ok) {
+                    try {
+                        const err = await globalRes.json();
+                        console.error('Error Rentals Global:', err);
+                    } catch (e) { }
+                }
+
                 const contractsJson = await contractsRes.json();
                 const globalJson = await globalRes.json();
 
