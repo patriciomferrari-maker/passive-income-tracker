@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import Google from 'next-auth/providers/google';
 import { z } from 'zod';
 import { authConfig } from './auth.config';
 import { PrismaClient } from '@prisma/client';
@@ -33,6 +34,9 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
 
                     if (!user) return null;
 
+                    // If user has no password (OAuth only), return null for Credentials provider
+                    if (!user.password) return null;
+
                     const passwordsMatch = await bcrypt.compare(password, user.password);
 
                     if (passwordsMatch) {
@@ -47,6 +51,11 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                 console.log('Invalid credentials');
                 return null;
             },
+        }),
+        Google({
+            clientId: process.env.AUTH_GOOGLE_ID,
+            clientSecret: process.env.AUTH_GOOGLE_SECRET,
+            allowDangerousEmailAccountLinking: true,
         }),
     ],
     callbacks: {

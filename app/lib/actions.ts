@@ -122,3 +122,7 @@ export async function register(prevState: string | undefined, formData: FormData
 export async function signOutAction() {
     await signOut({ redirectTo: '/login' });
 }
+
+export async function signInGoogle() {
+    await signIn('google', { redirectTo: '/' });
+}
