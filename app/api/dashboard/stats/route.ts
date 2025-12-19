@@ -54,23 +54,7 @@ export async function GET() {
 
         // ...
 
-        // Get Costa Stats (Expenses in USD)
-        const costaTransactions = await prisma.costaTransaction.findMany({
-            where: {
-                userId,
-                type: 'EXPENSE',
-                date: {
-                    gte: startOfMonth,
-                    lt: startOfNextMonth
-                }
-            }
-        });
 
-        const costaExpensesCount = costaTransactions.length;
-        const costaExpensesTotalARS = costaTransactions.reduce((sum, t) => sum + t.amount, 0);
-
-        // Use the Costa specific rate
-        const costaExpensesTotal = costaExpensesTotalARS / costaExchangeRate;
 
         // 1. Fetch latest prices for these investments to ensure accuracy
         const investmentIds = onInvestments.map(i => i.id);
