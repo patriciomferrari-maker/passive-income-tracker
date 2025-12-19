@@ -42,6 +42,7 @@ export default function HomePage() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   useEffect(() => {
     loadStats();
@@ -75,6 +76,12 @@ export default function HomePage() {
         setLoading(false);
         return;
       }
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`API Error: ${res.status} ${res.statusText}\n${text.slice(0, 200)}`);
+      }
+
       const data = await res.json();
 
       if (data.needsOnboarding) {
@@ -83,8 +90,9 @@ export default function HomePage() {
       }
 
       setStats(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading dashboard stats:', error);
+      setErrorDetails(error.message || 'Unknown Error');
     } finally {
       setLoading(false);
     }
@@ -143,10 +151,18 @@ export default function HomePage() {
         )}
 
         {/* Error State */}
-        {!loading && (!stats || 'error' in stats) && (
+        {!loading && ((!stats && errorDetails) || (stats && 'error' in stats)) && (
           <div className="text-center py-10">
             <div className="text-red-400 mb-2">Error loading dashboard data</div>
             <div className="text-slate-500 text-sm">Please check the configuration</div>
+
+            {/* Show specific error if available */}
+            {errorDetails && (
+              <div className="mt-4 p-4 bg-red-950/50 rounded text-left mx-auto max-w-lg overflow-auto border border-red-900">
+                <p className="font-mono text-xs text-red-200 whitespace-pre-wrap">{errorDetails}</p>
+              </div>
+            )}
+
             {stats && 'details' in stats && (
               <div className="mt-4 p-4 bg-red-950/50 rounded text-left mx-auto max-w-lg overflow-auto">
                 <p className="font-mono text-xs text-red-200 whitespace-pre-wrap">{(stats as any).details}</p>
