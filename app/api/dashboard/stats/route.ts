@@ -41,6 +41,21 @@ export async function GET() {
             }
         });
 
+        // 1. Fetch latest prices for these investments to ensure accuracy
+        const investmentIds = onInvestments.map(i => i.id);
+        const latestPrices = await prisma.assetPrice.findMany({
+            where: { investmentId: { in: investmentIds } },
+            orderBy: { date: 'desc' },
+            // We can't distinct on prisma yet easily without raw query, so just fetch recent
+            // Or assuming not too many, fetch all and map in JS
+        });
+
+        const priceMap: Record<string, number> = {};
+        // Populate map with first found (latest)
+        latestPrices.forEach(p => {
+            if (!priceMap[p.investmentId]) priceMap[p.investmentId] = p.price;
+        });
+
         const onCount = onInvestments.length;
         const onTotalInvested = onInvestments.reduce((sum, inv) => {
             const quantityHeld = inv.transactions.reduce((qSum, tx) => {
@@ -49,19 +64,27 @@ export async function GET() {
                 return qSum;
             }, 0);
 
-            let marketValue = 0;
-            const price = inv.lastPrice || 0;
+            const rawPrice = priceMap[inv.id] || inv.lastPrice || 0;
 
-            // Heuristic for currency:
-            // If explicit currency is ARS, convert.
-            // OR if price is high (> 500) and it's likely ARS.
-            if (inv.currency === 'ARS' || price > 500) {
-                marketValue = (quantityHeld * price) / exchangeRate;
-            } else {
-                marketValue = quantityHeld * price;
+            // Logic to match Detailed View + USD Normalization
+            let priceInUSD = rawPrice;
+
+            // Detect ARS and convert to USD
+            // Threshold 500 assumes price is "per 100" or raw. 
+            // - USD ONs are usually ~100.
+            // - ARS ONs are usually ~100,000.
+            // - Equity ARS is usually ~2000+. 
+            // - Equity USD is usually ~10-200.
+            if (inv.currency === 'ARS' || rawPrice > 500) {
+                priceInUSD = rawPrice / exchangeRate;
             }
 
-            return sum + marketValue;
+            // Normalize "Per 100" quoting for Bonds
+            if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND' || inv.type === 'BONO') {
+                priceInUSD = priceInUSD / 100;
+            }
+
+            return sum + (quantityHeld * priceInUSD);
         }, 0);
 
         // Get Treasury stats
