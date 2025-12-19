@@ -26,20 +26,51 @@ export async function GET() {
             enabledSections = enabledSections.filter(s => s !== 'barbosa' && s !== 'costa' && s !== 'costa-esmeralda');
         }
 
-        // Fetch latest Exchange Rate (MEP)
+        // Fetch latest Exchange Rate (MEP) for ONs
         const mepIndicator = await prisma.economicIndicator.findFirst({
             where: { type: 'TC_dollar_mep' },
             orderBy: { date: 'desc' }
         });
-        const exchangeRate = mepIndicator?.value || 1160; // Fallback to approx current rate
+        const exchangeRate = mepIndicator?.value || 1160;
 
-        // Get ON stats (Market Value in USD)
-        const onInvestments = await prisma.investment.findMany({
-            where: { type: 'ON', userId },
-            include: {
-                transactions: true
+        // Fetch TC for Costa (mimicking CashflowTab logic: Start of Month Rate)
+        // CashflowTab fetches TC_USD_ARS order ASC, and takes the first one for the month.
+        const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+        const startOfNextMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 1));
+
+        const blueIndicator = await prisma.economicIndicator.findFirst({
+            where: {
+                type: 'TC_USD_ARS',
+                date: { gte: startOfMonth }
+            },
+            orderBy: { date: 'asc' } // Match CashflowTab's "first of month" behavior
+        });
+
+        // If no rate found for this month, fallback to MEP or previous Blue?
+        // Using exchangeRate (MEP) as safe fallback, but usually TC_USD_ARS should exist if Costa data exists.
+        const costaExchangeRate = blueIndicator?.value || exchangeRate;
+
+        // ... (ON Logic uses exchangeRate) ...
+
+        // ...
+
+        // Get Costa Stats (Expenses in USD)
+        const costaTransactions = await prisma.costaTransaction.findMany({
+            where: {
+                userId,
+                type: 'EXPENSE',
+                date: {
+                    gte: startOfMonth,
+                    lt: startOfNextMonth
+                }
             }
         });
+
+        const costaExpensesCount = costaTransactions.length;
+        const costaExpensesTotalARS = costaTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+        // Use the Costa specific rate
+        const costaExpensesTotal = costaExpensesTotalARS / costaExchangeRate;
 
         // 1. Fetch latest prices for these investments to ensure accuracy
         const investmentIds = onInvestments.map(i => i.id);
@@ -207,7 +238,7 @@ export async function GET() {
         // Heuristic: If total > 10,000 implies ARS? 
         // Or just always divide by exchange rate if we know user inputs ARS?
         // Let's divide by exchange rate. 
-        const costaExpensesTotal = costaExpensesTotalARS / exchangeRate;
+        const costaExpensesTotal = costaExpensesTotalARS / costaExchangeRate;
 
 
         return NextResponse.json({
