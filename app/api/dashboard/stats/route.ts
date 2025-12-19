@@ -172,8 +172,7 @@ export async function GET() {
 
         const needsOnboarding = settings && settings.enabledSections === '';
 
-        const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
-        const startOfNextMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 1));
+
 
         const currentMonthName = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(now);
         const capitalizedMonth = currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1);
