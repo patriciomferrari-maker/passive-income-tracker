@@ -266,7 +266,7 @@ export default function HomePage() {
                             totalValue={stats.costa?.totalMonthly || 0}
                             currency="USD"
                             enabled={true}
-                            countLabel="Gastos Mensuales"
+                            countLabel={stats.costa?.label || "Gastos Mensuales"}
                             valueLabel="Total Gasto"
                           />
                         )}
@@ -279,9 +279,9 @@ export default function HomePage() {
                             href="/barbosa"
                             count={stats.barbosa?.count || 0}
                             totalValue={stats.barbosa?.totalMonthly || 0}
-                            currency="ARS"
+                            currency="USD" // Now USD!
                             enabled={true}
-                            countLabel="Gastos Mensuales"
+                            countLabel={stats.barbosa?.label || "Gastos Mensuales"}
                             valueLabel="Total Gasto"
                           />
                         )}

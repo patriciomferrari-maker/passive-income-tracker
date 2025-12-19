@@ -26,7 +26,14 @@ export async function GET() {
             enabledSections = enabledSections.filter(s => s !== 'barbosa' && s !== 'costa' && s !== 'costa-esmeralda');
         }
 
-        // Get ON stats
+        // Fetch latest Exchange Rate (MEP)
+        const mepIndicator = await prisma.economicIndicator.findFirst({
+            where: { type: 'TC_dollar_mep' },
+            orderBy: { date: 'desc' }
+        });
+        const exchangeRate = mepIndicator?.value || 1160; // Fallback to approx current rate
+
+        // Get ON stats (Market Value in USD)
         const onInvestments = await prisma.investment.findMany({
             where: { type: 'ON', userId },
             include: {
@@ -42,8 +49,19 @@ export async function GET() {
                 return qSum;
             }, 0);
 
-            const marketPrice = inv.lastPrice || 0;
-            return sum + (quantityHeld * marketPrice);
+            let marketValue = 0;
+            const price = inv.lastPrice || 0;
+
+            // Heuristic for currency:
+            // If explicit currency is ARS, convert.
+            // OR if price is high (> 500) and it's likely ARS.
+            if (inv.currency === 'ARS' || price > 500) {
+                marketValue = (quantityHeld * price) / exchangeRate;
+            } else {
+                marketValue = quantityHeld * price;
+            }
+
+            return sum + marketValue;
         }, 0);
 
         // Get Treasury stats
@@ -118,27 +136,34 @@ export async function GET() {
 
         const needsOnboarding = settings && settings.enabledSections === '';
 
-        // Get Barbosa Stats
+        const currentMonthName = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(now);
+        const capitalizedMonth = currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1);
+        const expenseLabel = `${capitalizedMonth} (Gastos)`;
+
+        // Get Barbosa Stats (Expenses in USD)
         const barbosaTransactions = await prisma.barbosaTransaction.findMany({
             where: {
                 userId,
                 type: 'EXPENSE',
                 date: {
-                    gte: new Date(now.getFullYear(), now.getMonth(), 1), // First day of current month
-                    lt: new Date(now.getFullYear(), now.getMonth() + 1, 1) // First day of next month
+                    gte: new Date(now.getFullYear(), now.getMonth(), 1),
+                    lt: new Date(now.getFullYear(), now.getMonth() + 1, 1)
                 }
             }
         });
 
         const barbosaExpensesCount = barbosaTransactions.length;
-        const barbosaExpensesTotal = barbosaTransactions.reduce((sum, t) => sum + (t.amountUSD || t.amount / 1200), 0); // Approx USD conversion if needed or just sum ARS? User usually wants USD in dashboard but Barbosa is ARS based. Let's use ARS for Barbosa card?
-        // Wait, user said "total de gasto mensual". For Barbosa it is cleaner in ARS usually, but Dashboard is USD.
-        // Let's assume ARS for Barbosa specific card, or USD if consolidated. 
-        // The dashboard card passed "ARS" in page.tsx previously.
-        const barbosaExpensesTotalARS = barbosaTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const barbosaExpensesTotalUSD = barbosaTransactions.reduce((sum, t) => {
+            // Use stored USD amount if available (best)
+            if (t.amountUSD) return sum + t.amountUSD;
+            // Or convert using transaction rate (better)
+            if (t.exchangeRate) return sum + (t.amount / t.exchangeRate);
+            // Or fallback to current rate (ok)
+            return sum + (t.amount / exchangeRate);
+        }, 0);
 
 
-        // Get Costa Stats
+        // Get Costa Stats (Expenses in USD)
         const costaTransactions = await prisma.costaTransaction.findMany({
             where: {
                 userId,
@@ -185,11 +210,13 @@ export async function GET() {
             },
             barbosa: {
                 count: barbosaExpensesCount,
-                totalMonthly: barbosaExpensesTotalARS
+                totalMonthly: barbosaExpensesTotalUSD,
+                label: expenseLabel
             },
             costa: {
                 count: costaExpensesCount,
-                totalMonthly: costaExpensesTotal
+                totalMonthly: costaExpensesTotal,
+                label: expenseLabel
             }
         });
     } catch (error: any) {
