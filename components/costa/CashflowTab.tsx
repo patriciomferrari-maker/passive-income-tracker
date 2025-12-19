@@ -38,9 +38,10 @@ export function CashflowTab() {
             const rateMap: Record<string, number> = {};
             if (Array.isArray(ratesData)) {
                 ratesData.forEach((r: any) => {
-                    const key = format(new Date(r.date), 'yyyy-MM');
-                    // If multiple, maybe avg? Or take last. Using last for now as "closing" roughly.
-                    // Ideally sorting descending by date first
+                    // Use UTC date string strictly to align with Server Logic
+                    // r.date is ISO string "2025-12-01T00:00:00.000Z"
+                    const key = r.date.substring(0, 7); // "2025-12"
+
                     if (!rateMap[key]) rateMap[key] = r.value;
                 });
             }
