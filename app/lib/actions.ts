@@ -104,8 +104,6 @@ export async function register(prevState: string | undefined, formData: FormData
                 userId: newUser.id,
                 reportDay: 1,
                 reportHour: 10,
-                reportDay: 1,
-                reportHour: 10,
                 enabledSections: '' // Default empty, waiting for onboarding
             }
         });
@@ -127,4 +125,25 @@ export async function signOutAction() {
 
 export async function signInGoogle() {
     await signIn('google', { redirectTo: '/' });
+}
+
+export async function saveOnboarding(prevState: string | undefined, formData: FormData) {
+    const session = await auth();
+    if (!session?.user?.email) {
+        return "No autorizado";
+    }
+
+    const sections = formData.get('sections') as string;
+
+    try {
+        await prisma.appSettings.update({
+            where: { userId: session.user.id },
+            data: { enabledSections: sections }
+        });
+    } catch (error) {
+        console.error("Onboarding error:", error);
+        return "Error al guardar preferencias";
+    }
+
+    redirect('/');
 }
