@@ -9,13 +9,15 @@ interface DashboardCardProps {
     icon: React.ReactNode;
     href: string;
     enabled?: boolean;
-    count?: number;
+    enabled?: boolean;
+    count?: number | string;
     totalValue?: number;
     currency?: string;
     variant?: 'default' | 'red';
     children?: React.ReactNode;
     countLabel?: string;
     valueLabel?: string;
+    trendColor?: string;
 }
 
 export function DashboardCard({
@@ -30,9 +32,15 @@ export function DashboardCard({
     variant = 'default',
     children,
     countLabel = 'Inversiones',
-    valueLabel = 'Valor Total'
+    valueLabel = 'Valor Total',
+    trendColor
 }: DashboardCardProps) {
     const isRed = variant === 'red';
+
+    // Determine value color: usage of trendColor, or fallback to variant logic
+    const valueTextColor = trendColor
+        ? trendColor
+        : isRed ? 'text-red-400' : 'text-emerald-400';
 
     const CardContent = () => (
         <div className={`
@@ -92,7 +100,7 @@ export function DashboardCard({
                             {totalValue !== undefined && (
                                 <div className="flex flex-col items-center justify-center">
                                     <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">{valueLabel}</p>
-                                    <p className={`text-lg font-bold flex items-center gap-1 ${isRed ? 'text-red-400' : 'text-emerald-400'}`}>
+                                    <p className={`text-lg font-bold flex items-center gap-1 ${valueTextColor}`}>
                                         <TrendingUp size={14} />
                                         {currency === 'USD' ? '$' : '$'}
                                         {totalValue.toLocaleString('en-US', {

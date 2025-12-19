@@ -234,12 +234,14 @@ export async function GET() {
             barbosa: {
                 count: barbosaExpensesCount,
                 totalMonthly: barbosaExpensesTotalUSD,
-                label: expenseLabel
+                label: expenseLabel,
+                monthName: capitalizedMonth
             },
             costa: {
                 count: costaExpensesCount,
                 totalMonthly: costaExpensesTotal,
-                label: expenseLabel
+                label: expenseLabel,
+                monthName: capitalizedMonth
             }
         });
     } catch (error: any) {
