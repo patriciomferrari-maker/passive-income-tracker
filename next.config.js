@@ -9,8 +9,9 @@ const nextConfig = {
         ignoreBuildErrors: true,
     },
 
+    serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
     experimental: {
-        serverComponentsExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
+
     },
     async headers() {
         return [

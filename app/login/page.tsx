@@ -12,7 +12,7 @@ export default function LoginPage() {
     const [errorMessage, dispatch] = useFormState(authenticate, undefined);
 
     return (
-    return (
+
         <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
             <Card className="w-full max-w-lg bg-slate-900 border-slate-800 text-slate-100">
                 <CardHeader className="text-center pb-8 pt-8">
