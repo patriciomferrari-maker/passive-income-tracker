@@ -3,10 +3,7 @@ import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import { z } from 'zod';
 import { authConfig } from './auth.config';
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export const { auth, signIn, signOut, handlers } = NextAuth({
     ...authConfig,
@@ -65,9 +62,44 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
             }
             return session;
         },
-        async jwt({ token, user }) {
-            if (user) {
-                token.sub = user.id;
+        async jwt({ token, user, account }) {
+            if (account && user) {
+                // Initial sign in
+                // Logic to link Google Account to existing User by Email
+                if (user.email) {
+                    const dbUser = await prisma.user.findUnique({
+                        where: { email: user.email }
+                    });
+
+                    if (dbUser) {
+                        token.sub = dbUser.id; // Use Database ID
+                        token.role = dbUser.role; // Verify role too
+                    } else if (account.provider === 'google') {
+                        // Optional: Create user here if we want auto-registration for Google
+                        // But for now, let's focus on linking. 
+                        // If we don't create it, token.sub is Google ID, which is fine for new users (but they will be empty)
+
+                        // Let's AUTO-CREATE to allow Google Sign Up
+                        const newUser = await prisma.user.create({
+                            data: {
+                                email: user.email,
+                                name: user.name,
+                                password: '', // No password for OAuth
+                                role: 'user'
+                            }
+                        });
+                        // Create Settings
+                        await prisma.appSettings.create({
+                            data: {
+                                userId: newUser.id,
+                                reportDay: 1,
+                                reportHour: 10,
+                                enabledSections: ''
+                            }
+                        });
+                        token.sub = newUser.id;
+                    }
+                }
             }
             return token;
         }
