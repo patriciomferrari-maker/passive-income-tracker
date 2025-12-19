@@ -262,10 +262,12 @@ export default function HomePage() {
                             description="Alquileres y Mantenimiento"
                             icon="🏖️"
                             href="/costa-esmeralda"
-                            count={0}
-                            totalValue={0}
+                            count={stats.costa?.count || 0}
+                            totalValue={stats.costa?.totalMonthly || 0}
                             currency="USD"
                             enabled={true}
+                            countLabel="Gastos Mensuales"
+                            valueLabel="Total Gasto"
                           />
                         )}
 
@@ -275,10 +277,12 @@ export default function HomePage() {
                             description="Gastos y Limpieza"
                             icon="🏠"
                             href="/barbosa"
-                            count={0}
-                            totalValue={0}
+                            count={stats.barbosa?.count || 0}
+                            totalValue={stats.barbosa?.totalMonthly || 0}
                             currency="ARS"
                             enabled={true}
+                            countLabel="Gastos Mensuales"
+                            valueLabel="Total Gasto"
                           />
                         )}
                       </>

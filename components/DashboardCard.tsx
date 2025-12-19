@@ -14,6 +14,8 @@ interface DashboardCardProps {
     currency?: string;
     variant?: 'default' | 'red';
     children?: React.ReactNode;
+    countLabel?: string;
+    valueLabel?: string;
 }
 
 export function DashboardCard({
@@ -26,7 +28,9 @@ export function DashboardCard({
     totalValue,
     currency = 'USD',
     variant = 'default',
-    children
+    children,
+    countLabel = 'Inversiones',
+    valueLabel = 'Valor Total'
 }: DashboardCardProps) {
     const isRed = variant === 'red';
 
@@ -81,13 +85,13 @@ export function DashboardCard({
                         <div className="grid grid-cols-2 gap-4 divide-x divide-slate-800">
                             {count !== undefined && (
                                 <div className="flex flex-col items-center justify-center">
-                                    <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">Inversiones</p>
+                                    <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">{countLabel}</p>
                                     <p className="text-lg font-bold text-white">{count}</p>
                                 </div>
                             )}
                             {totalValue !== undefined && (
                                 <div className="flex flex-col items-center justify-center">
-                                    <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">Valor Total</p>
+                                    <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">{valueLabel}</p>
                                     <p className={`text-lg font-bold flex items-center gap-1 ${isRed ? 'text-red-400' : 'text-emerald-400'}`}>
                                         <TrendingUp size={14} />
                                         {currency === 'USD' ? '$' : '$'}

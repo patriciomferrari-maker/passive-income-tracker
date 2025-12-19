@@ -36,10 +36,14 @@ export async function GET() {
 
         const onCount = onInvestments.length;
         const onTotalInvested = onInvestments.reduce((sum, inv) => {
-            const totalPurchases = inv.transactions.reduce((txSum, tx) =>
-                txSum + Math.abs(tx.totalAmount), 0
-            );
-            return sum + totalPurchases;
+            const quantityHeld = inv.transactions.reduce((qSum, tx) => {
+                if (tx.type === 'BUY') return qSum + tx.quantity;
+                if (tx.type === 'SELL') return qSum - tx.quantity;
+                return qSum;
+            }, 0);
+
+            const marketPrice = inv.lastPrice || 0;
+            return sum + (quantityHeld * marketPrice);
         }, 0);
 
         // Get Treasury stats
@@ -114,12 +118,48 @@ export async function GET() {
 
         const needsOnboarding = settings && settings.enabledSections === '';
 
+        // Get Barbosa Stats
+        const barbosaTransactions = await prisma.barbosaTransaction.findMany({
+            where: {
+                userId,
+                type: 'EXPENSE',
+                date: {
+                    gte: new Date(now.getFullYear(), now.getMonth(), 1), // First day of current month
+                    lt: new Date(now.getFullYear(), now.getMonth() + 1, 1) // First day of next month
+                }
+            }
+        });
+
+        const barbosaExpensesCount = barbosaTransactions.length;
+        const barbosaExpensesTotal = barbosaTransactions.reduce((sum, t) => sum + (t.amountUSD || t.amount / 1200), 0); // Approx USD conversion if needed or just sum ARS? User usually wants USD in dashboard but Barbosa is ARS based. Let's use ARS for Barbosa card?
+        // Wait, user said "total de gasto mensual". For Barbosa it is cleaner in ARS usually, but Dashboard is USD.
+        // Let's assume ARS for Barbosa specific card, or USD if consolidated. 
+        // The dashboard card passed "ARS" in page.tsx previously.
+        const barbosaExpensesTotalARS = barbosaTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+
+        // Get Costa Stats
+        const costaTransactions = await prisma.costaTransaction.findMany({
+            where: {
+                userId,
+                type: 'EXPENSE',
+                date: {
+                    gte: new Date(now.getFullYear(), now.getMonth(), 1),
+                    lt: new Date(now.getFullYear(), now.getMonth() + 1, 1)
+                }
+            }
+        });
+
+        const costaExpensesCount = costaTransactions.length;
+        const costaExpensesTotal = costaTransactions.reduce((sum, t) => sum + t.amount, 0); // Costa is USD default
+
+
         return NextResponse.json({
             needsOnboarding,
             enabledSections,
             on: {
                 count: onCount,
-                totalInvested: onTotalInvested
+                totalInvested: onTotalInvested // This is now Market Value
             },
             treasury: {
                 count: treasuryCount,
@@ -142,6 +182,14 @@ export async function GET() {
                     alias: pf.alias || pf.type,
                     currency: pf.currency
                 }))
+            },
+            barbosa: {
+                count: barbosaExpensesCount,
+                totalMonthly: barbosaExpensesTotalARS
+            },
+            costa: {
+                count: costaExpensesCount,
+                totalMonthly: costaExpensesTotal
             }
         });
     } catch (error: any) {
