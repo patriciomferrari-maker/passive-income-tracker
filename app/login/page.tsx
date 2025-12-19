@@ -12,13 +12,14 @@ export default function LoginPage() {
     const [errorMessage, dispatch] = useFormState(authenticate, undefined);
 
     return (
-        <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black flex items-center justify-center p-4">
-            <Card className="w-full max-w-lg bg-slate-900/50 backdrop-blur-xl border-slate-800/50 shadow-2xl shadow-purple-500/10 text-slate-100">
+    return (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+            <Card className="w-full max-w-lg bg-slate-900 border-slate-800 text-slate-100">
                 <CardHeader className="text-center pb-8 pt-8">
-                    <div className="mx-auto bg-purple-500/10 p-4 rounded-full w-fit mb-6 ring-1 ring-purple-500/20">
+                    <div className="mx-auto bg-slate-800 p-4 rounded-full w-fit mb-6">
                         <Lock className="h-8 w-8 text-purple-400" />
                     </div>
-                    <CardTitle className="text-3xl font-bold bg-gradient-to-br from-white to-slate-400 bg-clip-text text-transparent">Bienvenido</CardTitle>
+                    <CardTitle className="text-3xl font-bold text-white">Bienvenido</CardTitle>
                     <CardDescription className="text-lg mt-2">Ingresa a tu cuenta para continuar</CardDescription>
                 </CardHeader>
                 <CardContent className="px-8 pb-8">
@@ -29,7 +30,7 @@ export default function LoginPage() {
                                 name="email"
                                 placeholder="Email"
                                 required
-                                className="h-12 bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-500 focus:border-purple-500/50 transition-colors"
+                                className="h-12 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
                             />
                         </div>
                         <div className="space-y-2">
@@ -38,7 +39,7 @@ export default function LoginPage() {
                                 name="password"
                                 placeholder="Contraseña"
                                 required
-                                className="h-12 bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-500 focus:border-purple-500/50 transition-colors"
+                                className="h-12 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
                             />
                         </div>
                         <LoginButton />
@@ -54,7 +55,7 @@ export default function LoginPage() {
 
                     <div className="relative my-8">
                         <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t border-slate-800" />
+                            <span className="w-full border-t border-slate-700" />
                         </div>
                         <div className="relative flex justify-center text-xs uppercase">
                             <span className="bg-slate-900 px-4 text-slate-500 font-medium">O continuar con</span>
@@ -87,7 +88,7 @@ function LoginButton() {
     const { pending } = useFormStatus();
 
     return (
-        <Button className="w-full h-12 text-base font-medium bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/20" aria-disabled={pending}>
+        <Button className="w-full h-12 text-base font-medium bg-purple-600 hover:bg-purple-700 transition-all" aria-disabled={pending}>
             {pending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Ingresar"}
         </Button>
     );

@@ -14,15 +14,15 @@ export default function RegisterPage() {
 
     return (
         <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-            <Card className="w-full max-w-md bg-slate-900 border-slate-800 text-slate-100">
-                <CardHeader className="text-center">
-                    <div className="mx-auto bg-slate-800 p-3 rounded-full w-fit mb-4">
-                        <UserPlus className="h-6 w-6 text-green-400" />
+            <Card className="w-full max-w-lg bg-slate-900 border-slate-800 text-slate-100">
+                <CardHeader className="text-center pb-8 pt-8">
+                    <div className="mx-auto bg-slate-800 p-4 rounded-full w-fit mb-6">
+                        <UserPlus className="h-8 w-8 text-green-400" />
                     </div>
-                    <CardTitle className="text-2xl">Crear Cuenta</CardTitle>
-                    <CardDescription>Comienza a trackear tus inversiones</CardDescription>
+                    <CardTitle className="text-3xl font-bold text-white">Crear Cuenta</CardTitle>
+                    <CardDescription className="text-lg mt-2">Comienza a trackear tus inversiones</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-8 pb-8">
                     <form action={dispatch} className="space-y-4">
                         <div className="space-y-2">
                             <Input
@@ -30,7 +30,7 @@ export default function RegisterPage() {
                                 name="name"
                                 placeholder="Nombre completo"
                                 required
-                                className="bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
+                                className="h-12 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
                             />
                         </div>
                         <div className="space-y-2">
@@ -39,7 +39,7 @@ export default function RegisterPage() {
                                 name="email"
                                 placeholder="Email"
                                 required
-                                className="bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
+                                className="h-12 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
                             />
                         </div>
                         <div className="space-y-2">
@@ -49,7 +49,7 @@ export default function RegisterPage() {
                                 placeholder="Contraseña (min 6 caracteres)"
                                 required
                                 minLength={6}
-                                className="bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
+                                className="h-12 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
                             />
                         </div>
 
@@ -87,15 +87,15 @@ export default function RegisterPage() {
                         <RegisterButton />
 
                         {errorMessage && (
-                            <div className="flex items-center gap-2 text-red-400 text-sm mt-2 bg-red-950/20 p-2 rounded">
+                            <div className="flex items-center gap-2 text-red-400 text-sm mt-2 bg-red-950/20 p-3 rounded border border-red-900/50">
                                 <AlertCircle className="h-4 w-4" />
                                 <p>{errorMessage}</p>
                             </div>
                         )}
 
-                        <div className="text-center text-sm text-slate-500 mt-4">
+                        <div className="text-center text-sm text-slate-500 mt-8">
                             ¿Ya tienes cuenta?{" "}
-                            <Link href="/login" className="text-purple-400 hover:text-purple-300 hover:underline">
+                            <Link href="/login" className="text-purple-400 font-medium hover:text-purple-300 hover:underline transition-colors">
                                 Iniciar Sesión
                             </Link>
                         </div>
@@ -110,8 +110,8 @@ function RegisterButton() {
     const { pending } = useFormStatus();
 
     return (
-        <Button className="w-full bg-green-600 hover:bg-green-700" aria-disabled={pending}>
-            {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Registrarse"}
+        <Button className="w-full h-12 text-base font-medium bg-green-600 hover:bg-green-700 transition-all" aria-disabled={pending}>
+            {pending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Registrarse"}
         </Button>
     );
 }
