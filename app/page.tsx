@@ -266,7 +266,7 @@ export default function HomePage() {
                             totalValue={stats.costa?.totalMonthly || 0}
                             currency="USD"
                             enabled={true}
-                            countLabel="Mes"
+                            countLabel={stats.costa?.label || "Mes"}
                             valueLabel="Total Gasto"
                             trendColor="text-red-400"
                           />
