@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
     try {
         const userId = await getUserId();
+        const now = new Date();
 
         const user = await prisma.user.findUnique({
             where: { id: userId }
@@ -50,7 +51,13 @@ export async function GET() {
         // Using exchangeRate (MEP) as safe fallback, but usually TC_USD_ARS should exist if Costa data exists.
         const costaExchangeRate = blueIndicator?.value || exchangeRate;
 
-        // ... (ON Logic uses exchangeRate) ...
+        // Get ON stats (Market Value in USD)
+        const onInvestments = await prisma.investment.findMany({
+            where: { type: 'ON', userId },
+            include: {
+                transactions: true
+            }
+        });
 
         // ...
 
@@ -158,7 +165,6 @@ export async function GET() {
             .reduce((sum, op) => sum + op.amount, 0);
 
         // 2. Próximo Vencimiento (Plazo Fijo)
-        const now = new Date();
         const pfs = bankOperations.filter(op => op.type === 'PLAZO_FIJO' && op.startDate && op.durationDays);
 
         const upcomingPFs = pfs.map(pf => {
@@ -268,6 +274,6 @@ export async function GET() {
         });
     } catch (error: any) {
         console.error('CRITICAL ERROR in /api/dashboard/stats:', error);
-        return unauthorized();
+        return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
     }
 }
