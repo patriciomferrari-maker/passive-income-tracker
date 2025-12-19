@@ -1,7 +1,7 @@
 
 'use server';
 
-import { signIn, signOut } from '@/auth';
+import { signIn, signOut, auth } from '@/auth';
 import { AuthError } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
@@ -104,7 +104,9 @@ export async function register(prevState: string | undefined, formData: FormData
                 userId: newUser.id,
                 reportDay: 1,
                 reportHour: 10,
-                enabledSections: formData.get('sections') as string || ''
+                reportDay: 1,
+                reportHour: 10,
+                enabledSections: '' // Default empty, waiting for onboarding
             }
         });
 

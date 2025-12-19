@@ -7,6 +7,7 @@ import { signOut } from 'next-auth/react';
 import { Loader2, Clock, Menu, Settings, LogOut } from 'lucide-react';
 import { FlagARG, FlagUSA } from '@/components/ui/CountryFlags';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface DashboardStats {
   on: {
@@ -38,6 +39,7 @@ interface DashboardStats {
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -74,6 +76,12 @@ export default function HomePage() {
         return;
       }
       const data = await res.json();
+
+      if (data.needsOnboarding) {
+        router.push('/onboarding');
+        return;
+      }
+
       setStats(data);
     } catch (error) {
       console.error('Error loading dashboard stats:', error);

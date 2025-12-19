@@ -112,7 +112,10 @@ export async function GET() {
             return { ...pf, endDate: end, daysLeft };
         }).filter(pf => pf.daysLeft >= 0).sort((a, b) => a.daysLeft - b.daysLeft);
 
+        const needsOnboarding = settings && settings.enabledSections === '';
+
         return NextResponse.json({
+            needsOnboarding,
             enabledSections,
             on: {
                 count: onCount,
