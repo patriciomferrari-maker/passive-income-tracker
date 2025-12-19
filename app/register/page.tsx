@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { cn } from "@/lib/utils";
 
 const SECTIONS = [
+    // <--- EDITAR TEXTO AQUI: Título (label), Descripción (description), y Puntos (features) ---
     {
         id: 'on',
         label: 'Cartera Argentina',
@@ -60,7 +61,7 @@ export default function RegisterPage() {
             )}>
                 <CardHeader className="text-center pb-8 pt-8">
                     <div className="mx-auto bg-slate-800 p-4 rounded-full w-fit mb-6">
-                        <UserPlus className="h-8 w-8 text-green-400" />
+                        <UserPlus className="h-8 w-8 text-emerald-400" />
                     </div>
                     <CardTitle className="text-3xl font-bold text-white">
                         {step === 1 ? 'Crear Cuenta' : 'Personaliza tu Experiencia'}
@@ -80,7 +81,7 @@ export default function RegisterPage() {
                                     name="name"
                                     placeholder="Nombre completo"
                                     required={step === 1}
-                                    className="h-12 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
+                                    className="h-12 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -89,7 +90,7 @@ export default function RegisterPage() {
                                     name="email"
                                     placeholder="Email"
                                     required={step === 1}
-                                    className="h-12 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
+                                    className="h-12 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -99,14 +100,14 @@ export default function RegisterPage() {
                                     placeholder="Contraseña (min 6 caracteres)"
                                     required={step === 1}
                                     minLength={6}
-                                    className="h-12 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
+                                    className="h-12 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                                 />
                             </div>
 
                             <Button
                                 type="button"
                                 onClick={() => setStep(2)}
-                                className="w-full h-12 text-base font-medium bg-green-600 hover:bg-green-700 transition-all mt-4"
+                                className="w-full h-12 text-base font-medium bg-emerald-600 hover:bg-emerald-700 transition-all mt-4"
                             >
                                 Continuar <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
@@ -125,7 +126,7 @@ export default function RegisterPage() {
 
                             <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800 text-center">
                                 <p className="text-sm text-slate-400">
-                                    <span className="text-green-400 font-medium">Nota:</span> Lo que no selecciones ahora podrá ser activado luego desde el panel de Configuración.
+                                    <span className="text-emerald-400 font-medium">Nota:</span> Lo que no selecciones ahora podrá ser activado luego desde el panel de Configuración.
                                 </p>
                             </div>
 
@@ -151,7 +152,7 @@ export default function RegisterPage() {
 
                         <div className="text-center text-sm text-slate-500 mt-8">
                             ¿Ya tienes cuenta?{" "}
-                            <Link href="/login" className="text-purple-400 font-medium hover:text-purple-300 hover:underline transition-colors">
+                            <Link href="/login" className="text-emerald-400 font-medium hover:text-emerald-300 hover:underline transition-colors">
                                 Iniciar Sesión
                             </Link>
                         </div>
@@ -168,9 +169,9 @@ function FeatureCard({ section }: { section: any }) {
     return (
         <label
             className={cn(
-                "relative flex flex-col p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 group hover:shadow-lg hover:shadow-green-900/10",
+                "relative flex flex-col p-5 rounded-xl border cursor-pointer transition-all duration-300 group hover:shadow-lg hover:shadow-emerald-900/10",
                 checked
-                    ? "bg-slate-950/80 border-green-500/50 shadow-md shadow-green-900/20"
+                    ? "bg-slate-950/60 border-emerald-500/40 shadow-sm shadow-emerald-900/10"
                     : "bg-slate-950/30 border-slate-800 hover:border-slate-700"
             )}
         >
@@ -184,10 +185,10 @@ function FeatureCard({ section }: { section: any }) {
             />
 
             <div className="flex items-start justify-between mb-3">
-                <div className={cn("p-2 rounded-lg transition-colors", checked ? "bg-green-500/10 text-green-400" : "bg-slate-900 text-slate-500 group-hover:text-slate-400")}>
+                <div className={cn("p-2 rounded-lg transition-colors", checked ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-900 text-slate-500 group-hover:text-slate-400")}>
                     <section.icon className="h-6 w-6" />
                 </div>
-                {checked && <CheckCircle2 className="h-5 w-5 text-green-500" />}
+                {checked && <CheckCircle2 className="h-5 w-5 text-emerald-500" />}
             </div>
 
             <h3 className={cn("font-semibold text-lg mb-1", checked ? "text-white" : "text-slate-400")}>
@@ -201,7 +202,7 @@ function FeatureCard({ section }: { section: any }) {
             <ul className="space-y-1 mt-auto">
                 {section.features.map((feat: string, i: number) => (
                     <li key={i} className="text-xs text-slate-400 flex items-center">
-                        <span className={cn("w-1 h-1 rounded-full mr-2", checked ? "bg-green-500/50" : "bg-slate-700")} />
+                        <span className={cn("w-1 h-1 rounded-full mr-2", checked ? "bg-emerald-500/50" : "bg-slate-700")} />
                         {feat}
                     </li>
                 ))}
@@ -214,7 +215,7 @@ function RegisterButton() {
     const { pending } = useFormStatus();
 
     return (
-        <Button className="w-full h-12 text-base font-medium bg-green-600 hover:bg-green-700 transition-all flex-1" aria-disabled={pending}>
+        <Button className="w-full h-12 text-base font-medium bg-emerald-600 hover:bg-emerald-700 transition-all flex-1" aria-disabled={pending}>
             {pending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Crear Cuenta"}
         </Button>
     );
