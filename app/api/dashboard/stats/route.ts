@@ -69,17 +69,15 @@ export async function GET() {
             // Logic to match Detailed View + USD Normalization
             let priceInUSD = rawPrice;
 
-            // Detect ARS and convert to USD
-            // Threshold 500 assumes price is "per 100" or raw. 
-            // - USD ONs are usually ~100.
-            // - ARS ONs are usually ~100,000.
-            // - Equity ARS is usually ~2000+. 
-            // - Equity USD is usually ~10-200.
-            if (inv.currency === 'ARS' || rawPrice > 500) {
+            // Heuristic: If price is > 500, it is likely ARS per 100 (e.g. 150,000).
+            // If price is < 500, it is likely USD per 100 (e.g. 104.00) or USD Unit (1.04).
+            // AssetPrice table seems to hold USD/D prices (e.g. 108.75).
+            if (rawPrice > 500) {
                 priceInUSD = rawPrice / exchangeRate;
             }
 
             // Normalize "Per 100" quoting for Bonds
+            // Most ONs match this.
             if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND' || inv.type === 'BONO') {
                 priceInUSD = priceInUSD / 100;
             }
@@ -159,6 +157,9 @@ export async function GET() {
 
         const needsOnboarding = settings && settings.enabledSections === '';
 
+        const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+        const startOfNextMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 1));
+
         const currentMonthName = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(now);
         const capitalizedMonth = currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1);
         const expenseLabel = `${capitalizedMonth} (Gastos)`;
@@ -169,8 +170,8 @@ export async function GET() {
                 userId,
                 type: 'EXPENSE',
                 date: {
-                    gte: new Date(now.getFullYear(), now.getMonth(), 1),
-                    lt: new Date(now.getFullYear(), now.getMonth() + 1, 1)
+                    gte: startOfMonth,
+                    lt: startOfNextMonth
                 }
             }
         });
@@ -187,19 +188,26 @@ export async function GET() {
 
 
         // Get Costa Stats (Expenses in USD)
+        // Costa inputs seem to be in ARS mostly (based on debug values ~2M)
         const costaTransactions = await prisma.costaTransaction.findMany({
             where: {
                 userId,
                 type: 'EXPENSE',
                 date: {
-                    gte: new Date(now.getFullYear(), now.getMonth(), 1),
-                    lt: new Date(now.getFullYear(), now.getMonth() + 1, 1)
+                    gte: startOfMonth,
+                    lt: startOfNextMonth
                 }
             }
         });
 
         const costaExpensesCount = costaTransactions.length;
-        const costaExpensesTotal = costaTransactions.reduce((sum, t) => sum + t.amount, 0); // Costa is USD default
+        const costaExpensesTotalARS = costaTransactions.reduce((sum, t) => sum + t.amount, 0);
+        // Assuming Costa is ARS inputs, convert to USD.
+        // If we had a currency field we trust we'd use it, but schema default is USD while data is ARS.
+        // Heuristic: If total > 10,000 implies ARS? 
+        // Or just always divide by exchange rate if we know user inputs ARS?
+        // Let's divide by exchange rate. 
+        const costaExpensesTotal = costaExpensesTotalARS / exchangeRate;
 
 
         return NextResponse.json({
