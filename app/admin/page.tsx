@@ -102,9 +102,6 @@ export default function AdminPage() {
                 {/* CEDEARs Card */}
                 <CedearCard />
 
-                {/* BCRA Control Panel */}
-                <BCRAControlCard />
-
                 {/* IPC Card */}
                 <IPCCard />
 
@@ -210,10 +207,10 @@ function BCRAControlCard() {
 
                 {message && (
                     <div className={`p-3 rounded-md text-xs ${status === 'success'
-                            ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900'
-                            : status === 'error'
-                                ? 'bg-red-950/50 text-red-400 border border-red-900'
-                                : 'bg-slate-950/50 text-slate-400 border border-slate-800'
+                        ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900'
+                        : status === 'error'
+                            ? 'bg-red-950/50 text-red-400 border border-red-900'
+                            : 'bg-slate-950/50 text-slate-400 border border-slate-800'
                         }`}>
                         {status === 'success' && <CheckCircle className="inline mr-2 h-3 w-3" />}
                         {status === 'error' && <AlertCircle className="inline mr-2 h-3 w-3" />}
@@ -255,10 +252,13 @@ function UVACard() {
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-slate-100 text-lg">Valor UVA</CardTitle>
-                    <Badge variant="secondary" className="bg-slate-800 text-slate-400">BCRA</Badge>
+                    <div className="flex gap-2">
+                        <Badge variant="secondary" className="bg-emerald-900 text-emerald-400">Auto</Badge>
+                        <Badge variant="secondary" className="bg-slate-800 text-slate-400">BCRA</Badge>
+                    </div>
                 </div>
                 <CardDescription className="text-slate-400 text-xs">
-                    Unidad de Valor Adquisitivo (base 31/03/2016=14.05)
+                    Actualización automática diaria. Base 31/03/2016=14.05
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
@@ -316,10 +316,13 @@ function TCOficialCard() {
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-slate-100 text-lg">TC Oficial</CardTitle>
-                    <Badge variant="secondary" className="bg-slate-800 text-slate-400">BCRA</Badge>
+                    <div className="flex gap-2">
+                        <Badge variant="secondary" className="bg-emerald-900 text-emerald-400">Auto</Badge>
+                        <Badge variant="secondary" className="bg-slate-800 text-slate-400">BCRA</Badge>
+                    </div>
                 </div>
                 <CardDescription className="text-slate-400 text-xs">
-                    Tipo de Cambio Minorista ($ por USD) - Promedio vendedor
+                    Actualización automática diaria. Promedio vendedor
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
@@ -422,10 +425,13 @@ function IPCCard() {
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-slate-100 text-lg">Inflación (IPC)</CardTitle>
-                    <Badge variant="secondary" className="bg-slate-800 text-slate-400">BCRA</Badge>
+                    <div className="flex gap-2">
+                        <Badge variant="secondary" className="bg-emerald-900 text-emerald-400">Auto</Badge>
+                        <Badge variant="secondary" className="bg-slate-800 text-slate-400">BCRA</Badge>
+                    </div>
                 </div>
                 <CardDescription className="text-slate-400 text-xs">
-                    Scraping de BCRA (Automático).
+                    Actualización automática diaria desde BCRA.
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
