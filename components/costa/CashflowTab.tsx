@@ -144,51 +144,76 @@ export function CashflowTab() {
         });
     };
 
-    if (loading) return <div className="p-8 text-center text-slate-400"><Loader2 className="animate-spin inline mr-2" /> Cargando movimientos...</div>;
+    // --- UI Components ---
+    const PillToggle = ({ options, value, onChange, color = 'blue' }: any) => (
+        <div className="flex bg-slate-950 rounded-lg p-1 border border-slate-800">
+            {options.map((opt: any) => {
+                const isActive = value === opt.value;
+                let activeClass = '';
+                if (isActive) {
+                    if (opt.value === 'USD' || color === 'green') activeClass = 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/40';
+                    else if (opt.value === 'ARS') activeClass = 'bg-blue-600 text-white shadow-lg shadow-blue-900/40';
+                    else activeClass = 'bg-slate-700 text-white';
+                } else {
+                    activeClass = 'text-slate-400 hover:text-white hover:bg-slate-800';
+                }
+
+                return (
+                    <button
+                        key={opt.value}
+                        onClick={() => onChange(opt.value)}
+                        className={`text-xs font-medium px-4 py-1.5 rounded-md transition-all ${activeClass}`}
+                    >
+                        {opt.label}
+                    </button>
+                );
+            })}
+        </div>
+    );
+
+    if (loading) return <div className="p-10 text-center text-slate-400"><Loader2 className="animate-spin inline mr-2" /> Cargando flujo...</div>;
 
     const availableYears = Array.from(new Set(transactions.map(t => new Date(t.date).getFullYear()))).sort((a, b) => b - a);
     if (!availableYears.includes(new Date().getFullYear())) availableYears.unshift(new Date().getFullYear());
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                <h2 className="text-xl font-bold text-white">Flujo de Caja</h2>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800/50 backdrop-blur-sm">
+                <div>
+                    <h2 className="text-2xl font-bold text-white">Cashflow Anual</h2>
+                    <p className="text-slate-400 text-sm">Resumen financiero detallado y proyección</p>
+                </div>
 
-                <div className="flex gap-2">
-                    {/* Currency Toggle */}
-                    <Select value={viewCurrency} onValueChange={(v: 'USD' | 'ARS') => setViewCurrency(v)}>
-                        <SelectTrigger className="w-[100px] bg-slate-900 border-slate-700 text-white">
-                            <SelectValue placeholder="Moneda" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-slate-700">
-                            <SelectItem value="USD" className="text-white hover:bg-slate-800">USD</SelectItem>
-                            <SelectItem value="ARS" className="text-white hover:bg-slate-800">ARS</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    {/* View Mode Toggle */}
-                    <Select value={viewMode} onValueChange={(v: any) => setViewMode(v)}>
-                        <SelectTrigger className="w-[140px] bg-slate-900 border-slate-700 text-white">
-                            <SelectValue placeholder="Vista" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-slate-700">
-                            <SelectItem value="12MONTHS" className="text-white hover:bg-slate-800">Últimos 12 Meses</SelectItem>
-                            <SelectItem value="YEAR" className="text-white hover:bg-slate-800">Por Año</SelectItem>
-                        </SelectContent>
-                    </Select>
-
+                <div className="flex flex-wrap items-center gap-4">
+                    {/* View Year Selector (Only if YEAR mode) */}
                     {viewMode === 'YEAR' && (
-                        <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
-                            <SelectTrigger className="w-[100px] bg-slate-900 border-slate-700 text-white">
-                                <SelectValue placeholder="Año" />
+                        <Select value={selectedYear.toString()} onValueChange={(v: string) => setSelectedYear(parseInt(v))}>
+                            <SelectTrigger className="w-[100px] h-8 bg-slate-950 border-slate-800 text-white text-xs">
+                                <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-slate-900 border-slate-700">
+                            <SelectContent className="bg-slate-950 border-slate-800">
                                 {availableYears.map(year => (
-                                    <SelectItem key={year} value={year.toString()} className="text-white hover:bg-slate-800">{year}</SelectItem>
+                                    <SelectItem key={year} value={year.toString()} className="text-white hover:bg-slate-800 text-xs">{year}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     )}
+
+                    {/* View Mode Toggle */}
+                    <PillToggle
+                        options={[{ value: '12MONTHS', label: 'Últimos 12 Meses' }, { value: 'YEAR', label: 'Año Calendario' }]}
+                        value={viewMode}
+                        onChange={setViewMode}
+                        color="slate"
+                    />
+
+                    {/* Currency Toggle */}
+                    <div className="h-6 w-px bg-slate-700 mx-2 hidden md:block"></div>
+                    <PillToggle
+                        options={[{ value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]}
+                        value={viewCurrency}
+                        onChange={setViewCurrency}
+                    />
                 </div>
             </div>
 
@@ -218,7 +243,7 @@ export function CashflowTab() {
 
                             <tr className="group hover:bg-slate-900/30 transition-colors">
                                 <td className="px-6 py-2 text-slate-300 font-medium pl-10 sticky left-0 bg-slate-950/50 group-hover:bg-slate-900/80 transition-colors border-r border-slate-800/50">
-                                    <span className="text-slate-600 mr-2">›</span> Alquileres
+                                    Alquileres
                                 </td>
                                 {activeIncomeRow.map((val, i) => (
                                     <td key={i} className="px-4 py-2 text-right text-slate-300 font-mono text-[13px]">
@@ -253,7 +278,7 @@ export function CashflowTab() {
                             {Array.from(activeExpenseRows.entries()).map(([catName, vals], i) => (
                                 <tr key={i} className="group hover:bg-slate-900/30 transition-colors border-b border-slate-800/30 last:border-0">
                                     <td className="px-6 py-2 text-slate-300 font-medium pl-10 sticky left-0 bg-slate-950/50 group-hover:bg-slate-900/80 transition-colors border-r border-slate-800/50">
-                                        <span className="text-slate-600 mr-2">›</span> {catName}
+                                        {catName}
                                     </td>
                                     {vals.map((val, j) => (
                                         <td key={j} className="px-4 py-2 text-right text-slate-300 font-mono text-[13px]">
