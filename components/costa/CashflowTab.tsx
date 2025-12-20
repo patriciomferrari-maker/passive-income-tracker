@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,6 +16,7 @@ export function CashflowTab() {
     // View State
     const [viewMode, setViewMode] = useState<'12MONTHS' | 'YEAR'>('12MONTHS');
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [viewCurrency, setViewCurrency] = useState<'USD' | 'ARS'>('USD');
 
     const [rates, setRates] = useState<Record<string, number>>({});
 
@@ -38,10 +40,8 @@ export function CashflowTab() {
             const rateMap: Record<string, number> = {};
             if (Array.isArray(ratesData)) {
                 ratesData.forEach((r: any) => {
-                    // Use UTC date string strictly to align with Server Logic
-                    // r.date is ISO string "2025-12-01T00:00:00.000Z"
+                    // Use UTC substring to ensure monthly alignment without timezone shifts
                     const key = r.date.substring(0, 7); // "2025-12"
-
                     if (!rateMap[key]) rateMap[key] = r.value;
                 });
             }
@@ -82,26 +82,27 @@ export function CashflowTab() {
         expenseRows.set(c.name, new Array(columns.length).fill(0));
     });
 
-    const getColumnIndex = (date: Date | string) => {
-        // Handle timezone shift: Treat the date string as local or use UTC strictly
-        const d = new Date(date);
-        // Adjust for timezone offset to keep the same day as server (UTC)
-        const userTimezoneOffset = d.getTimezoneOffset() * 60000;
-        const adjustedDate = new Date(d.getTime() + userTimezoneOffset);
-
-        const monthYear = format(adjustedDate, 'yyyy-MM');
-        return columns.findIndex(col => format(col, 'yyyy-MM') === monthYear);
+    const getColumnIndex = (dateString: string) => {
+        // Simple string comparison YYYY-MM
+        const monthKey = dateString.substring(0, 7);
+        return columns.findIndex(col => format(col, 'yyyy-MM') === monthKey);
     };
 
     transactions.forEach(t => {
         const colIndex = getColumnIndex(t.date);
         if (colIndex === -1) return;
 
-        const dateKey = format(new Date(t.date), 'yyyy-MM');
+        const dateKey = t.date.substring(0, 7);
         const rate = rates[dateKey] || 1200;
 
+        // Conversion Logic based on viewCurrency
         let finalAmount = t.amount;
-        if (t.currency === 'ARS') finalAmount = t.amount / rate;
+        if (viewCurrency === 'USD') {
+            if (t.currency === 'ARS') finalAmount = t.amount / rate;
+        } else {
+            // View ARS
+            if (t.currency === 'USD') finalAmount = t.amount * rate;
+        }
 
         if (t.type === 'INCOME') {
             incomeRow[colIndex] += finalAmount;
@@ -115,7 +116,7 @@ export function CashflowTab() {
         }
     });
 
-    // --- Filter Empty Columns (Refinement) ---
+    // --- Filter Empty Columns ---
     const activeIndices = columns.map((_, i) => {
         const hasIncome = incomeRow[i] !== 0;
         const hasExpense = totalExpensesRow[i] !== 0;
@@ -136,7 +137,11 @@ export function CashflowTab() {
 
     const formatMoney = (val: number) => {
         if (Math.abs(val) < 1) return '-';
-        return val.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+        return val.toLocaleString('en-US', {
+            style: 'currency',
+            currency: viewCurrency,
+            maximumFractionDigits: 0
+        });
     };
 
     if (loading) return <div className="p-8 text-center text-slate-400"><Loader2 className="animate-spin inline mr-2" /> Cargando movimientos...</div>;
@@ -149,156 +154,119 @@ export function CashflowTab() {
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <h2 className="text-xl font-bold text-white">Flujo de Caja</h2>
 
-                <div className="flex items-center gap-2">
-                    <Select value={viewMode === '12MONTHS' ? '12MONTHS' : selectedYear.toString()} onValueChange={(val: string) => {
-                        if (val === '12MONTHS') {
-                            setViewMode('12MONTHS');
-                        } else {
-                            setViewMode('YEAR');
-                            setSelectedYear(parseInt(val));
-                        }
-                    }}>
-                        <SelectTrigger className="bg-slate-900 border-slate-700 text-white w-[200px]">
-                            <SelectValue />
+                <div className="flex gap-2">
+                    {/* Currency Toggle */}
+                    <Select value={viewCurrency} onValueChange={(v: 'USD' | 'ARS') => setViewCurrency(v)}>
+                        <SelectTrigger className="w-[100px] bg-slate-900 border-slate-700 text-white">
+                            <SelectValue placeholder="Moneda" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-950 border-slate-700 text-white">
-                            <SelectItem value="12MONTHS">Últimos 12 Meses</SelectItem>
-                            {availableYears.map(y => (
-                                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                            ))}
+                        <SelectContent className="bg-slate-900 border-slate-700">
+                            <SelectItem value="USD" className="text-white hover:bg-slate-800">USD</SelectItem>
+                            <SelectItem value="ARS" className="text-white hover:bg-slate-800">ARS</SelectItem>
                         </SelectContent>
                     </Select>
+
+                    {/* View Mode Toggle */}
+                    <Select value={viewMode} onValueChange={(v: any) => setViewMode(v)}>
+                        <SelectTrigger className="w-[140px] bg-slate-900 border-slate-700 text-white">
+                            <SelectValue placeholder="Vista" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-700">
+                            <SelectItem value="12MONTHS" className="text-white hover:bg-slate-800">Últimos 12 Meses</SelectItem>
+                            <SelectItem value="YEAR" className="text-white hover:bg-slate-800">Por Año</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {viewMode === 'YEAR' && (
+                        <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+                            <SelectTrigger className="w-[100px] bg-slate-900 border-slate-700 text-white">
+                                <SelectValue placeholder="Año" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-900 border-slate-700">
+                                {availableYears.map(year => (
+                                    <SelectItem key={year} value={year.toString()} className="text-white hover:bg-slate-800">{year}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                 </div>
             </div>
 
-            {/* USD Note */}
-            <div className="text-right text-xs text-slate-500 italic">
-                * Valores expresados en USD. Gastos en ARS convertidos al tipo de cambio (Blue) del mes correspondiente.
+            <div className="rounded-md border border-slate-800 overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-900 text-slate-400 uppercase font-medium">
+                        <tr>
+                            <th className="px-6 py-4">Concepto</th>
+                            {activeColumns.map((col, i) => (
+                                <th key={i} className="px-6 py-4 text-right min-w-[100px]">
+                                    {format(col, 'MMM yy', { locale: es }).toUpperCase()}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 bg-slate-950/50">
+                        {/* Income Section */}
+                        <tr className="bg-slate-900/30">
+                            <td className="px-6 py-3 font-semibold text-emerald-400">INGRESOS</td>
+                            <td colSpan={activeColumns.length}></td>
+                        </tr>
+                        <tr>
+                            <td className="px-6 py-3 text-slate-300">Alquileres</td>
+                            {activeIncomeRow.map((val, i) => (
+                                <td key={i} className="px-6 py-3 text-right text-slate-300 font-medium">
+                                    {formatMoney(val)}
+                                </td>
+                            ))}
+                        </tr>
+                        <tr className="bg-slate-900/50 font-semibold">
+                            <td className="px-6 py-3 text-emerald-400">Total Ingresos</td>
+                            {activeIncomeRow.map((val, i) => (
+                                <td key={i} className="px-6 py-3 text-right text-emerald-400">
+                                    {formatMoney(val)}
+                                </td>
+                            ))}
+                        </tr>
+
+                        {/* Expense Section */}
+                        <tr className="bg-slate-900/30">
+                            <td className="px-6 py-3 font-semibold text-red-400 pt-6">GASTOS</td>
+                            <td colSpan={activeColumns.length}></td>
+                        </tr>
+                        {Array.from(activeExpenseRows.entries()).map(([catName, vals], i) => (
+                            <tr key={i} className="hover:bg-slate-900/20 transition-colors">
+                                <td className="px-6 py-3 text-slate-300">{catName}</td>
+                                {vals.map((val, j) => (
+                                    <td key={j} className="px-6 py-3 text-right text-slate-400">
+                                        {formatMoney(val)}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                        <tr className="bg-slate-900/50 font-semibold border-t border-slate-800">
+                            <td className="px-6 py-3 text-red-400">Total Gastos</td>
+                            {activeTotalExpensesRow.map((val, i) => (
+                                <td key={i} className="px-6 py-3 text-right text-red-400">
+                                    {formatMoney(val)}
+                                </td>
+                            ))}
+                        </tr>
+
+                        {/* Net Section */}
+                        <tr className="bg-slate-900 text-white font-bold text-lg border-t-2 border-slate-700">
+                            <td className="px-6 py-4">Resultado Neto</td>
+                            {activeNetRow.map((val, i) => (
+                                <td key={i} className={`px-6 py-4 text-right ${val >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {formatMoney(val)}
+                                </td>
+                            ))}
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
-            <Card className="bg-slate-900 border-slate-800 overflow-x-auto">
-                <CardContent className="p-0">
-                    <table className="w-full text-sm text-left">
-                        <thead className="text-xs uppercase bg-slate-950 text-slate-400">
-                            <tr>
-                                <th className="px-4 py-3 sticky left-0 bg-slate-950 z-10 w-48 border-b border-slate-800">Concepto</th>
-                                {activeColumns.map((col, i) => (
-                                    <th key={i} className="px-4 py-3 text-right min-w-[100px] border-b border-slate-800">
-                                        {format(col, 'MMM yy', { locale: es })}
-                                    </th>
-                                ))}
-                                <th className="px-4 py-3 text-right bg-slate-950 font-bold min-w-[120px] border-b border-slate-800">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800 text-slate-300">
-
-                            {/* INGRESOS SECTION */}
-                            <tr className="bg-emerald-950/20">
-                                <td colSpan={columns.length + 2} className="px-4 py-2 font-bold text-emerald-500 text-xs tracking-wider">INGRESOS</td>
-                            </tr>
-                            <tr className="hover:bg-slate-800/50">
-                                <td className="px-4 py-2 sticky left-0 bg-slate-900 z-10">Alquileres</td>
-                                {activeIncomeRow.map((val: number, i: number) => (
-                                    <td key={i} className="px-4 py-2 text-right text-slate-300">{formatMoney(val)}</td>
-                                ))}
-                                <td className="px-4 py-2 text-right font-medium text-emerald-400">
-                                    {formatMoney(activeIncomeRow.reduce((a: number, b: number) => a + b, 0))}
-                                </td>
-                            </tr>
-                            {/* Total Ingresos (Optional if only one row, but good for structure) */}
-                            <tr className="bg-slate-900/50 font-medium">
-                                <td className="px-4 py-2 sticky left-0 bg-slate-900 z-10 text-emerald-400 pl-8">Total Ingresos</td>
-                                {activeIncomeRow.map((val: number, i: number) => (
-                                    <td key={i} className="px-4 py-2 text-right text-emerald-400">{formatMoney(val)}</td>
-                                ))}
-                                <td className="px-4 py-2 text-right text-emerald-400 font-bold">
-                                    {formatMoney(activeIncomeRow.reduce((a: number, b: number) => a + b, 0))}
-                                </td>
-                            </tr>
-
-                            {/* GASTOS SECTION */}
-                            <tr className="bg-red-950/20 border-t border-slate-800">
-                                <td colSpan={columns.length + 2} className="px-4 py-2 font-bold text-red-500 text-xs tracking-wider">GASTOS</td>
-                            </tr>
-                            {Array.from(activeExpenseRows.entries()).sort().map(([cat, vals]) => {
-                                const total = vals.reduce((a, b) => a + b, 0);
-                                if (total === 0 && viewMode === '12MONTHS' && vals.every(v => v === 0)) return null;
-                                return (
-                                    <tr key={cat} className="hover:bg-slate-800/50">
-                                        <td className="px-4 py-2 sticky left-0 bg-slate-900 z-10 pl-8">{cat}</td>
-                                        {vals.map((val, i) => (
-                                            <td key={i} className="px-4 py-2 text-right text-slate-400">{formatMoney(val)}</td>
-                                        ))}
-                                        <td className="px-4 py-2 text-right font-medium">
-                                            {formatMoney(total)}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            <tr className="bg-slate-900/50 font-medium border-t border-slate-800">
-                                <td className="px-4 py-2 sticky left-0 bg-slate-900 z-10 text-red-400 pl-8">Total Gastos</td>
-                                {activeTotalExpensesRow.map((val: number, i: number) => (
-                                    <td key={i} className="px-4 py-2 text-right text-red-400">{formatMoney(val)}</td>
-                                ))}
-                                <td className="px-4 py-2 text-right text-red-400 font-bold">
-                                    {formatMoney(activeTotalExpensesRow.reduce((a: number, b: number) => a + b, 0))}
-                                </td>
-                            </tr>
-
-                            {/* RESULTADOS SECTION */}
-                            <tr className="bg-slate-950/50 border-t-2 border-slate-800">
-                                <td colSpan={columns.length + 2} className="h-4" />
-                            </tr>
-
-                            {/* Net Result */}
-                            <tr className="bg-slate-950 font-bold text-white text-base">
-                                <td className="px-4 py-3 sticky left-0 bg-slate-950 z-10">Resultado Neto</td>
-                                {activeNetRow.map((val: number, i: number) => (
-                                    <td key={i} className={`px-4 py-3 text-right ${val >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {formatMoney(val)}
-                                    </td>
-                                ))}
-                                <td className={`px-4 py-3 text-right ${activeNetRow.reduce((a: number, b: number) => a + b, 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    {formatMoney(activeNetRow.reduce((a: number, b: number) => a + b, 0))}
-                                </td>
-                            </tr>
-
-                            {/* Accumulated Net Result */}
-                            <tr className="bg-slate-950 font-bold text-white text-base border-t border-slate-800">
-                                <td className="px-4 py-3 sticky left-0 bg-slate-950 z-10">Resultado Acumulado</td>
-                                {activeNetRow.reduce((acc: number[], curr: number, i: number) => {
-                                    const prev = i > 0 ? acc[i - 1] : 0;
-                                    acc.push(prev + curr);
-                                    return acc;
-                                }, []).map((val: number, i: number) => (
-                                    <td key={i} className={`px-4 py-3 text-right ${val >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {formatMoney(val)}
-                                    </td>
-                                ))}
-                                <td className="px-4 py-3 text-right text-slate-500">
-                                    {formatMoney(activeNetRow.reduce((a: number, b: number) => a + b, 0))}
-                                </td>
-                            </tr>
-
-                            {/* Exchange Rate Row */}
-                            <tr className="bg-slate-900/30 text-xs text-slate-500 uppercase tracking-wider">
-                                <td className="px-4 py-3 sticky left-0 bg-slate-900/30 z-10">TC Tomado (USD Blue)</td>
-                                {activeColumns.map((col, i) => {
-                                    const key = format(col, 'yyyy-MM');
-                                    const rate = rates[key];
-                                    return (
-                                        <td key={i} className="px-4 py-3 text-right">
-                                            {rate ? `$${rate}` : '-'}
-                                        </td>
-                                    );
-                                })}
-                                <td className="px-4 py-3 text-right">Promedio</td>
-                            </tr>
-
-                        </tbody>
-                    </table>
-                </CardContent>
-            </Card>
+            <div className="text-right text-xs text-slate-500 italic">
+                * Valores expresados en {viewCurrency}. {viewCurrency === 'USD' ? 'Gastos en ARS convertidos al tipo de cambio histórico.' : 'Ingresos en USD convertidos al tipo de cambio histórico.'}
+            </div>
         </div>
     );
 }

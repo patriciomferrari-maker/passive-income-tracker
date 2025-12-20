@@ -1,10 +1,9 @@
+
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-
-const FETCH_TC = 1130; // Hardcoded fallback or fetch from DB if available
 
 export const dynamic = 'force-dynamic';
 
@@ -20,14 +19,39 @@ export async function GET() {
             where: { userId }
         });
 
+        // --- DYNAMIC RATES LOGIC START ---
+        // Fetch all TC_USD_ARS logic (similar to CashflowTab)
+        const rates = await prisma.economicIndicator.findMany({
+            where: { type: 'TC_USD_ARS' },
+            orderBy: { date: 'asc' }
+        });
+
+        const mepIndicator = await prisma.economicIndicator.findFirst({
+            where: { type: 'TC_dollar_mep' },
+            orderBy: { date: 'desc' }
+        });
+        const fallbackRate = mepIndicator?.value || 1160;
+
+        // Map: 'yyyy-MM' -> rate (using UTC substring to avoid timezone shift)
+        const rateMap: Record<string, number> = {};
+        rates.forEach(r => {
+            const key = r.date.toISOString().substring(0, 7);
+            if (!rateMap[key]) rateMap[key] = r.value;
+        });
+
+        // Helper to convert to USD with Date Context
+        const toUSD = (amount: number, currency: string, date: Date) => {
+            if (currency === 'USD' || !amount) return amount;
+
+            const key = date.toISOString().substring(0, 7);
+            const rate = rateMap[key] || fallbackRate;
+
+            return amount / rate;
+        };
+        // --- DYNAMIC RATES LOGIC END ---
+
         const now = new Date();
         const currentYear = now.getFullYear();
-
-        // Helper to convert to USD
-        const toUSD = (amount: number, currency: string) => {
-            if (currency === 'USD') return amount;
-            return amount / FETCH_TC;
-        };
 
         let yearlyRentalIncomeUSD = 0;
         let totalExpensesAllTimeUSD = 0;
@@ -40,7 +64,7 @@ export async function GET() {
         const distinctExpenseMonths = new Set<string>();
 
         transactions.forEach(t => {
-            const amountUSD = toUSD(t.amount, t.currency);
+            const amountUSD = toUSD(t.amount, t.currency, t.date);
             const monthKey = format(t.date, 'yyyy-MM');
 
             if (t.type === 'INCOME') {
@@ -71,7 +95,7 @@ export async function GET() {
 
             // Build Distribution for this month
             transactions.filter(t => t.type === 'EXPENSE' && format(t.date, 'yyyy-MM') === lastExpenseMonthKey).forEach(t => {
-                const amountUSD = toUSD(t.amount, t.currency);
+                const amountUSD = toUSD(t.amount, t.currency, t.date);
                 const catName = t.category?.name || 'Otros';
                 expenseCategoriesLastMonth.set(catName, (expenseCategoriesLastMonth.get(catName) || 0) + amountUSD);
             });
@@ -88,7 +112,7 @@ export async function GET() {
         const monthlyData = new Map<string, { income: number; expense: number }>();
 
         transactions.forEach(t => {
-            const amountUSD = toUSD(t.amount, t.currency);
+            const amountUSD = toUSD(t.amount, t.currency, t.date);
             const key = format(t.date, 'yyyy-MM');
             if (!monthlyData.has(key)) monthlyData.set(key, { income: 0, expense: 0 });
 

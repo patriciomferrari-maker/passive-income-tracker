@@ -4,50 +4,46 @@ const prisma = new PrismaClient();
 
 async function main() {
     const now = new Date();
-    const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
-    const end = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 1));
+    const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+    const startOfNextMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 1));
 
-    console.log(`Checking Range: ${start.toISOString()} to ${end.toISOString()}`);
+    console.log(`Range: ${startOfMonth.toISOString()} to ${startOfNextMonth.toISOString()}`);
 
-    // 1. Fetch Transactions
-    const costaTx = await prisma.costaTransaction.findMany({
+    // ALL RATES
+    const allRates = await prisma.economicIndicator.findMany({
+        where: {
+            type: 'TC_USD_ARS',
+            date: { gte: startOfMonth }
+        },
+        orderBy: { date: 'asc' }
+    });
+    console.log('--- ALL RATES ---');
+    allRates.forEach((r: any) => console.log(`${r.date.toISOString()} - ${r.value} (ID: ${r.id})`));
+
+    // Picked Rate
+    const blueIndicator = allRates[0]; // Logic used in Dashboard/Cashflow (first one ASC)
+    const costaExchangeRate = blueIndicator?.value || 1160;
+
+    console.log(`PICKED RATE: ${costaExchangeRate}`);
+
+    // Transactions
+    const costaTransactions = await prisma.costaTransaction.findMany({
         where: {
             type: 'EXPENSE',
-            date: { gte: start, lt: end }
+            date: {
+                gte: startOfMonth,
+                lt: startOfNextMonth
+            }
         }
     });
 
-    console.log(`Found ${costaTx.length} transactions.`);
-
-    // 2. Fetch Rates (TC_dollar_blue which seems to be used implicitly or TC_dollar_mep?)
-    // CashflowTab fetches /api/economic-data/tc
-    // Let's see what is in EconomicIndicator
-    const rates = await prisma.economicIndicator.findMany({
-        where: { type: { in: ['TC_dollar_blue', 'TC_dollar_mep'] } },
-        orderBy: { date: 'desc' },
-        take: 20
-    });
-
-    console.log('--- RATES ---');
-    rates.forEach((r: any) => console.log(`${r.type} ${r.date.toISOString().split('T')[0]}: ${r.value}`));
-
-    console.log('--- TRANSACTIONS ---');
     let totalARS = 0;
-    let totalUSD_Calculated = 0; // Using Rate
-
-    // Use a heuristic rate if not found, e.g. 1434 derived from screenshot
-    const heuristicRate = 1434;
-    const dashboardRate = 1160;
-
-    costaTx.forEach((t: any) => {
-        console.log(`${t.date.toISOString().split('T')[0]} - ${t.description}: ${t.amount} ${t.currency}`);
-        totalARS += t.amount; // Assuming ARS for simulation
+    costaTransactions.forEach((t: any) => {
+        totalARS += t.amount;
     });
 
-    console.log(`Total Nominal (ARS?): ${totalARS}`);
-    console.log(`At Rate ${heuristicRate}: ${totalARS / heuristicRate}`);
-    console.log(`At Rate ${dashboardRate}: ${totalARS / dashboardRate}`);
-
+    console.log(`Total ARS: ${totalARS}`);
+    console.log(`Calculated USD: ${totalARS / costaExchangeRate}`);
 }
 
 main()

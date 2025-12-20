@@ -1,3 +1,4 @@
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -227,7 +228,7 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Categoría</Label>
+                            <Label className="text-slate-300">Categoría</Label>
                             <Select value={categoryId} onValueChange={setCategoryId}>
                                 <SelectTrigger className="bg-slate-800 border-slate-700 text-white"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                                 <SelectContent className="bg-slate-950 border-slate-700 text-white z-50">
@@ -280,12 +281,12 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
                         <div className="grid grid-cols-2 gap-4">
                             {!isRental && (
                                 <div className="space-y-2">
-                                    <Label>Fecha</Label>
+                                    <Label className="text-slate-300">Fecha</Label>
                                     <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-slate-800 border-slate-700 text-white" />
                                 </div>
                             )}
                             <div className={`space-y-2 ${isRental ? 'col-span-2' : ''}`}>
-                                <Label>Moneda</Label>
+                                <Label className="text-slate-300">Moneda</Label>
                                 <Select value={currency} onValueChange={setCurrency}>
                                     <SelectTrigger className="bg-slate-800 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                                     <SelectContent className="bg-slate-950 border-slate-700 text-white z-50">
@@ -297,13 +298,25 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Monto</Label>
-                            <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="bg-slate-800 border-slate-700 font-bold text-lg text-white" placeholder="0.00" />
+                            <Label className="text-slate-300">Monto</Label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                value={amount}
+                                onChange={e => setAmount(e.target.value)}
+                                className="bg-slate-800 border-slate-700 font-bold text-lg text-white placeholder:text-slate-500"
+                                placeholder="0.00"
+                            />
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Descripción (Opcional)</Label>
-                            <Input value={description} onChange={e => setDescription(e.target.value)} className="bg-slate-800 border-slate-700 text-white" placeholder={isRental ? "Ej. Familia Perez" : "Ej. Depósito seña"} />
+                            <Label className="text-slate-300">Descripción (Opcional)</Label>
+                            <Input
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+                                placeholder={isRental ? "Ej. Familia Perez" : "Ej. Depósito seña"}
+                            />
                         </div>
 
                         <div className="pt-4 flex justify-end">
@@ -319,7 +332,7 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
             {/* TABLE (History) */}
             <Card className="bg-slate-900 border-slate-800 lg:col-span-2 h-fit">
                 <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>{type === 'INCOME' ? 'Alquileres' : 'Gastos'}</CardTitle>
+                    <CardTitle className="text-white">{type === 'INCOME' ? 'Alquileres' : 'Gastos'}</CardTitle>
                     {type === 'EXPENSE' && (
                         <Select value={selectedYear} onValueChange={setSelectedYear}>
                             <SelectTrigger className="w-[120px] bg-slate-800 border-slate-700 text-white h-8 text-xs">
@@ -416,7 +429,7 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
                                                         <Pencil size={14} />
                                                     </Button>
                                                     <Button type="button" variant="ghost" size="icon" onClick={() => handleDelete(t.id)} disabled={!!editingId} className="text-slate-600 hover:text-red-400 hover:bg-red-950/30 h-8 w-8">
-                                                        <Trash2 size={14} />
+                                                        <Pencil size={14} />
                                                     </Button>
                                                 </div>
                                             </TableCell>
