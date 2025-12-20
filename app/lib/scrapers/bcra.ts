@@ -45,7 +45,7 @@ function extractBCRAValue($: cheerio.CheerioAPI, serieId: string): { date: strin
 export async function scrapeBCRA(): Promise<BCRAData[]> {
     const url = 'https://www.bcra.gob.ar/PublicacionesEstadisticas/Principales_variables.asp';
 
-    // BCRA has SSL certificate issues - temporarily disable verification
+    // BCRA has SSL certificate issues - temporarily disable verification  
     const originalTLS = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
