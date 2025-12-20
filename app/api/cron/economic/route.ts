@@ -17,7 +17,7 @@ export async function GET(request: Request) {
         ipc: { status: 'skipped', count: 0, error: null as any },
         dolar: { status: 'skipped', count: 0, error: null as any },
         ons: { status: 'skipped', count: 0, error: null as any },
-        bcra: { status: 'skipped', count: 0, error: null as any, seeded: false }
+        bcra: { status: 'skipped', count: 0, error: null as any, seeded: false, created: 0, updated: 0, skipped: 0 }
     };
 
     // 1. Update IPC
@@ -124,23 +124,22 @@ export async function GET(request: Request) {
             console.log('✅ BCRA historical seed completed');
         }
 
-        // Scrape latest BCRA data
-        const scrapeRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/admin/scrape-bcra`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
+        // Scrape latest BCRA data (call directly, no HTTP fetch)
+        console.log('🌐 Scraping latest BCRA data...');
+        const { scrapeBCRA, saveBCRAData } = await import('@/app/lib/scrapers/bcra');
+        const data = await scrapeBCRA();
+        const stats = await saveBCRAData(data);
 
-        if (scrapeRes.ok) {
-            const scrapeData = await scrapeRes.json();
-            results.bcra = {
-                status: 'success',
-                count: scrapeData.data?.length || 0,
-                error: null,
-                seeded
-            };
-        } else {
-            throw new Error('BCRA scrape failed');
-        }
+        results.bcra = {
+            status: 'success',
+            count: stats.created + stats.updated,
+            error: null,
+            seeded,
+            created: stats.created,
+            updated: stats.updated,
+            skipped: stats.skipped
+        };
+        console.log(`✅ BCRA update: ${stats.created} created, ${stats.updated} updated`);
     } catch (e) {
         results.bcra = {
             status: 'failed',
