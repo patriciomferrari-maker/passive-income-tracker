@@ -46,7 +46,7 @@ export async function scrapeBCRA(): Promise<BCRAData[]> {
     const url = 'https://www.bcra.gob.ar/PublicacionesEstadisticas/Principales_variables.asp';
 
     // BCRA has SSL certificate issues - temporarily disable verification
-    const original TLS = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    const originalTLS = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
     try {
