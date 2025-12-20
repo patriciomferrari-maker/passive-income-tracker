@@ -5,6 +5,7 @@ import { scrapeInflationData } from '@/app/lib/scrapers/inflation';
 import { scrapeDolarBlue } from '@/app/lib/scrapers/dolar';
 import { updateONs } from '@/app/lib/market-data';
 import { regenerateAllCashflows } from '@/lib/rentals';
+import { seedEconomicData } from '@/scripts/seed-economic-data';
 
 // Cron jobs should be protected or use a secret key in production, 
 // but for this Vercel setup with 'crons' config, it's open to the scheduler.
@@ -15,7 +16,8 @@ export async function GET(request: Request) {
     const results = {
         ipc: { status: 'skipped', count: 0, error: null as any },
         dolar: { status: 'skipped', count: 0, error: null as any },
-        ons: { status: 'skipped', count: 0, error: null as any }
+        ons: { status: 'skipped', count: 0, error: null as any },
+        bcra: { status: 'skipped', count: 0, error: null as any, seeded: false }
     };
 
     // 1. Update IPC
@@ -100,6 +102,53 @@ export async function GET(request: Request) {
     } catch (e) {
         results.ons = { status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e) };
         console.error('Cron ONs Error:', e);
+    }
+
+    // 4. Update BCRA Data (IPC Mensual/Interanual, UVA, TC Oficial)
+    try {
+        // Check if we need to seed historical data (first run)
+        const existingBCRACount = await prisma.economicIndicator.count({
+            where: {
+                OR: [
+                    { type: 'UVA' },
+                    { type: 'TC_OFICIAL' }
+                ]
+            }
+        });
+
+        let seeded = false;
+        if (existingBCRACount === 0) {
+            console.log('📥 No BCRA data found. Running historical seed...');
+            await seedEconomicData();
+            seeded = true;
+            console.log('✅ BCRA historical seed completed');
+        }
+
+        // Scrape latest BCRA data
+        const scrapeRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/admin/scrape-bcra`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (scrapeRes.ok) {
+            const scrapeData = await scrapeRes.json();
+            results.bcra = {
+                status: 'success',
+                count: scrapeData.data?.length || 0,
+                error: null,
+                seeded
+            };
+        } else {
+            throw new Error('BCRA scrape failed');
+        }
+    } catch (e) {
+        results.bcra = {
+            status: 'failed',
+            count: 0,
+            error: e instanceof Error ? e.message : String(e),
+            seeded: false
+        };
+        console.error('Cron BCRA Error:', e);
     }
 
     return NextResponse.json({ timestamp: new Date(), results });
