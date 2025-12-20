@@ -182,6 +182,15 @@ export default function HomePage() {
               enabled={true}
             />
 
+            {/* Economic Data Dashboard */}
+            <DashboardCard
+              title="Datos Económicos"
+              description="Inflación, devaluación y evolución del valor UVA"
+              icon="📈"
+              href="/datos-economicos"
+              enabled={true}
+            />
+
             {/* 2. Portfolio Cards (Grid - Bottom) */}
             {stats && (
               <div>
