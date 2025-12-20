@@ -145,7 +145,10 @@ export async function GET(request: Request) {
             status: 'failed',
             count: 0,
             error: e instanceof Error ? e.message : String(e),
-            seeded: false
+            seeded: false,
+            created: 0,
+            updated: 0,
+            skipped: 0
         };
         console.error('Cron BCRA Error:', e);
     }
