@@ -192,76 +192,105 @@ export function CashflowTab() {
                 </div>
             </div>
 
-            <div className="rounded-md border border-slate-800 overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                    <thead className="bg-slate-900 text-slate-400 uppercase font-medium">
-                        <tr>
-                            <th className="px-6 py-4">Concepto</th>
-                            {activeColumns.map((col, i) => (
-                                <th key={i} className="px-6 py-4 text-right min-w-[100px]">
-                                    {format(col, 'MMM yy', { locale: es }).toUpperCase()}
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 bg-slate-950/50">
-                        {/* Income Section */}
-                        <tr className="bg-slate-900/30">
-                            <td className="px-6 py-3 font-semibold text-emerald-400">INGRESOS</td>
-                            <td colSpan={activeColumns.length}></td>
-                        </tr>
-                        <tr>
-                            <td className="px-6 py-3 text-slate-300">Alquileres</td>
-                            {activeIncomeRow.map((val, i) => (
-                                <td key={i} className="px-6 py-3 text-right text-slate-300 font-medium">
-                                    {formatMoney(val)}
-                                </td>
-                            ))}
-                        </tr>
-                        <tr className="bg-slate-900/50 font-semibold">
-                            <td className="px-6 py-3 text-emerald-400">Total Ingresos</td>
-                            {activeIncomeRow.map((val, i) => (
-                                <td key={i} className="px-6 py-3 text-right text-emerald-400">
-                                    {formatMoney(val)}
-                                </td>
-                            ))}
-                        </tr>
+            <div className="rounded-xl border border-slate-800 overflow-hidden bg-slate-950 shadow-2xl">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-xs md:text-sm text-left border-collapse">
+                        <thead className="bg-slate-950 text-slate-400 font-medium border-b border-slate-800">
+                            <tr>
+                                <th className="px-6 py-4 sticky left-0 bg-slate-950 z-10 w-[200px] uppercase tracking-wider text-[11px]">Concepto</th>
+                                {activeColumns.map((col, i) => (
+                                    <th key={i} className="px-4 py-4 text-center min-w-[100px] uppercase tracking-wider text-[11px] font-semibold text-slate-500">
+                                        {format(col, 'MMM yy', { locale: es }).toUpperCase()}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/50">
 
-                        {/* Expense Section */}
-                        <tr className="bg-slate-900/30">
-                            <td className="px-6 py-3 font-semibold text-red-400 pt-6">GASTOS</td>
-                            <td colSpan={activeColumns.length}></td>
-                        </tr>
-                        {Array.from(activeExpenseRows.entries()).map(([catName, vals], i) => (
-                            <tr key={i} className="hover:bg-slate-900/20 transition-colors">
-                                <td className="px-6 py-3 text-slate-300">{catName}</td>
-                                {vals.map((val, j) => (
-                                    <td key={j} className="px-6 py-3 text-right text-slate-400">
+                            {/* --- INCOME SECTION --- */}
+                            <tr className="bg-emerald-950/10 border-b border-emerald-900/20">
+                                <td className="px-6 py-3 font-bold text-emerald-500 flex items-center gap-2 sticky left-0 bg-slate-900/50 backdrop-blur top-0 z-0">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+                                    INGRESOS
+                                </td>
+                                <td colSpan={activeColumns.length} className="bg-slate-900/20"></td>
+                            </tr>
+
+                            <tr className="group hover:bg-slate-900/30 transition-colors">
+                                <td className="px-6 py-2 text-slate-300 font-medium pl-10 sticky left-0 bg-slate-950/50 group-hover:bg-slate-900/80 transition-colors border-r border-slate-800/50">
+                                    <span className="text-slate-600 mr-2">›</span> Alquileres
+                                </td>
+                                {activeIncomeRow.map((val, i) => (
+                                    <td key={i} className="px-4 py-2 text-right text-slate-300 font-mono text-[13px]">
                                         {formatMoney(val)}
                                     </td>
                                 ))}
                             </tr>
-                        ))}
-                        <tr className="bg-slate-900/50 font-semibold border-t border-slate-800">
-                            <td className="px-6 py-3 text-red-400">Total Gastos</td>
-                            {activeTotalExpensesRow.map((val, i) => (
-                                <td key={i} className="px-6 py-3 text-right text-red-400">
-                                    {formatMoney(val)}
-                                </td>
-                            ))}
-                        </tr>
 
-                        {/* Net Section */}
-                        <tr className="bg-slate-900 text-white font-bold text-lg border-t-2 border-slate-700">
-                            <td className="px-6 py-4">Resultado Neto</td>
-                            {activeNetRow.map((val, i) => (
-                                <td key={i} className={`px-6 py-4 text-right ${val >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    {formatMoney(val)}
+                            <tr className="bg-emerald-950/20 font-bold border-t border-emerald-900/30">
+                                <td className="px-6 py-3 text-emerald-400 pl-10 sticky left-0 bg-slate-900/80 backdrop-blur border-r border-slate-800/50 uppercase text-[11px] tracking-wide">
+                                    Total Ingresos
                                 </td>
+                                {activeIncomeRow.map((val, i) => (
+                                    <td key={i} className="px-4 py-3 text-right text-emerald-400 font-mono text-[13px]">
+                                        {formatMoney(val)}
+                                    </td>
+                                ))}
+                            </tr>
+
+                            {/* --- SPACER --- */}
+                            <tr><td colSpan={100} className="py-2 bg-slate-950"></td></tr>
+
+                            {/* --- EXPENSE SECTION --- */}
+                            <tr className="bg-red-950/10 border-b border-red-900/20">
+                                <td className="px-6 py-3 font-bold text-red-500 flex items-center gap-2 sticky left-0 bg-slate-900/50 backdrop-blur z-0">
+                                    <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
+                                    GASTOS
+                                </td>
+                                <td colSpan={activeColumns.length} className="bg-slate-900/20"></td>
+                            </tr>
+
+                            {Array.from(activeExpenseRows.entries()).map(([catName, vals], i) => (
+                                <tr key={i} className="group hover:bg-slate-900/30 transition-colors border-b border-slate-800/30 last:border-0">
+                                    <td className="px-6 py-2 text-slate-300 font-medium pl-10 sticky left-0 bg-slate-950/50 group-hover:bg-slate-900/80 transition-colors border-r border-slate-800/50">
+                                        <span className="text-slate-600 mr-2">›</span> {catName}
+                                    </td>
+                                    {vals.map((val, j) => (
+                                        <td key={j} className="px-4 py-2 text-right text-slate-300 font-mono text-[13px]">
+                                            {formatMoney(val)}
+                                        </td>
+                                    ))}
+                                </tr>
                             ))}
-                        </tr>
-                    </tbody>
-                </table>
+
+                            <tr className="bg-red-950/20 font-bold border-t border-red-900/30">
+                                <td className="px-6 py-3 text-red-400 pl-10 sticky left-0 bg-slate-900/80 backdrop-blur border-r border-slate-800/50 uppercase text-[11px] tracking-wide">
+                                    Total Gastos
+                                </td>
+                                {activeTotalExpensesRow.map((val, i) => (
+                                    <td key={i} className="px-4 py-3 text-right text-red-400 font-mono text-[13px]">
+                                        {formatMoney(val)}
+                                    </td>
+                                ))}
+                            </tr>
+
+                            {/* --- SPACER --- */}
+                            <tr><td colSpan={100} className="py-2 bg-slate-950"></td></tr>
+
+                            {/* --- NET SECTION --- */}
+                            <tr className="bg-slate-900/80 font-bold border-y border-slate-700">
+                                <td className="px-6 py-4 text-white uppercase tracking-wider sticky left-0 bg-slate-900 shadow-[4px_0_10px_rgba(0,0,0,0.5)] z-20">
+                                    Resultado Neto
+                                </td>
+                                {activeNetRow.map((val, i) => (
+                                    <td key={i} className={`px-4 py-4 text-right font-mono text-sm ${val >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {formatMoney(val)}
+                                    </td>
+                                ))}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <div className="text-right text-xs text-slate-500 italic">
