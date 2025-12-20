@@ -45,68 +45,69 @@ function extractBCRAValue($: cheerio.CheerioAPI, serieId: string): { date: strin
 export async function scrapeBCRA(): Promise<BCRAData[]> {
     const url = 'https://www.bcra.gob.ar/PublicacionesEstadisticas/Principales_variables.asp';
 
-    // BCRA has SSL certificate issues, need to bypass verification
-    const https = await import('https');
-    const agent = new https.Agent({
-        rejectUnauthorized: false
-    });
+    // BCRA has SSL certificate issues - temporarily disable verification
+    const original TLS = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-    const response = await fetch(url, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        },
-        // @ts-ignore - agent property exists but TypeScript doesn't know about it
-        agent
-    });
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
 
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    const results: BCRAData[] = [];
-
-    // 1. IPC Mensual (Serie 7931)
-    const ipcMensual = extractBCRAValue($, '7931');
-    if (ipcMensual) {
-        const date = parseBCRADate(ipcMensual.date);
-        const value = parseArgentineNumber(ipcMensual.value);
-        results.push({ type: 'IPC', date, value });
-    }
-
-    // 2. IPC Interanual (Serie 7932)
-    const ipcInteranual = extractBCRAValue($, '7932');
-    if (ipcInteranual && ipcMensual) {
-        const date = parseBCRADate(ipcInteranual.date);
-        const interannualValue = parseArgentineNumber(ipcInteranual.value);
-
-        const existing = results.find(r => r.type === 'IPC' && r.date.getTime() === date.getTime());
-        if (existing) {
-            existing.interannualValue = interannualValue;
-        } else {
-            results.push({ type: 'IPC', date, value: 0, interannualValue });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-    }
 
-    // 3. Valor UVA (Serie 7913)
-    const uva = extractBCRAValue($, '7913');
-    if (uva) {
-        const date = parseBCRADate(uva.date);
-        const value = parseArgentineNumber(uva.value);
-        results.push({ type: 'UVA', date, value });
-    }
+        const html = await response.text();
+        const $ = cheerio.load(html);
 
-    // 4. TC Oficial (Serie 7927)
-    const tcOficial = extractBCRAValue($, '7927');
-    if (tcOficial) {
-        const date = parseBCRADate(tcOficial.date);
-        const value = parseArgentineNumber(tcOficial.value);
-        results.push({ type: 'TC_OFICIAL', date, value });
-    }
+        const results: BCRAData[] = [];
 
-    return results;
+        // 1. IPC Mensual (Serie 7931)
+        const ipcMensual = extractBCRAValue($, '7931');
+        if (ipcMensual) {
+            const date = parseBCRADate(ipcMensual.date);
+            const value = parseArgentineNumber(ipcMensual.value);
+            results.push({ type: 'IPC', date, value });
+        }
+
+        // 2. IPC Interanual (Serie 7932)
+        const ipcInteranual = extractBCRAValue($, '7932');
+        if (ipcInteranual && ipcMensual) {
+            const date = parseBCRADate(ipcInteranual.date);
+            const interannualValue = parseArgentineNumber(ipcInteranual.value);
+
+            const existing = results.find(r => r.type === 'IPC' && r.date.getTime() === date.getTime());
+            if (existing) {
+                existing.interannualValue = interannualValue;
+            } else {
+                results.push({ type: 'IPC', date, value: 0, interannualValue });
+            }
+        }
+
+        // 3. Valor UVA (Serie 7913)
+        const uva = extractBCRAValue($, '7913');
+        if (uva) {
+            const date = parseBCRADate(uva.date);
+            const value = parseArgentineNumber(uva.value);
+            results.push({ type: 'UVA', date, value });
+        }
+
+        // 4. TC Oficial (Serie 7927)
+        const tcOficial = extractBCRAValue($, '7927');
+        if (tcOficial) {
+            const date = parseBCRADate(tcOficial.date);
+            const value = parseArgentineNumber(tcOficial.value);
+            results.push({ type: 'TC_OFICIAL', date, value });
+        }
+
+        return results;
+    } finally {
+        // Always restore TLS verification
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalTLS;
+    }
 }
 
 /**
