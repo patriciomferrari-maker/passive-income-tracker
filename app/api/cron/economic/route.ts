@@ -22,23 +22,8 @@ export async function GET(request: Request) {
 
     // 1. Update BCRA Data FIRST (IPC Mensual/Interanual, UVA, TC Oficial - highest priority)
     try {
-        // Check if we need to seed historical data (first run)
-        const existingBCRACount = await prisma.economicIndicator.count({
-            where: {
-                OR: [
-                    { type: 'UVA' },
-                    { type: 'TC_OFICIAL' }
-                ]
-            }
-        });
-
-        let seeded = false;
-        if (existingBCRACount === 0) {
-            console.log('📥 No BCRA data found. Running historical seed...');
-            await seedEconomicData();
-            seeded = true;
-            console.log('✅ BCRA historical seed completed');
-        }
+        // Note: Historical seed skipped in production (files not available)
+        // Use /api/test/seed-bcra from local environment for initial data load
 
         // Scrape latest BCRA data (call directly, no HTTP fetch)
         console.log('🌐 Scraping latest BCRA data...');
@@ -50,7 +35,6 @@ export async function GET(request: Request) {
             status: 'success',
             count: stats.created + stats.updated,
             error: null,
-            seeded,
             created: stats.created,
             updated: stats.updated,
             skipped: stats.skipped
