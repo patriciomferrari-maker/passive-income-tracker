@@ -45,10 +45,18 @@ function extractBCRAValue($: cheerio.CheerioAPI, serieId: string): { date: strin
 export async function scrapeBCRA(): Promise<BCRAData[]> {
     const url = 'https://www.bcra.gob.ar/PublicacionesEstadisticas/Principales_variables.asp';
 
+    // BCRA has SSL certificate issues, need to bypass verification
+    const https = await import('https');
+    const agent = new https.Agent({
+        rejectUnauthorized: false
+    });
+
     const response = await fetch(url, {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
+        },
+        // @ts-ignore - agent property exists but TypeScript doesn't know about it
+        agent
     });
 
     if (!response.ok) {
