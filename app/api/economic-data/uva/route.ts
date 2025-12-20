@@ -19,7 +19,8 @@ export async function GET(request: Request) {
 
         const data = await prisma.economicIndicator.findMany({
             where,
-            orderBy: { date: 'asc' },
+            orderBy: { date: 'desc' },
+            take: 30,
             select: {
                 date: true,
                 value: true
