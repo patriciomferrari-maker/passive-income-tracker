@@ -4,7 +4,8 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AlertCircle, CheckCircle, RefreshCw, Database } from 'lucide-react';
 
 export default function AdminPage() {
     // ONs State
@@ -101,13 +102,253 @@ export default function AdminPage() {
                 {/* CEDEARs Card */}
                 <CedearCard />
 
+                {/* BCRA Control Panel */}
+                <BCRAControlCard />
+
                 {/* IPC Card */}
                 <IPCCard />
+
+                {/* UVA Card */}
+                <UVACard />
+
+                {/* TC Oficial Card */}
+                <TCOficialCard />
 
                 {/* Dolar Card */}
                 <DollarCard />
             </div>
         </div>
+    );
+}
+
+function BCRAControlCard() {
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState('');
+    const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+    const handleSeed = async () => {
+        setLoading(true);
+        setMessage('');
+        setStatus('idle');
+
+        try {
+            const res = await fetch('/api/admin/seed-economic-data', { method: 'POST' });
+            const data = await res.json();
+
+            if (res.ok) {
+                setMessage(data.message || 'Datos históricos cargados exitosamente');
+                setStatus('success');
+            } else {
+                setMessage(data.error || 'Error al cargar datos');
+                setStatus('error');
+            }
+        } catch (error) {
+            setMessage('Error de conexión');
+            setStatus('error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleScrape = async () => {
+        setLoading(true);
+        setMessage('');
+        setStatus('idle');
+
+        try {
+            const res = await fetch('/api/admin/scrape-bcra', { method: 'POST' });
+            const data = await res.json();
+
+            if (res.ok) {
+                setMessage(data.message || 'Datos actualizados desde BCRA');
+                setStatus('success');
+                // Reload page data after scraping
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                setMessage(data.error || 'Error al actualizar desde BCRA');
+                setStatus('error');
+            }
+        } catch (error) {
+            setMessage('Error de conexión');
+            setStatus('error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Card className="bg-slate-900 border-slate-800 flex flex-col">
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="text-slate-100 text-lg">Control BCRA</CardTitle>
+                    <Badge variant="secondary" className="bg-blue-900 text-blue-400">Admin</Badge>
+                </div>
+                <CardDescription className="text-slate-400 text-xs">
+                    Gestión de datos económicos desde BCRA
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex flex-col gap-3">
+                    <Button
+                        onClick={handleSeed}
+                        disabled={loading}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white w-full"
+                    >
+                        <Database className="mr-2 h-4 w-4" />
+                        {loading ? 'Cargando...' : 'Seed Historical Data'}
+                    </Button>
+
+                    <Button
+                        onClick={handleScrape}
+                        disabled={loading}
+                        className="bg-blue-600 hover:bg-blue-700 text-white w-full"
+                    >
+                        <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                        {loading ? 'Actualizando...' : 'Update from BCRA'}
+                    </Button>
+                </div>
+
+                {message && (
+                    <div className={`p-3 rounded-md text-xs ${status === 'success'
+                            ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900'
+                            : status === 'error'
+                                ? 'bg-red-950/50 text-red-400 border border-red-900'
+                                : 'bg-slate-950/50 text-slate-400 border border-slate-800'
+                        }`}>
+                        {status === 'success' && <CheckCircle className="inline mr-2 h-3 w-3" />}
+                        {status === 'error' && <AlertCircle className="inline mr-2 h-3 w-3" />}
+                        {message}
+                    </div>
+                )}
+
+                <div className="text-[10px] text-slate-500 space-y-1 pt-2 border-t border-slate-800">
+                    <p>• <strong>Seed</strong>: Importa ~6000 registros históricos</p>
+                    <p>• <strong>Update</strong>: Obtiene últimos valores del BCRA</p>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function UVACard() {
+    const [uvaData, setUvaData] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetch('/api/economic-data/uva')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setUvaData(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 30));
+                }
+            })
+            .catch(err => console.error(err))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const formatValue = (val: number) => {
+        return val.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    return (
+        <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="text-slate-100 text-lg">Valor UVA</CardTitle>
+                    <Badge variant="secondary" className="bg-slate-800 text-slate-400">BCRA</Badge>
+                </div>
+                <CardDescription className="text-slate-400 text-xs">
+                    Unidad de Valor Adquisitivo (base 31/03/2016=14.05)
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-hidden">
+                {loading ? (
+                    <div className="p-4 text-center text-xs text-slate-500">Cargando...</div>
+                ) : (
+                    <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden h-full flex flex-col">
+                        <div className="grid grid-cols-2 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
+                            <span>Fecha</span>
+                            <span className="text-right">Valor (ARS)</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto">
+                            {uvaData.length > 0 ? (
+                                uvaData.map((item, i) => (
+                                    <div key={i} className="grid grid-cols-2 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
+                                        <span className="text-slate-300">{new Date(item.date).toLocaleDateString('es-AR')}</span>
+                                        <span className="text-right font-bold text-emerald-400">${formatValue(item.value)}</span>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-4 text-center text-xs text-slate-500">
+                                    No hay datos. Ejecuta "Seed Historical Data".
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function TCOficialCard() {
+    const [tcData, setTcData] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetch('/api/economic-data/tc-oficial')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setTcData(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 30));
+                }
+            })
+            .catch(err => console.error(err))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const formatValue = (val: number) => {
+        return val.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    return (
+        <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="text-slate-100 text-lg">TC Oficial</CardTitle>
+                    <Badge variant="secondary" className="bg-slate-800 text-slate-400">BCRA</Badge>
+                </div>
+                <CardDescription className="text-slate-400 text-xs">
+                    Tipo de Cambio Minorista ($ por USD) - Promedio vendedor
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-hidden">
+                {loading ? (
+                    <div className="p-4 text-center text-xs text-slate-500">Cargando...</div>
+                ) : (
+                    <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden h-full flex flex-col">
+                        <div className="grid grid-cols-2 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
+                            <span>Fecha</span>
+                            <span className="text-right">TC ($/USD)</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto">
+                            {tcData.length > 0 ? (
+                                tcData.map((item, i) => (
+                                    <div key={i} className="grid grid-cols-2 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
+                                        <span className="text-slate-300">{new Date(item.date).toLocaleDateString('es-AR')}</span>
+                                        <span className="text-right font-bold text-blue-400">${formatValue(item.value)}</span>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-4 text-center text-xs text-slate-500">
+                                    No hay datos. Ejecuta "Seed Historical Data".
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 
@@ -181,10 +422,10 @@ function IPCCard() {
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-slate-100 text-lg">Inflación (IPC)</CardTitle>
-                    <Badge variant="secondary" className="bg-slate-800 text-slate-400">DatosMacro</Badge>
+                    <Badge variant="secondary" className="bg-slate-800 text-slate-400">BCRA</Badge>
                 </div>
                 <CardDescription className="text-slate-400 text-xs">
-                    Scraping de datosmacro.expansion.com (Automático).
+                    Scraping de BCRA (Automático).
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
