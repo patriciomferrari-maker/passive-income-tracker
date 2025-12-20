@@ -268,7 +268,7 @@ export async function GET() {
             costa: {
                 count: costaExpensesCount,
                 totalMonthly: costaExpensesTotal,
-                label: `${expenseLabel} [Rate: ${costaExchangeRate.toFixed(0)} - ${blueIndicator ? 'Blue' : 'MEP'}]`,
+                label: expenseLabel,
                 monthName: capitalizedMonth
             }
         });
