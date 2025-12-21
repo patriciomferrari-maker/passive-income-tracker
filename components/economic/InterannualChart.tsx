@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -50,7 +50,6 @@ export default function InterannualChart() {
         );
     }
 
-    // Calculate latest values
     const latest = data[data.length - 1];
     const diff = (latest.devaluacion || 0) - (latest.inflacion || 0);
 
@@ -117,12 +116,6 @@ export default function InterannualChart() {
                                 formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
                             />
                             <Legend />
-                            {/* Reference line at Y=0 */}
-                            <ReferenceLine
-                                y={0}
-                                stroke="#64748b"
-                                strokeDasharray="5 5"
-                            />
                             <Line
                                 type="monotone"
                                 dataKey="inflacion"

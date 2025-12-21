@@ -173,7 +173,7 @@ export default function HomePage() {
 
         {!loading && stats && !('error' in stats) && (
           <div className="max-w-4xl mx-auto space-y-12">
-            {/* 1. Global Dashboard Access (Hero Card - Top) */}
+            {/* Global Dashboard Access (Hero Card - Top) */}
             <DashboardCard
               title="Dashboard Global Consolidado"
               description="Visión unificada de ingresos, evolución y vencimientos"
@@ -182,16 +182,7 @@ export default function HomePage() {
               enabled={true}
             />
 
-            {/* Economic Data Dashboard */}
-            <DashboardCard
-              title="Datos Económicos"
-              description="Inflación, devaluación y evolución del valor UVA"
-              icon="📈"
-              href="/datos-economicos"
-              enabled={true}
-            />
-
-            {/* 2. Portfolio Cards (Grid - Bottom) */}
+            {/* Portfolio Cards (Grid - Bottom) */}
             {stats && (
               <div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -263,6 +254,15 @@ export default function HomePage() {
                             currency="USD"
                           />
                         )}
+
+                        {/* Economic Data - Now in grid */}
+                        <DashboardCard
+                          title="Datos Económicos"
+                          description="Inflación, devaluación y UVA"
+                          icon="📈"
+                          href="/datos-economicos"
+                          enabled={true}
+                        />
 
                         {/* Costa Card - Only show if specifically allowed OR legacy (showAll) */}
                         {(showAll || shouldShow('costa')) && (

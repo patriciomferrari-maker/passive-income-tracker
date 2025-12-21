@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DollarSign } from 'lucide-react';
@@ -34,6 +34,24 @@ export default function ExchangeRateGapChart() {
                 setLoading(false);
             });
     }, []);
+
+    // Calculate optimal domain for gap (right Y-axis)
+    const gapDomain = useMemo(() => {
+        if (data.length === 0) return [0, 100];
+
+        const gaps = data.map(d => d.brecha);
+        const minGap = Math.min(...gaps);
+        const maxGap = Math.max(...gaps);
+
+        // Add 5% padding to min and max
+        const range = maxGap - minGap;
+        const padding = range * 0.05;
+
+        return [
+            Math.floor(minGap - padding),
+            Math.ceil(maxGap + padding)
+        ];
+    }, [data]);
 
     if (loading) {
         return (
@@ -112,11 +130,12 @@ export default function ExchangeRateGapChart() {
                                 tickFormatter={(value) => `$${value}`}
                                 style={{ fontSize: '12px' }}
                             />
-                            {/* Right Y-axis for gap percentage */}
+                            {/* Right Y-axis for gap percentage - OPTIMIZED SCALE */}
                             <YAxis
                                 yAxisId="right"
                                 orientation="right"
                                 stroke="#fb923c"
+                                domain={gapDomain}
                                 tickFormatter={(value) => `${value}%`}
                                 style={{ fontSize: '12px' }}
                             />
