@@ -13,7 +13,7 @@ interface AccumulatedData {
     devaluacionAcumulada: number;
 }
 
-type Period = '1Y' | '3Y' | '5Y' | 'ALL' | 'CUSTOM';
+type Period = 'YTD' | '3Y' | '5Y' | 'ALL' | 'CUSTOM';
 
 /**
  * Chart 1: Inflación y Devaluación Acumulada (extended scope)
@@ -21,57 +21,82 @@ type Period = '1Y' | '3Y' | '5Y' | 'ALL' | 'CUSTOM';
  */
 export default function AccumulatedChart() {
     const [rawData, setRawData] = useState<AccumulatedData[]>([]);
+    const [rawIPC, setRawIPC] = useState<{ date: string; value: number }[]>([]); // Monthly IPC %
+    const [rawTC, setRawTC] = useState<{ date: string; value: number }[]>([]); // Daily TC Blue
     const [loading, setLoading] = useState(true);
     const [selectedPeriod, setSelectedPeriod] = useState<Period>('3Y');
     const [customStartDate, setCustomStartDate] = useState('');
     const [customEndDate, setCustomEndDate] = useState('');
 
     useEffect(() => {
-        fetch('/api/economic-data/accumulated')
-            .then(res => res.json())
-            .then(result => {
-                setRawData(result.data || []);
+        // Fetch both accumulated data (for reference) and raw IPC/TC data for client-side calculation
+        Promise.all([
+            fetch('/api/economic-data/accumulated').then(res => res.json()),
+            // Fetch raw IPC data from EconomicIndicator
+            fetch('/api/admin/inflation').then(res => res.json()),
+            // Fetch raw TC Blue data  
+            fetch('/api/admin/economic').then(res => res.json())
+        ])
+            .then(([accResult, ipcData, tcData]) => {
+                setRawData(accResult.data || []);
+
+                // Process IPC data (it's monthly) - API returns DESC, need ASC
+                const ipcProcessed = (ipcData || []).map((item: any) => ({
+                    date: `${item.year}-${String(item.month).padStart(2, '0')}-01`,
+                    value: item.value
+                })).sort((a, b) => a.date.localeCompare(b.date)); // SORT ASCENDING BY DATE
+                setRawIPC(ipcProcessed);
+
+                // Process TC data (it's daily, need to average by month)
+                const tcByMonth = new Map<string, { sum: number; count: number }>();
+                (tcData || []).forEach((item: any) => {
+                    const monthKey = new Date(item.date).toISOString().slice(0, 7);
+                    const existing = tcByMonth.get(monthKey) || { sum: 0, count: 0 };
+                    tcByMonth.set(monthKey, {
+                        sum: existing.sum + item.value,
+                        count: existing.count + 1
+                    });
+                });
+
+                const tcProcessed = Array.from(tcByMonth.entries()).map(([monthKey, data]) => ({
+                    date: `${monthKey}-01`,
+                    value: data.sum / data.count
+                })).sort((a, b) => a.date.localeCompare(b.date));
+
+                setRawTC(tcProcessed);
                 setLoading(false);
             })
             .catch(err => {
-                console.error('Error fetching accumulated data:', err);
+                console.error('Error fetching data:', err);
                 setLoading(false);
             });
     }, []);
 
     // Filter and recalculate accumulated values based on selected period
     const { filteredData, startDateLabel } = useMemo(() => {
-        if (rawData.length === 0) return { filteredData: [], startDateLabel: '' };
+        if (rawIPC.length === 0 || rawTC.length === 0) return { filteredData: [], startDateLabel: '' };
 
         let cutoffDate: Date;
         const today = new Date();
-        const firstDate = new Date(rawData[0].date);
-        const lastDate = new Date(rawData[rawData.length - 1].date);
+        const firstIPCDate = new Date(rawIPC[0].date);
+        const lastIPCDate = new Date(rawIPC[rawIPC.length - 1].date);
 
         // Determine the date range based on selected period
         if (selectedPeriod === 'CUSTOM' && customStartDate && customEndDate) {
             const customStart = parse(customStartDate, 'yyyy-MM', new Date());
             const customEnd = parse(customEndDate, 'yyyy-MM', new Date());
 
-            // Filter data within custom range
-            const filtered = rawData.filter(d => {
-                const date = new Date(d.date);
-                return date >= customStart && date <= customEnd;
-            });
-
-            if (filtered.length === 0) return { filteredData: [], startDateLabel: '' };
-
-            // Recalculate accumulated from the start of custom range
             return {
-                filteredData: recalculateAccumulated(rawData, customStart, customEnd),
+                filteredData: calculateAccumulatedFromPeriod(customStart, customEnd),
                 startDateLabel: format(customStart, 'MMMM yyyy', { locale: es })
             };
         }
 
         // Preset periods
         switch (selectedPeriod) {
-            case '1Y':
-                cutoffDate = subYears(today, 1);
+            case 'YTD':
+                // Year to date: from Jan 1st of current year
+                cutoffDate = new Date(today.getFullYear(), 0, 1);
                 break;
             case '3Y':
                 cutoffDate = subYears(today, 3);
@@ -81,42 +106,85 @@ export default function AccumulatedChart() {
                 break;
             case 'ALL':
             default:
-                cutoffDate = firstDate;
+                cutoffDate = firstIPCDate;
                 break;
         }
 
-        // Find the closest available date to cutoff
-        const startDate = rawData.find(d => new Date(d.date) >= cutoffDate)?.date || rawData[0].date;
-        const actualStartDate = new Date(startDate);
+        // Find the closest available month to cutoff
+        const startMonth = rawIPC.find(d => new Date(d.date) >= cutoffDate);
+        if (!startMonth) return { filteredData: [], startDateLabel: '' };
+
+        const startDate = new Date(startMonth.date);
 
         return {
-            filteredData: recalculateAccumulated(rawData, actualStartDate, lastDate),
-            startDateLabel: format(actualStartDate, 'MMMM yyyy', { locale: es })
+            filteredData: calculateAccumulatedFromPeriod(startDate, lastIPCDate),
+            startDateLabel: format(startDate, 'MMMM yyyy', { locale: es })
         };
-    }, [rawData, selectedPeriod, customStartDate, customEndDate]);
+    }, [rawIPC, rawTC, selectedPeriod, customStartDate, customEndDate]);
 
-    // Recalculate accumulated values starting from 0 at the given start date
-    function recalculateAccumulated(data: AccumulatedData[], startDate: Date, endDate: Date): AccumulatedData[] {
-        // Filter to date range
-        const rangeData = data.filter(d => {
-            const date = new Date(d.date);
-            return date >= startDate && date <= endDate;
+    // Calculate accumulated inflation/devaluation starting from a specific period
+    // CRITICAL: Includes the PREVIOUS month as baseline (0%)
+    function calculateAccumulatedFromPeriod(startDate: Date, endDate: Date): AccumulatedData[] {
+        // Convert dates to month keys for easier comparison
+        const startMonthKey = format(startDate, 'yyyy-MM');
+        const endMonthKey = format(endDate, 'yyyy-MM');
+
+        // Find index of start month in IPC data
+        const startIndex = rawIPC.findIndex(d => d.date.startsWith(startMonthKey));
+        if (startIndex === -1) return [];
+
+        // Get the PREVIOUS month as baseline (will be 0%)
+        // If we're filtering for 2025 (Jan), we want Dec 2024 as baseline
+        const baselineIndex = Math.max(0, startIndex - 1);
+        const baselineDate = rawIPC[baselineIndex].date;
+        const baselineMonthKey = baselineDate.slice(0, 7);
+
+        // Get baseline TC for devaluation calculation
+        const baselineTC = rawTC.find(d => d.date.startsWith(baselineMonthKey));
+        if (!baselineTC) return [];
+
+        const baseTCValue = baselineTC.value;
+
+        // Build accumulated data starting from baseline
+        const result: AccumulatedData[] = [];
+        let accumulatedInflation = 1; // Start at 1 (100%)
+
+        // First point: baseline month with 0%
+        result.push({
+            date: baselineDate,
+            inflacionAcumulada: 0,
+            devaluacionAcumulada: 0
         });
 
-        if (rangeData.length === 0) return [];
+        // Iterate from baseline+1 to end, compounding inflation
+        for (let i = baselineIndex + 1; i < rawIPC.length; i++) {
+            const currentMonth = rawIPC[i];
+            const currentMonthKey = currentMonth.date.slice(0, 7);
 
-        // Get the base values at the start date - these will be subtracted to normalize to 0
-        const baseInflacion = rangeData[0].inflacionAcumulada;
-        const baseDevaluacion = rangeData[0].devaluacionAcumulada;
+            // Stop if we've passed the end date
+            if (currentMonthKey > endMonthKey) break;
 
-        // CRITICAL: Recalculate accumulated values relative to the start date
-        // The first point MUST be exactly 0%, subsequent points show change from that baseline
-        return rangeData.map((d, index) => ({
-            date: d.date,
-            // For the first point, force to exactly 0 to avoid floating point errors
-            inflacionAcumulada: index === 0 ? 0 : d.inflacionAcumulada - baseInflacion,
-            devaluacionAcumulada: index === 0 ? 0 : d.devaluacionAcumulada - baseDevaluacion
-        }));
+            // Get previous month's IPC for compounding
+            const prevIPC = rawIPC[i - 1].value;
+
+            // Compound: multiply by (1 + prev_month_ipc%)
+            accumulatedInflation *= (1 + prevIPC / 100);
+
+            // Get TC for this month
+            const currentTC = rawTC.find(d => d.date.startsWith(currentMonthKey));
+            if (!currentTC) continue;
+
+            // Devaluation: percentage change from baseline
+            const devaluacion = ((currentTC.value - baseTCValue) / baseTCValue) * 100;
+
+            result.push({
+                date: currentMonth.date,
+                inflacionAcumulada: (accumulatedInflation - 1) * 100,
+                devaluacionAcumulada: devaluacion
+            });
+        }
+
+        return result;
     }
 
     // Calculate dynamic Y-axis domain
@@ -164,8 +232,8 @@ export default function AccumulatedChart() {
     const diff = latest.devaluacionAcumulada - latest.inflacionAcumulada;
 
     // Get available date range for custom selector
-    const minDate = rawData[0]?.date ? format(new Date(rawData[0].date), 'yyyy-MM') : '';
-    const maxDate = rawData[rawData.length - 1]?.date ? format(new Date(rawData[rawData.length - 1].date), 'yyyy-MM') : '';
+    const minDate = rawIPC[0]?.date ? format(new Date(rawIPC[0].date), 'yyyy-MM') : '';
+    const maxDate = rawIPC[rawIPC.length - 1]?.date ? format(new Date(rawIPC[rawIPC.length - 1].date), 'yyyy-MM') : '';
 
     return (
         <Card className="bg-slate-950 border-slate-800">
@@ -183,7 +251,7 @@ export default function AccumulatedChart() {
 
                     {/* Period Selector */}
                     <div className="flex gap-2">
-                        {(['1Y', '3Y', '5Y', 'ALL'] as Period[]).map((period) => (
+                        {(['YTD', '3Y', '5Y', 'ALL'] as Period[]).map((period) => (
                             <button
                                 key={period}
                                 onClick={() => setSelectedPeriod(period)}

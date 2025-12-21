@@ -6,8 +6,8 @@ export async function POST(request: Request) {
     try {
         const { startDate, endDate } = await request.json();
 
-        // Default to last 2 years if not specified
-        const start = startDate || '2023-01-01';
+        // Default to from 2015 to match IPC data range
+        const start = startDate || '2015-01-01';
         const end = endDate || new Date().toISOString().split('T')[0];
 
         // Fetch from Ambito
