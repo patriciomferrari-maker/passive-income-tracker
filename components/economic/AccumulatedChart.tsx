@@ -133,15 +133,36 @@ export default function AccumulatedChart() {
         const startIndex = rawIPC.findIndex(d => d.date.startsWith(startMonthKey));
         if (startIndex === -1) return [];
 
-        // Get the PREVIOUS month as baseline (will be 0%)
+        // Try to get the PREVIOUS month as baseline (will be 0%)
         // If we're filtering for 2025 (Jan), we want Dec 2024 as baseline
-        const baselineIndex = Math.max(0, startIndex - 1);
-        const baselineDate = rawIPC[baselineIndex].date;
-        const baselineMonthKey = baselineDate.slice(0, 7);
+        let baselineIndex = Math.max(0, startIndex - 1);
+        let baselineDate = rawIPC[baselineIndex].date;
+        let baselineMonthKey = baselineDate.slice(0, 7);
 
-        // Get baseline TC for devaluation calculation
-        const baselineTC = rawTC.find(d => d.date.startsWith(baselineMonthKey));
-        if (!baselineTC) return [];
+        // CRITICAL FIX: Find first month where BOTH IPC and TC exist
+        // This handles cases where TC data doesn't exist for early months
+        let baselineTC = rawTC.find(d => d.date.startsWith(baselineMonthKey));
+
+        // If baseline month doesn't have TC, find the FIRST month that has both
+        if (!baselineTC && baselineIndex === 0) {
+            // For "ALL" view starting very early, find first valid month
+            for (let i = 0; i < rawIPC.length; i++) {
+                const monthKey = rawIPC[i].date.slice(0, 7);
+                const tc = rawTC.find(d => d.date.startsWith(monthKey));
+                if (tc) {
+                    baselineIndex = i;
+                    baselineDate = rawIPC[i].date;
+                    baselineMonthKey = monthKey;
+                    baselineTC = tc;
+                    break;
+                }
+            }
+        }
+
+        if (!baselineTC) {
+            console.error('No TC data found for any month in range');
+            return [];
+        }
 
         const baseTCValue = baselineTC.value;
 
@@ -172,7 +193,13 @@ export default function AccumulatedChart() {
 
             // Get TC for this month
             const currentTC = rawTC.find(d => d.date.startsWith(currentMonthKey));
-            if (!currentTC) continue;
+
+            // If no TC data for this month, skip adding the point but continue compounding
+            // This allows inflation to accumulate even if TC data is sparse
+            if (!currentTC) {
+                console.warn(`Missing TC data for ${currentMonthKey}, skipping point but continuing accumulation`);
+                continue;
+            }
 
             // Devaluation: percentage change from baseline
             const devaluacion = ((currentTC.value - baseTCValue) / baseTCValue) * 100;
