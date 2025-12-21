@@ -105,6 +105,9 @@ export default function AdminPage() {
                 {/* IPC Card */}
                 <IPCCard />
 
+                {/* IPC Cleanup Card */}
+                <CleanupIPCDuplicatesCard />
+
                 {/* UVA Card */}
                 <UVACard />
 
@@ -594,6 +597,197 @@ function CedearCard() {
                         </div>
                     </div>
                 )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function CleanupIPCDuplicatesCard() {
+    const [status, setStatus] = useState<{
+        hasDuplicates: boolean;
+        totalRecords: number;
+        duplicateMonths: number;
+    } | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [cleanupResult, setCleanupResult] = useState<any>(null);
+    const [showConfirm, setShowConfirm] = useState(false);
+
+    // Check for duplicates on mount
+    useEffect(() => {
+        checkStatus();
+    }, []);
+
+    const checkStatus = async () => {
+        try {
+            const res = await fetch('/api/admin/cleanup-ipc-duplicates');
+            const data = await res.json();
+            setStatus(data);
+        } catch (error) {
+            console.error('Failed to check duplicate status:', error);
+        }
+    };
+
+    const runDryRun = async () => {
+        setLoading(true);
+        setCleanupResult(null);
+        try {
+            const res = await fetch('/api/admin/cleanup-ipc-duplicates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dryRun: true })
+            });
+            const data = await res.json();
+            setCleanupResult(data);
+            setShowConfirm(true);
+        } catch (error) {
+            setCleanupResult({ error: 'Failed to run dry run' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const executeCleanup = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/admin/cleanup-ipc-duplicates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dryRun: false, confirm: true })
+            });
+            const data = await res.json();
+            setCleanupResult(data);
+            setShowConfirm(false);
+
+            // Refresh status after cleanup
+            setTimeout(() => checkStatus(), 1000);
+        } catch (error) {
+            setCleanupResult({ error: 'Failed to execute cleanup' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="text-slate-100 text-lg">Limpiar Duplicados IPC</CardTitle>
+                    {status?.hasDuplicates ? (
+                        <Badge variant="secondary" className="bg-red-900 text-red-400">Issues Found</Badge>
+                    ) : (
+                        <Badge variant="secondary" className="bg-emerald-900 text-emerald-400">Clean</Badge>
+                    )}
+                </div>
+                <CardDescription className="text-slate-400 text-xs">
+                    Herramienta de mantenimiento para eliminar registros duplicados de IPC
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-hidden flex flex-col gap-4">
+                {/* Status Panel */}
+                {status && (
+                    <div className="bg-slate-950/50 p-3 rounded-md border border-slate-800 text-xs space-y-2">
+                        <div className="flex justify-between">
+                            <span className="text-slate-400">Total registros:</span>
+                            <span className="font-bold text-slate-200">{status.totalRecords}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-slate-400">Meses únicos:</span>
+                            <span className="font-bold text-slate-200">{status.totalRecords - status.duplicateMonths}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-slate-400">Meses duplicados:</span>
+                            <span className={`font-bold ${status.hasDuplicates ? 'text-red-400' : 'text-green-400'}`}>
+                                {status.duplicateMonths}
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Result Panel */}
+                {cleanupResult && (
+                    <div className="flex-1 overflow-y-auto bg-slate-950/50 p-3 rounded-md border border-slate-800 text-xs">
+                        {cleanupResult.error ? (
+                            <div className="text-red-400">❌ {cleanupResult.error}</div>
+                        ) : cleanupResult.dryRun ? (
+                            <div className="space-y-2">
+                                <div className="text-yellow-400">🔍 Dry Run - Preview</div>
+                                <div className="text-slate-300">
+                                    Se eliminarían <strong>{cleanupResult.report?.totalToDelete || 0}</strong> registros duplicados
+                                </div>
+                                {cleanupResult.report?.details?.slice(0, 5).map((d: any, i: number) => (
+                                    <div key={i} className="text-[10px] text-slate-400 pl-2">
+                                        {d.month}: Mantener {d.keep.date}, eliminar {d.remove.length}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : cleanupResult.success ? (
+                            <div className="space-y-2">
+                                <div className="text-green-400">✅ Cleanup Exitoso</div>
+                                <div className="text-slate-300">
+                                    Eliminados: <strong>{cleanupResult.deleted}</strong> registros
+                                </div>
+                                <div className="text-slate-300">
+                                    Restantes: <strong>{cleanupResult.remaining}</strong> registros
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+                )}
+
+                {/* Actions */}
+                <div className="space-y-2">
+                    {!showConfirm ? (
+                        <>
+                            <Button
+                                onClick={checkStatus}
+                                disabled={loading}
+                                className="w-full bg-blue-600 hover:bg-blue-700"
+                                size="sm"
+                            >
+                                <RefreshCw className={`mr-2 h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+                                Verificar Estado
+                            </Button>
+                            <Button
+                                onClick={runDryRun}
+                                disabled={loading || !status?.hasDuplicates}
+                                className="w-full bg-yellow-600 hover:bg-yellow-700"
+                                size="sm"
+                            >
+                                🔍 Dry Run (Preview)
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button
+                                onClick={executeCleanup}
+                                disabled={loading}
+                                className="w-full bg-red-600 hover:bg-red-700"
+                                size="sm"
+                            >
+                                <AlertCircle className="mr-2 h-3 w-3" />
+                                Confirmar y Ejecutar
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    setShowConfirm(false);
+                                    setCleanupResult(null);
+                                }}
+                                disabled={loading}
+                                variant="outline"
+                                className="w-full"
+                                size="sm"
+                            >
+                                Cancelar
+                            </Button>
+                        </>
+                    )}
+                </div>
+
+                <div className="text-[10px] text-slate-500 space-y-1 pt-2 border-t border-slate-800">
+                    <p>• <strong>Verificar</strong>: Revisa el estado actual</p>
+                    <p>• <strong>Dry Run</strong>: Muestra qué se eliminará</p>
+                    <p>• <strong>Ejecutar</strong>: Elimina duplicados (irreversible)</p>
+                </div>
             </CardContent>
         </Card>
     );
