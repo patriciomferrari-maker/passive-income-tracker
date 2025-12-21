@@ -57,47 +57,68 @@ export async function GET() {
             ...Array.from(tcMonthlyAvg.keys())
         ])).sort();
 
-        // Calculate accumulated values (base = 100 at first available month)
+        // Calculate accumulated values starting from 0% at first common month
         const data: Array<{ date: string; inflacionAcumulada: number; devaluacionAcumulada: number }> = [];
 
-        let baseIPC: number | null = null;
-        let baseTC: number | null = null;
-        let accumulatedIPC = 100;
-        let accumulatedTC = 100;
+        // Find first month where BOTH IPC and TC are available
+        let startIndex = -1;
+        for (let i = 0; i < allMonths.length; i++) {
+            if (ipcByMonth.has(allMonths[i]) && tcMonthlyAvg.has(allMonths[i])) {
+                startIndex = i;
+                break;
+            }
+        }
 
-        allMonths.forEach((monthKey, index) => {
+        if (startIndex === -1) {
+            return NextResponse.json({ data: [] });
+        }
+
+        // Get base TC for devaluation calculation
+        const baseTC = tcMonthlyAvg.get(allMonths[startIndex])!;
+
+        // Build accumulated data
+        let accumulatedInflation = 1; // Start at 1 (represents 100%)
+
+        for (let i = startIndex; i < allMonths.length; i++) {
+            const monthKey = allMonths[i];
             const ipcValue = ipcByMonth.get(monthKey);
             const tcValue = tcMonthlyAvg.get(monthKey);
 
-            // Set base values on first month where both are available
-            if (baseIPC === null && ipcValue !== undefined && tcValue !== undefined) {
-                baseIPC = ipcValue;
-                baseTC = tcValue;
+            // Skip months where either value is missing
+            if (ipcValue === undefined || tcValue === undefined) {
+                continue;
             }
 
-            // Calculate accumulated only if we have base values
-            if (baseIPC && baseTC && ipcValue !== undefined && tcValue !== undefined) {
-                // For IPC, it's monthly variation, so we compound it
-                if (index > 0) {
-                    const prevMonth = allMonths[index - 1];
-                    const prevIPC = ipcByMonth.get(prevMonth);
-                    if (prevIPC !== undefined) {
-                        accumulatedIPC *= (1 + ipcValue / 100);
-                    }
+            // For first month: 0%
+            // For second month: IPC of first month
+            // For third month onwards: compound
+            if (i === startIndex) {
+                // First month: 0%
+                data.push({
+                    date: `${monthKey}-01`,
+                    inflacionAcumulada: 0,
+                    devaluacionAcumulada: 0
+                });
+            } else {
+                // Get previous month's IPC for compounding
+                const prevMonthKey = allMonths[i - 1];
+                const prevIPC = ipcByMonth.get(prevMonthKey);
 
-                    const prevTC = tcMonthlyAvg.get(prevMonth);
-                    if (prevTC !== undefined) {
-                        accumulatedTC = (tcValue / baseTC) * 100;
-                    }
+                if (prevIPC !== undefined) {
+                    // Compound: multiply by (1 + prev_month_ipc%)
+                    accumulatedInflation *= (1 + prevIPC / 100);
                 }
+
+                // Devaluation: simple percentage from base
+                const devaluacion = ((tcValue - baseTC) / baseTC) * 100;
 
                 data.push({
                     date: `${monthKey}-01`,
-                    inflacionAcumulada: accumulatedIPC - 100, // Convert back to percentage
-                    devaluacionAcumulada: accumulatedTC - 100
+                    inflacionAcumulada: (accumulatedInflation - 1) * 100, // Convert to percentage
+                    devaluacionAcumulada: devaluacion
                 });
             }
-        });
+        }
 
         return NextResponse.json({ data });
     } catch (error) {
