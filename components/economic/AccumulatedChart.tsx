@@ -185,11 +185,11 @@ export default function AccumulatedChart() {
             // Stop if we've passed the end date
             if (currentMonthKey > endMonthKey) break;
 
-            // Get previous month's IPC for compounding
-            const prevIPC = rawIPC[i - 1].value;
+            // Get CURRENT month's IPC for compounding
+            const currentIPC = rawIPC[i].value;
 
-            // Compound: multiply by (1 + prev_month_ipc%)
-            accumulatedInflation *= (1 + prevIPC / 100);
+            // Compound: multiply by (1 + current_month_ipc%)
+            accumulatedInflation *= (1 + currentIPC / 100);
 
             // Get TC for this month
             const currentTC = rawTC.find(d => d.date.startsWith(currentMonthKey));

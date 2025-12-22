@@ -444,8 +444,8 @@ function IPCCard() {
                     </div>
                     <div className="flex-1 overflow-y-auto">
                         {inflationData.length > 0 ? (
-                            inflationData.map((item, i) => (
-                                <div key={i} className="grid grid-cols-4 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
+                            inflationData.map((item) => (
+                                <div key={`${item.year}-${item.month}`} className="grid grid-cols-4 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
                                     <span className="text-slate-300">{item.year}</span>
                                     <span className="text-slate-500">{getMonthName(item.month)}</span>
                                     <span className="text-right font-bold text-slate-200">{item.value.toFixed(1)}%</span>
