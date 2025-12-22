@@ -233,6 +233,7 @@ export async function GET() {
         return NextResponse.json({
             needsOnboarding,
             enabledSections,
+            userEmail: user?.email,
             on: {
                 count: onCount,
                 totalInvested: onTotalInvested // This is now Market Value

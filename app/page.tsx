@@ -36,6 +36,7 @@ interface DashboardStats {
     }>;
   };
   enabledSections?: string[];
+  userEmail?: string;
 }
 
 export default function HomePage() {
@@ -255,14 +256,16 @@ export default function HomePage() {
                           />
                         )}
 
-                        {/* Economic Data - Now in grid */}
-                        <DashboardCard
-                          title="Datos Económicos"
-                          description="Inflación, devaluación y UVA"
-                          icon="📈"
-                          href="/datos-economicos"
-                          enabled={true}
-                        />
+                        {/* Economic Data - Restricted to admin only */}
+                        {stats.userEmail === 'patriciomferrari@gmail.com' && (
+                          <DashboardCard
+                            title="Datos Económicos"
+                            description="Inflación, devaluación y UVA"
+                            icon="📈"
+                            href="/datos-economicos"
+                            enabled={true}
+                          />
+                        )}
 
                         {/* Costa Card - Only show if specifically allowed OR legacy (showAll) */}
                         {(showAll || shouldShow('costa')) && (
