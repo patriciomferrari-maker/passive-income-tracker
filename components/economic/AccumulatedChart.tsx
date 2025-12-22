@@ -97,8 +97,9 @@ export default function AccumulatedChart() {
         // Preset periods - calculate start month
         switch (selectedPeriod) {
             case 'YTD':
-                // Year to date: from Jan of current year
-                startMonth = `${currentYear}-01`;
+                // Year to date: from DECEMBER of previous year (as baseline 0%)
+                // So for 2025, we start at Dec 2024
+                startMonth = `${currentYear - 1}-12`;
                 break;
             case '3Y':
                 startMonth = `${currentYear - 3}-${String(today.getMonth() + 1).padStart(2, '0')}`;
