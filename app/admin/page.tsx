@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -410,14 +410,37 @@ function DollarCard() {
 
 function IPCCard() {
     const [inflationData, setInflationData] = useState<any[]>([]);
+    const fetchedRef = useRef(false);
 
     useEffect(() => {
+        if (fetchedRef.current) {
+            console.log('[IPCCard] Already fetched, skipping');
+            return;
+        }
+        fetchedRef.current = true;
+
+        console.log('[IPCCard] Fetching inflation data...');
         fetch('/api/admin/inflation')
             .then(res => res.json())
             .then(data => {
-                if (Array.isArray(data)) setInflationData(data);
+                console.log('[IPCCard] Raw data length:', data.length);
+                if (Array.isArray(data)) {
+                    // AGGRESSIVE deduplication
+                    const seen = new Set<string>();
+                    const unique = data.filter(item => {
+                        const key = `${item.year}-${item.month}`;
+                        if (seen.has(key)) {
+                            console.log(`[IPCCard] Duplicate found: ${key}`);
+                            return false;
+                        }
+                        seen.add(key);
+                        return true;
+                    });
+                    console.log('[IPCCard] After dedup:', unique.length, 'unique records');
+                    setInflationData(unique);
+                }
             })
-            .catch(err => console.error(err));
+            .catch(err => console.error('[IPCCard] Error:', err));
     }, []);
 
     return (
