@@ -76,48 +76,51 @@ export default function AccumulatedChart() {
     const { filteredData, startDateLabel } = useMemo(() => {
         if (rawIPC.length === 0 || rawTC.length === 0) return { filteredData: [], startDateLabel: '' };
 
-        let cutoffDate: Date;
+        // Work with year-month strings instead of Date objects
+        const firstIPCMonth = rawIPC[0].date.slice(0, 7); // "YYYY-MM"
+        const lastIPCMonth = rawIPC[rawIPC.length - 1].date.slice(0, 7); // "YYYY-MM"
+
+        let startMonth: string;
         const today = new Date();
-        const firstIPCDate = new Date(rawIPC[0].date);
-        const lastIPCDate = new Date(rawIPC[rawIPC.length - 1].date);
+        const currentYear = today.getFullYear();
 
-        // Determine the date range based on selected period
+        // Determine the date range based on selected period (using year-month strings)
         if (selectedPeriod === 'CUSTOM' && customStartDate && customEndDate) {
-            const customStart = parse(customStartDate, 'yyyy-MM', new Date());
-            const customEnd = parse(customEndDate, 'yyyy-MM', new Date());
-
+            const customStart = new Date(customStartDate);
+            const customEnd = new Date(customEndDate);
             return {
                 filteredData: calculateAccumulatedFromPeriod(customStart, customEnd),
                 startDateLabel: format(customStart, 'MMMM yyyy', { locale: es })
             };
         }
 
-        // Preset periods
+        // Preset periods - calculate start month
         switch (selectedPeriod) {
             case 'YTD':
-                // Year to date: from Jan 1st of current year
-                cutoffDate = new Date(today.getFullYear(), 0, 1);
+                // Year to date: from Jan of current year
+                startMonth = `${currentYear}-01`;
                 break;
             case '3Y':
-                cutoffDate = subYears(today, 3);
+                startMonth = `${currentYear - 3}-${String(today.getMonth() + 1).padStart(2, '0')}`;
                 break;
             case '5Y':
-                cutoffDate = subYears(today, 5);
+                startMonth = `${currentYear - 5}-${String(today.getMonth() + 1).padStart(2, '0')}`;
                 break;
             case 'ALL':
             default:
-                cutoffDate = firstIPCDate;
+                startMonth = firstIPCMonth;
                 break;
         }
 
-        // Find the closest available month to cutoff
-        const startMonth = rawIPC.find(d => new Date(d.date) >= cutoffDate);
-        if (!startMonth) return { filteredData: [], startDateLabel: '' };
+        // Find the first available month >= startMonth
+        const startData = rawIPC.find(d => d.date.slice(0, 7) >= startMonth);
+        if (!startData) return { filteredData: [], startDateLabel: '' };
 
-        const startDate = new Date(startMonth.date);
+        const startDate = new Date(startData.date);
+        const endDate = new Date(rawIPC[rawIPC.length - 1].date); // Use last available month
 
         return {
-            filteredData: calculateAccumulatedFromPeriod(startDate, lastIPCDate),
+            filteredData: calculateAccumulatedFromPeriod(startDate, endDate),
             startDateLabel: format(startDate, 'MMMM yyyy', { locale: es })
         };
     }, [rawIPC, rawTC, selectedPeriod, customStartDate, customEndDate]);
