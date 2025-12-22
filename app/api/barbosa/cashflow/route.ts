@@ -77,11 +77,7 @@ export async function GET(req: NextRequest) {
         // Accumulate SubCategory
         structure[type][catName].subs[subName][period] = (structure[type][catName].subs[subName][period] || 0) + amount;
 
-        // Accumulate Category
-        structure[type][catName].total[period] = (structure[type][catName].total[period] || 0) + amount;
-
-        // ... (existing accumulation logic)
-        // Accumulate Category
+        // Accumulate Category Total
         structure[type][catName].total[period] = (structure[type][catName].total[period] || 0) + amount;
     });
 
