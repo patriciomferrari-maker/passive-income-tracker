@@ -283,7 +283,7 @@ export default function HomePage() {
 
                         {(showAll || shouldShow('barbosa')) && (
                           <DashboardCard
-                            title="Barbosa"
+                            title="Hogar"
                             description="Gastos y Limpieza"
                             icon="🏠"
                             href="/barbosa"

@@ -38,7 +38,7 @@ export default function BarbosaPage() {
                             </Button>
                         </Link>
                         <h1 className="text-4xl font-bold text-white mb-2">
-                            🏠 Barbosa
+                            🏠 Hogar
                         </h1>
                         <p className="text-slate-400">
                             Gestión de gastos, limpieza y mantenimiento
