@@ -144,7 +144,7 @@ export default function AccumulatedChart() {
         let baselineTC = rawTC.find(d => d.date.startsWith(baselineMonthKey));
 
         // If baseline month doesn't have TC, find the FIRST month that has both
-        if (!baselineTC && baselineIndex === 0) {
+        if (!baselineTC) {
             // For "ALL" view starting very early, find first valid month
             for (let i = 0; i < rawIPC.length; i++) {
                 const monthKey = rawIPC[i].date.slice(0, 7);
