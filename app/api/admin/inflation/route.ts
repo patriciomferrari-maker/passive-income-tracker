@@ -8,24 +8,35 @@ export async function GET() {
         // Fetch from EconomicIndicator (which has interannualValue)
         const data = await prisma.economicIndicator.findMany({
             where: { type: 'IPC' },
-            orderBy: { date: 'desc' },
-            select: {
-                date: true,
-                value: true,
-                interannualValue: true
-            }
+            orderBy: { date: 'desc' }
         });
 
         // Transform to match expected format (year, month, value, interannualValue)
-        const formatted = data.map(item => {
+        const allFormatted = data.map(item => {
             const date = new Date(item.date);
             return {
                 year: date.getFullYear(),
                 month: date.getMonth() + 1, // 1-indexed
                 value: item.value,
-                interannualValue: item.interannualValue
+                interannualValue: item.interannualValue,
+                _date: item.date // Keep original for sorting
             };
         });
+
+        // ENFORCE: ONE RECORD PER MONTH (keep most recent)
+        const uniqueByMonth = new Map();
+        allFormatted.forEach(item => {
+            const key = `${item.year}-${item.month}`;
+            const existing = uniqueByMonth.get(key);
+
+            // Keep the one with the latest date
+            if (!existing || item._date > existing._date) {
+                uniqueByMonth.set(key, item);
+            }
+        });
+
+        // Remove _date field and return
+        const formatted = Array.from(uniqueByMonth.values()).map(({ _date, ...rest }) => rest);
 
         return NextResponse.json(formatted);
     } catch (error) {

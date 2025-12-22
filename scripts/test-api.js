@@ -1,44 +1,29 @@
-const fetch = require('node-fetch');
-
 async function testAPI() {
     try {
         const res = await fetch('http://localhost:3000/api/admin/inflation');
         const data = await res.json();
 
-        const data2025 = data.filter(x => x.year === 2025);
+        console.log(`\nTotal records from API: ${data.length}\n`);
 
-        console.log(`Total records from API: ${data.length}`);
-        console.log(`2025 records: ${data2025.length}\n`);
-
-        console.log('2025 Data from API:');
-        data2025.forEach(d => {
-            console.log(`${d.year}-${String(d.month).padStart(2, '0')} | ${d.value}%`);
+        // Group by year-month
+        const grouped = {};
+        data.forEach(d => {
+            const key = `${d.year}-${d.month.toString().padStart(2, '0')}`;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(d);
         });
 
-        // Check for duplicates
-        const byMonth = {};
-        data2025.forEach(d => {
-            const key = `${d.year}-${String(d.month).padStart(2, '0')}`;
-            if (!byMonth[key]) byMonth[key] = 0;
-            byMonth[key]++;
-        });
-
-        console.log('\n\nDuplicate months:');
-        Object.entries(byMonth).forEach(([month, count]) => {
-            if (count > 1) {
-                console.log(`❌ ${month}: ${count} times`);
+        console.log('Records per month:\n');
+        Object.keys(grouped).sort().reverse().slice(0, 15).forEach(key => {
+            console.log(`${key}: ${grouped[key].length} record(s)`);
+            if (grouped[key].length > 1) {
+                grouped[key].forEach((d, i) => {
+                    console.log(`  [${i}] Value: ${d.value}, Interannual: ${d.interannualValue}`);
+                });
             }
         });
-
-        const dupes = Object.values(byMonth).filter(c => c > 1);
-        if (dupes.length === 0) {
-            console.log('✅ No duplicates in API response');
-        } else {
-            console.log(`❌ Found ${dupes.length} duplicate months`);
-        }
-
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error:', error.message);
     }
 }
 
