@@ -91,8 +91,9 @@ export default function AccumulatedChart() {
             const customStart = new Date(`${customStartDate}-15`);
             const customEnd = new Date(`${customEndDate}-15`);
             return {
-                // For CUSTOM: use selected start month AS baseline (not previous month)
-                filteredData: calculateAccumulatedFromPeriod(customStart, customEnd, true),
+                // For CUSTOM: use PREVIOUS month as baseline to see both start and end dates
+                // Example: Oct 2023 - Nov 2025 shows Sept 2023 (0%) to Nov 2025
+                filteredData: calculateAccumulatedFromPeriod(customStart, customEnd, false),
                 startDateLabel: format(customStart, 'MMMM yyyy', { locale: es })
             };
         }
