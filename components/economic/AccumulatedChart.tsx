@@ -120,15 +120,19 @@ export default function AccumulatedChart() {
         const startDate = new Date(startData.date);
         const endDate = new Date(rawIPC[rawIPC.length - 1].date); // Use last available month
 
+        // For YTD: use December AS the baseline (not previous month)
+        const useAsBaseline = selectedPeriod === 'YTD';
+
         return {
-            filteredData: calculateAccumulatedFromPeriod(startDate, endDate),
+            filteredData: calculateAccumulatedFromPeriod(startDate, endDate, useAsBaseline),
             startDateLabel: format(startDate, 'MMMM yyyy', { locale: es })
         };
     }, [rawIPC, rawTC, selectedPeriod, customStartDate, customEndDate]);
 
     // Calculate accumulated inflation/devaluation starting from a specific period
-    // CRITICAL: Includes the PREVIOUS month as baseline (0%)
-    function calculateAccumulatedFromPeriod(startDate: Date, endDate: Date): AccumulatedData[] {
+    // For YTD: startDate IS the baseline month (December)
+    // For other periods: uses previous month as baseline
+    function calculateAccumulatedFromPeriod(startDate: Date, endDate: Date, useAsBaseline = false): AccumulatedData[] {
         // Convert dates to month keys for easier comparison
         const startMonthKey = format(startDate, 'yyyy-MM');
         const endMonthKey = format(endDate, 'yyyy-MM');
@@ -137,9 +141,18 @@ export default function AccumulatedChart() {
         const startIndex = rawIPC.findIndex(d => d.date.startsWith(startMonthKey));
         if (startIndex === -1) return [];
 
-        // Try to get the PREVIOUS month as baseline (will be 0%)
-        // If we're filtering for 2025 (Jan), we want Dec 2024 as baseline
-        let baselineIndex = Math.max(0, startIndex - 1);
+        // Baseline logic:
+        // - If useAsBaseline=true: use startDate month AS the baseline
+        // - Otherwise: use PREVIOUS month as baseline
+        let baselineIndex: number;
+        if (useAsBaseline) {
+            // Use the start month itself as baseline (for YTD)
+            baselineIndex = startIndex;
+        } else {
+            // Use previous month as baseline (for other periods)
+            baselineIndex = Math.max(0, startIndex - 1);
+        }
+
         let baselineDate = rawIPC[baselineIndex].date;
         let baselineMonthKey = baselineDate.slice(0, 7);
 
