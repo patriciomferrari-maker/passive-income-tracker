@@ -36,19 +36,21 @@ export default function UVAEvolutionChart() {
     useEffect(() => {
         // Fetch all raw data in parallel
         Promise.all([
-            // UVA data
+            // UVA data - returns array directly
             fetch('/api/economic-data/uva').then(res => res.json()),
-            // IPC data
+            // IPC data - returns array directly
             fetch('/api/admin/inflation').then(res => res.json()),
-            // TC Blue data
-            fetch('/api/admin/economic').then(res => res.json())
+            // TC Blue data - returns array directly
+            fetch('/api/admin/economic').then(res => res.json()),
+            // TC Oficial data - returns array directly
+            fetch('/api/economic-data/tc-oficial').then(res => res.json())
         ])
-            .then(([uvaResult, ipcData, economicData]) => {
-                // Process UVA (daily, need monthly average or end-of-month)
-                const uvaProcessed = (uvaResult.data || []).map((item: any) => ({
-                    date: item.date.includes('T') ? item.date.split('T')[0] : item.date,
-                    value: item.value
-                })).sort((a, b) => a.date.localeCompare(b.date));
+            .then(([uvaData, ipcData, tcBlueData, tcOficialData]) => {
+                // Process UVA (daily, need monthly - last value of each month)
+                const uvaProcessed = (Array.isArray(uvaData) ? uvaData : []).map((item: any) => {
+                    const dateStr = item.date.includes('T') ? item.date.split('T')[0] : item.date;
+                    return { date: dateStr, value: item.value };
+                }).sort((a, b) => a.date.localeCompare(b.date));
 
                 // Get monthly UVA (last value of each month)
                 const uvaMonthly = uvaProcessed.reduce((acc: any[], item: any) => {
@@ -65,43 +67,47 @@ export default function UVAEvolutionChart() {
                 setRawUVA(uvaMonthly);
 
                 // Process IPC (monthly)
-                const ipcProcessed = (ipcData || []).map((item: any) => ({
+                const ipcProcessed = (Array.isArray(ipcData) ? ipcData : []).map((item: any) => ({
                     date: `${item.year}-${String(item.month).padStart(2, '0')}-15`,
                     value: item.value
                 })).sort((a, b) => a.date.localeCompare(b.date));
                 setRawIPC(ipcProcessed);
 
-                // Process TC data - separate Blue and Oficial
-                const tcBlue: any[] = [];
-                const tcOficial: any[] = [];
-
-                (economicData || []).forEach((item: any) => {
+                // Process TC Blue (daily, need monthly - last value of each month)
+                const tcBlueProcessed = (Array.isArray(tcBlueData) ? tcBlueData : []).map((item: any) => {
                     const dateStr = item.date.includes('T') ? item.date.split('T')[0] : item.date;
+                    return { date: dateStr, value: item.sellRate || item.value };
+                }).sort((a, b) => a.date.localeCompare(b.date));
 
-                    if (item.type === 'TC_USD_ARS') {
-                        tcBlue.push({ date: dateStr, value: item.sellRate || item.value });
-                    } else if (item.type === 'TC_OFICIAL') {
-                        tcOficial.push({ date: dateStr, value: item.sellRate || item.value });
+                const tcBlueMonthly = tcBlueProcessed.reduce((acc: any[], item: any) => {
+                    const monthKey = item.date.slice(0, 7);
+                    const existing = acc.find(x => x.date.startsWith(monthKey));
+                    if (!existing) {
+                        acc.push({ date: `${monthKey}-15`, value: item.value });
+                    } else {
+                        existing.value = item.value;
                     }
-                });
+                    return acc;
+                }, []).sort((a, b) => a.date.localeCompare(b.date));
+                setRawTCBlue(tcBlueMonthly);
 
-                // Get monthly TC (average or last value of month)
-                const getTCMonthly = (tcData: any[]) => {
-                    return tcData.sort((a, b) => a.date.localeCompare(b.date))
-                        .reduce((acc: any[], item: any) => {
-                            const monthKey = item.date.slice(0, 7);
-                            const existing = acc.find(x => x.date.startsWith(monthKey));
-                            if (!existing) {
-                                acc.push({ date: `${monthKey}-15`, value: item.value });
-                            } else {
-                                existing.value = item.value;
-                            }
-                            return acc;
-                        }, []).sort((a, b) => a.date.localeCompare(b.date));
-                };
+                // Process TC Oficial (daily, need monthly - last value of each month)
+                const tcOficialProcessed = (Array.isArray(tcOficialData) ? tcOficialData : []).map((item: any) => {
+                    const dateStr = item.date.includes('T') ? item.date.split('T')[0] : item.date;
+                    return { date: dateStr, value: item.sellRate || item.value };
+                }).sort((a, b) => a.date.localeCompare(b.date));
 
-                setRawTCBlue(getTCMonthly(tcBlue));
-                setRawTCOficial(getTCMonthly(tcOficial));
+                const tcOficialMonthly = tcOficialProcessed.reduce((acc: any[], item: any) => {
+                    const monthKey = item.date.slice(0, 7);
+                    const existing = acc.find(x => x.date.startsWith(monthKey));
+                    if (!existing) {
+                        acc.push({ date: `${monthKey}-15`, value: item.value });
+                    } else {
+                        existing.value = item.value;
+                    }
+                    return acc;
+                }, []).sort((a, b) => a.date.localeCompare(b.date));
+                setRawTCOficial(tcOficialMonthly);
                 setLoading(false);
             })
             .catch(err => {
@@ -284,8 +290,8 @@ export default function UVAEvolutionChart() {
                                 key={period}
                                 onClick={() => setSelectedPeriod(period)}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedPeriod === period
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                                     }`}
                             >
                                 {period}
@@ -294,8 +300,8 @@ export default function UVAEvolutionChart() {
                         <button
                             onClick={() => setSelectedPeriod('CUSTOM')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedPeriod === 'CUSTOM'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                                 }`}
                         >
                             Personalizado
