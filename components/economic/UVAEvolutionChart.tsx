@@ -150,7 +150,7 @@ export default function UVAEvolutionChart() {
             const customStart = new Date(`${customStartDate}-15`);
             const customEnd = new Date(`${customEndDate}-15`);
             return {
-                filteredData: calculatePercentageGrowth(customStart, customEnd, false),
+                filteredData: calculatePercentageGrowth(customStart, customEnd, false, rawUVA, rawIPC, rawTCBlue, rawTCOficial),
                 startDateLabel: format(customStart, 'MMMM yyyy', { locale: es })
             };
         }
@@ -179,22 +179,31 @@ export default function UVAEvolutionChart() {
         const useAsBaseline = selectedPeriod === 'YTD';
 
         return {
-            filteredData: calculatePercentageGrowth(startDate, endDate, useAsBaseline),
+            filteredData: calculatePercentageGrowth(startDate, endDate, useAsBaseline, rawUVA, rawIPC, rawTCBlue, rawTCOficial),
             startDateLabel: format(startDate, 'MMMM yyyy', { locale: es })
         };
     }, [rawUVA, rawIPC, rawTCBlue, rawTCOficial, selectedPeriod, customStartDate, customEndDate]);
 
-    function calculatePercentageGrowth(startDate: Date, endDate: Date, useAsBaseline = false): PercentageGrowthData[] {
+    function calculatePercentageGrowth(
+        startDate: Date,
+        endDate: Date,
+        useAsBaseline: boolean,
+        uvaData: { date: string, value: number }[],
+        ipcData: { date: string, value: number }[],
+        tcBlueData: { date: string, value: number }[],
+        tcOficialData: { date: string, value: number }[]
+    ): PercentageGrowthData[] {
         const startMonthKey = format(startDate, 'yyyy-MM');
         const endMonthKey = format(endDate, 'yyyy-MM');
 
         console.log('[calculatePercentageGrowth] startMonthKey:', startMonthKey, 'endMonthKey:', endMonthKey, 'useAsBaseline:', useAsBaseline);
+        console.log('[calculatePercentageGrowth] Data lengths:', 'UVA:', uvaData.length, 'IPC:', ipcData.length, 'TCBlue:', tcBlueData.length, 'TCOficial:', tcOficialData.length);
 
         // Find baseline month indices
-        const uvaStartIdx = rawUVA.findIndex(d => d.date.startsWith(startMonthKey));
-        const ipcStartIdx = rawIPC.findIndex(d => d.date.startsWith(startMonthKey));
-        const tcBlueStartIdx = rawTCBlue.findIndex(d => d.date.startsWith(startMonthKey));
-        const tcOficialStartIdx = rawTCOficial.findIndex(d => d.date.startsWith(startMonthKey));
+        const uvaStartIdx = uvaData.findIndex(d => d.date.startsWith(startMonthKey));
+        const ipcStartIdx = ipcData.findIndex(d => d.date.startsWith(startMonthKey));
+        const tcBlueStartIdx = tcBlueData.findIndex(d => d.date.startsWith(startMonthKey));
+        const tcOficialStartIdx = tcOficialData.findIndex(d => d.date.startsWith(startMonthKey));
 
         if (uvaStartIdx === -1 || ipcStartIdx === -1 || tcBlueStartIdx === -1 || tcOficialStartIdx === -1) {
             return [];
@@ -207,16 +216,16 @@ export default function UVAEvolutionChart() {
         let baselineTCOficialIdx = useAsBaseline ? tcOficialStartIdx : Math.max(0, tcOficialStartIdx - 1);
 
         // Get baseline values
-        const baselineUVA = rawUVA[baselineUVAIdx].value;
-        const baselineTCBlue = rawTCBlue[baselineTCBlueIdx].value;
-        const baselineTCOficial = rawTCOficial[baselineTCOficialIdx].value;
+        const baselineUVA = uvaData[baselineUVAIdx].value;
+        const baselineTCBlue = tcBlueData[baselineTCBlueIdx].value;
+        const baselineTCOficial = tcOficialData[baselineTCOficialIdx].value;
 
         const result: PercentageGrowthData[] = [];
         let accumulatedInflation = 1; // For IPC accumulated
 
         // Add baseline point (0% for all)
         result.push({
-            date: rawUVA[baselineUVAIdx].date,
+            date: uvaData[baselineUVAIdx].date,
             uvaGrowth: 0,
             tcBlueGrowth: 0,
             tcOficialGrowth: 0,
@@ -224,12 +233,12 @@ export default function UVAEvolutionChart() {
         });
 
         // Calculate from baseline+1 to end
-        const maxIdx = Math.min(rawUVA.length, rawIPC.length, rawTCBlue.length, rawTCOficial.length);
+        const maxIdx = Math.min(uvaData.length, ipcData.length, tcBlueData.length, tcOficialData.length);
         console.log('[calculatePercentageGrowth] Loop from', baselineUVAIdx + 1, 'to', maxIdx);
-        console.log('[calculatePercentageGrowth] rawUVA.length:', rawUVA.length, 'rawIPC.length:', rawIPC.length);
+        console.log('[calculatePercentageGrowth] Array lengths - UVA:', uvaData.length, 'IPC:', ipcData.length, 'TCBlue:', tcBlueData.length, 'TCOficial:', tcOficialData.length);
 
         for (let i = baselineUVAIdx + 1; i < maxIdx; i++) {
-            const currentMonthKey = rawUVA[i].date.slice(0, 7);
+            const currentMonthKey = uvaData[i].date.slice(0, 7);
 
             if (currentMonthKey > endMonthKey) {
                 console.log(`[calculatePercentageGrowth] BREAK at i=${i}, currentMonthKey=${currentMonthKey} > endMonthKey=${endMonthKey}`);
@@ -237,9 +246,9 @@ export default function UVAEvolutionChart() {
             }
 
             // Find corresponding indices in other arrays
-            const ipcIdx = rawIPC.findIndex(d => d.date.startsWith(currentMonthKey));
-            const tcBlueIdx = rawTCBlue.findIndex(d => d.date.startsWith(currentMonthKey));
-            const tcOficialIdx = rawTCOficial.findIndex(d => d.date.startsWith(currentMonthKey));
+            const ipcIdx = ipcData.findIndex(d => d.date.startsWith(currentMonthKey));
+            const tcBlueIdx = tcBlueData.findIndex(d => d.date.startsWith(currentMonthKey));
+            const tcOficialIdx = tcOficialData.findIndex(d => d.date.startsWith(currentMonthKey));
 
             if (ipcIdx === -1 || tcBlueIdx === -1 || tcOficialIdx === -1) {
                 console.log(`[calculatePercentageGrowth] SKIP i=${i}, month=${currentMonthKey}: ipcIdx=${ipcIdx}, tcBlueIdx=${tcBlueIdx}, tcOficialIdx=${tcOficialIdx}`);
@@ -247,22 +256,22 @@ export default function UVAEvolutionChart() {
             }
 
             // Calculate UVA growth %
-            const uvaGrowth = ((rawUVA[i].value - baselineUVA) / baselineUVA) * 100;
+            const uvaGrowth = ((uvaData[i].value - baselineUVA) / baselineUVA) * 100;
 
             // Calculate TC Blue devaluation %
-            const tcBlueGrowth = ((rawTCBlue[tcBlueIdx].value - baselineTCBlue) / baselineTCBlue) * 100;
+            const tcBlueGrowth = ((tcBlueData[tcBlueIdx].value - baselineTCBlue) / baselineTCBlue) * 100;
 
             // Calculate TC Oficial growth %
-            const tcOficialGrowth = ((rawTCOficial[tcOficialIdx].value - baselineTCOficial) / baselineTCOficial) * 100;
+            const tcOficialGrowth = ((tcOficialData[tcOficialIdx].value - baselineTCOficial) / baselineTCOficial) * 100;
 
             // Calculate IPC accumulated (compound from baseline)
             if (ipcIdx > baselineIPCIdx) {
-                accumulatedInflation *= (1 + rawIPC[ipcIdx].value / 100);
+                accumulatedInflation *= (1 + ipcData[ipcIdx].value / 100);
             }
             const ipcAccumulated = (accumulatedInflation - 1) * 100;
 
             result.push({
-                date: rawUVA[i].date,
+                date: uvaData[i].date,
                 uvaGrowth,
                 tcBlueGrowth,
                 tcOficialGrowth,
