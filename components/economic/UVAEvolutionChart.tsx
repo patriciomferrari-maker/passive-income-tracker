@@ -80,6 +80,10 @@ export default function UVAEvolutionChart() {
                     value: item.value
                 })).sort((a, b) => a.date.localeCompare(b.date));
                 setRawIPC(ipcProcessed);
+                console.log('[UVA Chart] IPC processed count:', ipcProcessed.length);
+                console.log('[UVA Chart] IPC first 5:', ipcProcessed.slice(0, 5));
+                console.log('[UVA Chart] IPC last 5:', ipcProcessed.slice(-5));
+                console.log('[UVA Chart] IPC 2025:', ipcProcessed.filter(d => d.date.startsWith('2025')));
 
                 // Process TC Blue (daily, need monthly - last value of each month)
                 const tcBlueProcessed = (Array.isArray(tcBlueData) ? tcBlueData : []).map((item: any) => {
