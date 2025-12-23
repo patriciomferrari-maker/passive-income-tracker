@@ -68,18 +68,15 @@ export default function UVAEvolutionChart() {
                     return acc;
                 }, []).sort((a, b) => a.date.localeCompare(b.date));
 
-
-                setRawUVA(uvaMonthly);
                 console.log('[UVA Chart] UVA monthly count:', uvaMonthly.length);
-                console.log('[UVA Chart] UVA monthly first 3:', uvaMonthly.slice(0, 3));
-                console.log('[UVA Chart] UVA monthly last 3:', uvaMonthly.slice(-3));
+                console.log('[UVA Chart] UVA monthly first 3:', uvaMonthly.slice(0, 3)); \r\n                console.log('[UVA Chart] UVA monthly last 3:', uvaMonthly.slice(-3));
 
                 // Process IPC (monthly)
                 const ipcProcessed = (Array.isArray(ipcData) ? ipcData : []).map((item: any) => ({
                     date: `${item.year}-${String(item.month).padStart(2, '0')}-15`,
                     value: item.value
                 })).sort((a, b) => a.date.localeCompare(b.date));
-                setRawIPC(ipcProcessed);
+
                 console.log('[UVA Chart] IPC processed count:', ipcProcessed.length);
                 console.log('[UVA Chart] IPC first 5:', ipcProcessed.slice(0, 5));
                 console.log('[UVA Chart] IPC last 5:', ipcProcessed.slice(-5));
@@ -101,7 +98,6 @@ export default function UVAEvolutionChart() {
                     }
                     return acc;
                 }, []).sort((a, b) => a.date.localeCompare(b.date));
-                setRawTCBlue(tcBlueMonthly);
 
                 // Process TC Oficial (daily, need monthly - last value of each month)
                 const tcOficialProcessed = (Array.isArray(tcOficialData) ? tcOficialData : []).map((item: any) => {
@@ -119,7 +115,13 @@ export default function UVAEvolutionChart() {
                     }
                     return acc;
                 }, []).sort((a, b) => a.date.localeCompare(b.date));
-                setRawTCOficial(tcOficialMonthly);
+
+                // Store processed data in state
+                setRawUVA(uvaMonthly);
+                setRawIPC(ipcProcessed);
+                setRawTCBlue(tcBlueMonthly);
+
+                console.log('[UVA Chart] All data processed and stored');
                 setLoading(false);
             })
             .catch(err => {
