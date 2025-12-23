@@ -87,8 +87,9 @@ export default function AccumulatedChart() {
 
         // Determine the date range based on selected period (using year-month strings)
         if (selectedPeriod === 'CUSTOM' && customStartDate && customEndDate) {
-            const customStart = new Date(customStartDate);
-            const customEnd = new Date(customEndDate);
+            // Append day 15 to avoid timezone issues (same as rawIPC processing)
+            const customStart = new Date(`${customStartDate}-15`);
+            const customEnd = new Date(`${customEndDate}-15`);
             return {
                 // For CUSTOM: use selected start month AS baseline (not previous month)
                 filteredData: calculateAccumulatedFromPeriod(customStart, customEnd, true),
