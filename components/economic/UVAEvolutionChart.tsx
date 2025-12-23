@@ -69,7 +69,8 @@ export default function UVAEvolutionChart() {
                 }, []).sort((a, b) => a.date.localeCompare(b.date));
 
                 console.log('[UVA Chart] UVA monthly count:', uvaMonthly.length);
-                console.log('[UVA Chart] UVA monthly first 3:', uvaMonthly.slice(0, 3)); \r\n                console.log('[UVA Chart] UVA monthly last 3:', uvaMonthly.slice(-3));
+                console.log('[UVA Chart] UVA monthly first 3:', uvaMonthly.slice(0, 3));
+                console.log('[UVA Chart] UVA monthly last 3:', uvaMonthly.slice(-3));
 
                 // Process IPC (monthly)
                 const ipcProcessed = (Array.isArray(ipcData) ? ipcData : []).map((item: any) => ({
