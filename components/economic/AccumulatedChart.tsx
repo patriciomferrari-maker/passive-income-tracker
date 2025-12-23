@@ -90,7 +90,8 @@ export default function AccumulatedChart() {
             const customStart = new Date(customStartDate);
             const customEnd = new Date(customEndDate);
             return {
-                filteredData: calculateAccumulatedFromPeriod(customStart, customEnd),
+                // For CUSTOM: use selected start month AS baseline (not previous month)
+                filteredData: calculateAccumulatedFromPeriod(customStart, customEnd, true),
                 startDateLabel: format(customStart, 'MMMM yyyy', { locale: es })
             };
         }
