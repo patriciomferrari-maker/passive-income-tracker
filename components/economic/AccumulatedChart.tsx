@@ -41,8 +41,9 @@ export default function AccumulatedChart() {
                 setRawData(accResult.data || []);
 
                 // Process IPC data (it's monthly) - API returns DESC, need ASC
+                // Use 12:00 (noon) to avoid timezone issues when converting to Date
                 const ipcProcessed = (ipcData || []).map((item: any) => ({
-                    date: `${item.year}-${String(item.month).padStart(2, '0')}-01`,
+                    date: `${item.year}-${String(item.month).padStart(2, '0')}-15`,  // Mid-month to avoid timezone edge cases
                     value: item.value
                 })).sort((a, b) => a.date.localeCompare(b.date)); // SORT ASCENDING BY DATE
                 setRawIPC(ipcProcessed);
