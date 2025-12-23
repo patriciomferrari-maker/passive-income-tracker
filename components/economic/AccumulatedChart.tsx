@@ -120,6 +120,17 @@ export default function AccumulatedChart() {
         const startDate = new Date(startData.date);
         const endDate = new Date(rawIPC[rawIPC.length - 1].date); // Use last available month
 
+        // DEBUG: Log YTD calculation
+        if (selectedPeriod === 'YTD') {
+            console.log('[YTD Debug]', {
+                startMonth,
+                startData: startData.date,
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
+                label: format(startDate, 'MMMM yyyy', { locale: es })
+            });
+        }
+
         // For YTD: use December AS the baseline (not previous month)
         const useAsBaseline = selectedPeriod === 'YTD';
 
