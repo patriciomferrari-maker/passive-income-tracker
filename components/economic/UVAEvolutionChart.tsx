@@ -370,10 +370,12 @@ export default function UVAEvolutionChart() {
                                 dataKey="date"
                                 stroke="#94a3b8"
                                 tickFormatter={(value) => format(new Date(`${value}T12:00:00`), 'MMM yy', { locale: es })}
-                                style={{ fontSize: '12px' }}
+                                style={{ fontSize: '11px' }}
                                 angle={-45}
                                 textAnchor="end"
                                 height={60}
+                                interval="preserveStartEnd"
+                                minTickGap={40}
                             />
                             <YAxis
                                 stroke="#94a3b8"
