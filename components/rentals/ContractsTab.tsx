@@ -495,6 +495,7 @@ export function ContractsTab({ showValues = true }: ContractsTabProps) {
                                             className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
                                         >
                                             <option value="3">3 meses</option>
+                                            <option value="4">4 meses</option>
                                             <option value="6">6 meses</option>
                                             <option value="12">12 meses</option>
                                         </select>
