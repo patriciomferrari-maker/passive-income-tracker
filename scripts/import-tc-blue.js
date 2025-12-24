@@ -23,14 +23,11 @@ async function importTCBlue() {
         const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 
         // Parse values (replace comma with dot)
-        const compra = parseFloat(compraStr.replace(',', '.'));
-        const venta = parseFloat(ventaStr.replace(',', '.'));
+        const buyRate = parseFloat(compraStr.replace(',', '.'));
+        const sellRate = parseFloat(ventaStr.replace(',', '.'));
 
-        // Use average of buy and sell rates
-        const value = (compra + venta) / 2;
-
-        if (!isNaN(value) && year && month && day) {
-            records.push({ date: isoDate, sellRate: venta, buyRate: compra });
+        if (!isNaN(buyRate) && !isNaN(sellRate) && year && month && day) {
+            records.push({ date: isoDate, buyRate, sellRate });
         }
     }
 
@@ -58,43 +55,30 @@ async function importTCBlue() {
     const ADMIN_SECRET = 'mi-secreto-super-seguro-123';
 
     console.log('🚀 Importing missing TC Blue data to production...');
-    console.log(`URL: ${PROD_URL}/api/admin/economic`);
+    console.log(`URL: ${PROD_URL}/api/admin/import-tc-blue`);
     console.log('');
 
     try {
-        // Import in batches of 100 to avoid timeout
-        const batchSize = 100;
-        let imported = 0;
+        const res = await fetch(`${PROD_URL}/api/admin/import-tc-blue`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${ADMIN_SECRET}`
+            },
+            body: JSON.stringify({ records: missingRecords })
+        });
 
-        for (let i = 0; i < missingRecords.length; i += batchSize) {
-            const batch = missingRecords.slice(i, i + batchSize);
+        const result = await res.json();
 
-            console.log(`Importing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(missingRecords.length / batchSize)} (${batch.length} records)...`);
-
-            const res = await fetch(`${PROD_URL}/api/admin/economic`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${ADMIN_SECRET}`
-                },
-                body: JSON.stringify({ bulk: batch })
-            });
-
-            const result = await res.json();
-
-            if (res.ok) {
-                imported += batch.length;
-                console.log(`  ✅ Batch imported successfully`);
-            } else {
-                console.error(`  ❌ Batch failed:`, result.error);
-            }
-
-            // Small delay between batches
-            await new Promise(resolve => setTimeout(resolve, 500));
+        if (res.ok) {
+            console.log('✅ Import successful!');
+            console.log(`   - Imported: ${result.imported}`);
+            console.log(`   - Skipped: ${result.skipped}`);
+            console.log(`   - Errors: ${result.errors}`);
+        } else {
+            console.error('❌ Import failed:', result.error);
+            console.error('Response status:', res.status);
         }
-
-        console.log('');
-        console.log(`✅ Import complete! Imported ${imported} records`);
     } catch (error) {
         console.error('❌ Error:', error.message);
     }

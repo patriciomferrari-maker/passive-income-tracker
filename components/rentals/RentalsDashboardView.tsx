@@ -91,7 +91,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
             }
         });
 
-        // 2. Next Expiration
+        // 2. Next Expiration - Group all properties expiring in the same month
         const expirations = consolidatedContracts.map(c => {
             const start = new Date(c.startDate);
             const end = new Date(start);
@@ -99,18 +99,24 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
             return { ...c, endDate: end };
         }).filter(c => c.endDate >= now).sort((a, b) => a.endDate.getTime() - b.endDate.getTime());
 
-        const nextExpirationRaw = expirations[0];
-        let nextExpiration = null;
+        let nextExpirationGroup = null;
+        if (expirations.length > 0) {
+            const firstEndDate = expirations[0].endDate;
+            const sameMonthExpirations = expirations.filter(c => {
+                return c.endDate.getMonth() === firstEndDate.getMonth() &&
+                    c.endDate.getFullYear() === firstEndDate.getFullYear();
+            });
 
-        if (nextExpirationRaw) {
-            const monthsDiff = (nextExpirationRaw.endDate.getFullYear() - now.getFullYear()) * 12 + (nextExpirationRaw.endDate.getMonth() - now.getMonth());
-            nextExpiration = {
-                ...nextExpirationRaw,
-                monthsRemaining: Math.max(0, monthsDiff)
+            const monthsDiff = (firstEndDate.getFullYear() - now.getFullYear()) * 12 + (firstEndDate.getMonth() - now.getMonth());
+            nextExpirationGroup = {
+                properties: sameMonthExpirations,
+                endDate: firstEndDate,
+                monthsRemaining: Math.max(0, monthsDiff),
+                count: sameMonthExpirations.length
             };
         }
 
-        // 3. Next Adjustment
+        // 3. Next Adjustment - Group all properties adjusting in the same month
         const upcomingAdjustments = consolidatedContracts.map(c => {
             if (c.adjustmentType !== 'IPC') return null;
 
@@ -128,22 +134,28 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
             };
         }).filter(c => c !== null).sort((a, b) => a!.nextAdjDate.getTime() - b!.nextAdjDate.getTime());
 
-        const nextAdjustmentRaw = upcomingAdjustments[0];
-        let nextAdjustment = null;
+        let nextAdjustmentGroup = null;
+        if (upcomingAdjustments.length > 0) {
+            const firstAdjDate = upcomingAdjustments[0].nextAdjDate;
+            const sameMonthAdjustments = upcomingAdjustments.filter(c => {
+                return c.nextAdjDate.getMonth() === firstAdjDate.getMonth() &&
+                    c.nextAdjDate.getFullYear() === firstAdjDate.getFullYear();
+            });
 
-        if (nextAdjustmentRaw) {
-            const monthsDiff = (nextAdjustmentRaw.nextAdjDate.getFullYear() - now.getFullYear()) * 12 + (nextAdjustmentRaw.nextAdjDate.getMonth() - now.getMonth());
-            nextAdjustment = {
-                ...nextAdjustmentRaw,
-                monthsRemaining: Math.max(0, monthsDiff)
-            }
+            const monthsDiff = (firstAdjDate.getFullYear() - now.getFullYear()) * 12 + (firstAdjDate.getMonth() - now.getMonth());
+            nextAdjustmentGroup = {
+                properties: sameMonthAdjustments,
+                nextAdjDate: firstAdjDate,
+                monthsRemaining: Math.max(0, monthsDiff),
+                count: sameMonthAdjustments.length
+            };
         }
 
         return {
             totalUSD,
             totalARS,
-            nextExpiration,
-            nextAdjustment,
+            nextExpiration: nextExpirationGroup,
+            nextAdjustment: nextAdjustmentGroup,
             count: consolidatedContracts.length
         };
 
@@ -225,17 +237,40 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                             </div>
                             {summaryMetrics.nextExpiration ? (
                                 <>
-                                    <h3 className="text-2xl font-bold text-white print:text-slate-900">
-                                        {summaryMetrics.nextExpiration.propertyName}
-                                    </h3>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <p className="text-lg text-purple-400 print:text-purple-700 font-medium">
-                                            {summaryMetrics.nextExpiration.endDate.toLocaleDateString('es-AR')}
-                                        </p>
-                                        <span className="text-sm font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded uppercase">
-                                            {summaryMetrics.nextExpiration.monthsRemaining} meses
-                                        </span>
-                                    </div>
+                                    {summaryMetrics.nextExpiration.count === 1 ? (
+                                        <>
+                                            <h3 className="text-2xl font-bold text-white print:text-slate-900">
+                                                {summaryMetrics.nextExpiration.properties[0].propertyName}
+                                            </h3>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-lg text-purple-400 print:text-purple-700 font-medium">
+                                                    {summaryMetrics.nextExpiration.endDate.toLocaleDateString('es-AR')}
+                                                </p>
+                                                <span className="text-sm font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded uppercase">
+                                                    {summaryMetrics.nextExpiration.monthsRemaining} meses
+                                                </span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <h3 className="text-2xl font-bold text-white print:text-slate-900">
+                                                {summaryMetrics.nextExpiration.count} Propiedades
+                                            </h3>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-lg text-purple-400 print:text-purple-700 font-medium">
+                                                    {summaryMetrics.nextExpiration.endDate.toLocaleDateString('es-AR')}
+                                                </p>
+                                                <span className="text-sm font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded uppercase">
+                                                    {summaryMetrics.nextExpiration.monthsRemaining} meses
+                                                </span>
+                                            </div>
+                                            <div className="mt-2 text-xs text-slate-400 max-w-full">
+                                                {summaryMetrics.nextExpiration.properties.map((p, idx) => (
+                                                    <div key={idx} className="truncate">{p.propertyName}</div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
                                 </>
                             ) : (
                                 <p className="text-slate-500">Sin vencimientos próximos</p>
@@ -252,17 +287,40 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                             </div>
                             {summaryMetrics.nextAdjustment ? (
                                 <>
-                                    <h3 className="text-2xl font-bold text-white print:text-slate-900">
-                                        {summaryMetrics.nextAdjustment.propertyName}
-                                    </h3>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <p className="text-lg text-amber-500 print:text-amber-700 font-medium">
-                                            {summaryMetrics.nextAdjustment.nextAdjDate.toLocaleDateString('es-AR')}
-                                        </p>
-                                        <span className="text-sm font-bold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded uppercase">
-                                            {summaryMetrics.nextAdjustment.monthsRemaining} meses
-                                        </span>
-                                    </div>
+                                    {summaryMetrics.nextAdjustment.count === 1 ? (
+                                        <>
+                                            <h3 className="text-2xl font-bold text-white print:text-slate-900">
+                                                {summaryMetrics.nextAdjustment.properties[0].propertyName}
+                                            </h3>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-lg text-amber-500 print:text-amber-700 font-medium">
+                                                    {summaryMetrics.nextAdjustment.nextAdjDate.toLocaleDateString('es-AR')}
+                                                </p>
+                                                <span className="text-sm font-bold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded uppercase">
+                                                    {summaryMetrics.nextAdjustment.monthsRemaining} meses
+                                                </span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <h3 className="text-2xl font-bold text-white print:text-slate-900">
+                                                {summaryMetrics.nextAdjustment.count} Propiedades
+                                            </h3>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-lg text-amber-500 print:text-amber-700 font-medium">
+                                                    {summaryMetrics.nextAdjustment.nextAdjDate.toLocaleDateString('es-AR')}
+                                                </p>
+                                                <span className="text-sm font-bold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded uppercase">
+                                                    {summaryMetrics.nextAdjustment.monthsRemaining} meses
+                                                </span>
+                                            </div>
+                                            <div className="mt-2 text-xs text-slate-400 max-w-full">
+                                                {summaryMetrics.nextAdjustment.properties.map((p, idx) => (
+                                                    <div key={idx} className="truncate">{p.propertyName}</div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
                                 </>
                             ) : (
                                 <p className="text-slate-500">Sin actualizaciones próximas</p>
