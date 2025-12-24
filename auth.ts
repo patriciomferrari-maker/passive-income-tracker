@@ -8,6 +8,8 @@ import bcrypt from 'bcryptjs';
 
 export const { auth, signIn, signOut, handlers } = NextAuth({
     ...authConfig,
+    trustHost: true, // Required for Vercel and production
+    debug: process.env.NODE_ENV === 'development',
     providers: [
         Credentials({
             name: 'Credentials',
@@ -16,28 +18,40 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                 password: { label: "Password", type: "password" }
             },
             authorize: async (credentials) => {
-                const parsedCredentials = z
-                    .object({
-                        email: z.string().email(),
-                        password: z.string().min(1)
-                    })
-                    .safeParse(credentials);
+                try {
+                    const parsedCredentials = z
+                        .object({
+                            email: z.string().email(),
+                            password: z.string().min(1)
+                        })
+                        .safeParse(credentials);
 
-                if (parsedCredentials.success) {
+                    if (!parsedCredentials.success) {
+                        console.log('[Auth] Invalid credentials format');
+                        return null;
+                    }
+
                     const { email, password } = parsedCredentials.data;
 
                     const user = await prisma.user.findUnique({
                         where: { email }
                     });
 
-                    if (!user) return null;
+                    if (!user) {
+                        console.log('[Auth] User not found:', email);
+                        return null;
+                    }
 
                     // If user has no password (OAuth only), return null for Credentials provider
-                    if (!user.password) return null;
+                    if (!user.password) {
+                        console.log('[Auth] User has no password (OAuth only)');
+                        return null;
+                    }
 
                     const passwordsMatch = await bcrypt.compare(password, user.password);
 
                     if (passwordsMatch) {
+                        console.log('[Auth] Login successful:', user.email);
                         return {
                             id: user.id,
                             name: user.name,
@@ -45,9 +59,13 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                             role: user.role
                         };
                     }
+
+                    console.log('[Auth] Invalid password for:', email);
+                    return null;
+                } catch (error) {
+                    console.error('[Auth] Error in authorize:', error);
+                    return null;
                 }
-                console.log('Invalid credentials');
-                return null;
             },
         }),
         Google({
