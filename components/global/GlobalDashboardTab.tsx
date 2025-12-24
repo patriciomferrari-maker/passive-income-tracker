@@ -13,8 +13,8 @@ interface GlobalStats {
         tir: number;
         nextInterestON: { date: string, amount: number, name: string } | null;
         nextInterestTreasury: { date: string, amount: number, name: string } | null;
-        nextRentalAdjustment: { date: string, property: string, monthsTo: number } | null;
-        nextContractExpiration: { date: string, property: string, monthsTo: number } | null;
+        nextRentalAdjustment: { date: string, property: string, properties: string[], monthsTo: number, count: number } | null;
+        nextContractExpiration: { date: string, property: string, properties: string[], monthsTo: number, count: number } | null;
         totalMonthlyIncome: number;
         totalBankUSD: number;
         nextMaturitiesPF: Array<{ daysLeft: number, date: string, amount: number, alias: string }>;
@@ -432,23 +432,46 @@ export function GlobalDashboardTab() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="h-[160px] flex flex-col items-center justify-between pt-0 pb-4">
-                            <>
-                                <div className="h-10 flex items-center justify-center w-full px-2">
-                                    <div className="text-xl font-bold text-white truncate">
-                                        {stats.summary.nextRentalAdjustment.property}
+                            {stats.summary.nextRentalAdjustment.count === 1 ? (
+                                <>
+                                    <div className="h-10 flex items-center justify-center w-full px-2">
+                                        <div className="text-xl font-bold text-white truncate">
+                                            {stats.summary.nextRentalAdjustment.property}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="h-12 flex items-center justify-center w-full">
-                                    <span className="text-emerald-300 text-sm font-medium">
-                                        Faltan {stats.summary.nextRentalAdjustment.monthsTo} meses
-                                    </span>
-                                </div>
-                                <div className="h-10 flex items-center justify-center">
-                                    <div className="text-lg font-bold text-white bg-slate-800/80 px-6 py-1.5 rounded-full border border-slate-700 shadow-sm">
-                                        {formatDate(stats.summary.nextRentalAdjustment.date)}
+                                    <div className="h-12 flex items-center justify-center w-full">
+                                        <span className="text-emerald-300 text-sm font-medium">
+                                            Faltan {stats.summary.nextRentalAdjustment.monthsTo} meses
+                                        </span>
                                     </div>
-                                </div>
-                            </>
+                                    <div className="h-10 flex items-center justify-center">
+                                        <div className="text-lg font-bold text-white bg-slate-800/80 px-6 py-1.5 rounded-full border border-slate-700 shadow-sm">
+                                            {formatDate(stats.summary.nextRentalAdjustment.date)}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="h-10 flex items-center justify-center w-full px-2">
+                                        <div className="text-xl font-bold text-white">
+                                            {stats.summary.nextRentalAdjustment.count} Propiedades
+                                        </div>
+                                    </div>
+                                    <div className="h-12 flex flex-col items-center justify-center w-full px-2 gap-0.5">
+                                        {stats.summary.nextRentalAdjustment.properties.map((prop, idx) => (
+                                            <div key={idx} className="text-emerald-300 text-xs truncate max-w-full">{prop}</div>
+                                        ))}
+                                    </div>
+                                    <div className="h-10 flex items-center justify-center gap-2">
+                                        <span className="text-emerald-300 text-xs font-medium">
+                                            {stats.summary.nextRentalAdjustment.monthsTo}m
+                                        </span>
+                                        <div className="text-sm font-bold text-white bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700 shadow-sm">
+                                            {formatDate(stats.summary.nextRentalAdjustment.date)}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </CardContent>
                     </Card>
                 )}
@@ -462,23 +485,46 @@ export function GlobalDashboardTab() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="h-[160px] flex flex-col items-center justify-between pt-0 pb-4">
-                            <>
-                                <div className="h-10 flex items-center justify-center w-full px-2">
-                                    <div className="text-xl font-bold text-white truncate">
-                                        {stats.summary.nextContractExpiration.property}
+                            {stats.summary.nextContractExpiration.count === 1 ? (
+                                <>
+                                    <div className="h-10 flex items-center justify-center w-full px-2">
+                                        <div className="text-xl font-bold text-white truncate">
+                                            {stats.summary.nextContractExpiration.property}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="h-12 flex items-center justify-center w-full">
-                                    <span className="text-orange-300 text-sm font-medium">
-                                        Faltan {stats.summary.nextContractExpiration.monthsTo} meses
-                                    </span>
-                                </div>
-                                <div className="h-10 flex items-center justify-center">
-                                    <div className="text-lg font-bold text-white bg-slate-800/80 px-6 py-1.5 rounded-full border border-slate-700 shadow-sm">
-                                        {formatDate(stats.summary.nextContractExpiration.date)}
+                                    <div className="h-12 flex items-center justify-center w-full">
+                                        <span className="text-orange-300 text-sm font-medium">
+                                            Faltan {stats.summary.nextContractExpiration.monthsTo} meses
+                                        </span>
                                     </div>
-                                </div>
-                            </>
+                                    <div className="h-10 flex items-center justify-center">
+                                        <div className="text-lg font-bold text-white bg-slate-800/80 px-6 py-1.5 rounded-full border border-slate-700 shadow-sm">
+                                            {formatDate(stats.summary.nextContractExpiration.date)}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="h-10 flex items-center justify-center w-full px-2">
+                                        <div className="text-xl font-bold text-white">
+                                            {stats.summary.nextContractExpiration.count} Propiedades
+                                        </div>
+                                    </div>
+                                    <div className="h-12 flex flex-col items-center justify-center w-full px-2 gap-0.5">
+                                        {stats.summary.nextContractExpiration.properties.map((prop, idx) => (
+                                            <div key={idx} className="text-orange-300 text-xs truncate max-w-full">{prop}</div>
+                                        ))}
+                                    </div>
+                                    <div className="h-10 flex items-center justify-center gap-2">
+                                        <span className="text-orange-300 text-xs font-medium">
+                                            {stats.summary.nextContractExpiration.monthsTo}m
+                                        </span>
+                                        <div className="text-sm font-bold text-white bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700 shadow-sm">
+                                            {formatDate(stats.summary.nextContractExpiration.date)}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </CardContent>
                     </Card>
                 )}

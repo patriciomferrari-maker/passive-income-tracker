@@ -293,36 +293,73 @@ export async function GET() {
         });
 
         const contracts = await prisma.contract.findMany({
-            where: { property: { userId } },
+            where: { property: { userId, isConsolidated: true } }, // Only consolidated contracts
             select: { startDate: true, adjustmentFrequency: true, durationMonths: true, property: { select: { name: true } }, adjustmentType: true }
         });
 
-        let nextRentalAdjustment: { date: string; property: string; monthsTo: number } | null = null;
-        let nextContractExpiration: { date: string; property: string; monthsTo: number } | null = null;
-        let minDiffAdj = Infinity;
-        let minDiffExp = Infinity;
+        // Group by month/year for adjustments
+        const adjustmentsByMonth = new Map<string, { date: Date, properties: string[] }>();
+        const expirationsByMonth = new Map<string, { date: Date, properties: string[] }>();
 
         contracts.forEach(c => {
+            // Calculate next adjustment
             if (c.adjustmentType !== 'NONE') {
                 let nextAdjDate = new Date(c.startDate);
                 while (isBefore(nextAdjDate, today) || nextAdjDate.getTime() === today.getTime()) {
                     nextAdjDate = addMonths(nextAdjDate, c.adjustmentFrequency);
                 }
-                const diffAdj = nextAdjDate.getTime() - today.getTime();
-                if (diffAdj < minDiffAdj) {
-                    minDiffAdj = diffAdj;
-                    nextRentalAdjustment = { date: nextAdjDate.toISOString(), property: c.property.name, monthsTo: differenceInMonths(nextAdjDate, today) };
+
+                if (isAfter(nextAdjDate, today)) {
+                    const monthKey = format(nextAdjDate, 'yyyy-MM');
+                    if (!adjustmentsByMonth.has(monthKey) || nextAdjDate < adjustmentsByMonth.get(monthKey)!.date) {
+                        if (!adjustmentsByMonth.has(monthKey)) {
+                            adjustmentsByMonth.set(monthKey, { date: nextAdjDate, properties: [] });
+                        }
+                    }
+                    adjustmentsByMonth.get(monthKey)!.properties.push(c.property.name);
                 }
             }
+
+            // Calculate expiration
             const expDate = addMonths(new Date(c.startDate), c.durationMonths);
             if (isAfter(expDate, today)) {
-                const diffExp = expDate.getTime() - today.getTime();
-                if (diffExp < minDiffExp) {
-                    minDiffExp = diffExp;
-                    nextContractExpiration = { date: expDate.toISOString(), property: c.property.name, monthsTo: differenceInMonths(expDate, today) };
+                const monthKey = format(expDate, 'yyyy-MM');
+                if (!expirationsByMonth.has(monthKey) || expDate < expirationsByMonth.get(monthKey)!.date) {
+                    if (!expirationsByMonth.has(monthKey)) {
+                        expirationsByMonth.set(monthKey, { date: expDate, properties: [] });
+                    }
                 }
+                expirationsByMonth.get(monthKey)!.properties.push(c.property.name);
             }
         });
+
+        // Get earliest month for each
+        const sortedAdjustments = Array.from(adjustmentsByMonth.entries())
+            .sort((a, b) => a[1].date.getTime() - b[1].date.getTime());
+
+        const sortedExpirations = Array.from(expirationsByMonth.entries())
+            .sort((a, b) => a[1].date.getTime() - b[1].date.getTime());
+
+        const nextRentalAdjustment = sortedAdjustments.length > 0
+            ? {
+                date: sortedAdjustments[0][1].date.toISOString(),
+                properties: sortedAdjustments[0][1].properties,
+                property: sortedAdjustments[0][1].properties[0], // For backward compatibility
+                monthsTo: differenceInMonths(sortedAdjustments[0][1].date, today),
+                count: sortedAdjustments[0][1].properties.length
+            }
+            : null;
+
+        const nextContractExpiration = sortedExpirations.length > 0
+            ? {
+                date: sortedExpirations[0][1].date.toISOString(),
+                properties: sortedExpirations[0][1].properties,
+                property: sortedExpirations[0][1].properties[0], // For backward compatibility
+                monthsTo: differenceInMonths(sortedExpirations[0][1].date, today),
+                count: sortedExpirations[0][1].properties.length
+            }
+            : null;
+
 
         // C. Debt Details
         const debts = await prisma.debt.findMany({
