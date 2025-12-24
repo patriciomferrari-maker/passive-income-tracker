@@ -4,6 +4,7 @@ import Google from 'next-auth/providers/google';
 import { z } from 'zod';
 import { authConfig } from './auth.config';
 import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 
 export const { auth, signIn, signOut, handlers } = NextAuth({
     ...authConfig,
