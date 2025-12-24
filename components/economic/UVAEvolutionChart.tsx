@@ -265,6 +265,7 @@ export default function UVAEvolutionChart() {
         }
 
         console.log('[calculatePercentageGrowth] Months to process:', monthsToProcess.length, 'months');
+        console.log('[calculatePercentageGrowth] First month:', monthsToProcess[0], 'Last month:', monthsToProcess[monthsToProcess.length - 1]);
 
         // Iterate over each month after baseline
         const baselineMonthKey = uvaData[baselineUVAIdx].date.slice(0, 7);
