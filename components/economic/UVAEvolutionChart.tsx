@@ -255,14 +255,23 @@ export default function UVAEvolutionChart() {
         console.log('[calculatePercentageGrowth] Iterating from', startMonthKey, 'to', endMonthKey);
 
         // Generate ALL months in the range, not just months that exist in uvaData
+        // Generate ALL months in the range using string manipulation (avoid timezone issues)
         const monthsToProcess: string[] = [];
-        let currentDate = new Date(`${startMonthKey}-01`);
-        const lastDateInRange = new Date(`${endMonthKey}-01`);
-
-        while (currentDate <= lastDateInRange) {
-            const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+        const [startYear, startMonth] = startMonthKey.split('-').map(Number);
+        const [endYear, endMonth] = endMonthKey.split('-').map(Number);
+        
+        let currentYear = startYear;
+        let currentMonth = startMonth;
+        
+        while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
+            const monthKey = ${currentYear}-;
             monthsToProcess.push(monthKey);
-            currentDate.setMonth(currentDate.getMonth() + 1);
+            
+            currentMonth++;
+            if (currentMonth > 12) {
+                currentMonth = 1;
+                currentYear++;
+            }
         }
 
         console.log('[calculatePercentageGrowth] Months to process:', monthsToProcess.length, 'months');
