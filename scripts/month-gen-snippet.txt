@@ -1,0 +1,18 @@
+// Generate ALL months in the range using string manipulation (avoid timezone issues)
+const monthsToProcess: string[] = [];
+const [startYear, startMonth] = startMonthKey.split('-').map(Number);
+const [endYear, endMonth] = endMonthKey.split('-').map(Number);
+
+let currentYear = startYear;
+let currentMonth = startMonth;
+
+while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
+    const monthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+    monthsToProcess.push(monthKey);
+    
+    currentMonth++;
+    if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear++;
+    }
+}
