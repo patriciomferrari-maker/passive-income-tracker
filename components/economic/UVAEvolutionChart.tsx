@@ -253,17 +253,17 @@ export default function UVAEvolutionChart() {
         // Calculate from baseline+1 to end (iterate by MONTHS, not indices)
         console.log('[calculatePercentageGrowth] Iterating from', startMonthKey, 'to', endMonthKey);
 
-        // Get all unique months from UVA data within range
+        // Generate ALL months in the range, not just months that exist in uvaData
         const monthsToProcess: string[] = [];
-        for (let i = 0; i < uvaData.length; i++) {
-            const monthKey = uvaData[i].date.slice(0, 7);
-            if (monthKey >= startMonthKey && monthKey <= endMonthKey) {
-                if (!monthsToProcess.includes(monthKey)) {
-                    monthsToProcess.push(monthKey);
-                }
-            }
+        let currentDate = new Date(`${startMonthKey}-01`);
+        const endDate = new Date(`${endMonthKey}-01`);
+
+        while (currentDate <= endDate) {
+            const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+            monthsToProcess.push(monthKey);
+            currentDate.setMonth(currentDate.getMonth() + 1);
         }
-        monthsToProcess.sort();
+
         console.log('[calculatePercentageGrowth] Months to process:', monthsToProcess.length, 'months');
 
         // Iterate over each month after baseline
