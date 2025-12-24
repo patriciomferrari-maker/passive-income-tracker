@@ -143,7 +143,17 @@ export default function UVAEvolutionChart() {
         }
 
         // Work with year-month strings
-        const firstMonth = rawUVA[0].date.slice(0, 7);
+        // For ALL period, find the LAST of the first months (most restrictive)
+        const firstUVAMonth = rawUVA[0].date.slice(0, 7);
+        const firstIPCMonth = rawIPC[0].date.slice(0, 7);
+        const firstTCBlueMonth = rawTCBlue[0].date.slice(0, 7);
+        const firstTCOficialMonth = rawTCOficial[0].date.slice(0, 7);
+
+        // Sort and take the last one (latest/most recent first month)
+        const firstMonth = [firstUVAMonth, firstIPCMonth, firstTCBlueMonth, firstTCOficialMonth].sort().reverse()[0];
+
+        console.log('[useMemo] First months - UVA:', firstUVAMonth, 'IPC:', firstIPCMonth, 'TCBlue:', firstTCBlueMonth, 'TCOficial:', firstTCOficialMonth, '→ Using:', firstMonth);
+
         const lastMonth = rawUVA[rawUVA.length - 1].date.slice(0, 7);
 
         let startMonth: string;
