@@ -79,6 +79,9 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
         async session({ session, token }) {
             if (token.sub && session.user) {
                 session.user.id = token.sub;
+                if (token.role) {
+                    session.user.role = token.role as string;
+                }
             }
             return session;
         },
@@ -86,12 +89,15 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
             try {
                 // On initial sign in, user object is present
                 if (user) {
-                    // For Credentials provider, user.id is already set by authorize()
+                    // For Credentials provider, user.id and role are already set by authorize()
                     if (user.id) {
                         token.sub = user.id;
+                        if (user.role) {
+                            token.role = user.role;
+                        }
                     }
 
-                    // For OAuth providers (Google), look up or create user
+                    // For OAuth providers (Google), look up or create user  
                     if (account && account.provider === 'google' && user.email) {
                         const dbUser = await prisma.user.findUnique({
                             where: { email: user.email },
@@ -110,7 +116,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                                     password: '', // No password for OAuth
                                     role: 'user'
                                 },
-                                select: { id: true } // Only need id
+                                select: { id: true, role: true }
                             });
                             // Create Settings
                             await prisma.appSettings.create({
@@ -122,9 +128,11 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                                 }
                             });
                             token.sub = newUser.id;
+                            token.role = newUser.role;
                         }
                     }
                 }
+                // Role is now stored in token, no need to fetch from DB on subsequent requests
                 return token;
             } catch (error) {
                 console.error('[Auth] Error in jwt callback:', error);
