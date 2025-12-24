@@ -89,15 +89,23 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
     ],
     callbacks: {
         async session({ session, token }) {
+            console.log('[Auth] === SESSION CALLBACK ===');
+            console.log('[Auth] Token sub:', token.sub);
+            console.log('[Auth] Session user exists:', !!session.user);
             if (token.sub && session.user) {
                 session.user.id = token.sub;
                 if (token.role) {
                     session.user.role = token.role as string;
                 }
+                console.log('[Auth] ✅ Session user ID set:', session.user.id);
             }
             return session;
         },
         async jwt({ token, user, account }) {
+            console.log('[Auth] === JWT CALLBACK ===');
+            console.log('[Auth] User object present:', !!user);
+            console.log('[Auth] Account present:', !!account);
+            console.log('[Auth] Token sub:', token.sub);
             try {
                 // On initial sign in, user object is present
                 if (user) {
