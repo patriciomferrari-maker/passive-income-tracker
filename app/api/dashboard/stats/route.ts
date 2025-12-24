@@ -45,38 +45,83 @@ export async function GET() {
         }
 
 
+
         const exchangeRate = 1160; // Hardcoded for now to avoid economicIndicator query
         const costaExchangeRate = 1160;
 
-        // Get ON investments with transactions
+        // Get ON investments with FIFO calculation (matching detailed dashboard)
         const onInvestments = await prisma.investment.findMany({
-            where: { type: 'ON', userId },
+            where: { type: 'ON', userId, market: 'ARG' },
             select: {
                 id: true,
                 lastPrice: true,
                 type: true,
+                ticker: true,
                 transactions: {
                     select: {
+                        id: true,
+                        date: true,
                         type: true,
                         quantity: true,
-                        totalAmount: true
+                        price: true,
+                        commission: true,
+                        currency: true
                     }
                 }
             }
         });
 
+        // Get recent prices for ONs
+        const onIds = onInvestments.map(i => i.id);
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+
+        const recentPrices = await prisma.assetPrice.findMany({
+            where: {
+                investmentId: { in: onIds },
+                date: { gte: weekAgo }
+            },
+            orderBy: { date: 'desc' }
+        });
+
+        const priceMap: Record<string, number> = {};
+        recentPrices.forEach(p => {
+            if (!priceMap[p.investmentId]) priceMap[p.investmentId] = p.price;
+        });
+
+        // Import FIFO calculation
+        const { calculateFIFO } = await import('@/app/lib/fifo');
+
+        let onMarketValue = 0;
+        for (const inv of onInvestments) {
+            const fifoTxs = inv.transactions.map(t => ({
+                id: t.id,
+                date: new Date(t.date),
+                type: t.type as 'BUY' | 'SELL',
+                quantity: t.quantity,
+                price: t.price,
+                commission: t.commission,
+                currency: t.currency
+            }));
+
+            const result = calculateFIFO(fifoTxs, inv.ticker);
+            let currentPrice = priceMap[inv.id] || inv.lastPrice || 0;
+
+            // ON prices are quoted per 100
+            if (inv.type === 'ON') {
+                currentPrice = currentPrice / 100;
+            }
+
+            result.openPositions.forEach(p => {
+                const cost = (p.quantity * p.buyPrice) + p.buyCommission;
+                const value = p.quantity * currentPrice;
+                if (currentPrice > 0) {
+                    onMarketValue += value;
+                }
+            });
+        }
+
         const onCount = onInvestments.length;
-        const onTotalInvested = onInvestments.reduce((sum, inv) => {
-            const quantityHeld = inv.transactions.reduce((qSum, tx) => {
-                if (tx.type === 'BUY') return qSum + tx.quantity;
-                if (tx.type === 'SELL') return qSum - tx.quantity;
-                return qSum;
-            }, 0);
-            const price = inv.lastPrice || 0;
-            let priceInUSD = price > 500 ? price / exchangeRate : price;
-            if (inv.type === 'ON') priceInUSD = priceInUSD / 100;
-            return sum + (quantityHeld * priceInUSD);
-        }, 0);
 
         // Get Treasury investments
         const treasuryInvestments = await prisma.investment.findMany({
@@ -156,7 +201,7 @@ export async function GET() {
             userEmail: user?.email,
             on: {
                 count: onCount,
-                totalInvested: onTotalInvested
+                totalInvested: onMarketValue
             },
             treasury: {
                 count: treasuryCount,
