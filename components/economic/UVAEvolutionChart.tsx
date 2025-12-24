@@ -197,8 +197,11 @@ export default function UVAEvolutionChart() {
 
         const useAsBaseline = selectedPeriod === 'YTD';
 
+        const calculatedData = calculatePercentageGrowth(startDate, endDate, useAsBaseline, rawUVA, rawIPC, rawTCBlue, rawTCOficial);
+        console.log('[useMemo] calculatePercentageGrowth returned', calculatedData.length, 'points');
+
         return {
-            filteredData: calculatePercentageGrowth(startDate, endDate, useAsBaseline, rawUVA, rawIPC, rawTCBlue, rawTCOficial),
+            filteredData: calculatedData,
             startDateLabel: format(startDate, 'MMMM yyyy', { locale: es })
         };
     }, [rawUVA, rawIPC, rawTCBlue, rawTCOficial, selectedPeriod, customStartDate, customEndDate]);
