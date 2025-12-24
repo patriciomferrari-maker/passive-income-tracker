@@ -189,8 +189,9 @@ export default function UVAEvolutionChart() {
 
         // Use the earliest of the last months (most restrictive)
         const endMonth = [lastUVAMonth, lastIPCMonth, lastTCBlueMonth, lastTCOficialMonth].sort()[0];
-        const endData = rawUVA.find(d => d.date.startsWith(endMonth));
-        const endDate = endData ? new Date(endData.date) : new Date(rawUVA[rawUVA.length - 1].date);
+
+        // Construct end date directly from month string (use day 15 for consistency)
+        const endDate = new Date(`${endMonth}-15T12:00:00`);
 
         console.log('[useMemo] Last months - UVA:', lastUVAMonth, 'IPC:', lastIPCMonth, 'TCBlue:', lastTCBlueMonth, 'TCOficial:', lastTCOficialMonth, '→ Using:', endMonth);
 
