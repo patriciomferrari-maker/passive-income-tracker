@@ -44,15 +44,109 @@ export async function GET() {
             enabledSections = enabledSections.filter(s => s !== 'barbosa' && s !== 'costa' && s !== 'costa-esmeralda');
         }
 
+
         const exchangeRate = 1160; // Hardcoded for now to avoid economicIndicator query
         const costaExchangeRate = 1160;
 
-        // Get simple counts without detailed queries to avoid date issues
-        const onCount = await prisma.investment.count({ where: { type: 'ON', userId } });
-        const treasuryCount = await prisma.investment.count({ where: { type: 'TREASURY', userId } });
-        const debtsCount = await prisma.debt.count({ where: { userId } });
-        const rentalsCount = await prisma.contract.count({ where: { property: { userId } } });
-        const bankCount = await prisma.bankOperation.count({ where: { userId } });
+        // Get ON investments with transactions
+        const onInvestments = await prisma.investment.findMany({
+            where: { type: 'ON', userId },
+            select: {
+                id: true,
+                lastPrice: true,
+                type: true,
+                transactions: {
+                    select: {
+                        type: true,
+                        quantity: true,
+                        totalAmount: true
+                    }
+                }
+            }
+        });
+
+        const onCount = onInvestments.length;
+        const onTotalInvested = onInvestments.reduce((sum, inv) => {
+            const quantityHeld = inv.transactions.reduce((qSum, tx) => {
+                if (tx.type === 'BUY') return qSum + tx.quantity;
+                if (tx.type === 'SELL') return qSum - tx.quantity;
+                return qSum;
+            }, 0);
+            const price = inv.lastPrice || 0;
+            let priceInUSD = price > 500 ? price / exchangeRate : price;
+            if (inv.type === 'ON') priceInUSD = priceInUSD / 100;
+            return sum + (quantityHeld * priceInUSD);
+        }, 0);
+
+        // Get Treasury investments
+        const treasuryInvestments = await prisma.investment.findMany({
+            where: { type: 'TREASURY', userId },
+            select: {
+                transactions: {
+                    select: {
+                        totalAmount: true
+                    }
+                }
+            }
+        });
+
+        const treasuryCount = treasuryInvestments.length;
+        const treasuryTotalInvested = treasuryInvestments.reduce((sum, inv) => {
+            const total = inv.transactions.reduce((txSum, tx) => txSum + Math.abs(tx.totalAmount), 0);
+            return sum + total;
+        }, 0);
+
+        // Get Debts
+        const debts = await prisma.debt.findMany({
+            where: { userId },
+            select: {
+                initialAmount: true,
+                payments: {
+                    select: {
+                        amount: true
+                    }
+                }
+            }
+        });
+
+        const debtsCount = debts.length;
+        const totalPending = debts.reduce((sum, d) => {
+            const paid = d.payments.reduce((pSum, p) => pSum + p.amount, 0);
+            return sum + (d.initialAmount - paid);
+        }, 0);
+
+        // Get Rentals
+        const contracts = await prisma.contract.findMany({
+            where: { property: { userId } },
+            select: {
+                rentalCashflows: {
+                    orderBy: { date: 'desc' },
+                    take: 1,
+                    select: {
+                        amountUSD: true
+                    }
+                }
+            }
+        });
+
+        const rentalsCount = contracts.length;
+        const rentalsTotalValue = contracts.reduce((sum, contract) => {
+            const lastPayment = contract.rentalCashflows[0];
+            return sum + (lastPayment?.amountUSD || 0);
+        }, 0);
+
+        // Get Bank Stats
+        const bankOperations = await prisma.bankOperation.findMany({
+            where: { userId },
+            select: {
+                currency: true,
+                amount: true
+            }
+        });
+
+        const bankTotalUSD = bankOperations
+            .filter(op => op.currency === 'USD')
+            .reduce((sum, op) => sum + op.amount, 0);
 
         const needsOnboarding = settings && settings.enabledSections === '';
 
@@ -62,22 +156,22 @@ export async function GET() {
             userEmail: user?.email,
             on: {
                 count: onCount,
-                totalInvested: 0 // Simplified
+                totalInvested: onTotalInvested
             },
             treasury: {
                 count: treasuryCount,
-                totalInvested: 0
+                totalInvested: treasuryTotalInvested
             },
             debts: {
                 count: debtsCount,
-                totalPending: 0
+                totalPending
             },
             rentals: {
                 count: rentalsCount,
-                totalValue: 0
+                totalValue: rentalsTotalValue
             },
             bank: {
-                totalUSD: 0,
+                totalUSD: bankTotalUSD,
                 nextMaturitiesPF: []
             },
             barbosa: {
