@@ -121,6 +121,7 @@ export default function UVAEvolutionChart() {
                 setRawUVA(uvaMonthly);
                 setRawIPC(ipcProcessed);
                 setRawTCBlue(tcBlueMonthly);
+                setRawTCOficial(tcOficialMonthly);
 
                 console.log('[UVA Chart] All data processed and stored');
                 setLoading(false);
