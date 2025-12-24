@@ -256,9 +256,9 @@ export default function UVAEvolutionChart() {
         // Generate ALL months in the range, not just months that exist in uvaData
         const monthsToProcess: string[] = [];
         let currentDate = new Date(`${startMonthKey}-01`);
-        const endDate = new Date(`${endMonthKey}-01`);
+        const lastDateInRange = new Date(`${endMonthKey}-01`);
 
-        while (currentDate <= endDate) {
+        while (currentDate <= lastDateInRange) {
             const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
             monthsToProcess.push(monthKey);
             currentDate.setMonth(currentDate.getMonth() + 1);
