@@ -34,7 +34,8 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                     const { email, password } = parsedCredentials.data;
 
                     const user = await prisma.user.findUnique({
-                        where: { email }
+                        where: { email },
+                        select: { id: true, email: true, name: true, role: true, password: true }
                     });
 
                     if (!user) {
@@ -82,46 +83,54 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
             return session;
         },
         async jwt({ token, user, account }) {
-            // On initial sign in, user object is present
-            if (user) {
-                // For Credentials provider, user.id is already set by authorize()
-                if (user.id) {
-                    token.sub = user.id;
-                }
+            try {
+                // On initial sign in, user object is present
+                if (user) {
+                    // For Credentials provider, user.id is already set by authorize()
+                    if (user.id) {
+                        token.sub = user.id;
+                    }
 
-                // For OAuth providers (Google), look up or create user
-                if (account && account.provider === 'google' && user.email) {
-                    const dbUser = await prisma.user.findUnique({
-                        where: { email: user.email }
-                    });
+                    // For OAuth providers (Google), look up or create user
+                    if (account && account.provider === 'google' && user.email) {
+                        const dbUser = await prisma.user.findUnique({
+                            where: { email: user.email },
+                            select: { id: true, email: true, name: true, role: true } // Only select fields we need
+                        });
 
-                    if (dbUser) {
-                        token.sub = dbUser.id;
-                        token.role = dbUser.role;
-                    } else {
-                        // Auto-create user for Google Sign Up
-                        const newUser = await prisma.user.create({
-                            data: {
-                                email: user.email,
-                                name: user.name,
-                                password: '', // No password for OAuth
-                                role: 'user'
-                            }
-                        });
-                        // Create Settings
-                        await prisma.appSettings.create({
-                            data: {
-                                userId: newUser.id,
-                                reportDay: 1,
-                                reportHour: 10,
-                                enabledSections: ''
-                            }
-                        });
-                        token.sub = newUser.id;
+                        if (dbUser) {
+                            token.sub = dbUser.id;
+                            token.role = dbUser.role;
+                        } else {
+                            // Auto-create user for Google Sign Up
+                            const newUser = await prisma.user.create({
+                                data: {
+                                    email: user.email,
+                                    name: user.name,
+                                    password: '', // No password for OAuth
+                                    role: 'user'
+                                },
+                                select: { id: true } // Only need id
+                            });
+                            // Create Settings
+                            await prisma.appSettings.create({
+                                data: {
+                                    userId: newUser.id,
+                                    reportDay: 1,
+                                    reportHour: 10,
+                                    enabledSections: ''
+                                }
+                            });
+                            token.sub = newUser.id;
+                        }
                     }
                 }
+                return token;
+            } catch (error) {
+                console.error('[Auth] Error in jwt callback:', error);
+                // Return token as-is if there's an error, don't break the flow
+                return token;
             }
-            return token;
         }
     },
     cookies: {
