@@ -18,7 +18,9 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                 password: { label: "Password", type: "password" }
             },
             authorize: async (credentials) => {
+                console.log('[Auth] === AUTHORIZE CALLBACK START ===');
                 try {
+                    console.log('[Auth] Step 1: Parsing credentials...');
                     const parsedCredentials = z
                         .object({
                             email: z.string().email(),
@@ -32,11 +34,14 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                     }
 
                     const { email, password } = parsedCredentials.data;
+                    console.log('[Auth] Step 2: Credentials parsed, email:', email);
 
+                    console.log('[Auth] Step 3: Querying database for user...');
                     const user = await prisma.user.findUnique({
                         where: { email },
                         select: { id: true, email: true, name: true, role: true, password: true }
                     });
+                    console.log('[Auth] Step 4: Database query complete, user found:', !!user);
 
                     if (!user) {
                         console.log('[Auth] User not found:', email);
@@ -49,10 +54,12 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                         return null;
                     }
 
+                    console.log('[Auth] Step 5: Comparing passwords...');
                     const passwordsMatch = await bcrypt.compare(password, user.password);
+                    console.log('[Auth] Step 6: Password comparison complete, match:', passwordsMatch);
 
                     if (passwordsMatch) {
-                        console.log('[Auth] Login successful:', user.email);
+                        console.log('[Auth] ✅ Login successful:', user.email);
                         return {
                             id: user.id,
                             name: user.name,
@@ -61,10 +68,15 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                         };
                     }
 
-                    console.log('[Auth] Invalid password for:', email);
+                    console.log('[Auth] ❌ Invalid password for:', email);
                     return null;
                 } catch (error) {
-                    console.error('[Auth] Error in authorize:', error);
+                    console.error('[Auth] ❌ ERROR in authorize:', error);
+                    console.error('[Auth] Error details:', {
+                        name: error instanceof Error ? error.name : 'Unknown',
+                        message: error instanceof Error ? error.message : String(error),
+                        stack: error instanceof Error ? error.stack : undefined
+                    });
                     return null;
                 }
             },
