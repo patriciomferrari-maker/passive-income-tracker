@@ -20,11 +20,16 @@ export async function authenticate(
     const userAgent = headerList.get('user-agent') ?? 'unknown';
 
     try {
-        await signIn('credentials', formData);
+        console.log('[Actions] Calling signIn with credentials...');
+        await signIn('credentials', {
+            ...Object.fromEntries(formData),
+            redirectTo: '/'
+        });
 
         // If we get here (which usually doesn't happen due to redirect), log success
         // But mainly success is handled via the specific redirect error catch or implicitly
     } catch (error) {
+        console.error('[Actions] signIn error:', error);
         if (error instanceof AuthError) {
             // Log Failure
             await prisma.accessLog.create({
