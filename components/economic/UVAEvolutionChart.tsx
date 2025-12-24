@@ -227,7 +227,11 @@ export default function UVAEvolutionChart() {
         const tcBlueStartIdx = tcBlueData.findIndex(d => d.date.startsWith(startMonthKey));
         const tcOficialStartIdx = tcOficialData.findIndex(d => d.date.startsWith(startMonthKey));
 
+        console.log('[calculatePercentageGrowth] Start indices:', 'UVA:', uvaStartIdx, 'IPC:', ipcStartIdx, 'TCBlue:', tcBlueStartIdx, 'TCOficial:', tcOficialStartIdx);
+
         if (uvaStartIdx === -1 || ipcStartIdx === -1 || tcBlueStartIdx === -1 || tcOficialStartIdx === -1) {
+            console.log('[calculatePercentageGrowth] EARLY RETURN - Start month not found in all arrays. Requested:', startMonthKey);
+            console.log('[calculatePercentageGrowth] First available months - UVA:', uvaData[0].date.slice(0, 7), 'IPC:', ipcData[0].date.slice(0, 7), 'TCBlue:', tcBlueData[0].date.slice(0, 7), 'TCOficial:', tcOficialData[0].date.slice(0, 7));
             return [];
         }
 
