@@ -100,23 +100,13 @@ export default function HomePage() {
   };
 
   if (!loading && isUnauthenticated) {
+    // Auto-redirect to login page instead of showing a button
+    router.push('/login');
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
         <div className="text-center space-y-6 max-w-lg">
-          <h1 className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
-            Passive Income
-          </h1>
-          <p className="text-slate-400 text-lg">
-            Gestiona tus inversiones, controla tus gastos y seguí la evolución de tu patrimonio en un solo lugar.
-          </p>
-          <div className="pt-4">
-            <Link
-              href="/api/auth/signin"
-              className="inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-blue-600 text-white hover:bg-blue-700 h-11 px-8"
-            >
-              Iniciar Sesión
-            </Link>
-          </div>
+          <Loader2 className="animate-spin text-blue-400 mx-auto" size={48} />
+          <p className="text-slate-400">Redirigiendo a login...</p>
         </div>
       </div>
     )
