@@ -99,9 +99,14 @@ export default function HomePage() {
     }
   };
 
+  // Redirect to login if unauthenticated
+  useEffect(() => {
+    if (!loading && isUnauthenticated) {
+      window.location.href = '/login';
+    }
+  }, [loading, isUnauthenticated]);
+
   if (!loading && isUnauthenticated) {
-    // Auto-redirect to login page instead of showing a button
-    router.push('/login');
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
         <div className="text-center space-y-6 max-w-lg">
