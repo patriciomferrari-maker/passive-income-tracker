@@ -6,7 +6,13 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const userId = await getUserId();
+        let userId;
+        try {
+            userId = await getUserId();
+        } catch (authError) {
+            // If getUserId fails, return 401 instead of 500
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
         const now = new Date();
 
         const user = await prisma.user.findUnique({
