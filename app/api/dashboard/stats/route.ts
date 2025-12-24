@@ -6,17 +6,27 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        let userId;
+        // Check authentication directly to handle timezone errors gracefully
+        let session;
         try {
-            userId = await getUserId();
+            const { auth } = await import('@/auth');
+            session = await auth();
         } catch (authError) {
-            // If getUserId fails, return 401 instead of 500
+            console.error('[Dashboard Stats] Auth check failed:', authError);
+            // If auth itself fails (timezone or other issues), treat as unauthenticated
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const userId = session.user.id;
         const now = new Date();
 
         const user = await prisma.user.findUnique({
-            where: { id: userId }
+            where: { id: userId },
+            select: { id: true, email: true } // Only select what we need
         });
 
         // Get User Settings
