@@ -64,23 +64,24 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
             return session;
         },
         async jwt({ token, user, account }) {
-            if (account && user) {
-                // Initial sign in
-                // Logic to link Google Account to existing User by Email
-                if (user.email) {
+            // On initial sign in, user object is present
+            if (user) {
+                // For Credentials provider, user.id is already set by authorize()
+                if (user.id) {
+                    token.sub = user.id;
+                }
+
+                // For OAuth providers (Google), look up or create user
+                if (account && account.provider === 'google' && user.email) {
                     const dbUser = await prisma.user.findUnique({
                         where: { email: user.email }
                     });
 
                     if (dbUser) {
-                        token.sub = dbUser.id; // Use Database ID
-                        token.role = dbUser.role; // Verify role too
-                    } else if (account.provider === 'google') {
-                        // Optional: Create user here if we want auto-registration for Google
-                        // But for now, let's focus on linking. 
-                        // If we don't create it, token.sub is Google ID, which is fine for new users (but they will be empty)
-
-                        // Let's AUTO-CREATE to allow Google Sign Up
+                        token.sub = dbUser.id;
+                        token.role = dbUser.role;
+                    } else {
+                        // Auto-create user for Google Sign Up
                         const newUser = await prisma.user.create({
                             data: {
                                 email: user.email,
