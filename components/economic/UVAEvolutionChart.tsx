@@ -133,7 +133,11 @@ export default function UVAEvolutionChart() {
 
     // Filter and calculate percentage growth based on selected period
     const { filteredData, startDateLabel } = useMemo(() => {
+        console.log('[useMemo] Executing with lengths:', 'UVA:', rawUVA.length, 'IPC:', rawIPC.length, 'TCBlue:', rawTCBlue.length, 'TCOficial:', rawTCOficial.length);
+        console.log('[useMemo] selectedPeriod:', selectedPeriod);
+
         if (rawUVA.length === 0 || rawIPC.length === 0 || rawTCBlue.length === 0 || rawTCOficial.length === 0) {
+            console.log('[useMemo] Returning empty - data not ready');
             return { filteredData: [], startDateLabel: '' };
         }
 
