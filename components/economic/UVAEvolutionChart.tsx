@@ -180,7 +180,20 @@ export default function UVAEvolutionChart() {
         if (!startData) return { filteredData: [], startDateLabel: '' };
 
         const startDate = new Date(startData.date);
-        const endDate = new Date(rawUVA[rawUVA.length - 1].date);
+
+        // Find the last month that has data in ALL arrays
+        const lastUVAMonth = rawUVA[rawUVA.length - 1].date.slice(0, 7);
+        const lastIPCMonth = rawIPC[rawIPC.length - 1].date.slice(0, 7);
+        const lastTCBlueMonth = rawTCBlue[rawTCBlue.length - 1].date.slice(0, 7);
+        const lastTCOficialMonth = rawTCOficial[rawTCOficial.length - 1].date.slice(0, 7);
+
+        // Use the earliest of the last months (most restrictive)
+        const endMonth = [lastUVAMonth, lastIPCMonth, lastTCBlueMonth, lastTCOficialMonth].sort()[0];
+        const endData = rawUVA.find(d => d.date.startsWith(endMonth));
+        const endDate = endData ? new Date(endData.date) : new Date(rawUVA[rawUVA.length - 1].date);
+
+        console.log('[useMemo] Last months - UVA:', lastUVAMonth, 'IPC:', lastIPCMonth, 'TCBlue:', lastTCBlueMonth, 'TCOficial:', lastTCOficialMonth, '→ Using:', endMonth);
+
         const useAsBaseline = selectedPeriod === 'YTD';
 
         return {
