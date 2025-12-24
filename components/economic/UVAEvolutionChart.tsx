@@ -237,31 +237,41 @@ export default function UVAEvolutionChart() {
             ipcAccumulated: 0
         });
 
-        // Calculate from baseline+1 to end
-        const maxIdx = Math.min(uvaData.length, ipcData.length, tcBlueData.length, tcOficialData.length);
-        console.log('[calculatePercentageGrowth] Loop from', baselineUVAIdx + 1, 'to', maxIdx);
-        console.log('[calculatePercentageGrowth] Array lengths - UVA:', uvaData.length, 'IPC:', ipcData.length, 'TCBlue:', tcBlueData.length, 'TCOficial:', tcOficialData.length);
+        // Calculate from baseline+1 to end (iterate by MONTHS, not indices)
+        console.log('[calculatePercentageGrowth] Iterating from', startMonthKey, 'to', endMonthKey);
 
-        for (let i = baselineUVAIdx + 1; i < maxIdx; i++) {
-            const currentMonthKey = uvaData[i].date.slice(0, 7);
-
-            if (currentMonthKey > endMonthKey) {
-                console.log(`[calculatePercentageGrowth] BREAK at i=${i}, currentMonthKey=${currentMonthKey} > endMonthKey=${endMonthKey}`);
-                break;
+        // Get all unique months from UVA data within range
+        const monthsToProcess: string[] = [];
+        for (let i = 0; i < uvaData.length; i++) {
+            const monthKey = uvaData[i].date.slice(0, 7);
+            if (monthKey >= startMonthKey && monthKey <= endMonthKey) {
+                if (!monthsToProcess.includes(monthKey)) {
+                    monthsToProcess.push(monthKey);
+                }
             }
+        }
+        monthsToProcess.sort();
+        console.log('[calculatePercentageGrowth] Months to process:', monthsToProcess.length, 'months');
 
-            // Find corresponding indices in other arrays
+        // Iterate over each month after baseline
+        const baselineMonthKey = uvaData[baselineUVAIdx].date.slice(0, 7);
+        for (const currentMonthKey of monthsToProcess) {
+            // Skip baseline month (already added)
+            if (currentMonthKey === baselineMonthKey) continue;
+
+            // Find data for this month in each array
+            const uvaIdx = uvaData.findIndex(d => d.date.startsWith(currentMonthKey));
             const ipcIdx = ipcData.findIndex(d => d.date.startsWith(currentMonthKey));
             const tcBlueIdx = tcBlueData.findIndex(d => d.date.startsWith(currentMonthKey));
             const tcOficialIdx = tcOficialData.findIndex(d => d.date.startsWith(currentMonthKey));
 
-            if (ipcIdx === -1 || tcBlueIdx === -1 || tcOficialIdx === -1) {
-                console.log(`[calculatePercentageGrowth] SKIP i=${i}, month=${currentMonthKey}: ipcIdx=${ipcIdx}, tcBlueIdx=${tcBlueIdx}, tcOficialIdx=${tcOficialIdx}`);
+            if (uvaIdx === -1 || ipcIdx === -1 || tcBlueIdx === -1 || tcOficialIdx === -1) {
+                console.log(`[calculatePercentageGrowth] SKIP month=${currentMonthKey}: uvaIdx=${uvaIdx}, ipcIdx=${ipcIdx}, tcBlueIdx=${tcBlueIdx}, tcOficialIdx=${tcOficialIdx}`);
                 continue;
             }
 
             // Calculate UVA growth %
-            const uvaGrowth = ((uvaData[i].value - baselineUVA) / baselineUVA) * 100;
+            const uvaGrowth = ((uvaData[uvaIdx].value - baselineUVA) / baselineUVA) * 100;
 
             // Calculate TC Blue devaluation %
             const tcBlueGrowth = ((tcBlueData[tcBlueIdx].value - baselineTCBlue) / baselineTCBlue) * 100;
@@ -276,7 +286,7 @@ export default function UVAEvolutionChart() {
             const ipcAccumulated = (accumulatedInflation - 1) * 100;
 
             result.push({
-                date: uvaData[i].date,
+                date: uvaData[uvaIdx].date,
                 uvaGrowth,
                 tcBlueGrowth,
                 tcOficialGrowth,
