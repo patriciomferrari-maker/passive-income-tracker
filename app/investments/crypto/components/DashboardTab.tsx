@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { TrendingUp, TrendingDown, Wallet, DollarSign } from 'lucide-react';
+import PortfolioChart from './PortfolioChart';
+import { getCryptoIcon } from '@/app/lib/crypto-list';
 
 interface DashboardData {
     totalInvested: number;
@@ -130,9 +132,53 @@ export default function DashboardTab() {
                 </div>
             )}
 
+            {/* Portfolio Visualization */}
+            {data.portfolioBreakdown.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Portfolio Chart */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                        <h3 className="text-xl font-semibold mb-4">Distribución del Portfolio</h3>
+                        <PortfolioChart
+                            data={data.portfolioBreakdown.map(coin => ({
+                                ticker: coin.ticker,
+                                name: coin.name,
+                                value: coin.currentValue,
+                                percentage: (coin.currentValue / data.totalCurrentValue) * 100
+                            }))}
+                        />
+                    </div>
+
+                    {/* Top Holdings List */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                        <h3 className="text-xl font-semibold mb-4">Top Holdings</h3>
+                        <div className="space-y-3">
+                            {data.portfolioBreakdown.slice(0, 5).map((coin, index) => (
+                                <div key={coin.ticker} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-2xl">{getCryptoIcon(coin.ticker)}</div>
+                                        <div>
+                                            <div className="font-semibold">{coin.ticker}</div>
+                                            <div className="text-sm text-slate-400">{coin.name}</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="font-bold">
+                                            ${coin.currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </div>
+                                        <div className={`text-sm ${coin.unrealized >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {coin.unrealized >= 0 ? '+' : ''}{coin.unrealizedPercent.toFixed(2)}%
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Portfolio Breakdown */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                <h3 className="text-xl font-semibold mb-4">Composición del Portfolio</h3>
+                <h3 className="text-xl font-semibold mb-4">Todas las Posiciones</h3>
                 {data.portfolioBreakdown.length === 0 ? (
                     <p className="text-slate-400 text-center py-8">
                         No hay inversiones. Añade tu primera crypto en la pestaña Operaciones.
@@ -141,11 +187,14 @@ export default function DashboardTab() {
                     <div className="space-y-4">
                         {data.portfolioBreakdown.map((coin) => (
                             <div key={coin.ticker} className="flex items-center justify-between p-4 bg-slate-800 rounded-lg">
-                                <div>
-                                    <div className="font-semibold text-lg">{coin.ticker}</div>
-                                    <div className="text-slate-400 text-sm">{coin.name}</div>
-                                    <div className="text-slate-500 text-xs mt-1">
-                                        {coin.quantity.toLocaleString('en-US', { maximumFractionDigits: 8 })} unidades
+                                <div className="flex items-center gap-3">
+                                    <div className="text-2xl">{getCryptoIcon(coin.ticker)}</div>
+                                    <div>
+                                        <div className="font-semibold text-lg">{coin.ticker}</div>
+                                        <div className="text-slate-400 text-sm">{coin.name}</div>
+                                        <div className="text-slate-500 text-xs mt-1">
+                                            {coin.quantity.toLocaleString('en-US', { maximumFractionDigits: 8 })} unidades
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="text-right">

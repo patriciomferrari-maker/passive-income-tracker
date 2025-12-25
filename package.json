@@ -32,7 +32,7 @@
     "puppeteer-core": "22.4.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "recharts": "^3.5.1",
+    "recharts": "^3.6.0",
     "resend": "^6.5.2",
     "tailwind-merge": "^3.4.0",
     "yahoo-finance2": "^3.10.2",
