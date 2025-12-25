@@ -13,12 +13,10 @@ export default function ConfiguracionTab() {
                     <div>
                         <h4 className="font-semibold mb-2">Fuente de Precios</h4>
                         <p className="text-sm text-slate-400 mb-2">
-                            Selecciona de dónde obtener los precios de mercado actuales.
+                            Los precios se actualizan automáticamente desde CoinGecko.
                         </p>
-                        <select className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2">
-                            <option>Manual (actualización manual)</option>
-                            <option disabled>CoinGecko API (próximamente)</option>
-                            <option disabled>Binance API (próximamente)</option>
+                        <select className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2" disabled>
+                            <option>CoinGecko API (Activo - actualización cada hora)</option>
                         </select>
                     </div>
 

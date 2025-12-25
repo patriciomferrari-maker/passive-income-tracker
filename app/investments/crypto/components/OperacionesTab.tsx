@@ -200,7 +200,7 @@ export default function OperacionesTab() {
                     <div className="mb-4 flex gap-2">
                         <Button
                             type="button"
-                            variant={cryptoFormMode === 'select' ? 'default' : 'outline'}
+                            className={cryptoFormMode === 'select' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-800 hover:bg-slate-700 border border-slate-600'}
                             onClick={() => setCryptoFormMode('select')}
                             size="sm"
                         >
@@ -208,7 +208,7 @@ export default function OperacionesTab() {
                         </Button>
                         <Button
                             type="button"
-                            variant={cryptoFormMode === 'custom' ? 'default' : 'outline'}
+                            className={cryptoFormMode === 'custom' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-800 hover:bg-slate-700 border border-slate-600'}
                             onClick={() => setCryptoFormMode('custom')}
                             size="sm"
                         >
@@ -281,10 +281,10 @@ export default function OperacionesTab() {
                             </div>
                         )}
                         <div className="flex gap-2">
-                            <Button type="submit" disabled={!cryptoForm.ticker || !cryptoForm.name}>
+                            <Button type="submit" disabled={!cryptoForm.ticker || !cryptoForm.name} className="bg-green-600 hover:bg-green-700">
                                 Crear
                             </Button>
-                            <Button type="button" variant="outline" onClick={() => {
+                            <Button type="button" className="bg-slate-800 hover:bg-slate-700 border border-slate-600" onClick={() => {
                                 setShowNewCryptoForm(false);
                                 setCryptoFormMode('select');
                                 setSelectedCrypto('');
@@ -386,8 +386,8 @@ export default function OperacionesTab() {
                             />
                         </div>
                         <div className="flex gap-2">
-                            <Button type="submit">Guardar</Button>
-                            <Button type="button" variant="outline" onClick={() => setShowTransactionForm(false)}>
+                            <Button type="submit" className="bg-green-600 hover:bg-green-700">Guardar</Button>
+                            <Button type="button" className="bg-slate-800 hover:bg-slate-700 border border-slate-600" onClick={() => setShowTransactionForm(false)}>
                                 Cancelar
                             </Button>
                         </div>
