@@ -183,7 +183,7 @@ export default function OperacionesTab() {
                 </Button>
                 <Button
                     onClick={() => window.open('/api/crypto/export', '_blank')}
-                    variant="outline"
+                    className="bg-slate-800 hover:bg-slate-700 border border-slate-600"
                     disabled={cryptos.length === 0}
                 >
                     <Download className="h-4 w-4 mr-2" />
@@ -236,7 +236,7 @@ export default function OperacionesTab() {
                                     </select>
                                 </div>
                                 {selectedCrypto && (
-                                    <div className="grid grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm text-slate-400 mb-2">Ticker</label>
                                             <Input
@@ -253,25 +253,11 @@ export default function OperacionesTab() {
                                                 className="bg-slate-800 border-slate-700"
                                             />
                                         </div>
-                                        <div>
-                                            <label className="block text-sm text-slate-400 mb-2">
-                                                Precio Actual {fetchingPrice && <Loader2 className="inline h-3 w-3 animate-spin" />}
-                                            </label>
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={cryptoForm.lastPrice}
-                                                onChange={(e) => setCryptoForm({ ...cryptoForm, lastPrice: e.target.value })}
-                                                placeholder="0.00"
-                                                className="bg-slate-800 border-slate-700"
-                                                disabled={fetchingPrice}
-                                            />
-                                        </div>
                                     </div>
                                 )}
                             </>
                         ) : (
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm text-slate-400 mb-2">Ticker</label>
                                     <Input
@@ -289,17 +275,6 @@ export default function OperacionesTab() {
                                         onChange={(e) => setCryptoForm({ ...cryptoForm, name: e.target.value })}
                                         placeholder="Bitcoin"
                                         required
-                                        className="bg-slate-800 border-slate-700"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-slate-400 mb-2">Precio Inicial</label>
-                                    <Input
-                                        type="number"
-                                        step="0.01"
-                                        value={cryptoForm.lastPrice}
-                                        onChange={(e) => setCryptoForm({ ...cryptoForm, lastPrice: e.target.value })}
-                                        placeholder="0.00"
                                         className="bg-slate-800 border-slate-700"
                                     />
                                 </div>

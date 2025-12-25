@@ -34,6 +34,8 @@ export default function ConfiguracionTab() {
                         </select>
                     </div>
 
+                    {/* FIFO is the only method - no need to show selector */}
+                    {/*
                     <div>
                         <h4 className="font-semibold mb-2">Método de Cálculo de Ganancias</h4>
                         <p className="text-sm text-slate-400 mb-2">
@@ -45,14 +47,15 @@ export default function ConfiguracionTab() {
                             <option disabled>Promedio - próximamente</option>
                         </select>
                     </div>
+                    */}
                 </div>
 
                 <div className="mt-6 p-4 bg-blue-950/20 border border-blue-800 rounded-lg">
                     <div className="flex items-start gap-2">
                         <span className="text-blue-400">ℹ️</span>
                         <div className="text-sm text-blue-300">
-                            <strong>Nota:</strong> Actualmente todas las funciones de configuración automática están en desarrollo.
-                            Los precios se actualizan manualmente al registrar cada transacción.
+                            <strong>Nota:</strong> El método FIFO (First In, First Out) se usa automáticamente para todos los cálculos de ganancias.
+                            Los precios se actualizan automáticamente desde CoinGecko cada hora.
                         </div>
                     </div>
                 </div>
