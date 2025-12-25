@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, ArrowUpCircle, ArrowDownCircle, Loader2 } from 'lucide-react';
+import { Plus, ArrowUpCircle, ArrowDownCircle, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { POPULAR_CRYPTOS, getCryptoIcon } from '@/app/lib/crypto-list';
@@ -180,6 +180,14 @@ export default function OperacionesTab() {
                 >
                     <Plus className="h-4 w-4 mr-2" />
                     Nueva Operación
+                </Button>
+                <Button
+                    onClick={() => window.open('/api/crypto/export', '_blank')}
+                    variant="outline"
+                    disabled={cryptos.length === 0}
+                >
+                    <Download className="h-4 w-4 mr-2" />
+                    Exportar CSV
                 </Button>
             </div>
 
