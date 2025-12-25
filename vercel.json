@@ -7,10 +7,6 @@
         {
             "path": "/api/cron/economic",
             "schedule": "0 13 * * *"
-        },
-        {
-            "path": "/api/crypto/prices/cron",
-            "schedule": "0 * * * *"
         }
     ]
 }

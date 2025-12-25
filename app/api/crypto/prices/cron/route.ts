@@ -4,7 +4,7 @@ import { getCryptoPrices } from '@/app/lib/coingecko';
 import { findCryptoBySymbol } from '@/app/lib/crypto-list';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 10; // Hobby plan max
 
 /**
  * Cron job to update all crypto prices

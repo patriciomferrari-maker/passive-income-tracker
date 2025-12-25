@@ -5,7 +5,7 @@ import { getCryptoPrices } from '@/app/lib/coingecko';
 import { findCryptoBySymbol } from '@/app/lib/crypto-list';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Allow up to 60 seconds for this endpoint
+export const maxDuration = 10; // Hobby plan max
 
 /**
  * Update prices for all user's crypto holdings
