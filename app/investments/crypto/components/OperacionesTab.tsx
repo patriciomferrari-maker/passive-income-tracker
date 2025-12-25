@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { Plus, ArrowUpCircle, ArrowDownCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { POPULAR_CRYPTOS, getCryptoIcon } from '@/app/lib/crypto-list';
 
 interface Crypto {
     id: string;
@@ -29,9 +30,13 @@ export default function OperacionesTab() {
     const [showTransactionForm, setShowTransactionForm] = useState(false);
     const [selectedCryptoId, setSelectedCryptoId] = useState('');
     const [loading, setLoading] = useState(true);
+    const [fetchingPrice, setFetchingPrice] = useState(false);
 
     // Form states
+    const [cryptoFormMode, setCryptoFormMode] = useState<'select' | 'custom'>('select');
+    const [selectedCrypto, setSelectedCrypto] = useState('');
     const [cryptoForm, setCryptoForm] = useState({ ticker: '', name: '', lastPrice: '' });
+
     const [txForm, setTxForm] = useState({
         type: 'BUY' as 'BUY' | 'SELL',
         quantity: '',
@@ -59,6 +64,32 @@ export default function OperacionesTab() {
         }
     };
 
+    const handleCryptoSelection = async (coingeckoId: string) => {
+        setSelectedCrypto(coingecko Id);
+        const crypto = POPULAR_CRYPTOS.find(c => `${c.symbol}-${c.coingeckoId}` === coingeckoId);
+        if (crypto) {
+            setCryptoForm({
+                ticker: crypto.symbol,
+                name: crypto.name,
+                lastPrice: ''
+            });
+
+            // Fetch current price
+            setFetchingPrice(true);
+            try {
+                const res = await fetch(`/api/crypto/prices/${crypto.symbol}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setCryptoForm(prev => ({ ...prev, lastPrice: data.price.toString() }));
+                }
+            } catch (error) {
+                console.error('Error fetching price:', error);
+            } finally {
+                setFetchingPrice(false);
+            }
+        }
+    };
+
     const handleCreateCrypto = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
@@ -74,6 +105,8 @@ export default function OperacionesTab() {
 
             if (res.ok) {
                 setCryptoForm({ ticker: '', name: '', lastPrice: '' });
+                setSelectedCrypto('');
+                setCryptoFormMode('select');
                 setShowNewCryptoForm(false);
                 fetchCryptos();
             }
@@ -154,43 +187,126 @@ export default function OperacionesTab() {
             {showNewCryptoForm && (
                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
                     <h3 className="text-lg font-semibold mb-4">Añadir Nueva Criptomoneda</h3>
+
+                    {/* Mode Selection */}
+                    <div className="mb-4 flex gap-2">
+                        <Button
+                            type="button"
+                            variant={cryptoFormMode === 'select' ? 'default' : 'outline'}
+                            onClick={() => setCryptoFormMode('select')}
+                            size="sm"
+                        >
+                            Lista predefinida
+                        </Button>
+                        <Button
+                            type="button"
+                            variant={cryptoFormMode === 'custom' ? 'default' : 'outline'}
+                            onClick={() => setCryptoFormMode('custom')}
+                            size="sm"
+                        >
+                            Custom
+                        </Button>
+                    </div>
+
                     <form onSubmit={handleCreateCrypto} className="space-y-4">
-                        <div className="grid grid-cols-3 gap-4">
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-2">Ticker</label>
-                                <Input
-                                    value={cryptoForm.ticker}
-                                    onChange={(e) => setCryptoForm({ ...cryptoForm, ticker: e.target.value })}
-                                    placeholder="BTC"
-                                    required
-                                    className="bg-slate-800 border-slate-700"
-                                />
+                        {cryptoFormMode === 'select' ? (
+                            <>
+                                <div>
+                                    <label className="block text-sm text-slate-400 mb-2">Seleccionar Criptomoneda</label>
+                                    <select
+                                        value={selectedCrypto}
+                                        onChange={(e) => handleCryptoSelection(e.target.value)}
+                                        required
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2"
+                                    >
+                                        <option value="">Seleccionar...</option>
+                                        {POPULAR_CRYPTOS.map(crypto => (
+                                            <option key={crypto.coingeckoId} value={`${crypto.symbol}-${crypto.coingeckoId}`}>
+                                                {getCryptoIcon(crypto.symbol)} {crypto.symbol} - {crypto.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                {selectedCrypto && (
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-sm text-slate-400 mb-2">Ticker</label>
+                                            <Input
+                                                value={cryptoForm.ticker}
+                                                disabled
+                                                className="bg-slate-800 border-slate-700"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm text-slate-400 mb-2">Nombre</label>
+                                            <Input
+                                                value={cryptoForm.name}
+                                                disabled
+                                                className="bg-slate-800 border-slate-700"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm text-slate-400 mb-2">
+                                                Precio Actual {fetchingPrice && <Loader2 className="inline h-3 w-3 animate-spin" />}
+                                            </label>
+                                            <Input
+                                                type="number"
+                                                step="0.01"
+                                                value={cryptoForm.lastPrice}
+                                                onChange={(e) => setCryptoForm({ ...cryptoForm, lastPrice: e.target.value })}
+                                                placeholder="0.00"
+                                                className="bg-slate-800 border-slate-700"
+                                                disabled={fetchingPrice}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-sm text-slate-400 mb-2">Ticker</label>
+                                    <Input
+                                        value={cryptoForm.ticker}
+                                        onChange={(e) => setCryptoForm({ ...cryptoForm, ticker: e.target.value })}
+                                        placeholder="BTC"
+                                        required
+                                        className="bg-slate-800 border-slate-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-slate-400 mb-2">Nombre</label>
+                                    <Input
+                                        value={cryptoForm.name}
+                                        onChange={(e) => setCryptoForm({ ...cryptoForm, name: e.target.value })}
+                                        placeholder="Bitcoin"
+                                        required
+                                        className="bg-slate-800 border-slate-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-slate-400 mb-2">Precio Inicial</label>
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        value={cryptoForm.lastPrice}
+                                        onChange={(e) => setCryptoForm({ ...cryptoForm, lastPrice: e.target.value })}
+                                        placeholder="0.00"
+                                        className="bg-slate-800 border-slate-700"
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-2">Nombre</label>
-                                <Input
-                                    value={cryptoForm.name}
-                                    onChange={(e) => setCryptoForm({ ...cryptoForm, name: e.target.value })}
-                                    placeholder="Bitcoin"
-                                    required
-                                    className="bg-slate-800 border-slate-700"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-2">Precio Inicial</label>
-                                <Input
-                                    type="number"
-                                    step="0.01"
-                                    value={cryptoForm.lastPrice}
-                                    onChange={(e) => setCryptoForm({ ...cryptoForm, lastPrice: e.target.value })}
-                                    placeholder="0.00"
-                                    className="bg-slate-800 border-slate-700"
-                                />
-                            </div>
-                        </div>
+                        )}
                         <div className="flex gap-2">
-                            <Button type="submit">Crear</Button>
-                            <Button type="button" variant="outline" onClick={() => setShowNewCryptoForm(false)}>
+                            <Button type="submit" disabled={!cryptoForm.ticker || !cryptoForm.name}>
+                                Crear
+                            </Button>
+                            <Button type="button" variant="outline" onClick={() => {
+                                setShowNewCryptoForm(false);
+                                setCryptoFormMode('select');
+                                setSelectedCrypto('');
+                                setCryptoForm({ ticker: '', name: '', lastPrice: '' });
+                            }}>
                                 Cancelar
                             </Button>
                         </div>
@@ -215,7 +331,7 @@ export default function OperacionesTab() {
                                     <option value="">Seleccionar...</option>
                                     {cryptos.map(crypto => (
                                         <option key={crypto.id} value={crypto.id}>
-                                            {crypto.ticker} - {crypto.name}
+                                            {getCryptoIcon(crypto.ticker)} {crypto.ticker} - {crypto.name}
                                         </option>
                                     ))}
                                 </select>
@@ -312,7 +428,10 @@ export default function OperacionesTab() {
                                         <ArrowDownCircle className="h-6 w-6 text-red-400" />
                                     )}
                                     <div>
-                                        <div className="font-semibold">{tx.cryptoTicker}</div>
+                                        <div className="font-semibold flex items-center gap-2">
+                                            <span>{getCryptoIcon(tx.cryptoTicker)}</span>
+                                            {tx.cryptoTicker}
+                                        </div>
                                         <div className="text-sm text-slate-400">{new Date(tx.date).toLocaleDateString('es-AR')}</div>
                                     </div>
                                 </div>
