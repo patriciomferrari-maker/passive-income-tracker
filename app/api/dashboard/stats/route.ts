@@ -193,6 +193,42 @@ export async function GET() {
             .filter(op => op.currency === 'USD')
             .reduce((sum, op) => sum + op.amount, 0);
 
+        // Get Crypto Stats
+        const cryptoInvestments = await prisma.investment.findMany({
+            where: { userId, type: 'CRYPTO', market: 'CRYPTO' },
+            select: {
+                id: true,
+                lastPrice: true,
+                transactions: {
+                    select: {
+                        type: true,
+                        quantity: true,
+                        price: true,
+                        commission: true
+                    }
+                }
+            }
+        });
+
+        let cryptoTotalValue = 0;
+        for (const crypto of cryptoInvestments) {
+            const quantity = crypto.transactions.reduce((sum, tx) => {
+                if (tx.type === 'BUY') return sum + tx.quantity;
+                if (tx.type === 'SELL') return sum - tx.quantity;
+                return sum;
+            }, 0);
+            cryptoTotalValue += quantity * (crypto.lastPrice || 0);
+        }
+
+        const cryptoCount = cryptoInvestments.filter(c => {
+            const qty = c.transactions.reduce((sum, tx) => {
+                if (tx.type === 'BUY') return sum + tx.quantity;
+                if (tx.type === 'SELL') return sum - tx.quantity;
+                return sum;
+            }, 0);
+            return qty > 0;
+        }).length;
+
         const needsOnboarding = settings && settings.enabledSections === '';
 
         return NextResponse.json({
@@ -218,6 +254,10 @@ export async function GET() {
             bank: {
                 totalUSD: bankTotalUSD,
                 nextMaturitiesPF: []
+            },
+            crypto: {
+                count: cryptoCount,
+                totalValue: cryptoTotalValue
             },
             barbosa: {
                 count: 0,

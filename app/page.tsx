@@ -251,6 +251,18 @@ export default function HomePage() {
                           />
                         )}
 
+                        {shouldShow('crypto') && (
+                          <DashboardCard
+                            title="Crypto Portfolio"
+                            description="Bitcoin, Ethereum y otras"
+                            icon="₿"
+                            href="/investments/crypto"
+                            count={stats.crypto?.count || 0}
+                            totalValue={stats.crypto?.totalValue || 0}
+                            currency="USD"
+                          />
+                        )}
+
                         {/* Economic Data - Restricted to admin only */}
                         {stats.userEmail === 'patriciomferrari@gmail.com' && (
                           <DashboardCard
