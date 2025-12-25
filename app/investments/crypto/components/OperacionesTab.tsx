@@ -65,7 +65,7 @@ export default function OperacionesTab() {
     };
 
     const handleCryptoSelection = async (coingeckoId: string) => {
-        setSelectedCrypto(coingecko Id);
+        setSelectedCrypto(coingeckoId);
         const crypto = POPULAR_CRYPTOS.find(c => `${c.symbol}-${c.coingeckoId}` === coingeckoId);
         if (crypto) {
             setCryptoForm({
