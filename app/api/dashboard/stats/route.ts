@@ -354,7 +354,7 @@ export async function GET() {
             },
             rentals: {
                 count: rentalsCount,
-                totalValue: rentalsTotalIncome + rentalsTotalExpense, // Kept for safety
+                totalValue: rentalsTotalIncome, // Only count Owner Income for the main dashboard total
                 totalIncome: rentalsTotalIncome,
                 totalExpense: rentalsTotalExpense
             },
