@@ -62,6 +62,7 @@ export async function GET() {
         // Find "Last Month" with data. 
         let lastExpenseMonthKey = '';
         const distinctExpenseMonths = new Set<string>();
+        const monthlyExpensesBreakdown = new Map<string, { USD: number, ARS: number }>();
 
         transactions.forEach(t => {
             const amountUSD = toUSD(t.amount, t.currency, t.date);
@@ -76,6 +77,12 @@ export async function GET() {
                 monthlyExpenses.set(monthKey, (monthlyExpenses.get(monthKey) || 0) + amountUSD);
                 distinctExpenseMonths.add(monthKey);
 
+                // Breakdown Logic
+                const breakdown = monthlyExpensesBreakdown.get(monthKey) || { USD: 0, ARS: 0 };
+                if (t.currency === 'USD') breakdown.USD += t.amount;
+                else breakdown.ARS += t.amount;
+                monthlyExpensesBreakdown.set(monthKey, breakdown);
+
                 if (!lastExpenseMonthKey || monthKey > lastExpenseMonthKey) {
                     lastExpenseMonthKey = monthKey;
                 }
@@ -84,10 +91,13 @@ export async function GET() {
 
         // Last Month Expenses
         let lastMonthExpensesUSD = 0;
+        let lastMonthBreakdown = { USD: 0, ARS: 0 };
         let lastMonthName = '';
 
         if (lastExpenseMonthKey) {
             lastMonthExpensesUSD = monthlyExpenses.get(lastExpenseMonthKey) || 0;
+            lastMonthBreakdown = monthlyExpensesBreakdown.get(lastExpenseMonthKey) || { USD: 0, ARS: 0 };
+
             const [y, m] = lastExpenseMonthKey.split('-');
             const date = new Date(parseInt(y), parseInt(m) - 1);
             lastMonthName = format(date, 'MMMM', { locale: es });
@@ -143,6 +153,10 @@ export async function GET() {
             stats: {
                 yearlyRentalIncomeUSD: Math.round(yearlyRentalIncomeUSD),
                 lastMonthExpenses: Math.round(lastMonthExpensesUSD),
+                lastMonthExpensesSplit: {
+                    USD: Math.round(lastMonthBreakdown.USD),
+                    ARS: Math.round(lastMonthBreakdown.ARS)
+                },
                 lastMonthName,
                 averageMonthlyExpenses: Math.round(averageMonthlyExpenses),
                 pendingFixes,

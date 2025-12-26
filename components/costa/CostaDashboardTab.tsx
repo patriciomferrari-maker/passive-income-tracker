@@ -57,7 +57,10 @@ export function CostaDashboardTab() {
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-end gap-2">
-                            <div className="text-3xl font-bold text-red-400">{formatUSD(stats.lastMonthExpenses)}</div>
+                            <div className="flex flex-col">
+                                <div className="text-xl font-bold text-red-400">USD {formatUSD(stats.lastMonthExpensesSplit?.USD || 0).replace('USD', '').trim()}</div>
+                                <div className="text-sm text-slate-400">ARS {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(stats.lastMonthExpensesSplit?.ARS || 0)}</div>
+                            </div>
                             <div className="mb-1">
                                 {showValues && isHigher && <div className="text-red-500 text-2xl font-bold">▲</div>}
                                 {showValues && isLower && <div className="text-emerald-500 text-2xl font-bold">▼</div>}
