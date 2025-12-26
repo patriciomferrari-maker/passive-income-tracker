@@ -1,9 +1,29 @@
+import { auth } from "@/auth"
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// TEMPORARY FIX: Bypass auth middleware due to Prisma timezone errors in production
-// This allows the app to work while we investigate the root cause
-export default function middleware(req: NextRequest) {
+export default auth((req) => {
+    const isLoggedIn = !!req.auth;
+    const { nextUrl } = req;
+
+    // Allow public paths
+    const isPublicPath =
+        nextUrl.pathname === '/' ||
+        nextUrl.pathname.startsWith('/login') ||
+        nextUrl.pathname.startsWith('/register') ||
+        nextUrl.pathname.startsWith('/api/auth') ||
+        nextUrl.pathname === '/api/health';
+
+    if (isPublicPath) {
+        return NextResponse.next();
+    }
+
+    // Redirect to login if not authenticated
+    if (!isLoggedIn) {
+        return NextResponse.redirect(new URL('/login', nextUrl));
+    }
+
+    // User is authenticated, allow request
     const response = NextResponse.next();
 
     // Prevent caching for all routes to solve "back button" issue
@@ -12,7 +32,7 @@ export default function middleware(req: NextRequest) {
     response.headers.set('Expires', '0');
 
     return response;
-}
+});
 
 export const config = {
     // https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
