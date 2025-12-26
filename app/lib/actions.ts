@@ -129,7 +129,13 @@ export async function register(prevState: string | undefined, formData: FormData
         return `Error: ${(error as any)?.message || 'Unknown error'}`;
     }
 
-    redirect('/login?registered=true');
+    // Auto-login after registration
+    console.log('[Register Action] Auto-logging in...');
+    await signIn('credentials', {
+        email,
+        password,
+        redirectTo: '/'
+    });
 }
 
 export async function signOutAction() {
