@@ -103,9 +103,9 @@ export async function GET() {
         let onMarketValueUSD = 0;
 
         for (const inv of onInvestments) {
-            // Get held quantity from transactions
-            const buyQty = inv.transactions.filter(t => t.type === 'BUY').reduce((acc, t) => acc + t.quantity, 0);
-            const sellQty = inv.transactions.filter(t => t.type === 'SELL').reduce((acc, t) => acc + t.quantity, 0);
+            // Get held quantity from transactions (Case Insensitive)
+            const buyQty = inv.transactions.filter(t => t.type?.toUpperCase() === 'BUY').reduce((acc, t) => acc + t.quantity, 0);
+            const sellQty = inv.transactions.filter(t => t.type?.toUpperCase() === 'SELL').reduce((acc, t) => acc + t.quantity, 0);
             const currentQty = buyQty - sellQty;
 
             if (currentQty > 0) {
@@ -130,8 +130,8 @@ export async function GET() {
 
         let activeOnCount = 0;
         for (const inv of onInvestments) {
-            const buyQty = inv.transactions.filter(t => t.type === 'BUY').reduce((acc, t) => acc + t.quantity, 0);
-            const sellQty = inv.transactions.filter(t => t.type === 'SELL').reduce((acc, t) => acc + t.quantity, 0);
+            const buyQty = inv.transactions.filter(t => t.type?.toUpperCase() === 'BUY').reduce((acc, t) => acc + t.quantity, 0);
+            const sellQty = inv.transactions.filter(t => t.type?.toUpperCase() === 'SELL').reduce((acc, t) => acc + t.quantity, 0);
             if (buyQty - sellQty > 0) activeOnCount++;
         }
         const onCount = activeOnCount;
