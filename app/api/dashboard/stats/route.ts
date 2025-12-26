@@ -100,36 +100,19 @@ export async function GET() {
             if (!priceMap[p.investmentId]) priceMap[p.investmentId] = p.price;
         });
 
-        // Import FIFO calculation
-        const { calculateFIFO } = await import('@/app/lib/fifo');
-
-        let onMarketValueUSD = 0; // Renamed to denote it must be USD
+        let onMarketValueUSD = 0;
 
         for (const inv of onInvestments) {
-            const fifoTxs = inv.transactions.map(t => ({
-                id: t.id,
-                date: new Date(t.date),
-                type: t.type as 'BUY' | 'SELL',
-                quantity: t.quantity,
-                price: t.price,
-                commission: t.commission,
-                currency: t.currency
-            }));
-
-            const result = calculateFIFO(fifoTxs, inv.ticker);
-            let currentPrice = priceMap[inv.id] || inv.lastPrice || 0;
             // Get held quantity from transactions
             const buyQty = inv.transactions.filter(t => t.type === 'BUY').reduce((acc, t) => acc + t.quantity, 0);
             const sellQty = inv.transactions.filter(t => t.type === 'SELL').reduce((acc, t) => acc + t.quantity, 0);
             const currentQty = buyQty - sellQty;
 
             if (currentQty > 0) {
-                let price = inv.lastPrice || 0;
+                // Use PriceMap > LastPrice
+                let price = priceMap[inv.id] || inv.lastPrice || 0;
 
                 // Normalization for ONs (similar to inner dashboard logic)
-                // If price is > 2.0, it's likely expressed as % or per 100, but usually for ONs in Argentina
-                // quoting is per 100 nominals if price > 2.
-                // Inner dashboard logic: if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND') { if (currentPrice > 2.0) currentPrice = currentPrice / 100; }
                 if ((inv.type === 'ON' || inv.type === 'CORPORATE_BOND') && price > 2.0) {
                     price = price / 100;
                 }
@@ -137,7 +120,6 @@ export async function GET() {
                 let instrumentValue = currentQty * price;
 
                 // Currency Conversion
-                // Trust the currency field. if ARS, convert. If USD, keep.
                 if (inv.currency === 'ARS') {
                     instrumentValue = instrumentValue / exchangeRate;
                 }

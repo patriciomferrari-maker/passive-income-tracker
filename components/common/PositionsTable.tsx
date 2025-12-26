@@ -131,6 +131,11 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
     });
 
     return (
+    const totalValorActual = positions.reduce((sum, p) => sum + (p.quantity * (p.sellPrice || 0) || 0), 0);
+    const totalPrecioCompra = positions.reduce((sum, p) => sum + (p.quantity * p.buyPrice + p.buyCommission), 0);
+    const totalResultado = positions.reduce((sum, p) => sum + p.resultAbs, 0);
+
+    return (
         <div className="mt-8 space-y-4">
             {hasEquityAssets && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-2">
@@ -180,11 +185,11 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                 </th>
                                 <th className="px-4 py-3 text-left font-medium">Fecha Venta</th>
                                 <th className="px-4 py-3 text-right font-medium">Nominales</th>
-                                <th className="px-4 py-3 text-right font-medium">Valor Actual</th>
                                 <th className="px-4 py-3 text-right font-medium">Precio Compra</th>
                                 <th className="px-4 py-3 text-right font-medium">Com. Compra</th>
                                 <th className="px-4 py-3 text-right font-medium">Precio Venta</th>
                                 <th className="px-4 py-3 text-right font-medium">Com. Venta</th>
+                                <th className="px-4 py-3 text-right font-medium text-emerald-400">Valor Actual</th>
                                 <th className="px-4 py-3 text-right font-medium">Resultado</th>
                                 <th className="px-4 py-3 text-right font-medium">%</th>
                                 <th className="px-4 py-3 text-right font-medium text-xs text-purple-400">TIR Esp.</th>
@@ -240,9 +245,6 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                         <td className="px-4 py-3 text-right text-white tabular-nums">
                                             {pos.quantity}
                                         </td>
-                                        <td className="px-4 py-3 text-right text-emerald-400 font-medium tabular-nums">
-                                            {formatMoney(pos.quantity * (pos.sellPrice || 0), pos.currency)}
-                                        </td>
                                         <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
                                             {formatMoney(pos.buyPrice, pos.currency)}
                                         </td>
@@ -255,6 +257,10 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                         </td>
                                         <td className="px-4 py-3 text-right text-slate-400 tabular-nums text-xs">
                                             {pos.status === 'CLOSED' ? formatMoney(pos.sellCommission, pos.currency) : '-'}
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-emerald-400 font-medium tabular-nums border-l border-slate-800 bg-emerald-950/10">
+                                            {/* VALOR ACTUAL COLUMN */}
+                                            {formatMoney(pos.quantity * (pos.sellPrice || 0), pos.currency)}
                                         </td>
                                         <td className={`px-4 py-3 text-right font-medium tabular-nums ${pos.resultAbs >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                             {(pos.sellPrice > 0 || pos.status === 'CLOSED') ? formatMoney(pos.resultAbs, pos.currency) : '-'}
@@ -302,6 +308,26 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                 )
                             })}
                         </tbody>
+                        <tfoot className="bg-slate-900/80 border-t border-slate-700 font-bold text-white">
+                            <tr>
+                                <td colSpan={5} className="px-4 py-3 text-right text-slate-400">TOTALES</td>
+                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
+                                    {formatMoney(totalPrecioCompra, currency || 'USD')}
+                                </td>
+                                <td className="px-4 py-3"></td>
+                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
+                                    {/* Avg Sell Price meaningless, skip */}
+                                </td>
+                                <td className="px-4 py-3"></td>
+                                <td className="px-4 py-3 text-right text-emerald-400 tabular-nums border-l border-slate-800 bg-emerald-950/20">
+                                    {formatMoney(totalValorActual, currency || 'USD')}
+                                </td>
+                                <td className={`px-4 py-3 text-right tabular-nums ${totalResultado >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {formatMoney(totalResultado, currency || 'USD')}
+                                </td>
+                                <td colSpan={10}></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
