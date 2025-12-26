@@ -132,8 +132,14 @@ export async function GET() {
 
         // --- Currency Distribution ---
         const currencyDist = {
-            USD: activeContracts.filter(c => c.currency === 'USD').length,
-            ARS: activeContracts.filter(c => c.currency === 'ARS').length
+            owner: {
+                USD: activeContracts.filter(c => (c.property as any).role !== 'TENANT' && c.currency === 'USD').length,
+                ARS: activeContracts.filter(c => (c.property as any).role !== 'TENANT' && c.currency === 'ARS').length
+            },
+            tenant: {
+                USD: activeContracts.filter(c => (c.property as any).role === 'TENANT' && c.currency === 'USD').length,
+                ARS: activeContracts.filter(c => (c.property as any).role === 'TENANT' && c.currency === 'ARS').length
+            }
         };
 
         return NextResponse.json({

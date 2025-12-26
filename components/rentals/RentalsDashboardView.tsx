@@ -417,6 +417,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                     </Card>
 
                     {/* Global History Chart - EXPENSES (If applicable) */}
+                    {/* Global History Chart - EXPENSES (If applicable) */}
                     {hasExpenses && (
                         <Card className="bg-slate-950 border-slate-800 lg:col-span-2 shadow-lg print:border-slate-300 print:bg-white">
                             <CardHeader>
@@ -425,7 +426,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                             <CardContent>
                                 <div className="h-[300px] w-full">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={showValues ? globalData.history : []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                        <BarChart data={showValues ? globalData.history : []} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} vertical={false} />
                                             <XAxis
                                                 dataKey="monthLabel"
@@ -447,7 +448,18 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                                     labelStyle={{ color: '#94a3b8' }}
                                                 />
                                             )}
-                                            <Bar dataKey="expenseUSD" fill="#fb7185" radius={[4, 4, 0, 0]} name="Gasto Total" />
+                                            <Bar
+                                                dataKey="expenseUSD"
+                                                fill="#fb7185"
+                                                radius={[4, 4, 0, 0]}
+                                                name="Gasto Total"
+                                                label={{
+                                                    position: 'top',
+                                                    fill: '#fb7185',
+                                                    fontSize: 11,
+                                                    formatter: (value: number) => value > 0 ? `$${Math.round(value)}` : ''
+                                                }}
+                                            />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
@@ -455,56 +467,97 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                         </Card>
                     )}
 
-                    {/* Currency Pie Chart */}
-                    <Card className="bg-slate-950 border-slate-800 shadow-lg print:border-slate-300 print:bg-white">
+                    {/* Currency Pie Charts */}
+                    <Card className="bg-slate-950 border-slate-800 shadow-lg print:border-slate-300 print:bg-white flex flex-col">
                         <CardHeader>
                             <CardTitle className="text-white print:text-slate-900 flex items-center gap-2">
                                 <PieChartIcon size={16} /> Distribución Moneda
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="flex flex-col items-center justify-center p-6">
-                            <div className="h-[250px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={
-                                                showValues && globalData.currencyDistribution
-                                                    ? [
-                                                        { name: 'USD', value: globalData.currencyDistribution.USD },
-                                                        { name: 'ARS', value: globalData.currencyDistribution.ARS }
-                                                    ].filter((d: any) => d.value > 0)
-                                                    : [{ name: 'Oculto', value: 1 }]
-                                            }
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={60}
-                                            outerRadius={80}
-                                            paddingAngle={showValues ? 5 : 0}
-                                            dataKey="value"
-                                            stroke="none"
-                                        >
-                                            {showValues ? (
-                                                globalData.currencyDistribution && [
-                                                    { name: 'USD', value: globalData.currencyDistribution.USD },
-                                                    { name: 'ARS', value: globalData.currencyDistribution.ARS }
-                                                ].filter((d: any) => d.value > 0).map((entry: any, index: number) => (
-                                                    <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6'][index % 2]} />
-                                                ))
-                                            ) : (
-                                                <Cell fill="#1e293b" />
-                                            )}
-                                        </Pie>
-                                        {showValues && (
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }}
-                                                itemStyle={{ color: '#f8fafc' }}
-                                                formatter={(value: number, name: string) => [`${value} Contratos`, name]}
-                                            />
-                                        )}
-                                        {showValues && <Legend verticalAlign="bottom" height={36} />}
-                                    </PieChart>
-                                </ResponsiveContainer>
+                        <CardContent className="flex flex-col items-center justify-center p-4 gap-8 flex-1">
+                            {/* Owner Distribution */}
+                            <div className="w-full flex flex-col items-center">
+                                <p className="text-xs font-semibold text-emerald-500 uppercase mb-2">Mis Propiedades (Ingresos)</p>
+                                <div className="h-[160px] w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={
+                                                    showValues && globalData?.currencyDistribution?.owner
+                                                        ? [
+                                                            { name: 'USD', value: globalData.currencyDistribution.owner.USD },
+                                                            { name: 'ARS', value: globalData.currencyDistribution.owner.ARS }
+                                                        ].filter((d: any) => d.value > 0)
+                                                        : [{ name: 'Sin datos', value: 1 }]
+                                                }
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={40}
+                                                outerRadius={60}
+                                                paddingAngle={showValues ? 5 : 0}
+                                                dataKey="value"
+                                                stroke="none"
+                                            >
+                                                {showValues && globalData?.currencyDistribution?.owner ? (
+                                                    [
+                                                        { name: 'USD', value: globalData.currencyDistribution.owner.USD },
+                                                        { name: 'ARS', value: globalData.currencyDistribution.owner.ARS }
+                                                    ].filter((d: any) => d.value > 0).map((entry: any, index: number) => (
+                                                        <Cell key={`cell-${index}`} fill={entry.name === 'USD' ? '#10b981' : '#3b82f6'} />
+                                                    ))
+                                                ) : (
+                                                    <Cell fill="#1e293b" />
+                                                )}
+                                            </Pie>
+                                            {showValues && <Tooltip />}
+                                            {showValues && <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: '10px' }} />}
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
                             </div>
+
+                            {/* Tenant Distribution - Only if exists */}
+                            {hasExpenses && globalData?.currencyDistribution?.tenant && (
+                                <div className="w-full flex flex-col items-center pt-4 border-t border-slate-800/50">
+                                    <p className="text-xs font-semibold text-rose-500 uppercase mb-2">Propiedades Alquiladas (Gastos)</p>
+                                    <div className="h-[160px] w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={
+                                                        showValues
+                                                            ? [
+                                                                { name: 'USD', value: globalData.currencyDistribution.tenant.USD },
+                                                                { name: 'ARS', value: globalData.currencyDistribution.tenant.ARS }
+                                                            ].filter((d: any) => d.value > 0)
+                                                            : [{ name: 'Sin datos', value: 1 }]
+                                                    }
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={40}
+                                                    outerRadius={60}
+                                                    paddingAngle={showValues ? 5 : 0}
+                                                    dataKey="value"
+                                                    stroke="none"
+                                                >
+                                                    {showValues ? (
+                                                        [
+                                                            { name: 'USD', value: globalData.currencyDistribution.tenant.USD },
+                                                            { name: 'ARS', value: globalData.currencyDistribution.tenant.ARS }
+                                                        ].filter((d: any) => d.value > 0).map((entry: any, index: number) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.name === 'USD' ? '#10b981' : '#3b82f6'} />
+                                                        ))
+                                                    ) : (
+                                                        <Cell fill="#1e293b" />
+                                                    )}
+                                                </Pie>
+                                                {showValues && <Tooltip />}
+                                                {showValues && <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: '10px' }} />}
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
