@@ -75,13 +75,16 @@ const RegisterSchema = z.object({
 });
 
 export async function register(prevState: string | undefined, formData: FormData) {
+    console.log('[Register Action] Start');
     const validatedFields = RegisterSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
+        console.log('[Register Action] Validation failed');
         return "Datos inválidos (Contraseña min 6 caracteres).";
     }
 
     const { name, email, password } = validatedFields.data;
+    console.log('[Register Action] Validated:', { email, name });
 
     try {
         const existingUser = await prisma.user.findUnique({
@@ -89,11 +92,14 @@ export async function register(prevState: string | undefined, formData: FormData
         });
 
         if (existingUser) {
+            console.log('[Register Action] User exists');
             return "El email ya está registrado.";
         }
 
+        console.log('[Register Action] Hashing password...');
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        console.log('[Register Action] Creating user...');
         const newUser = await prisma.user.create({
             data: {
                 name,
@@ -102,8 +108,10 @@ export async function register(prevState: string | undefined, formData: FormData
                 role: 'user', // Default role
             }
         });
+        console.log('[Register Action] User created:', newUser.id);
 
         // Create default settings separately to avoid nested transaction issues
+        console.log('[Register Action] Creating settings...');
         await prisma.appSettings.create({
             data: {
                 userId: newUser.id,
@@ -112,11 +120,11 @@ export async function register(prevState: string | undefined, formData: FormData
                 enabledSections: '' // Default empty, waiting for onboarding
             }
         });
+        console.log('[Register Action] Settings created. Redirecting...');
 
         // Redirect handled in component or return success to trigger redirect
         // Ideally we redirect, but for actions we might return undefined or throw redirect
     } catch (error) {
-        console.error("Registration error:", error);
         console.error("Registration error:", error);
         return `Error: ${(error as any)?.message || 'Unknown error'}`;
     }
