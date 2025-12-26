@@ -12,7 +12,7 @@ import { PlusCircle, Trash2 } from 'lucide-react';
 interface Debt {
     id: string;
     debtorName: string;
-    type: string; // OWED_TO_ME, I_OWE
+    type?: string; // OWED_TO_ME, I_OWE (optional for backward compatibility)
     startDate: string;
     initialAmount: number;
     currency: string;
@@ -224,8 +224,8 @@ export function DebtsConfigurationTab({ showValues = true }: TabProps) {
                                         <tr key={debt.id} className="border-b border-slate-800 hover:bg-slate-900/50">
                                             <td className="py-3 px-4 text-white font-medium">{debt.debtorName}</td>
                                             <td className="py-3 px-4">
-                                                <span className={`text-xs px-2 py-1 rounded ${debt.type === 'OWED_TO_ME' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                                                    {debt.type === 'OWED_TO_ME' ? '💰 Me deben' : '💸 Yo debo'}
+                                                <span className={`text-xs px-2 py-1 rounded ${(debt.type || 'OWED_TO_ME') === 'OWED_TO_ME' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                    {(debt.type || 'OWED_TO_ME') === 'OWED_TO_ME' ? '💰 Me deben' : '💸 Yo debo'}
                                                 </span>
                                             </td>
                                             <td className="py-3 px-4 text-slate-400">

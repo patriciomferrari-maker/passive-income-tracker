@@ -9,7 +9,7 @@ interface Property {
     id: string;
     name: string;
     address: string | null;
-    role: string; // OWNER, TENANT
+    role?: string; // OWNER, TENANT (optional for backward compatibility)
     electricityId: string | null;
     gasId: string | null;
     municipalId: string | null;
@@ -181,8 +181,8 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                                             {!property.isConsolidated && <span className="ml-2 text-[10px] bg-slate-700 text-slate-300 px-1 py-0.5 rounded">No Consolida</span>}
                                         </td>
                                         <td className="py-3 px-4">
-                                            <span className={`text-xs px-2 py-1 rounded ${property.role === 'OWNER' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                                                {property.role === 'OWNER' ? '🏠 Propietario' : '🏢 Inquilino'}
+                                            <span className={`text-xs px-2 py-1 rounded ${(property.role || 'OWNER') === 'OWNER' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                {(property.role || 'OWNER') === 'OWNER' ? '🏠 Propietario' : '🏢 Inquilino'}
                                             </span>
                                         </td>
                                         <td className="py-3 px-4 text-slate-400">{property.address || '-'}</td>
