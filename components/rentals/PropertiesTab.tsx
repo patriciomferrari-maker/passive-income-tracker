@@ -14,11 +14,11 @@ interface Property {
     gasId: string | null;
     municipalId: string | null;
     hasGarage: boolean;
-    gar ageMunicipalId: string | null;
-isConsolidated: boolean;
-_count: {
-    contracts: number;
-};
+    garageMunicipalId: string | null;
+    isConsolidated: boolean;
+    _count: {
+        contracts: number;
+    };
 }
 
 interface PropertiesTabProps {
