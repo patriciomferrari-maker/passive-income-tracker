@@ -25,6 +25,8 @@ interface DashboardStats {
   rentals?: {
     count: number;
     totalValue: number;
+    totalIncome?: number;
+    totalExpense?: number;
   };
   bank?: {
     totalUSD: number;
@@ -228,10 +230,33 @@ export default function HomePage() {
                             description="Propiedades en renta"
                             icon="🏢"
                             href="/alquileres"
-                            count={stats.rentals?.count || 0}
-                            totalValue={stats.rentals?.totalValue || 0}
+                            count={stats.rentals?.totalExpense ? undefined : (stats.rentals?.count || 0)}
+                            totalValue={stats.rentals?.totalExpense ? undefined : (stats.rentals?.totalValue || 0)}
                             currency="USD"
-                          />
+                          >
+                            {stats.rentals && (stats.rentals.totalExpense || 0) > 0 && (
+                              <div className="w-full border-t border-slate-700 pt-4 mt-auto">
+                                <div className="grid grid-cols-3 gap-2 divide-x divide-slate-800">
+                                  <div className="flex flex-col items-center justify-center">
+                                    <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">Inversiones</p>
+                                    <p className="text-lg font-bold text-white">{stats.rentals.count}</p>
+                                  </div>
+                                  <div className="flex flex-col items-center justify-center px-2">
+                                    <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">Ingresos</p>
+                                    <p className="text-lg font-bold text-emerald-400 flex items-center gap-0.5">
+                                      ${(stats.rentals.totalIncome || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-col items-center justify-center px-2">
+                                    <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">Gastos</p>
+                                    <p className="text-lg font-bold text-red-400 flex items-center gap-0.5">
+                                      ${(stats.rentals.totalExpense || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </DashboardCard>
                         )}
 
                         {shouldShow('debts') && (
@@ -290,7 +315,7 @@ export default function HomePage() {
                             href="/costa-esmeralda"
                             count={stats.costa?.monthName || "Mes Actual"}
                             totalValue={stats.costa?.totalMonthly || 0}
-                            currency="USD"
+                            currency="ARS"
                             enabled={true}
                             countLabel="Mes"
                             valueLabel="Total Gasto"

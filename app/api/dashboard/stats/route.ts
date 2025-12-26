@@ -217,9 +217,11 @@ export async function GET() {
         const contracts = await prisma.contract.findMany({
             where: {
                 propertyId: { in: consolidatedPropIds }
-                // status: 'ACTIVE' removed because field does not exist in schema
             },
             select: {
+                property: {
+                    select: { role: true }
+                },
                 rentalCashflows: {
                     where: {
                         date: { lte: now } // Only consider current or past cashflows
@@ -234,11 +236,20 @@ export async function GET() {
         });
 
         const rentalsCount = contracts.length;
-        const rentalsTotalValue = contracts.reduce((sum, contract) => {
-            // Sum the latest monthly rent (amountUSD of the latest valid cashflow)
-            const lastPayment = contract.rentalCashflows[0];
-            return sum + (lastPayment?.amountUSD || 0);
-        }, 0);
+
+        let rentalsTotalIncome = 0;
+        let rentalsTotalExpense = 0;
+
+        contracts.forEach(contract => {
+            const lastPayment = contract.rentalCashflows[0]?.amountUSD || 0;
+            const role = (contract.property as any).role || 'OWNER';
+
+            if (role === 'TENANT') {
+                rentalsTotalExpense += lastPayment;
+            } else {
+                rentalsTotalIncome += lastPayment;
+            }
+        });
 
 
         // =========================================================================================
@@ -343,7 +354,9 @@ export async function GET() {
             },
             rentals: {
                 count: rentalsCount,
-                totalValue: rentalsTotalValue
+                totalValue: rentalsTotalIncome + rentalsTotalExpense, // Kept for safety
+                totalIncome: rentalsTotalIncome,
+                totalExpense: rentalsTotalExpense
             },
             bank: {
                 totalUSD: bankTotalUSD,
