@@ -45,8 +45,14 @@ export async function GET() {
         }
 
 
+        // Fetch latest Exchange Rate (TC_USD_ARS) - Blue Dollar
+        const latestExchangeRate = await prisma.economicIndicator.findFirst({
+            where: { type: 'TC_USD_ARS' },
+            orderBy: { date: 'desc' }
+        });
 
-        const exchangeRate = 1160; // Hardcoded for now to avoid economicIndicator query
+        // Use scanned rate or fallback to 1160 if database is empty
+        const exchangeRate = latestExchangeRate?.value || 1160;
         const costaExchangeRate = 1160;
 
         // =========================================================================================
