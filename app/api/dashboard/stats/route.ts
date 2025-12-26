@@ -214,8 +214,8 @@ export async function GET() {
         // 2. Fetch active contracts for these properties
         const contracts = await prisma.contract.findMany({
             where: {
-                propertyId: { in: consolidatedPropIds },
-                status: 'ACTIVE'
+                propertyId: { in: consolidatedPropIds }
+                // status: 'ACTIVE' removed because field does not exist in schema
             },
             select: {
                 rentalCashflows: {
