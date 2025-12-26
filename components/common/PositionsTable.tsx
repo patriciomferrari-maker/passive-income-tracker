@@ -130,7 +130,6 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
         return !['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(t);
     });
 
-    return (
     const totalValorActual = positions.reduce((sum, p) => sum + (p.quantity * (p.sellPrice || 0) || 0), 0);
     const totalPrecioCompra = positions.reduce((sum, p) => sum + (p.quantity * p.buyPrice + p.buyCommission), 0);
     const totalResultado = positions.reduce((sum, p) => sum + p.resultAbs, 0);
