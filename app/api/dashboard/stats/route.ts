@@ -49,7 +49,11 @@ export async function GET() {
         const exchangeRate = 1160; // Hardcoded for now to avoid economicIndicator query
         const costaExchangeRate = 1160;
 
-        // Get ON investments with FIFO calculation (matching detailed dashboard)
+        // =========================================================================================
+        // 1. CARTERA ARGENTINA (ONs, CEDEARs, ETFs)
+        // =========================================================================================
+
+        // Get ON investments
         const onInvestments = await prisma.investment.findMany({
             where: { type: 'ON', userId, market: 'ARG' },
             select: {
@@ -57,6 +61,7 @@ export async function GET() {
                 lastPrice: true,
                 type: true,
                 ticker: true,
+                currency: true,
                 transactions: {
                     select: {
                         id: true,
@@ -92,7 +97,8 @@ export async function GET() {
         // Import FIFO calculation
         const { calculateFIFO } = await import('@/app/lib/fifo');
 
-        let onMarketValue = 0;
+        let onMarketValueUSD = 0; // Renamed to denote it must be USD
+
         for (const inv of onInvestments) {
             const fifoTxs = inv.transactions.map(t => ({
                 id: t.id,
@@ -107,23 +113,42 @@ export async function GET() {
             const result = calculateFIFO(fifoTxs, inv.ticker);
             let currentPrice = priceMap[inv.id] || inv.lastPrice || 0;
 
-            // ON prices are quoted per 100
+            // ON prices are often quoted per 100 nominals
             if (inv.type === 'ON') {
                 currentPrice = currentPrice / 100;
             }
 
+            // Calculate value of open positions
+            let instrumentValue = 0;
             result.openPositions.forEach(p => {
-                const cost = (p.quantity * p.buyPrice) + p.buyCommission;
                 const value = p.quantity * currentPrice;
-                if (currentPrice > 0) {
-                    onMarketValue += value;
-                }
+                instrumentValue += value;
             });
+
+            // CURRENCY CONVERSION:
+            // If the instrument is in ARS, convert to USD.
+            // Heuristic A: explicit currency field check (if exists on Investment)
+            // Heuristic B: By Ticker (Ends in D/C = USD, otherwise ARS)
+            // Heuristic C: By Type (CEDEARs are usually ARS but represent USD assets, ONs in ARG are mixed)
+
+            // For now, assume if ticker does NOT end in D or C, it's ARS and needs conversion
+            // This is the most common case for "Cartera Argentina" showing inflated ARS values
+            const isDollarTicker = inv.ticker.endsWith('D') || inv.ticker.endsWith('C');
+
+            if (!isDollarTicker && instrumentValue > 0) {
+                // Convert ARS to USD
+                instrumentValue = instrumentValue / exchangeRate;
+            }
+
+            onMarketValueUSD += instrumentValue;
         }
 
         const onCount = onInvestments.length;
 
-        // Get Treasury investments
+
+        // =========================================================================================
+        // 2. TREASURY (Cartera USA)
+        // =========================================================================================
         const treasuryInvestments = await prisma.investment.findMany({
             where: { type: 'TREASURY', userId },
             select: {
@@ -141,7 +166,10 @@ export async function GET() {
             return sum + total;
         }, 0);
 
-        // Get Debts
+
+        // =========================================================================================
+        // 3. DEBTS (Deudas a Cobrar)
+        // =========================================================================================
         const debts = await prisma.debt.findMany({
             where: { userId },
             select: {
@@ -160,9 +188,19 @@ export async function GET() {
             return sum + (d.initialAmount - paid);
         }, 0);
 
-        // Get Rentals
+
+        // =========================================================================================
+        // 4. RENTALS (Alquileres) - FIXED
+        // =========================================================================================
+        // Only count properties that are CONSOLIDATED (isConsolidated = true)
         const contracts = await prisma.contract.findMany({
-            where: { property: { userId } },
+            where: {
+                property: {
+                    userId,
+                    isConsolidated: true  // Filter by consolidated properties only
+                },
+                status: 'ACTIVE' // Explicitly fetch only active contracts
+            },
             select: {
                 rentalCashflows: {
                     orderBy: { date: 'desc' },
@@ -176,11 +214,16 @@ export async function GET() {
 
         const rentalsCount = contracts.length;
         const rentalsTotalValue = contracts.reduce((sum, contract) => {
+            // Sum the latest monthly rent (amountUSD of the last cashflow)
+            // This represents the "Current Monthly Income" generated by rentals
             const lastPayment = contract.rentalCashflows[0];
             return sum + (lastPayment?.amountUSD || 0);
         }, 0);
 
-        // Get Bank Stats
+
+        // =========================================================================================
+        // 5. BANK
+        // =========================================================================================
         const bankOperations = await prisma.bankOperation.findMany({
             where: { userId },
             select: {
@@ -193,7 +236,10 @@ export async function GET() {
             .filter(op => op.currency === 'USD')
             .reduce((sum, op) => sum + op.amount, 0);
 
-        // Get Crypto Stats
+
+        // =========================================================================================
+        // 6. CRYPTO
+        // =========================================================================================
         const cryptoInvestments = await prisma.investment.findMany({
             where: { userId, type: 'CRYPTO', market: 'CRYPTO' },
             select: {
@@ -229,6 +275,34 @@ export async function GET() {
             return qty > 0;
         }).length;
 
+
+        // =========================================================================================
+        // 7. COSTA ESMERALDA - FIXED
+        // =========================================================================================
+
+        // Calculate current month's expenses
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        // We use aggregate to sum amounts
+        const costaStats = await prisma.costaTransaction.aggregate({
+            where: {
+                userId,
+                type: 'EXPENSE',
+                date: {
+                    gte: startOfMonth,
+                    lte: endOfMonth
+                }
+            },
+            _sum: {
+                amountUSD: true
+            }
+        });
+
+        const costaTotalMonthly = costaStats._sum.amountUSD || 0;
+        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        const currentMonthName = monthNames[now.getMonth()];
+
         const needsOnboarding = settings && settings.enabledSections === '';
 
         return NextResponse.json({
@@ -237,7 +311,7 @@ export async function GET() {
             userEmail: user?.email,
             on: {
                 count: onCount,
-                totalInvested: onMarketValue
+                totalInvested: onMarketValueUSD // Uses the converted value
             },
             treasury: {
                 count: treasuryCount,
@@ -263,13 +337,13 @@ export async function GET() {
                 count: 0,
                 totalMonthly: 0,
                 label: 'Mes Actual',
-                monthName: 'Diciembre'
+                monthName: currentMonthName
             },
             costa: {
                 count: 0,
-                totalMonthly: 0,
+                totalMonthly: costaTotalMonthly,
                 label: 'Mes Actual',
-                monthName: 'Diciembre'
+                monthName: currentMonthName
             }
         });
     } catch (error: any) {
