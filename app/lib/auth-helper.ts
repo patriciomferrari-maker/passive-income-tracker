@@ -1,22 +1,22 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
 
 /**
  * Get user ID from session
- * Falls back to checking headers for cookie-based session
+ * Works without middleware by reading session from cookies
  */
 export async function getUserId() {
     try {
-        // Try getting session via auth()
+        // Get session via auth() which reads from cookies
         const session = await auth();
 
         if (session?.user?.id) {
+            console.log('[AUTH] Session found for user:', session.user.email);
             return session.user.id;
         }
 
         // If no session, throw unauthorized
-        console.error('[AUTH] No session found');
+        console.error('[AUTH] No session found - user not logged in');
         throw new Error("Unauthorized");
     } catch (error) {
         console.error('[AUTH] Error in getUserId:', error);
