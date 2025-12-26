@@ -152,7 +152,12 @@ export async function saveOnboarding(prevState: string | undefined, formData: Fo
         return "No autorizado";
     }
 
-    const sections = formData.get('sections') as string;
+    let sections = formData.get('sections') as string;
+
+    // If empty (user selected nothing), save as 'none' to mark as completed
+    if (!sections || sections.trim() === '') {
+        sections = 'none';
+    }
 
     try {
         await prisma.appSettings.update({
