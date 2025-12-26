@@ -61,7 +61,7 @@ export async function GET() {
 
         // Get ON investments
         const onInvestments = await prisma.investment.findMany({
-            where: { type: 'ON', userId, market: 'ARG' },
+            where: { userId, market: 'ARG' },
             select: {
                 id: true,
                 lastPrice: true,

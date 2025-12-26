@@ -184,6 +184,7 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                 </th>
                                 <th className="px-4 py-3 text-left font-medium">Fecha Venta</th>
                                 <th className="px-4 py-3 text-right font-medium">Nominales</th>
+                                <th className="px-4 py-3 text-right font-medium">Valor Compra</th>
                                 <th className="px-4 py-3 text-right font-medium">Precio Compra</th>
                                 <th className="px-4 py-3 text-right font-medium">Com. Compra</th>
                                 <th className="px-4 py-3 text-right font-medium">Precio Venta</th>
@@ -243,6 +244,9 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                         </td>
                                         <td className="px-4 py-3 text-right text-white tabular-nums">
                                             {pos.quantity}
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-slate-300 tabular-nums font-medium">
+                                            {formatMoney((pos.quantity * pos.buyPrice) + pos.buyCommission, pos.currency)}
                                         </td>
                                         <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
                                             {formatMoney(pos.buyPrice, pos.currency)}
@@ -313,7 +317,8 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                 <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
                                     {formatMoney(totalPrecioCompra, currency || 'USD')}
                                 </td>
-                                <td className="px-4 py-3"></td>
+                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums"></td>
+                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums"></td>
                                 <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
                                     {/* Avg Sell Price meaningless, skip */}
                                 </td>
