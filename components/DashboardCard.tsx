@@ -101,7 +101,7 @@ export function DashboardCard({
                                 <div className="flex flex-col items-center justify-center">
                                     <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">{valueLabel}</p>
                                     <p className={`text-lg font-bold flex items-center gap-1 ${valueTextColor}`}>
-                                        <TrendingUp size={14} />
+
                                         $
                                         {totalValue.toLocaleString('en-US', {
                                             minimumFractionDigits: 0,
