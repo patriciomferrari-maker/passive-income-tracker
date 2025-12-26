@@ -71,7 +71,9 @@ export async function GET() {
                 adjustmentType: contract.adjustmentType,
                 adjustmentFrequency: contract.adjustmentFrequency,
                 chartData,
-                isConsolidated: contract.property.isConsolidated
+                chartData,
+                isConsolidated: contract.property.isConsolidated,
+                propertyRole: (contract.property as any).role || 'OWNER' // Cast as any if TS complains about missing role in type
             };
         }));
 

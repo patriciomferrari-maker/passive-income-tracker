@@ -40,6 +40,7 @@ export interface ContractDashboardData {
     adjustmentType: string;
     adjustmentFrequency: number | null;
     isConsolidated: boolean;
+    propertyRole: 'OWNER' | 'TENANT';
     chartData: ChartPoint[];
 }
 
@@ -70,24 +71,27 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
 
         const now = new Date();
 
-        // 1. Current Month Income
-        let totalUSD = 0;
-        let totalARS = 0;
+        // 1. Current Month Finances
+        let totalIncomeUSD = 0;
+        let totalIncomeARS = 0;
+        let totalExpenseUSD = 0;
+        let totalExpenseARS = 0;
 
         consolidatedContracts.forEach(c => {
             const current = c.chartData.find(d => {
                 const date = new Date(d.date);
                 return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
             });
-            if (current) {
-                totalUSD += current.amountUSD;
-                if (c.currency === 'ARS') totalARS += current.amountARS;
+
+            const amountUSD = current ? current.amountUSD : (c.chartData[c.chartData.length - 1]?.amountUSD || 0);
+            const amountARS = current ? current.amountARS : (c.chartData[c.chartData.length - 1]?.amountARS || 0);
+
+            if (c.propertyRole === 'TENANT') {
+                totalExpenseUSD += amountUSD;
+                if (c.currency === 'ARS') totalExpenseARS += amountARS;
             } else {
-                const last = c.chartData[c.chartData.length - 1];
-                if (last) {
-                    totalUSD += last.amountUSD;
-                    if (c.currency === 'ARS') totalARS += last.amountARS;
-                }
+                totalIncomeUSD += amountUSD;
+                if (c.currency === 'ARS') totalIncomeARS += amountARS;
             }
         });
 
@@ -152,8 +156,10 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
         }
 
         return {
-            totalUSD,
-            totalARS,
+            totalIncomeUSD,
+            totalIncomeARS,
+            totalExpenseUSD,
+            totalExpenseARS,
             nextExpiration: nextExpirationGroup,
             nextAdjustment: nextAdjustmentGroup,
             count: consolidatedContracts.length
@@ -174,7 +180,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                 {entry.name}: {' '}
                             </span>
                             <span className="font-mono font-medium text-white">
-                                {entry.name === 'Alquiler USD'
+                                {entry.name.includes('USD') || entry.name.includes('Ingreso') || entry.name.includes('Gasto')
                                     ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(entry.value)
                                     : `${entry.value.toFixed(2)}%`
                                 }
@@ -199,6 +205,8 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
         );
     }
 
+    const hasExpenses = (summaryMetrics?.totalExpenseUSD || 0) > 0 || (globalData?.history?.some((h: any) => (h.expenseUSD || 0) > 0));
+
     return (
         <div className="space-y-8 print:space-y-4">
             <h2 className="text-2xl font-bold text-white print:text-slate-900 print:hidden">Dashboard General</h2>
@@ -215,18 +223,42 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                             </div>
                             <h3 className="text-2xl font-bold text-emerald-400 print:text-emerald-700">
                                 {showValues
-                                    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summaryMetrics.totalUSD)
+                                    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summaryMetrics.totalIncomeUSD)
                                     : '****'}
                             </h3>
-                            {summaryMetrics.totalARS > 0 && (
+                            {summaryMetrics.totalIncomeARS > 0 && (
                                 <p className="text-xs text-slate-500 mt-1">
                                     + {showValues
-                                        ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(summaryMetrics.totalARS)
+                                        ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(summaryMetrics.totalIncomeARS)
                                         : '****'} (ARS)
                                 </p>
                             )}
                         </CardContent>
                     </Card>
+
+                    {/* Expenses Card - Only if Tenant */}
+                    {summaryMetrics.totalExpenseUSD > 0 && (
+                        <Card className="bg-slate-950 border-slate-800 print:border-slate-300 print:bg-white print:text-slate-900">
+                            <CardContent className="p-4 flex flex-col items-center text-center justify-center">
+                                <div className="flex items-center gap-2 mb-2 text-rose-500">
+                                    <DollarSign size={20} />
+                                    <span className="text-sm font-semibold uppercase text-slate-400 print:text-slate-600 tracking-wider">Gastos Mes Actual</span>
+                                </div>
+                                <h3 className="text-2xl font-bold text-rose-400 print:text-rose-700">
+                                    {showValues
+                                        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summaryMetrics.totalExpenseUSD)
+                                        : '****'}
+                                </h3>
+                                {summaryMetrics.totalExpenseARS > 0 && (
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        + {showValues
+                                            ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(summaryMetrics.totalExpenseARS)
+                                            : '****'} (ARS)
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* Next Expiration */}
                     <Card className="bg-slate-950 border-slate-800 print:border-slate-300 print:bg-white">
@@ -347,7 +379,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
             {/* Global Charts Section */}
             {globalData && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 mt-8">
-                    {/* Global History Chart */}
+                    {/* Global History Chart - INCOME */}
                     <Card className="bg-slate-950 border-slate-800 lg:col-span-2 shadow-lg print:border-slate-300 print:bg-white">
                         <CardHeader>
                             <CardTitle className="text-white print:text-slate-900">Evolución Ingresos Totales (USD)</CardTitle>
@@ -377,12 +409,51 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                                 labelStyle={{ color: '#94a3b8' }}
                                             />
                                         )}
-                                        <Bar dataKey="totalUSD" fill="#10b981" radius={[4, 4, 0, 0]} name="Ingreso Total" />
+                                        <Bar dataKey="incomeUSD" fill="#10b981" radius={[4, 4, 0, 0]} name="Ingreso Total" />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Global History Chart - EXPENSES (If applicable) */}
+                    {hasExpenses && (
+                        <Card className="bg-slate-950 border-slate-800 lg:col-span-2 shadow-lg print:border-slate-300 print:bg-white">
+                            <CardHeader>
+                                <CardTitle className="text-white print:text-slate-900 text-rose-400">Evolución Gastos Totales (USD)</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="h-[300px] w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={showValues ? globalData.history : []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} vertical={false} />
+                                            <XAxis
+                                                dataKey="monthLabel"
+                                                stroke="#64748b"
+                                                tick={{ fill: '#64748b', fontSize: 12 }}
+                                                tickMargin={10}
+                                            />
+                                            <YAxis
+                                                stroke="#f43f5e"
+                                                tick={{ fill: '#f43f5e', fontSize: 12 }}
+                                                tickFormatter={(value) => `$${value}`}
+                                                width={60}
+                                            />
+                                            {showValues && (
+                                                <Tooltip
+                                                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }}
+                                                    itemStyle={{ color: '#f8fafc' }}
+                                                    formatter={(value: number) => [`$${Math.round(value)}`, 'Total USD']}
+                                                    labelStyle={{ color: '#94a3b8' }}
+                                                />
+                                            )}
+                                            <Bar dataKey="expenseUSD" fill="#f43f5e" radius={[4, 4, 0, 0]} name="Gasto Total" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* Currency Pie Chart */}
                     <Card className="bg-slate-950 border-slate-800 shadow-lg print:border-slate-300 print:bg-white">

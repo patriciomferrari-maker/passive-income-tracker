@@ -48,6 +48,13 @@ export async function GET() {
             where: {
                 contract: { property: { userId } }
             },
+            include: {
+                contract: {
+                    include: {
+                        property: true
+                    }
+                }
+            },
             orderBy: { date: 'asc' }
         });
 
@@ -58,8 +65,8 @@ export async function GET() {
         // Group by Month (YYYY-MM)
         const monthlyData = new Map<string, {
             date: Date,
-            totalUSD: number,
-            totalARS: number,
+            incomeUSD: number,
+            expenseUSD: number,
             count: number
         }>();
 
@@ -69,14 +76,23 @@ export async function GET() {
             if (!monthlyData.has(dateKey)) {
                 monthlyData.set(dateKey, {
                     date: cf.date,
-                    totalUSD: 0,
-                    totalARS: 0,
+                    incomeUSD: 0,
+                    expenseUSD: 0,
                     count: 0
                 });
             }
             const entry = monthlyData.get(dateKey)!;
-            entry.totalUSD += cf.amountUSD || 0;
-            entry.totalARS += cf.amountARS || 0;
+
+            // Check role (default to OWNER if missing)
+            const role = (cf.contract.property as any).role || 'OWNER';
+
+            if (role === 'TENANT') {
+                entry.expenseUSD += cf.amountUSD || 0;
+            } else {
+                // OWNER
+                entry.incomeUSD += cf.amountUSD || 0;
+            }
+
             entry.count += 1;
         });
 
@@ -85,13 +101,18 @@ export async function GET() {
             .map(d => ({
                 date: d.date.toISOString(),
                 monthLabel: new Date(d.date).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }),
-                totalUSD: d.totalUSD,
+                totalUSD: d.incomeUSD, // Legacy support for existing charts expecting totalUSD
+                incomeUSD: d.incomeUSD,
+                expenseUSD: d.expenseUSD,
                 contractCount: d.count
             }));
 
         let currentMonthlyRevenueUSD = 0;
+        let currentMonthlyExpenseUSD = 0;
 
         for (const contract of activeContracts) {
+            const role = (contract.property as any).role || 'OWNER';
+
             const latestCf = await prisma.rentalCashflow.findFirst({
                 where: {
                     contractId: contract.id,
@@ -100,12 +121,12 @@ export async function GET() {
                 orderBy: { date: 'desc' }
             });
 
-            if (latestCf) {
-                currentMonthlyRevenueUSD += latestCf.amountUSD || 0;
+            const amount = latestCf ? (latestCf.amountUSD || 0) : (contract.currency === 'USD' ? contract.initialRent : 0);
+
+            if (role === 'TENANT') {
+                currentMonthlyExpenseUSD += amount;
             } else {
-                if (contract.currency === 'USD') {
-                    currentMonthlyRevenueUSD += contract.initialRent;
-                }
+                currentMonthlyRevenueUSD += amount;
             }
         }
 
@@ -120,7 +141,8 @@ export async function GET() {
                 totalProperties: totalPropertiesCount,
                 activeContracts: activeCount,
                 occupancyRate,
-                currentMonthlyRevenueUSD
+                currentMonthlyRevenueUSD,
+                currentMonthlyExpenseUSD
             },
             history: historyChartData,
             currencyDistribution: currencyDist

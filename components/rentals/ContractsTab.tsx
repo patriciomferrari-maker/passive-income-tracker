@@ -28,6 +28,33 @@ interface Property {
     id: string;
     name: string;
     address: string | null;
+    role: 'OWNER' | 'TENANT';
+}
+
+// ... inside the component function ...
+
+// Find selected property to check role
+const selectedProperty = properties.find(p => p.id === propertyId);
+const isTenantProperty = selectedProperty?.role === 'TENANT';
+
+// ... inside JSX ...
+
+
+{
+    !isTenantProperty && (
+        <div className="col-span-2">
+            <label className="block text-sm font-medium text-slate-300 mb-1">
+                Inquilino
+            </label>
+            <input
+                type="text"
+                value={tenantName}
+                onChange={e => setTenantName(e.target.value)}
+                placeholder="Nombre del inquilino (opcional)"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
+            />
+        </div>
+    )
 }
 
 interface ContractsTabProps {
