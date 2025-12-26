@@ -198,14 +198,24 @@ export async function GET() {
         // =========================================================================================
         // 4. RENTALS (Alquileres) - FIXED
         // =========================================================================================
-        // Only count properties that are CONSOLIDATED (isConsolidated = true)
+        // Strategy: Query properties first, then contracts. Safer than nested query which caused Vercel errors.
+
+        // 1. Get IDs of consolidated properties
+        const consolidatedProperties = await prisma.property.findMany({
+            where: {
+                userId,
+                isConsolidated: true
+            },
+            select: { id: true }
+        });
+
+        const consolidatedPropIds = consolidatedProperties.map(p => p.id);
+
+        // 2. Fetch active contracts for these properties
         const contracts = await prisma.contract.findMany({
             where: {
-                property: {
-                    userId,
-                    isConsolidated: true  // Filter by consolidated properties only
-                },
-                status: 'ACTIVE' // Explicitly fetch only active contracts
+                propertyId: { in: consolidatedPropIds },
+                status: 'ACTIVE'
             },
             select: {
                 rentalCashflows: {
