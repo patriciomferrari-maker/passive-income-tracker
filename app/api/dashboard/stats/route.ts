@@ -128,7 +128,13 @@ export async function GET() {
             }
         }
 
-        const onCount = onInvestments.length;
+        let activeOnCount = 0;
+        for (const inv of onInvestments) {
+            const buyQty = inv.transactions.filter(t => t.type === 'BUY').reduce((acc, t) => acc + t.quantity, 0);
+            const sellQty = inv.transactions.filter(t => t.type === 'SELL').reduce((acc, t) => acc + t.quantity, 0);
+            if (buyQty - sellQty > 0) activeOnCount++;
+        }
+        const onCount = activeOnCount;
 
 
         // =========================================================================================

@@ -184,9 +184,9 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                 </th>
                                 <th className="px-4 py-3 text-left font-medium">Fecha Venta</th>
                                 <th className="px-4 py-3 text-right font-medium">Nominales</th>
-                                <th className="px-4 py-3 text-right font-medium">Valor Compra</th>
                                 <th className="px-4 py-3 text-right font-medium">Precio Compra</th>
                                 <th className="px-4 py-3 text-right font-medium">Com. Compra</th>
+                                <th className="px-4 py-3 text-right font-medium text-blue-300">Valor Compra</th>
                                 <th className="px-4 py-3 text-right font-medium">Precio Venta</th>
                                 <th className="px-4 py-3 text-right font-medium">Com. Venta</th>
                                 <th className="px-4 py-3 text-right font-medium text-emerald-400">Valor Actual</th>
@@ -245,14 +245,14 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                         <td className="px-4 py-3 text-right text-white tabular-nums">
                                             {pos.quantity}
                                         </td>
-                                        <td className="px-4 py-3 text-right text-slate-300 tabular-nums font-medium">
-                                            {formatMoney((pos.quantity * pos.buyPrice) + pos.buyCommission, pos.currency)}
-                                        </td>
                                         <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
                                             {formatMoney(pos.buyPrice, pos.currency)}
                                         </td>
                                         <td className="px-4 py-3 text-right text-slate-400 tabular-nums text-xs">
                                             {formatMoney(pos.buyCommission, pos.currency)}
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-slate-300 tabular-nums font-medium text-blue-300">
+                                            {formatMoney((pos.quantity * pos.buyPrice) + pos.buyCommission, pos.currency)}
                                         </td>
                                         <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
                                             {pos.sellPrice > 0 ? formatMoney(pos.sellPrice, pos.currency) : '-'}
@@ -314,11 +314,11 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                         <tfoot className="bg-slate-900/80 border-t border-slate-700 font-bold text-white">
                             <tr>
                                 <td colSpan={5} className="px-4 py-3 text-right text-slate-400">TOTALES</td>
-                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
+                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums"></td>
+                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums"></td>
+                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums font-bold text-blue-300">
                                     {formatMoney(totalPrecioCompra, currency || 'USD')}
                                 </td>
-                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums"></td>
-                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums"></td>
                                 <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
                                     {/* Avg Sell Price meaningless, skip */}
                                 </td>

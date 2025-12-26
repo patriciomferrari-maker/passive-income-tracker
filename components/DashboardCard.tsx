@@ -102,11 +102,12 @@ export function DashboardCard({
                                     <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">{valueLabel}</p>
                                     <p className={`text-lg font-bold flex items-center gap-1 ${valueTextColor}`}>
                                         <TrendingUp size={14} />
-                                        {currency === 'USD' ? '$' : '$'}
+                                        {currency === 'USD' ? 'US$' : '$'}
                                         {totalValue.toLocaleString('en-US', {
                                             minimumFractionDigits: 0,
                                             maximumFractionDigits: 0
                                         })}
+                                        <span className="text-[10px] text-slate-500 font-normal ml-0.5">{currency}</span>
                                     </p>
                                 </div>
                             )}

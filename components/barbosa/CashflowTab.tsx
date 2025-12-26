@@ -81,6 +81,7 @@ export function CashflowTab() {
         return categories.map(catName => {
             const cat = typeGroup[catName];
             const isExpanded = expandedCategories[catName];
+            const hasSubs = Object.keys(cat.subs).length > 0;
 
             // Calculate Category Totals
             const catTotals = periods.map((p: string) => cat.total[p] || 0);
@@ -90,11 +91,11 @@ export function CashflowTab() {
                     {/* Category Header Row (Clickable) */}
                     <tr
                         key={`${type}-${catName}`}
-                        className="hover:bg-slate-900/50 border-b border-slate-900 cursor-pointer group"
-                        onClick={() => toggleCategory(catName)}
+                        className={`hover:bg-slate-900/50 border-b border-slate-900 group ${hasSubs ? 'cursor-pointer' : ''}`}
+                        onClick={() => hasSubs && toggleCategory(catName)}
                     >
                         <td className="px-4 py-2 text-slate-300 font-bold border-r border-slate-800 flex items-center gap-2 group-hover:text-white">
-                            <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
+                            <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''} ${!hasSubs ? 'opacity-0' : ''}`}>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
                             </div>
                             {catName}
