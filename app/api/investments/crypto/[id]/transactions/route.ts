@@ -16,11 +16,11 @@ const CreateTransactionSchema = z.object({
 
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const userId = await getUserId();
-        const { id } = params;
+        const { id } = await params;  // AWAIT params
 
         // Verify ownership
         const crypto = await prisma.investment.findFirst({
@@ -54,11 +54,11 @@ export async function GET(
 
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const userId = await getUserId();
-        const { id } = params;
+        const { id } = await params;  // AWAIT params - Next.js 15 change
         const body = await request.json();
 
         const validatedData = CreateTransactionSchema.parse(body);
