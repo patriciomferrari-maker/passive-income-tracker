@@ -100,40 +100,56 @@ export async function GET() {
             if (!priceMap[p.investmentId]) priceMap[p.investmentId] = p.price;
         });
 
+        // Import FIFO calculation
+        const { calculateFIFO } = await import('@/app/lib/fifo');
+
         let onMarketValueUSD = 0;
+        let activeOnCount = 0;
 
         for (const inv of onInvestments) {
-            // Get held quantity from transactions (Case Insensitive)
-            const buyQty = inv.transactions.filter(t => t.type?.toUpperCase() === 'BUY').reduce((acc, t) => acc + t.quantity, 0);
-            const sellQty = inv.transactions.filter(t => t.type?.toUpperCase() === 'SELL').reduce((acc, t) => acc + t.quantity, 0);
-            const currentQty = buyQty - sellQty;
+            // Shape transactions for FIFO
+            const fifoTxs = inv.transactions.map(t => ({
+                id: t.id,
+                date: new Date(t.date),
+                type: (t.type || '').toUpperCase() as 'BUY' | 'SELL',
+                quantity: t.quantity,
+                price: t.price,
+                commission: t.commission,
+                currency: t.currency
+            }));
 
-            if (currentQty > 0) {
-                // Use PriceMap > LastPrice
-                let price = priceMap[inv.id] || inv.lastPrice || 0;
+            // Calculate FIFO
+            const result = calculateFIFO(fifoTxs, inv.ticker);
 
-                // Normalization for ONs (similar to inner dashboard logic)
-                if ((inv.type === 'ON' || inv.type === 'CORPORATE_BOND') && price > 2.0) {
-                    price = price / 100;
-                }
+            // Calculate Value from Open Positions
+            // Logic must match Inner Dashboard exactly
+            let currentPrice = priceMap[inv.id] || inv.lastPrice || 0;
 
-                let instrumentValue = currentQty * price;
+            // Normalization for ONs
+            if ((inv.type === 'ON' || inv.type === 'CORPORATE_BOND') && currentPrice > 2.0) {
+                currentPrice = currentPrice / 100;
+            }
 
+            let instrumentValue = 0;
+            let totalHeld = 0;
+
+            result.openPositions.forEach(p => {
+                const value = p.quantity * currentPrice;
+                instrumentValue += value;
+                totalHeld += p.quantity;
+            });
+
+            if (totalHeld > 0) {
                 // Currency Conversion
                 if (inv.currency === 'ARS') {
                     instrumentValue = instrumentValue / exchangeRate;
                 }
 
                 onMarketValueUSD += instrumentValue;
+                activeOnCount++;
             }
         }
 
-        let activeOnCount = 0;
-        for (const inv of onInvestments) {
-            const buyQty = inv.transactions.filter(t => t.type?.toUpperCase() === 'BUY').reduce((acc, t) => acc + t.quantity, 0);
-            const sellQty = inv.transactions.filter(t => t.type?.toUpperCase() === 'SELL').reduce((acc, t) => acc + t.quantity, 0);
-            if (buyQty - sellQty > 0) activeOnCount++;
-        }
         const onCount = activeOnCount;
 
 
