@@ -43,6 +43,7 @@ export async function PUT(
             data: {
                 name,
                 address: address || null,
+                role: body.role,
                 electricityId: electricityId || null,
                 gasId: gasId || null,
                 municipalId: municipalId || null,

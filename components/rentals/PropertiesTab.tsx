@@ -9,15 +9,16 @@ interface Property {
     id: string;
     name: string;
     address: string | null;
+    role: string; // OWNER, TENANT
     electricityId: string | null;
     gasId: string | null;
     municipalId: string | null;
     hasGarage: boolean;
-    garageMunicipalId: string | null;
-    isConsolidated: boolean;
-    _count: {
-        contracts: number;
-    };
+    gar ageMunicipalId: string | null;
+isConsolidated: boolean;
+_count: {
+    contracts: number;
+};
 }
 
 interface PropertiesTabProps {
@@ -33,6 +34,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
     // Form state
     const [name, setName] = useState('');
     const [address, setAddress] = useState('');
+    const [role, setRole] = useState('OWNER');
     const [electricityId, setElectricityId] = useState('');
     const [gasId, setGasId] = useState('');
     const [municipalId, setMunicipalId] = useState('');
@@ -72,6 +74,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                 body: JSON.stringify({
                     name,
                     address,
+                    role,
                     electricityId: electricityId || null,
                     gasId: gasId || null,
                     municipalId: municipalId || null,
@@ -95,6 +98,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
         setEditingProperty(property);
         setName(property.name);
         setAddress(property.address || '');
+        setRole(property.role || 'OWNER');
         setElectricityId(property.electricityId || '');
         setGasId(property.gasId || '');
         setMunicipalId(property.municipalId || '');
@@ -120,6 +124,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
     const resetForm = () => {
         setName('');
         setAddress('');
+        setRole('OWNER');
         setElectricityId('');
         setGasId('');
         setMunicipalId('');
@@ -158,6 +163,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                             <thead>
                                 <tr className="border-b border-slate-800">
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Nombre</th>
+                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Tipo</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Dirección</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">ID Municipal</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">ID Cochera</th>
@@ -173,6 +179,11 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                                         <td className="py-3 px-4 text-white font-medium">
                                             {property.name}
                                             {!property.isConsolidated && <span className="ml-2 text-[10px] bg-slate-700 text-slate-300 px-1 py-0.5 rounded">No Consolida</span>}
+                                        </td>
+                                        <td className="py-3 px-4">
+                                            <span className={`text-xs px-2 py-1 rounded ${property.role === 'OWNER' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                {property.role === 'OWNER' ? '🏠 Propietario' : '🏢 Inquilino'}
+                                            </span>
                                         </td>
                                         <td className="py-3 px-4 text-slate-400">{property.address || '-'}</td>
                                         <td className="py-3 px-4 text-slate-400 font-mono text-xs">{property.municipalId || '-'}</td>
@@ -237,6 +248,28 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                                         onChange={e => setAddress(e.target.value)}
                                         className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
                                     />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">
+                                        Tipo de Propiedad *
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setRole('OWNER')}
+                                            className={`px-4 py-2 rounded border transition-colors ${role === 'OWNER' ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
+                                        >
+                                            🏠 Propietario (Ingreso)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setRole('TENANT')}
+                                            className={`px-4 py-2 rounded border transition-colors ${role === 'TENANT' ? 'bg-red-500/20 border-red-500 text-red-400' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
+                                        >
+                                            🏢 Inquilino (Egreso)
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">

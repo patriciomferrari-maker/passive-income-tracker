@@ -53,6 +53,7 @@ export async function POST(request: Request) {
             data: {
                 userId,
                 debtorName,
+                type: body.type || 'OWED_TO_ME',
                 startDate: new Date(startDate),
                 initialAmount,
                 currency: currency || 'USD',

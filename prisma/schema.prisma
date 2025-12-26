@@ -56,6 +56,7 @@ model Property {
   
   name      String
   address   String?
+  role      String    @default("OWNER") // OWNER, TENANT
   
   // Utilities & Taxes IDs
   electricityId String?
@@ -274,7 +275,8 @@ model Debt {
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  debtorName    String    // Nombre del deudor
+  debtorName    String    // Nombre del deudor/acreedor
+  type          String    @default("OWED_TO_ME") // OWED_TO_ME, I_OWE
   startDate     DateTime  // Fecha de inicio de la deuda
   initialAmount Float     // Monto inicial
   currency      String    @default("USD") // Moneda (USD, ARS)

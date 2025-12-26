@@ -12,6 +12,7 @@ import { PlusCircle, Trash2 } from 'lucide-react';
 interface Debt {
     id: string;
     debtorName: string;
+    type: string; // OWED_TO_ME, I_OWE
     startDate: string;
     initialAmount: number;
     currency: string;
@@ -28,6 +29,7 @@ export function DebtsConfigurationTab({ showValues = true }: TabProps) {
 
     // Form State
     const [debtorName, setDebtorName] = useState('');
+    const [debtType, setDebtType] = useState('OWED_TO_ME');
     const [details, setDetails] = useState('');
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -59,6 +61,7 @@ export function DebtsConfigurationTab({ showValues = true }: TabProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     debtorName,
+                    type: debtType,
                     initialAmount: parseFloat(amount),
                     startDate: date,
                     currency,
@@ -69,6 +72,7 @@ export function DebtsConfigurationTab({ showValues = true }: TabProps) {
             if (res.ok) {
                 // Reset form
                 setDebtorName('');
+                setDebtType('OWED_TO_ME');
                 setAmount('');
                 setDetails('');
                 setDate(new Date().toISOString().split('T')[0]);
@@ -102,10 +106,32 @@ export function DebtsConfigurationTab({ showValues = true }: TabProps) {
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="debtor" className="text-slate-300">Deudor</Label>
+                                <Label className="text-slate-300">Tipo de Deuda *</Label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDebtType('OWED_TO_ME')}
+                                        className={`px-4 py-2 rounded border transition-colors ${debtType === 'OWED_TO_ME' ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'}`}
+                                    >
+                                        💰 Me deben
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setDebtType('I_OWE')}
+                                        className={`px-4 py-2 rounded border transition-colors ${debtType === 'I_OWE' ? 'bg-red-500/20 border-red-500 text-red-400' : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'}`}
+                                    >
+                                        💸 Yo debo
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="debtor" className="text-slate-300">
+                                    {debtType === 'OWED_TO_ME' ? 'Deudor' : 'Acreedor'}
+                                </Label>
                                 <Input
                                     id="debtor"
-                                    placeholder="Nombre del deudor"
+                                    placeholder={debtType === 'OWED_TO_ME' ? 'Nombre del deudor' : 'Nombre del acreedor'}
                                     value={debtorName}
                                     onChange={e => setDebtorName(e.target.value)}
                                     required
@@ -185,7 +211,8 @@ export function DebtsConfigurationTab({ showValues = true }: TabProps) {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-slate-800 text-left">
-                                        <th className="py-3 px-4 text-slate-400 font-medium">Deudor</th>
+                                        <th className="py-3 px-4 text-slate-400 font-medium">Nombre</th>
+                                        <th className="py-3 px-4 text-slate-400 font-medium">Tipo</th>
                                         <th className="py-3 px-4 text-slate-400 font-medium">Fecha</th>
                                         <th className="py-3 px-4 text-slate-400 font-medium text-right">Monto Original</th>
                                         <th className="py-3 px-4 text-slate-400 font-medium text-right">Saldo Actual</th>
@@ -196,6 +223,11 @@ export function DebtsConfigurationTab({ showValues = true }: TabProps) {
                                     {debts.map(debt => (
                                         <tr key={debt.id} className="border-b border-slate-800 hover:bg-slate-900/50">
                                             <td className="py-3 px-4 text-white font-medium">{debt.debtorName}</td>
+                                            <td className="py-3 px-4">
+                                                <span className={`text-xs px-2 py-1 rounded ${debt.type === 'OWED_TO_ME' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                    {debt.type === 'OWED_TO_ME' ? '💰 Me deben' : '💸 Yo debo'}
+                                                </span>
+                                            </td>
                                             <td className="py-3 px-4 text-slate-400">
                                                 {new Date(debt.startDate).toLocaleDateString('es-AR')}
                                             </td>
