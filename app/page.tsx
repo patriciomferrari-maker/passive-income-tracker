@@ -71,8 +71,12 @@ export default function HomePage() {
 
   const loadStats = async () => {
     try {
+      console.log('[Dashboard] Fetching stats...');
       const res = await fetch(`/api/dashboard/stats?t=${new Date().getTime()}`);
+      console.log('[Dashboard] Response status:', res.status);
+
       if (res.status === 401) {
+        console.warn('[Dashboard] 401 Unauthorized');
         setIsUnauthenticated(true);
         setLoading(false);
         return;
@@ -80,12 +84,15 @@ export default function HomePage() {
 
       if (!res.ok) {
         const text = await res.text();
+        console.error('[Dashboard] API Error:', text);
         throw new Error(`API Error: ${res.status} ${res.statusText}\n${text.slice(0, 200)}`);
       }
 
       const data = await res.json();
+      console.log('[Dashboard] Data received:', data);
 
       if (data.needsOnboarding) {
+        console.log('[Dashboard] Redirecting to onboarding (needsOnboarding=true)');
         router.push('/onboarding');
         return;
       }
