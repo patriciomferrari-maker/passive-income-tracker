@@ -311,11 +311,11 @@ export async function GET() {
                 }
             },
             _sum: {
-                amountUSD: true
+                amount: true
             }
         });
 
-        const costaTotalMonthly = costaStats._sum.amountUSD || 0;
+        const costaTotalMonthly = costaStats._sum.amount || 0;
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
         const currentMonthName = monthNames[now.getMonth()];
 
