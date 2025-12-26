@@ -52,7 +52,7 @@ export interface RentalsDashboardViewProps {
 }
 
 export function RentalsDashboardView({ contractsData, globalData, showValues, loading = false }: RentalsDashboardViewProps) {
-    const [chartFilter, setChartFilter] = useState<'ALL' | 'OWNER' | 'TENANT'>('ALL');
+    // const [chartFilter, setChartFilter] = useState<'ALL' | 'OWNER' | 'TENANT'>('ALL'); // Removed: Moved to ConsolidatedCashflowTab
     const activeContracts = useMemo(() => {
         const now = new Date();
         return contractsData.filter(c => {
@@ -206,7 +206,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
         );
     }
 
-    const hasExpenses = (summaryMetrics?.totalExpenseUSD || 0) > 0 || (globalData?.history?.some((h: any) => (h.expenseUSD || 0) > 0));
+    // const hasExpenses = (summaryMetrics?.totalExpenseUSD || 0) > 0 || (globalData?.history?.some((h: any) => (h.expenseUSD || 0) > 0)); // Removed: Not used here anymore
 
     return (
         <div className="space-y-8 print:space-y-4">
@@ -377,175 +377,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                 </div>
             )}
 
-            {/* Global Charts Section */}
-            {globalData && (
-                <div className="mb-8 mt-8 space-y-6">
-                    {/* Filter Buttons */}
-                    {/* Header 'Flujo Consolidado' with Buttons */}
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-2">
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <TrendingUp size={24} className="text-blue-500" />
-                            Flujo Consolidado
-                        </h2>
 
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setChartFilter('OWNER')}
-                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${chartFilter === 'OWNER'
-                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                                    : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700'
-                                    }`}
-                            >
-                                Propietario
-                            </button>
-                            {(hasExpenses || chartFilter === 'TENANT') && (
-                                <button
-                                    onClick={() => setChartFilter('TENANT')}
-                                    className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${chartFilter === 'TENANT'
-                                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50'
-                                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700'
-                                        }`}
-                                >
-                                    Inquilino
-                                </button>
-                            )}
-                            <button
-                                onClick={() => setChartFilter('ALL')}
-                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${chartFilter === 'ALL'
-                                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                                    : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700'
-                                    }`}
-                            >
-                                Consolidado
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Row 1: Income (Owner) */}
-                    {(chartFilter === 'ALL' || chartFilter === 'OWNER') && (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Income Bar Chart */}
-                            <Card className="bg-slate-950 border-slate-800 lg:col-span-2 shadow-lg print:border-slate-300 print:bg-white">
-                                <CardHeader>
-                                    <CardTitle className="text-white print:text-slate-900">Evolución Ingresos Totales (USD)</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="h-[300px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={showValues ? globalData.history : []} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} vertical={false} />
-                                                <XAxis dataKey="monthLabel" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 12 }} tickMargin={10} />
-                                                <YAxis stroke="#10b981" tick={{ fill: '#10b981', fontSize: 12 }} tickFormatter={(value) => `$${value}`} width={60} />
-                                                {showValues && (
-                                                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} formatter={(value: number) => [`$${Math.round(value)}`, 'Total USD']} labelStyle={{ color: '#94a3b8' }} />
-                                                )}
-                                                <Bar
-                                                    dataKey="incomeUSD"
-                                                    fill="#10b981"
-                                                    radius={[4, 4, 0, 0]}
-                                                    name="Ingreso Total"
-                                                    label={{ position: 'top', fill: '#10b981', fontSize: 11, formatter: (value: number) => value > 0 ? `$${Math.round(value)}` : '' }}
-                                                />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Income Pie Chart */}
-                            <Card className="bg-slate-950 border-slate-800 shadow-lg print:border-slate-300 print:bg-white flex flex-col">
-                                <CardHeader>
-                                    <CardTitle className="text-white print:text-slate-900 flex items-center gap-2">
-                                        <PieChartIcon size={16} /> Distribución (Ingresos)
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="flex flex-col items-center justify-center p-4 flex-1">
-                                    <div className="h-[200px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={showValues && globalData?.currencyDistribution?.owner ? [{ name: 'USD', value: globalData.currencyDistribution.owner.USD }, { name: 'ARS', value: globalData.currencyDistribution.owner.ARS }].filter((d: any) => d.value > 0) : [{ name: 'Sin datos', value: 1 }]}
-                                                    cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={showValues ? 5 : 0} dataKey="value" stroke="none"
-                                                >
-                                                    {showValues && globalData?.currencyDistribution?.owner ? (
-                                                        [{ name: 'USD', value: globalData.currencyDistribution.owner.USD }, { name: 'ARS', value: globalData.currencyDistribution.owner.ARS }].filter((d: any) => d.value > 0).map((entry: any, index: number) => (
-                                                            <Cell key={`cell-${index}`} fill={entry.name === 'USD' ? '#10b981' : '#3b82f6'} />
-                                                        ))
-                                                    ) : (<Cell fill="#1e293b" />)}
-                                                </Pie>
-                                                {showValues && <Tooltip />}
-                                                {showValues && <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: '10px' }} />}
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    )}
-
-                    {/* Row 2: Expense (Tenant) */}
-                    {hasExpenses && (chartFilter === 'ALL' || chartFilter === 'TENANT') && (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Expense Bar Chart */}
-                            <Card className="bg-slate-950 border-slate-800 lg:col-span-2 shadow-lg print:border-slate-300 print:bg-white">
-                                <CardHeader>
-                                    <CardTitle className="text-white print:text-slate-900 text-rose-400">Evolución Gastos Totales (USD)</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="h-[300px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={showValues ? globalData.history : []} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} vertical={false} />
-                                                <XAxis dataKey="monthLabel" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 12 }} tickMargin={10} />
-                                                <YAxis stroke="#fb7185" tick={{ fill: '#fb7185', fontSize: 12 }} tickFormatter={(value) => `$${value}`} width={60} />
-                                                {showValues && (
-                                                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} formatter={(value: number) => [`$${Math.round(value)}`, 'Total USD']} labelStyle={{ color: '#94a3b8' }} />
-                                                )}
-                                                <Bar
-                                                    dataKey="expenseUSD"
-                                                    fill="#fb7185"
-                                                    radius={[4, 4, 0, 0]}
-                                                    name="Gasto Total"
-                                                    label={{ position: 'top', fill: '#fb7185', fontSize: 11, formatter: (value: number) => value > 0 ? `$${Math.round(value)}` : '' }}
-                                                />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Expense Pie Chart */}
-                            <Card className="bg-slate-950 border-slate-800 shadow-lg print:border-slate-300 print:bg-white flex flex-col">
-                                <CardHeader>
-                                    <CardTitle className="text-white print:text-slate-900 flex items-center gap-2 text-rose-400">
-                                        <PieChartIcon size={16} /> Distribución (Gastos)
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="flex flex-col items-center justify-center p-4 flex-1">
-                                    <div className="h-[200px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={showValues && globalData?.currencyDistribution?.tenant ? [{ name: 'USD', value: globalData.currencyDistribution.tenant.USD }, { name: 'ARS', value: globalData.currencyDistribution.tenant.ARS }].filter((d: any) => d.value > 0) : [{ name: 'Sin datos', value: 1 }]}
-                                                    cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={showValues ? 5 : 0} dataKey="value" stroke="none"
-                                                >
-                                                    {showValues && globalData?.currencyDistribution?.tenant ? (
-                                                        [{ name: 'USD', value: globalData.currencyDistribution.tenant.USD }, { name: 'ARS', value: globalData.currencyDistribution.tenant.ARS }].filter((d: any) => d.value > 0).map((entry: any, index: number) => (
-                                                            <Cell key={`cell-${index}`} fill={entry.name === 'USD' ? '#10b981' : '#3b82f6'} />
-                                                        ))
-                                                    ) : (<Cell fill="#1e293b" />)}
-                                                </Pie>
-                                                {showValues && <Tooltip />}
-                                                {showValues && <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: '10px' }} />}
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    )}
-                </div>
-            )}
 
             {/* Individual Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
