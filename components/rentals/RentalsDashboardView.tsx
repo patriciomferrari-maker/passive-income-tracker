@@ -213,7 +213,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
 
             {/* Top Summary Cards */}
             {summaryMetrics && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     {/* Income Card */}
                     <Card className="bg-slate-950 border-slate-800 print:border-slate-300 print:bg-white print:text-slate-900">
                         <CardContent className="p-4 flex flex-col items-center text-center justify-center">
@@ -434,8 +434,8 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                                 tickMargin={10}
                                             />
                                             <YAxis
-                                                stroke="#f43f5e"
-                                                tick={{ fill: '#f43f5e', fontSize: 12 }}
+                                                stroke="#fb7185"
+                                                tick={{ fill: '#fb7185', fontSize: 12 }}
                                                 tickFormatter={(value) => `$${value}`}
                                                 width={60}
                                             />
@@ -447,7 +447,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                                     labelStyle={{ color: '#94a3b8' }}
                                                 />
                                             )}
-                                            <Bar dataKey="expenseUSD" fill="#f43f5e" radius={[4, 4, 0, 0]} name="Gasto Total" />
+                                            <Bar dataKey="expenseUSD" fill="#fb7185" radius={[4, 4, 0, 0]} name="Gasto Total" />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
