@@ -140,10 +140,10 @@ export async function GET() {
             });
 
             if (totalHeld > 0) {
-                // Currency Conversion
-                if (inv.currency === 'ARS') {
-                    instrumentValue = instrumentValue / exchangeRate;
-                }
+                // Currency Conversion - DISABLED TO MATCH INNER DASHBOARD (which sums raw values)
+                // if (inv.currency === 'ARS') {
+                //    instrumentValue = instrumentValue / exchangeRate;
+                // }
 
                 onMarketValueUSD += instrumentValue;
                 activeOnCount++;
