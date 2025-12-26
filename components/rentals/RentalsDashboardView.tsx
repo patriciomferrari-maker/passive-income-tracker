@@ -381,36 +381,44 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
             {globalData && (
                 <div className="mb-8 mt-8 space-y-6">
                     {/* Filter Buttons */}
-                    <div className="flex justify-center md:justify-end gap-2 mb-4">
-                        <button
-                            onClick={() => setChartFilter('OWNER')}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${chartFilter === 'OWNER'
+                    {/* Header 'Flujo Consolidado' with Buttons */}
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-2">
+                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <TrendingUp size={24} className="text-blue-500" />
+                            Flujo Consolidado
+                        </h2>
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setChartFilter('OWNER')}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${chartFilter === 'OWNER'
                                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
                                     : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700'
-                                }`}
-                        >
-                            Propietario
-                        </button>
-                        {(hasExpenses || chartFilter === 'TENANT') && (
-                            <button
-                                onClick={() => setChartFilter('TENANT')}
-                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${chartFilter === 'TENANT'
-                                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50'
-                                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700'
                                     }`}
                             >
-                                Inquilino
+                                Propietario
                             </button>
-                        )}
-                        <button
-                            onClick={() => setChartFilter('ALL')}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${chartFilter === 'ALL'
+                            {(hasExpenses || chartFilter === 'TENANT') && (
+                                <button
+                                    onClick={() => setChartFilter('TENANT')}
+                                    className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${chartFilter === 'TENANT'
+                                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50'
+                                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700'
+                                        }`}
+                                >
+                                    Inquilino
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setChartFilter('ALL')}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${chartFilter === 'ALL'
                                     ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
                                     : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700'
-                                }`}
-                        >
-                            Consolidado
-                        </button>
+                                    }`}
+                            >
+                                Consolidado
+                            </button>
+                        </div>
                     </div>
 
                     {/* Row 1: Income (Owner) */}
