@@ -15,12 +15,12 @@ export async function getUserId() {
             return session.user.id;
         }
 
-        // If no session, throw unauthorized
-        console.error('[AUTH] No session found - user not logged in');
-        throw new Error("Unauthorized");
+        // If no session, return null matching expected behavior in API routes
+        console.warn('[AUTH] No session found - user not logged in');
+        return null;
     } catch (error) {
         console.error('[AUTH] Error in getUserId:', error);
-        throw new Error("Unauthorized");
+        return null;
     }
 }
 
