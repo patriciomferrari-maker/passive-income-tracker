@@ -16,7 +16,10 @@ export async function GET() {
             include: {
                 contract: {
                     select: {
-                        currency: true
+                        currency: true,
+                        property: {
+                            select: { role: true }
+                        }
                     }
                 }
             },
@@ -74,9 +77,17 @@ export async function GET() {
             if (!acc[monthKey]) {
                 acc[monthKey] = {
                     date: new Date(Date.UTC(year, month, 1, 12, 0, 0)), // Noon UTC to avoid date shifts
-                    incomeARS: 0,
-                    incomeUSD: 0,
-                    totalUSD: 0,
+
+                    // Owner (Income)
+                    ownerARS: 0,
+                    ownerUSD: 0,
+                    ownerTotalUSD: 0,
+
+                    // Tenant (Expense)
+                    tenantARS: 0,
+                    tenantUSD: 0,
+                    tenantTotalUSD: 0,
+
                     count: 0
                 };
             }
@@ -84,10 +95,17 @@ export async function GET() {
             // Amounts
             const valARS = cf.amountARS || 0;
             const valUSD = cf.amountUSD || 0;
+            const role = (cf.contract.property as any).role || 'OWNER';
+
+            let calculatedTotalUSD = 0;
 
             // Determine strict currency bucket based on contract
             if (cf.contract.currency === 'ARS') {
-                acc[monthKey].incomeARS += valARS;
+                if (role === 'TENANT') {
+                    acc[monthKey].tenantARS += valARS;
+                } else {
+                    acc[monthKey].ownerARS += valARS;
+                }
 
                 // Calculate USD equivalent for this ARS amount
                 // TC: Closing rate of PREVIOUS month
@@ -95,12 +113,22 @@ export async function GET() {
                 const rate = getClosestRate(targetDate);
 
                 if (rate && rate > 0) {
-                    acc[monthKey].totalUSD += (valARS / rate);
+                    calculatedTotalUSD = (valARS / rate);
                 }
             } else {
                 // USD Contract
-                acc[monthKey].incomeUSD += valUSD;
-                acc[monthKey].totalUSD += valUSD;
+                if (role === 'TENANT') {
+                    acc[monthKey].tenantUSD += valUSD;
+                } else {
+                    acc[monthKey].ownerUSD += valUSD;
+                }
+                calculatedTotalUSD = valUSD;
+            }
+
+            if (role === 'TENANT') {
+                acc[monthKey].tenantTotalUSD += calculatedTotalUSD;
+            } else {
+                acc[monthKey].ownerTotalUSD += calculatedTotalUSD;
             }
 
             acc[monthKey].count++;

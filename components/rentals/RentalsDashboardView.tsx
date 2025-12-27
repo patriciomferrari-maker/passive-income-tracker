@@ -378,6 +378,76 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
             )}
 
 
+            {/* Global Charts Section (Restored - Owner Only) */}
+            {globalData && (
+                <div className="space-y-6">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <TrendingUp size={24} className="text-blue-500" />
+                        Historico Global (Ingresos)
+                    </h2>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Income Bar Chart */}
+                        <Card className="bg-slate-950 border-slate-800 lg:col-span-2 shadow-lg print:border-slate-300 print:bg-white">
+                            <CardHeader>
+                                <CardTitle className="text-white print:text-slate-900">Evolución Ingresos Totales (USD)</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="h-[300px] w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={showValues ? globalData.history : []} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} vertical={false} />
+                                            <XAxis dataKey="monthLabel" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 12 }} tickMargin={10} />
+                                            <YAxis stroke="#10b981" tick={{ fill: '#10b981', fontSize: 12 }} tickFormatter={(value) => `$${value}`} width={60} />
+                                            {showValues && (
+                                                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} formatter={(value: number) => [`$${Math.round(value)}`, 'Total USD']} labelStyle={{ color: '#94a3b8' }} />
+                                            )}
+                                            <Bar
+                                                dataKey="incomeUSD"
+                                                fill="#10b981"
+                                                radius={[4, 4, 0, 0]}
+                                                name="Ingreso Total"
+                                                label={{ position: 'top', fill: '#10b981', fontSize: 11, formatter: (value: number) => value > 0 ? `$${Math.round(value)}` : '' }}
+                                            />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Income Pie Chart */}
+                        <Card className="bg-slate-950 border-slate-800 shadow-lg print:border-slate-300 print:bg-white flex flex-col">
+                            <CardHeader>
+                                <CardTitle className="text-white print:text-slate-900 flex items-center gap-2">
+                                    <PieChartIcon size={16} /> Distribución (Ingresos)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-col items-center justify-center p-4 flex-1">
+                                <div className="h-[200px] w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={showValues && globalData?.currencyDistribution?.owner ? [{ name: 'USD', value: globalData.currencyDistribution.owner.USD }, { name: 'ARS', value: globalData.currencyDistribution.owner.ARS }].filter((d: any) => d.value > 0) : [{ name: 'Sin datos', value: 1 }]}
+                                                cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={showValues ? 5 : 0} dataKey="value" stroke="none"
+                                            >
+                                                {showValues && globalData?.currencyDistribution?.owner ? (
+                                                    [{ name: 'USD', value: globalData.currencyDistribution.owner.USD }, { name: 'ARS', value: globalData.currencyDistribution.owner.ARS }].filter((d: any) => d.value > 0).map((entry: any, index: number) => (
+                                                        <Cell key={`cell-${index}`} fill={entry.name === 'USD' ? '#10b981' : '#3b82f6'} />
+                                                    ))
+                                                ) : (<Cell fill="#1e293b" />)}
+                                            </Pie>
+                                            {showValues && <Tooltip />}
+                                            {showValues && <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: '10px' }} />}
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            )}
+
+
 
             {/* Individual Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
