@@ -82,7 +82,7 @@ export async function GET() {
         // 2. Fetch Rental Income (History)
         const rentalCashflows = await prisma.rentalCashflow.findMany({
             where: {
-                contract: { property: { userId, isConsolidated: true } },
+                contract: { property: { userId, isConsolidated: true, role: 'OWNER' } },
                 date: { gte: historyStart, lte: historyEnd }
             },
             select: { date: true, amountUSD: true }
@@ -609,7 +609,7 @@ export async function GET() {
         // Actually, the rental system generates rows. Let's check rentalCashflow for future dates.
         const projectedRentalCashflows = await prisma.rentalCashflow.findMany({
             where: {
-                contract: { property: { userId, isConsolidated: true } },
+                contract: { property: { userId, isConsolidated: true, role: 'OWNER' } },
                 date: { gte: projectionStart, lte: projectionEnd }
             },
             select: { date: true, amountUSD: true }
