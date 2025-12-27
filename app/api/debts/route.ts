@@ -66,64 +66,66 @@ export async function POST(request: Request) {
     } catch (error) {
         return unauthorized();
     }
-    export async function PUT(request: Request) {
-        try {
-            const userId = await getUserId();
-            const body = await request.json();
-            const { id, debtorName, startDate, initialAmount, currency, details } = body;
+}
 
-            if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+export async function PUT(request: Request) {
+    try {
+        const userId = await getUserId();
+        const body = await request.json();
+        const { id, debtorName, startDate, initialAmount, currency, details } = body;
 
-            // Verify ownership
-            const existing = await prisma.debt.findFirst({ where: { id, userId } });
-            if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-            const updatedDebt = await prisma.debt.update({
-                where: { id },
-                data: {
-                    debtorName,
-                    type: body.type, // Allow type change
-                    startDate: new Date(startDate),
-                    initialAmount,
-                    currency,
-                    details
-                }
-            });
+        // Verify ownership
+        const existing = await prisma.debt.findFirst({ where: { id, userId } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-            return NextResponse.json(updatedDebt);
-        } catch (error) {
-            console.error('Error updating debt:', error);
-            return unauthorized();
-        }
-    }
-
-
-    export async function DELETE(request: Request) {
-        try {
-            const userId = await getUserId();
-            const { searchParams } = new URL(request.url);
-            const id = searchParams.get('id');
-
-            if (!id) {
-                return NextResponse.json({ error: 'Debt ID required' }, { status: 400 });
+        const updatedDebt = await prisma.debt.update({
+            where: { id },
+            data: {
+                debtorName,
+                type: body.type, // Allow type change
+                startDate: new Date(startDate),
+                initialAmount,
+                currency,
+                details
             }
+        });
 
-            // Verify ownership
-            const existing = await prisma.debt.findFirst({ where: { id, userId } });
-            if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-            // Delete payments first (cascade usually handles this but good to be safe/explicit if not configured)
-            await prisma.debtPayment.deleteMany({
-                where: { debtId: id }
-            });
-
-            await prisma.debt.delete({
-                where: { id }
-            });
-
-            return NextResponse.json({ success: true });
-        } catch (error) {
-            console.error('Error deleting debt:', error);
-            return unauthorized();
-        }
+        return NextResponse.json(updatedDebt);
+    } catch (error) {
+        console.error('Error updating debt:', error);
+        return unauthorized();
     }
+}
+
+
+export async function DELETE(request: Request) {
+    try {
+        const userId = await getUserId();
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json({ error: 'Debt ID required' }, { status: 400 });
+        }
+
+        // Verify ownership
+        const existing = await prisma.debt.findFirst({ where: { id, userId } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+        // Delete payments first (cascade usually handles this but good to be safe/explicit if not configured)
+        await prisma.debtPayment.deleteMany({
+            where: { debtId: id }
+        });
+
+        await prisma.debt.delete({
+            where: { id }
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting debt:', error);
+        return unauthorized();
+    }
+}
