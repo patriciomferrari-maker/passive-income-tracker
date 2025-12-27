@@ -181,9 +181,11 @@ export async function GET() {
             where: { userId },
             select: {
                 initialAmount: true,
+                type: true, // Need type
                 payments: {
                     select: {
-                        amount: true
+                        amount: true,
+                        type: true // Need type
                     }
                 }
             }
@@ -191,8 +193,21 @@ export async function GET() {
 
         const debtsCount = debts.length;
         const totalPending = debts.reduce((sum, d) => {
-            const paid = d.payments.reduce((pSum, p) => pSum + p.amount, 0);
-            return sum + (d.initialAmount - paid);
+            const paid = d.payments
+                .filter(p => !p.type || p.type === 'PAYMENT')
+                .reduce((pSum, p) => pSum + p.amount, 0);
+
+            const increased = d.payments
+                .filter(p => p.type === 'INCREASE')
+                .reduce((pSum, p) => pSum + p.amount, 0);
+
+            const pending = (d.initialAmount + increased) - paid;
+
+            if (d.type === 'I_OWE') {
+                return sum - pending;
+            } else {
+                return sum + pending;
+            }
         }, 0);
 
 

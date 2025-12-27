@@ -372,8 +372,18 @@ export async function GET() {
             let paid = 0;
             d.payments.forEach(p => { if (p.type === 'INCREASE') total += p.amount; else if (p.type === 'PAYMENT') paid += p.amount; });
             const pending = Math.max(0, total - paid);
-            if (pending > 1) totalDebtPending += pending;
-            return { name: d.debtorName, paid, pending, total, currency: d.currency };
+
+            // Netting Logic: 
+            // If OWED_TO_ME (Asset) -> Add to Total
+            // If I_OWE (Liability) -> Subtract from Total
+            if (pending > 1) {
+                if (d.type === 'I_OWE') {
+                    totalDebtPending -= pending;
+                } else {
+                    totalDebtPending += pending;
+                }
+            }
+            return { name: d.debtorName, paid, pending, total, currency: d.currency, type: d.type };
         }).filter(d => d.pending > 1);
 
         // D. Bank Data (Already fetched above but need for logic)

@@ -261,13 +261,14 @@ export default function HomePage() {
 
                         {shouldShow('debts') && (
                           <DashboardCard
-                            title="Deudas a Cobrar"
-                            description="Prestamos y cuentas"
+                            title={(stats.debts?.totalPending || 0) >= 0 ? "Deudas a Cobrar" : "Deudas a Pagar"}
+                            description={(stats.debts?.totalPending || 0) >= 0 ? "Prestamos y cuentas" : "Saldo Neto Deudor"}
                             icon="💸"
                             href="/deudas"
                             count={stats.debts?.count || 0}
                             totalValue={stats.debts?.totalPending || 0}
                             currency="USD"
+                            trendColor={(stats.debts?.totalPending || 0) < 0 ? "text-rose-400" : undefined}
                           />
                         )}
 
@@ -296,7 +297,7 @@ export default function HomePage() {
                         )}
 
                         {/* Economic Data - Restricted to admin only */}
-                        {stats.userEmail === 'patriciomferrari@gmail.com' && (
+                        {['patriciomferrari@gmail.com', 'paato.ferrari@hotmail.com'].includes(stats.userEmail || '') && (
                           <DashboardCard
                             title="Datos Económicos"
                             description="Inflación, devaluación y UVA"
