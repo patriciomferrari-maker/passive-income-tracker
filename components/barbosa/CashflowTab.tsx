@@ -11,6 +11,7 @@ export function CashflowTab() {
     const [loading, setLoading] = useState(true);
     // State for collapsible categories
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+    const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS');
 
     useEffect(() => {
         fetchData();
@@ -73,6 +74,18 @@ export function CashflowTab() {
         setExpandedCategories(prev => ({ ...prev, [catName]: !prev[catName] }));
     };
 
+    const convert = (amount: number, p: string) => {
+        if (currency === 'ARS') return amount;
+        const rate = data.rates[p];
+        return rate ? amount / rate : 0;
+    };
+
+    const formatMoney = (val: number) => {
+        if (val === 0) return '-';
+        if (currency === 'USD') return `US$${Math.round(val).toLocaleString()}`;
+        return `$${Math.round(val).toLocaleString()}`;
+    };
+
     // Render Rows for a Type (Grouped)
     const renderCategoryRows = (type: string) => {
         const typeGroup = data.data[type] || {};
@@ -100,11 +113,15 @@ export function CashflowTab() {
                             </div>
                             {catName}
                         </td>
-                        {catTotals.map((val: number, idx: number) => (
-                            <td key={idx} className="px-2 py-2 text-right text-slate-300 font-mono text-xs font-semibold">
-                                {val > 0 ? `$${val.toLocaleString()}` : '-'}
-                            </td>
-                        ))}
+                        {catTotals.map((val: number, idx: number) => {
+                            const p = periods[idx];
+                            const converted = convert(val, p);
+                            return (
+                                <td key={idx} className="px-2 py-2 text-right text-slate-300 font-mono text-xs font-semibold">
+                                    {formatMoney(converted)}
+                                </td>
+                            );
+                        })}
                     </tr>
 
                     {/* SubCategories List (Collapsible) */}
@@ -113,11 +130,15 @@ export function CashflowTab() {
                             <td className="px-4 py-1 text-slate-400 font-medium border-r border-slate-800 pl-12 text-xs border-l-4 border-l-slate-900">
                                 {subName}
                             </td>
-                            {periods.map((p: string) => (
-                                <td key={p} className="px-2 py-1 text-right text-slate-400 font-mono text-[10px]">
-                                    {getValue(type, catName, subName, p) > 0 ? `$${getValue(type, catName, subName, p).toLocaleString()}` : '-'}
-                                </td>
-                            ))}
+                            {periods.map((p: string) => {
+                                const val = getValue(type, catName, subName, p);
+                                const converted = convert(val, p);
+                                return (
+                                    <td key={p} className="px-2 py-1 text-right text-slate-400 font-mono text-[10px]">
+                                        {formatMoney(converted)}
+                                    </td>
+                                );
+                            })}
                         </tr>
                     ))}
                 </>
@@ -133,17 +154,38 @@ export function CashflowTab() {
                     <p className="text-xs text-slate-500">Resumen financiero detallado</p>
                 </div>
 
-                <Select value={viewMode} onValueChange={setViewMode}>
-                    <SelectTrigger className="w-[180px] bg-gradient-to-r from-blue-900/50 to-indigo-900/50 border-blue-800/50 text-blue-100 ring-offset-0 focus:ring-2 focus:ring-blue-500 font-medium">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-800">
-                        <SelectItem value="LAST_12" className="text-emerald-400 font-medium">Últimos 12 meses</SelectItem>
-                        <SelectItem value="2024">Año 2024</SelectItem>
-                        <SelectItem value="2025">Año 2025</SelectItem>
-                        <SelectItem value="2026">Año 2026</SelectItem>
-                    </SelectContent>
-                </Select>
+                <div className="flex items-center gap-4">
+                    <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-800">
+                        <button
+                            onClick={() => setCurrency('ARS')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${currency === 'ARS'
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                                : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'}`}
+                        >
+                            ARS
+                        </button>
+                        <button
+                            onClick={() => setCurrency('USD')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${currency === 'USD'
+                                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20'
+                                : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'}`}
+                        >
+                            USD
+                        </button>
+                    </div>
+
+                    <Select value={viewMode} onValueChange={setViewMode}>
+                        <SelectTrigger className="w-[180px] bg-gradient-to-r from-blue-900/50 to-indigo-900/50 border-blue-800/50 text-blue-100 ring-offset-0 focus:ring-2 focus:ring-blue-500 font-medium">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-800">
+                            <SelectItem value="LAST_12" className="text-emerald-400 font-medium">Últimos 12 meses</SelectItem>
+                            <SelectItem value="2024">Año 2024</SelectItem>
+                            <SelectItem value="2025">Año 2025</SelectItem>
+                            <SelectItem value="2026">Año 2026</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
 
             <div className="border border-slate-800 rounded-lg overflow-x-auto shadow-xl bg-slate-950/50">
@@ -170,7 +212,7 @@ export function CashflowTab() {
                             <td className="px-4 py-2 text-right border-r border-slate-800">TOTAL INGRESOS</td>
                             {periods.map((p: string) => (
                                 <td key={p} className="px-2 py-2 text-right text-xs">
-                                    ${incomeTotal(p).toLocaleString()}
+                                    {formatMoney(convert(incomeTotal(p), p))}
                                 </td>
                             ))}
                         </tr>
@@ -188,86 +230,36 @@ export function CashflowTab() {
                             <td className="px-4 py-2 text-right border-r border-slate-800">TOTAL GASTOS</td>
                             {periods.map((p: string) => (
                                 <td key={p} className="px-2 py-2 text-right text-xs">
-                                    ${expenseTotal(p).toLocaleString()}
+                                    {formatMoney(convert(expenseTotal(p), p))}
                                 </td>
                             ))}
                         </tr>
 
-                        {/* RESULTADO ARS */}
+                        {/* RESULTADO (AHORRO) */}
                         <tr className="bg-slate-800 text-white font-bold border-t-4 border-slate-800 shadow-inner">
-                            <td className="px-4 py-3 text-right border-r border-slate-700">AHORRO (ARS)</td>
-                            {periods.map((p: string) => (
-                                <td key={p} className={`px-2 py-3 text-right text-xs ${netTotal(p) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    ${netTotal(p).toLocaleString()}
-                                </td>
-                            ))}
-                        </tr>
-
-                        {/* SEPARATOR USD */}
-                        <tr className="bg-slate-950/50">
-                            <td colSpan={periods.length + 1} className="py-4 border-l border-r border-slate-800">
-                                <div className="flex items-center gap-2 px-4">
-                                    <div className="h-px bg-slate-800 flex-1"></div>
-                                    <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Resumen en Dólares</span>
-                                    <div className="h-px bg-slate-800 flex-1"></div>
-                                </div>
-                            </td>
-                        </tr>
-
-                        {/* TC USD */}
-                        <tr className="bg-slate-950 text-slate-500 font-mono text-xs border-t border-slate-800">
-                            <td className="px-4 py-2 text-right border-r border-slate-800">TIPO DE CAMBIO</td>
-                            {periods.map((p: string) => (
-                                <td key={p} className="px-2 py-2 text-right">
-                                    {data.rates[p] ? `$${data.rates[p]}` : '-'}
-                                </td>
-                            ))}
-                        </tr>
-
-                        {/* INGRESOS USD */}
-                        <tr className="bg-slate-900 text-emerald-300 font-bold border-t border-slate-800">
-                            <td className="px-4 py-3 text-right border-r border-slate-800">INGRESOS (USD)</td>
-                            {periods.map((p: string) => {
-                                const inc = incomeTotal(p);
-                                const rate = data.rates[p];
-                                const usd = rate ? inc / rate : 0;
-                                return (
-                                    <td key={p} className="px-2 py-3 text-right text-xs">
-                                        {rate ? `US$${Math.round(usd).toLocaleString()}` : '-'}
-                                    </td>
-                                );
-                            })}
-                        </tr>
-
-                        {/* GASTOS USD */}
-                        <tr className="bg-slate-900 text-purple-300 font-bold border-t border-slate-800">
-                            <td className="px-4 py-3 text-right border-r border-slate-800">GASTOS (USD)</td>
-                            {periods.map((p: string) => {
-                                const exp = expenseTotal(p);
-                                const rate = data.rates[p];
-                                const usd = rate ? exp / rate : 0;
-                                return (
-                                    <td key={p} className="px-2 py-3 text-right text-xs">
-                                        {rate ? `US$${Math.round(usd).toLocaleString()}` : '-'}
-                                    </td>
-                                );
-                            })}
-                        </tr>
-
-                        {/* RESULTADO USD (Ahorro) */}
-                        <tr className="bg-blue-950/30 text-blue-300 font-bold border-t border-slate-800">
-                            <td className="px-4 py-3 text-right border-r border-slate-800">AHORRO (USD)</td>
+                            <td className="px-4 py-3 text-right border-r border-slate-700">AHORRO ({currency})</td>
                             {periods.map((p: string) => {
                                 const net = netTotal(p);
-                                const rate = data.rates[p];
-                                const usd = rate ? net / rate : 0;
+                                const converted = convert(net, p);
                                 return (
-                                    <td key={p} className="px-2 py-3 text-right text-xs">
-                                        {rate ? `US$${Math.round(usd).toLocaleString()}` : '-'}
+                                    <td key={p} className={`px-2 py-3 text-right text-xs ${converted >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {formatMoney(converted)}
                                     </td>
                                 );
                             })}
                         </tr>
+
+                        {/* TC USD (Only visible in ARS mode) */}
+                        {currency === 'ARS' && (
+                            <tr className="bg-slate-950 text-slate-500 font-mono text-xs border-t border-slate-800">
+                                <td className="px-4 py-2 text-right border-r border-slate-800">TIPO DE CAMBIO</td>
+                                {periods.map((p: string) => (
+                                    <td key={p} className="px-2 py-2 text-right">
+                                        {data.rates[p] ? `$${data.rates[p]}` : '-'}
+                                    </td>
+                                ))}
+                            </tr>
+                        )}
 
                     </tbody>
                 </table>
