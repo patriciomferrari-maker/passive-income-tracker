@@ -200,17 +200,17 @@ export function ConsolidatedCashflowTab({ showValues = true }: { showValues?: bo
                                                     <td className="py-3 px-4 text-slate-400">
                                                         {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                                                     </td>
-                                                    <td className="py-3 px-4 text-white font-bold text-lg">
+                                                    <td className="py-3 px-4 text-white font-bold text-sm">
                                                         {year}
                                                     </td>
-                                                    <td className={`py-3 px-4 text-right font-mono font-bold ${vals.ars < 0 ? 'text-rose-400' : 'text-slate-300'}`}>
-                                                        {showValues ? `$${vals.ars.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '****'}
+                                                    <td className={`py-3 px-4 text-right font-mono font-bold text-sm ${vals.ars < 0 ? 'text-rose-400' : 'text-slate-300'}`}>
+                                                        {showValues ? `$${vals.ars.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '****'}
                                                     </td>
-                                                    <td className={`py-3 px-4 text-right font-mono font-bold ${vals.usd < 0 ? 'text-rose-400' : 'text-slate-300'}`}>
-                                                        {showValues ? `$${vals.usd.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '****'}
+                                                    <td className={`py-3 px-4 text-right font-mono font-bold text-sm ${vals.usd < 0 ? 'text-rose-400' : 'text-slate-300'}`}>
+                                                        {showValues ? `$${vals.usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '****'}
                                                     </td>
-                                                    <td className={`py-3 px-4 text-right font-bold font-mono text-lg ${vals.total < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                                                        {showValues ? `$${vals.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '****'}
+                                                    <td className={`py-3 px-4 text-right font-bold font-mono text-sm ${vals.total < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                                        {showValues ? `$${vals.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '****'}
                                                     </td>
                                                     <td className="py-3 px-4 text-center text-slate-400">
                                                         {cfYear.count}
@@ -227,13 +227,13 @@ export function ConsolidatedCashflowTab({ showValues = true }: { showValues?: bo
                                                                 {new Date(cfMonth.date).toLocaleDateString('es-AR', { month: 'long', timeZone: 'UTC' })}
                                                             </td>
                                                             <td className={`py-2 px-4 text-right font-mono text-sm ${mVals.ars < 0 ? 'text-rose-400' : 'text-slate-500'}`}>
-                                                                {showValues ? `$${mVals.ars.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '****'}
+                                                                {showValues ? `$${mVals.ars.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '****'}
                                                             </td>
                                                             <td className={`py-2 px-4 text-right font-mono text-sm ${mVals.usd < 0 ? 'text-rose-400' : 'text-slate-500'}`}>
-                                                                {showValues ? `$${mVals.usd.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '****'}
+                                                                {showValues ? `$${mVals.usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '****'}
                                                             </td>
                                                             <td className={`py-2 px-4 text-right font-mono text-sm ${mVals.total < 0 ? 'text-rose-400' : 'text-emerald-500/80'}`}>
-                                                                {showValues ? `$${mVals.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '****'}
+                                                                {showValues ? `$${mVals.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '****'}
                                                             </td>
                                                             <td className="py-2 px-4 text-center text-slate-600 text-sm">
                                                                 {cfMonth.count}
@@ -248,15 +248,15 @@ export function ConsolidatedCashflowTab({ showValues = true }: { showValues?: bo
                                 <tfoot>
                                     <tr className="bg-slate-900 font-bold border-t-2 border-slate-700">
                                         <td></td>
-                                        <td className="py-4 px-4 text-white text-lg">TOTAL HISTÓRICO</td>
-                                        <td className={`py-4 px-4 text-right font-mono text-lg ${totalValues.ars < 0 ? 'text-rose-400' : 'text-white'}`}>
-                                            {showValues ? `$${totalValues.ars.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '****'}
+                                        <td className="py-4 px-4 text-white text-sm">TOTAL HISTÓRICO</td>
+                                        <td className={`py-4 px-4 text-right font-mono text-sm ${totalValues.ars < 0 ? 'text-rose-400' : 'text-white'}`}>
+                                            {showValues ? `$${totalValues.ars.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '****'}
                                         </td>
-                                        <td className={`py-4 px-4 text-right font-mono text-lg ${totalValues.usd < 0 ? 'text-rose-400' : 'text-white'}`}>
-                                            {showValues ? `$${totalValues.usd.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '****'}
+                                        <td className={`py-4 px-4 text-right font-mono text-sm ${totalValues.usd < 0 ? 'text-rose-400' : 'text-white'}`}>
+                                            {showValues ? `$${totalValues.usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '****'}
                                         </td>
-                                        <td className={`py-4 px-4 text-right font-mono text-lg ${totalValues.total < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                                            {showValues ? `$${totalValues.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '****'}
+                                        <td className={`py-4 px-4 text-right font-mono text-sm ${totalValues.total < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                            {showValues ? `$${totalValues.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '****'}
                                         </td>
                                         <td className="py-4 px-4 text-center text-slate-300">
                                             {grandTotal.count}
