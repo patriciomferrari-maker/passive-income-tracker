@@ -161,18 +161,23 @@ export async function GET(req: NextRequest) {
     rentalCashflows.forEach(cf => {
         const period = getPeriodKey(cf.date);
         const amount = Math.round(cf.amountARS || 0); // Use ARS amount, rounded to integer
+
+        // Determine Role and Transaction Type
+        const role = (cf.contract.property as any).role || 'OWNER';
+        const type = role === 'TENANT' ? 'EXPENSE' : 'INCOME';
+
         const catName = 'Alquileres';
         const subName = cf.contract.property.name || 'General';
 
         // Init Category
-        if (!structure['INCOME'][catName]) structure['INCOME'][catName] = { total: {}, subs: {} };
+        if (!structure[type][catName]) structure[type][catName] = { total: {}, subs: {} };
 
         // Init SubCategory
-        if (!structure['INCOME'][catName].subs[subName]) structure['INCOME'][catName].subs[subName] = {};
+        if (!structure[type][catName].subs[subName]) structure[type][catName].subs[subName] = {};
 
-        // Accumulate (Rental Income is positive for us, so add it)
-        structure['INCOME'][catName].subs[subName][period] = (structure['INCOME'][catName].subs[subName][period] || 0) + amount;
-        structure['INCOME'][catName].total[period] = (structure['INCOME'][catName].total[period] || 0) + amount;
+        // Accumulate
+        structure[type][catName].subs[subName][period] = (structure[type][catName].subs[subName][period] || 0) + amount;
+        structure[type][catName].total[period] = (structure[type][catName].total[period] || 0) + amount;
     });
     // -------------------------------
 
