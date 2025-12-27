@@ -7,15 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, X } from 'lucide-react';
 
 interface Debt {
     id: string;
     debtorName: string;
-    type?: string; // OWED_TO_ME, I_OWE (optional for backward compatibility)
+    type?: string;
     startDate: string;
     initialAmount: number;
     currency: string;
+    details?: string;
     balance: number;
 }
 
@@ -35,6 +36,9 @@ export function DebtsConfigurationTab({ showValues = true }: TabProps) {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [currency, setCurrency] = useState('USD');
     const [submitting, setSubmitting] = useState(false);
+
+    // Edit State
+    const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
 
     useEffect(() => {
         loadDebts();
@@ -56,33 +60,53 @@ export function DebtsConfigurationTab({ showValues = true }: TabProps) {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const res = await fetch('/api/debts', {
-                method: 'POST',
+            const url = '/api/debts';
+            const method = editingDebt ? 'PUT' : 'POST';
+            const body = {
+                id: editingDebt?.id, // Only for PUT
+                debtorName,
+                type: debtType,
+                initialAmount: parseFloat(amount),
+                startDate: date,
+                currency,
+                details
+            };
+
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    debtorName,
-                    type: debtType,
-                    initialAmount: parseFloat(amount),
-                    startDate: date,
-                    currency,
-                    details
-                })
+                body: JSON.stringify(body)
             });
 
             if (res.ok) {
-                // Reset form
-                setDebtorName('');
-                setDebtType('OWED_TO_ME');
-                setAmount('');
-                setDetails('');
-                setDate(new Date().toISOString().split('T')[0]);
-                loadDebts(); // Reload list
+                resetForm();
+                loadDebts();
             }
         } catch (error) {
-            console.error('Error creating debt:', error);
+            console.error('Error saving debt:', error);
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const resetForm = () => {
+        setDebtorName('');
+        setDebtType('OWED_TO_ME');
+        setAmount('');
+        setDetails('');
+        setDate(new Date().toISOString().split('T')[0]);
+        setEditingDebt(null);
+    };
+
+    const handleEdit = (debt: Debt) => {
+        setEditingDebt(debt);
+        setDebtorName(debt.debtorName);
+        setDebtType(debt.type || 'OWED_TO_ME');
+        setAmount(debt.initialAmount.toString());
+        setDetails(debt.details || '');
+        // Handle date string (take YYYY-MM-DD part)
+        setDate(new Date(debt.startDate).toISOString().split('T')[0]);
+        setCurrency(debt.currency);
     };
 
     const formatCurrency = (val: number, currency: string) => {
@@ -99,8 +123,8 @@ export function DebtsConfigurationTab({ showValues = true }: TabProps) {
                 <Card className="bg-slate-950 border-slate-800 lg:col-span-1 h-fit">
                     <CardHeader>
                         <CardTitle className="text-white flex items-center gap-2">
-                            <PlusCircle size={20} className="text-emerald-500" />
-                            Nueva Deuda
+                            {editingDebt ? <Pencil size={20} className="text-blue-500" /> : <PlusCircle size={20} className="text-emerald-500" />}
+                            {editingDebt ? 'Editar Deuda' : 'Nueva Deuda'}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -195,8 +219,19 @@ export function DebtsConfigurationTab({ showValues = true }: TabProps) {
                                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white mt-4 relative z-20"
                                 disabled={submitting}
                             >
-                                {submitting ? 'Guardando...' : 'Crear Deuda'}
+                                {submitting ? 'Guardando...' : (editingDebt ? 'Actualizar Deuda' : 'Crear Deuda')}
                             </Button>
+
+                            {editingDebt && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="w-full text-slate-400 hover:text-white"
+                                    onClick={resetForm}
+                                >
+                                    <X size={16} className="mr-2" /> Cancelar Edición
+                                </Button>
+                            )}
                         </form>
                     </CardContent>
                 </Card>
@@ -238,6 +273,15 @@ export function DebtsConfigurationTab({ showValues = true }: TabProps) {
                                                 {formatCurrency(debt.balance, debt.currency)}
                                             </td>
                                             <td className="py-3 px-4 text-center">
+
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 mr-1"
+                                                    onClick={() => handleEdit(debt)}
+                                                >
+                                                    <Pencil size={16} />
+                                                </Button>
 
                                                 <Button
                                                     variant="ghost"
