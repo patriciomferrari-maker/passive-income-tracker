@@ -153,6 +153,7 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
             </table>
 
             <!-- 2. Vencimientos del Mes (Full Month) -->
+            ${maturities.length > 0 ? `
             <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
                 <div style="background-color: #f8fafc; padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
                     <h3 style="margin: 0; color: #0e4166; font-size: 14px; font-weight: 700; text-transform: uppercase;">Vencimientos del Mes (${month})</h3>
@@ -172,7 +173,7 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </div>` : ''}
 
             <!-- 3. Alquileres Tables (Prox Ajustes & Vencimientos) -->
              <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">

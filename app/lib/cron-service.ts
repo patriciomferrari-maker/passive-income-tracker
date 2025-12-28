@@ -123,15 +123,16 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
 
                         if (inv.type === 'ON' || inv.type === 'CEDEAR') {
                             totalArg += currentValue;
-                            hasArg = true;
                         } else if (inv.type === 'TREASURY' || inv.type === 'ETF' || inv.type === 'STOCK') {
                             totalUSA += currentValue;
-                            hasUSA = true;
                         } else {
                             totalArg += currentValue;
-                            hasArg = true;
                         }
                     });
+
+                    // Set flags based on VALUES, not just existence
+                    hasArg = totalArg > 1; // Tolerance for small remainders
+                    hasUSA = totalUSA > 1;
 
                     // 3. Rentals
                     const contracts = await prisma.contract.findMany({
@@ -186,7 +187,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     contracts.forEach(c => {
                         // Expiration
                         const expDate = addMonths(new Date(c.startDate), c.durationMonths);
-                        if (isAfter(expDate, now) && isBefore(expDate, eventHorizon)) {
+                        if (isAfter(expDate, now)) {
                             rentalEventsList.push({
                                 date: expDate,
                                 property: c.property.name,
