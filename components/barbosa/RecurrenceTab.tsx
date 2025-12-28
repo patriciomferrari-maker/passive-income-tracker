@@ -27,7 +27,10 @@ export function RecurrenceTab() {
         currency: 'ARS',
         categoryId: '',
         subCategoryId: '',
-        active: true
+        categoryId: '',
+        subCategoryId: '',
+        active: true,
+        isStatistical: false
     });
 
     // Apply Props
@@ -116,7 +119,10 @@ export function RecurrenceTab() {
             currency: rule.currency,
             categoryId: rule.categoryId,
             subCategoryId: rule.subCategoryId || '',
-            active: rule.active
+            categoryId: rule.categoryId,
+            subCategoryId: rule.subCategoryId || '',
+            active: rule.active,
+            isStatistical: rule.isStatistical || false
         });
     };
 
@@ -130,7 +136,10 @@ export function RecurrenceTab() {
             currency: 'ARS',
             categoryId: '',
             subCategoryId: '',
-            active: true
+            categoryId: '',
+            subCategoryId: '',
+            active: true,
+            isStatistical: false
         });
     };
 
@@ -241,6 +250,20 @@ export function RecurrenceTab() {
                                 </Select>
                             </div>
 
+                            <div className="flex items-center space-x-2 mt-2 pt-2 border-t border-slate-800">
+                                <input
+                                    type="checkbox"
+                                    id="isStatisticalRecurrence"
+                                    checked={formData.isStatistical}
+                                    onChange={e => setFormData({ ...formData, isStatistical: e.target.checked })}
+                                    className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900"
+                                />
+                                <label htmlFor="isStatisticalRecurrence" className="text-sm font-medium leading-none text-slate-400 cursor-pointer">
+                                    Pagado con Tarjeta (Estadístico)
+                                    <span className="block text-[10px] text-slate-500 font-normal mt-0.5">No suma al total de gastos</span>
+                                </label>
+                            </div>
+
                             {editingId && (
                                 <div className="flex items-center gap-2 mt-2">
                                     <span className="text-sm text-slate-300">Activo</span>
@@ -275,7 +298,9 @@ export function RecurrenceTab() {
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <h3 className="text-white font-bold">{rule.name}</h3>
+                                            <h3 className="text-white font-bold">{rule.name}</h3>
                                             {!rule.active && <span className="text-[10px] bg-slate-800 text-slate-400 px-1 rounded">PAUSADO</span>}
+                                            {rule.isStatistical && <span className="text-[10px] bg-indigo-900/50 text-indigo-300 border border-indigo-700 px-1 rounded">ESTADÍSTICO</span>}
                                         </div>
                                         <p className="text-slate-400 text-xs">Día {rule.dayOfMonth} de cada mes</p>
                                     </div>

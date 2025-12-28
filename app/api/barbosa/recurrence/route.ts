@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { name, dayOfMonth, amount, currency, categoryId, subCategoryId, type } = body;
+    const { name, dayOfMonth, amount, currency, categoryId, subCategoryId, type, isStatistical } = body;
 
     const rule = await prisma.barbosaRecurrence.create({
         data: {
@@ -38,7 +38,8 @@ export async function POST(req: NextRequest) {
             categoryId,
             subCategoryId: subCategoryId || null,
             type,
-            active: true
+            active: true,
+            isStatistical: isStatistical || false
         }
     });
 

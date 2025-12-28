@@ -569,6 +569,7 @@ model BarbosaRecurrence {
   subCategory    BarbosaSubCategory? @relation(fields: [subCategoryId], references: [id])
   
   active         Boolean  @default(true)
+  isStatistical  Boolean  @default(false)
   
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

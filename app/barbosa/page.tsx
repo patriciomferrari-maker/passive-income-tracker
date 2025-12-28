@@ -19,8 +19,8 @@ export default function BarbosaPage() {
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard' },
-        { id: 'cleaning', label: 'Limpieza' },
         { id: 'cashflow', label: 'Cashflow' },
+        { id: 'cleaning', label: 'Limpieza' },
         { id: 'transactions', label: 'Carga' },
         { id: 'recurrence', label: 'Recurrentes' },
         { id: 'settings', label: 'Configuración' }

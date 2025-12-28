@@ -345,6 +345,9 @@ export async function GET() {
             }
         });
 
+        console.log('[Dashboard Stats] Costa Query Range:', startOfMonth, endOfMonth);
+        console.log('[Dashboard Stats] Costa Result:', costaStats);
+
         const costaTotalMonthly = costaStats._sum.amount || 0;
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
         const currentMonthName = monthNames[now.getMonth()];
@@ -381,21 +384,72 @@ export async function GET() {
                 count: cryptoCount,
                 totalValue: cryptoTotalValue
             },
-            barbosa: {
-                count: 0,
-                totalMonthly: 0,
-                label: 'Mes Actual',
-                monthName: currentMonthName
-            },
-            costa: {
-                count: 0,
-                totalMonthly: costaTotalMonthly,
-                label: 'Mes Actual',
-                monthName: currentMonthName
-            }
-        });
-    } catch (error: any) {
-        console.error('CRITICAL ERROR in /api/dashboard/stats:', error);
-        return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+            // =========================================================================================
+            // 8. BARBOSA (HOGAR)
+            // =========================================================================================
+
+            const barbosaStats = await prisma.barbosaTransaction.aggregate({
+                where: {
+                    userId,
+                    type: 'EXPENSE',
+                    date: {
+                        gte: startOfMonth,
+                        lte: endOfMonth
+                    },
+                    isStatistical: false
+                },
+                _sum: {
+                    amountUSD: true
+                }
+            });
+
+            const barbosaTotalMonthly = barbosaStats._sum.amountUSD || 0;
+
+            return NextResponse.json({
+                needsOnboarding,
+                enabledSections,
+                userEmail: user?.email,
+                on: {
+                    count: onCount,
+                    totalInvested: onMarketValueUSD // Uses the converted value
+                },
+                treasury: {
+                    count: treasuryCount,
+                    totalInvested: treasuryTotalInvested
+                },
+                debts: {
+                    count: debtsCount,
+                    totalPending
+                },
+                rentals: {
+                    count: rentalsCount,
+                    totalValue: rentalsTotalIncome, // Only count Owner Income for the main dashboard total
+                    totalIncome: rentalsTotalIncome,
+                    totalExpense: rentalsTotalExpense
+                },
+                bank: {
+                    totalUSD: bankTotalUSD,
+                    nextMaturitiesPF: []
+                },
+                crypto: {
+                    count: cryptoCount,
+                    totalValue: cryptoTotalValue
+                },
+                barbosa: {
+                    count: 0,
+                    totalMonthly: barbosaTotalMonthly,
+                    label: 'Mes Actual',
+                    monthName: currentMonthName
+                },
+                costa: {
+                    count: 0,
+                    totalMonthly: costaTotalMonthly,
+                    label: 'Mes Actual',
+                    monthName: currentMonthName
+                }
+            });
+        } catch (error: any) {
+            console.error('CRITICAL ERROR in /api/dashboard/stats:', error);
+            return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+        }
     }
-}

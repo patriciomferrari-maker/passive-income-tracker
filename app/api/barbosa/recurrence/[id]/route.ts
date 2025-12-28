@@ -11,7 +11,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
     const body = await req.json();
-    const { name, dayOfMonth, amount, currency, categoryId, subCategoryId, type, active } = body;
+    const { name, dayOfMonth, amount, currency, categoryId, subCategoryId, type, active, isStatistical } = body;
 
     const exists = await prisma.barbosaRecurrence.findFirst({ where: { id, userId } });
     if (!exists) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -26,7 +26,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             categoryId,
             subCategoryId: subCategoryId || null,
             type,
-            active
+            active,
+            isStatistical
         }
     });
 

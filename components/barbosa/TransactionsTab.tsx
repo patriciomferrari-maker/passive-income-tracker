@@ -492,7 +492,10 @@ function InstallmentsDialog({ open, onOpenChange, onSuccess, categories }: any) 
         installmentsCount: '12',
         amountMode: 'TOTAL', // TOTAL | INSTALLMENT
         amountValue: '',
-        status: 'PROJECTED'
+        amountMode: 'TOTAL', // TOTAL | INSTALLMENT
+        amountValue: '',
+        status: 'PROJECTED',
+        isStatistical: false
     });
 
     // Helper for derived state
@@ -519,7 +522,9 @@ function InstallmentsDialog({ open, onOpenChange, onSuccess, categories }: any) 
                 onSuccess();
                 onOpenChange(false);
                 // Reset minimal
-                setData({ ...data, description: '', amountValue: '' });
+                onOpenChange(false);
+                // Reset minimal
+                setData({ ...data, description: '', amountValue: '', isStatistical: false });
             } else {
                 alert('Error al crear cuotas');
             }
@@ -618,14 +623,29 @@ function InstallmentsDialog({ open, onOpenChange, onSuccess, categories }: any) 
                                 <SelectItem value="REAL">Real (Confirmado)</SelectItem>
                             </SelectContent>
                         </Select>
-                    </div>
+                    </Select>
+                </div>
 
-                    <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700">
-                        {loading ? 'Generando...' : 'Generar Cuotas'}
-                    </Button>
-                </form>
-            </DialogContent>
-        </Dialog>
+                <div className="flex items-center space-x-2 mt-2 pt-2 border-t border-slate-800">
+                    <input
+                        type="checkbox"
+                        id="isStatisticalInstallment"
+                        checked={data.isStatistical}
+                        onChange={e => setData({ ...data, isStatistical: e.target.checked })}
+                        className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900"
+                    />
+                    <label htmlFor="isStatisticalInstallment" className="text-sm font-medium leading-none text-slate-400 cursor-pointer">
+                        Pagado con Tarjeta (Estadístico)
+                        <span className="block text-[10px] text-slate-500 font-normal mt-0.5">No suma al total de gastos (Evita duplicados)</span>
+                    </label>
+                </div>
+
+                <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700">
+                    {loading ? 'Generando...' : 'Generar Cuotas'}
+                </Button>
+            </form>
+        </DialogContent>
+        </Dialog >
     );
 }
 

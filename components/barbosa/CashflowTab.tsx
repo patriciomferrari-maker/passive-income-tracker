@@ -94,7 +94,10 @@ export function CashflowTab() {
         return categories.map(catName => {
             const cat = typeGroup[catName];
             const isExpanded = expandedCategories[catName];
-            const hasSubs = Object.keys(cat.subs).length > 0;
+            // Improved logic: If only sub is "General", treat as no subs for UI purposes (collapsible)
+            const subKeys = Object.keys(cat.subs);
+            const hasRealSubs = subKeys.length > 1 || (subKeys.length === 1 && subKeys[0] !== 'General');
+            const hasSubs = hasRealSubs;
 
             // Calculate Category Totals
             const catTotals = periods.map((p: string) => cat.total[p] || 0);
@@ -108,7 +111,7 @@ export function CashflowTab() {
                         onClick={() => hasSubs && toggleCategory(catName)}
                     >
                         <td className="px-4 py-2 text-slate-300 font-bold border-r border-slate-800 flex items-center gap-2 group-hover:text-white">
-                            <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''} ${!hasSubs ? 'opacity-0' : ''}`}>
+                            <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''} ${!hasSubs ? 'invisible' : ''}`}>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
                             </div>
                             {catName}
