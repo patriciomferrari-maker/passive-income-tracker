@@ -179,10 +179,33 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 return '<tr><td colspan="2" style="text-align: center; color: #94a3b8; font-size: 12px;">No hay eventos de alquiler próximos en 12 meses.</td></tr>';
             }
 
-            // Group events by date + type
+            // 1. Separate and Sort by Date
+            const adjustments = rentalEvents
+                .filter(e => e.type === 'ADJUSTMENT')
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+            const expirations = rentalEvents
+                .filter(e => e.type === 'EXPIRATION')
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+            const targetEvents: typeof rentalEvents = [];
+
+            // 2. Filter: Keep only the closest date's events for Adjustments
+            if (adjustments.length > 0) {
+                const firstDateStr = format(adjustments[0].date, 'yyyy-MM-dd');
+                targetEvents.push(...adjustments.filter(e => format(e.date, 'yyyy-MM-dd') === firstDateStr));
+            }
+
+            // 3. Filter: Keep only the closest date's events for Expirations
+            if (expirations.length > 0) {
+                const firstDateStr = format(expirations[0].date, 'yyyy-MM-dd');
+                targetEvents.push(...expirations.filter(e => format(e.date, 'yyyy-MM-dd') === firstDateStr));
+            }
+
+            // 4. Group events by date + type (Existing Logic)
             const groupedEvents: { [key: string]: { date: Date, type: string, items: { property: string, monthsTo: number }[] } } = {};
 
-            rentalEvents.forEach(event => {
+            targetEvents.forEach(event => {
                 const dateKey = format(event.date, 'yyyy-MM-dd') + '_' + event.type;
                 if (!groupedEvents[dateKey]) {
                     groupedEvents[dateKey] = {
@@ -198,7 +221,7 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
             });
 
             return Object.values(groupedEvents)
-                .sort((a, b) => a.date.getTime() - b.date.getTime())
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                 .map(group => {
                     const isExpiration = group.type === 'EXPIRATION';
                     const label = isExpiration ? 'Vencimiento Contrato' : 'Próximo Ajuste';
