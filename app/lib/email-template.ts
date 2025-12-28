@@ -22,6 +22,7 @@ interface MonthlyReportData {
 
     // Header Metrics
     totalDebtPending: number;
+    totalBank: number;
     totalArg: number;
     totalUSA: number;
 
@@ -29,10 +30,7 @@ interface MonthlyReportData {
     maturities: MaturityItem[];
 
     // Highlights
-    rentalEvents: {
-        nextExpiration?: { date: Date; property: string; monthsTo: number } | null;
-        nextAdjustment?: { date: Date; property: string; monthsTo: number } | null;
-    };
+    rentalEvents: { date: Date; property: string; type: 'ADJUSTMENT' | 'EXPIRATION'; monthsTo: number }[];
 
     nextPFMaturity?: { date: Date; bank: string; amount: number } | null;
 }
@@ -40,7 +38,7 @@ interface MonthlyReportData {
 export function generateMonthlyReportEmail(data: MonthlyReportData): string {
     const {
         userName, month, year, dashboardUrl,
-        totalDebtPending, totalArg, totalUSA,
+        totalDebtPending, totalBank, totalArg, totalUSA,
         maturities,
         rentalEvents, nextPFMaturity
     } = data;
@@ -82,7 +80,14 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 <td style="padding: 12px 0; text-align: right; color: #0e4166; font-weight: 700;">${formatCurrency(total, 'USD')}</td>
             </tr>
         `;
-    }
+    };
+
+    // Debt Card Logic
+    const isDebtPositive = totalDebtPending >= 0;
+    const debtTitle = isDebtPositive ? "Deudas a Cobrar" : "Deudas a Pagar";
+    const debtBg = isDebtPositive ? "#ecfdf5" : "#fff1f2"; // emerald-50 vs rose-50
+    const debtBorder = isDebtPositive ? "#6ee7b7" : "#fecdd3"; // emerald-300 vs rose-300
+    const debtColor = isDebtPositive ? "#059669" : "#be123c"; // emerald-600 vs rose-700
 
     return `
 <!DOCTYPE html>
@@ -110,22 +115,32 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 Hola <strong>${userName}</strong>, este es tu resumen:
             </p>
 
-            <!-- 1. Cards: Arg | USA | Deudas -->
+            <!-- 1. Cards Row 1: Bank | Arg -->
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
                 <tr>
-                    <td width="32%" style="background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
+                    <td width="48%" style="background-color: #eff6ff; padding: 12px; border-radius: 8px; border: 1px solid #bfdbfe; text-align: center;">
+                        <p style="margin: 0; color: #1e40af; font-size: 10px; text-transform: uppercase; font-weight: 600;">Saldo Banco</p>
+                        <p style="margin: 4px 0 0; color: #1e3a8a; font-size: 15px; font-weight: 700;">${formatCurrency(totalBank, 'USD')}</p>
+                    </td>
+                    <td width="4%"></td>
+                    <td width="48%" style="background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
                         <p style="margin: 0; color: #64748b; font-size: 10px; text-transform: uppercase; font-weight: 600;">Cartera Arg</p>
                         <p style="margin: 4px 0 0; color: #0f172a; font-size: 15px; font-weight: 700;">${formatCurrency(totalArg, 'USD')}</p>
                     </td>
-                    <td width="2%"></td>
-                    <td width="32%" style="background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
+                </tr>
+            </table>
+
+            <!-- 1b. Cards Row 2: USA | Deudas -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                <tr>
+                    <td width="48%" style="background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
                         <p style="margin: 0; color: #64748b; font-size: 10px; text-transform: uppercase; font-weight: 600;">Cartera USA</p>
                         <p style="margin: 4px 0 0; color: #0f172a; font-size: 15px; font-weight: 700;">${formatCurrency(totalUSA, 'USD')}</p>
                     </td>
-                    <td width="2%"></td>
-                    <td width="32%" style="background-color: #fff1f2; padding: 12px; border-radius: 8px; border: 1px solid #fecdd3; text-align: center;">
-                        <p style="margin: 0; color: #be123c; font-size: 10px; text-transform: uppercase; font-weight: 600;">Deudas a Cobrar</p>
-                        <p style="margin: 4px 0 0; color: #be123c; font-size: 15px; font-weight: 700;">${formatCurrency(totalDebtPending, 'USD')}</p>
+                    <td width="4%"></td>
+                    <td width="48%" style="background-color: ${debtBg}; padding: 12px; border-radius: 8px; border: 1px solid ${debtBorder}; text-align: center;">
+                        <p style="margin: 0; color: ${debtColor}; font-size: 10px; text-transform: uppercase; font-weight: 600;">${debtTitle}</p>
+                        <p style="margin: 4px 0 0; color: ${debtColor}; font-size: 15px; font-weight: 700;">${formatCurrency(totalDebtPending, 'USD')}</p>
                     </td>
                 </tr>
             </table>
@@ -152,40 +167,31 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 </div>
             </div>
 
-            <!-- 3. Alquileres Tables (Prox Ajuste & Vencimiento) -->
+            <!-- 3. Alquileres Tables (Prox Ajustes & Vencimientos) -->
              <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
                 <div style="background-color: #f8fafc; padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
                     <h3 style="margin: 0; color: #0e4166; font-size: 14px; font-weight: 700; text-transform: uppercase;">Alquileres - Próximos Eventos</h3>
                 </div>
                 <div style="padding: 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
-                        ${rentalEvents.nextAdjustment ? `
-                        <tr>
-                            <td style="padding-bottom: 8px; color: #64748b; font-size: 12px;">Próximo Ajuste</td>
-                            <td style="padding-bottom: 8px; color: #0f172a; font-weight: 500; text-align: right;">
-                                ${format(rentalEvents.nextAdjustment.date, 'dd/MM/yyyy')} 
-                                <span style="display:block; color: #64748b; font-size: 11px;">
-                                    ${rentalEvents.nextAdjustment.property} (${rentalEvents.nextAdjustment.monthsTo} meses)
-                                </span>
-                            </td>
-                        </tr>
-                        ` : ''}
-                        
-                        ${rentalEvents.nextExpiration ? `
-                        <tr>
-                            <td style="padding-bottom: 0px; color: #64748b; font-size: 12px;">Vencimiento Contrato</td>
-                            <td style="padding-bottom: 0px; color: #0f172a; font-weight: 500; text-align: right;">
-                                ${format(rentalEvents.nextExpiration.date, 'dd/MM/yyyy')}
-                                <span style="display:block; color: #64748b; font-size: 11px;">
-                                    ${rentalEvents.nextExpiration.property} (Faltan ${rentalEvents.nextExpiration.monthsTo} meses)
-                                </span>
-                            </td>
-                        </tr>
-                        ` : ''}
-
-                        ${!rentalEvents.nextAdjustment && !rentalEvents.nextExpiration ? `
-                            <tr><td colspan="2" style="text-align: center; color: #94a3b8; font-size: 12px;">No hay eventos de alquiler próximos.</td></tr>
-                        ` : ''}
+                        ${rentalEvents.length > 0 ? rentalEvents.map(event => {
+        const isExpiration = event.type === 'EXPIRATION';
+        const label = isExpiration ? 'Vencimiento Contrato' : 'Próximo Ajuste';
+        const color = isExpiration ? '#ef4444' : '#64748b'; // Red for expiration
+        return `
+                            <tr>
+                                <td style="padding-bottom: 8px; color: ${color}; font-size: 12px; font-weight: ${isExpiration ? '600' : '400'};">${label}</td>
+                                <td style="padding-bottom: 8px; color: #0f172a; font-weight: 500; text-align: right;">
+                                    ${format(event.date, 'dd/MM/yyyy')} 
+                                    <span style="display:block; color: #64748b; font-size: 11px;">
+                                        ${event.property} (${event.monthsTo} meses)
+                                    </span>
+                                </td>
+                            </tr>
+                            `;
+    }).join('') : `
+                            <tr><td colspan="2" style="text-align: center; color: #94a3b8; font-size: 12px;">No hay eventos de alquiler próximos en 12 meses.</td></tr>
+                        `}
                     </table>
                 </div>
             </div>

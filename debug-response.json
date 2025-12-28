@@ -1,0 +1,1 @@
+﻿{"success":true,"timestamp":"2025-12-28T02:31:56.975Z","details":{"economics":{"blue":{"success":true,"message":"Updated: 1530"},"ipc":{"success":false,"message":"Missing last month IPC"}},"reports":[{"userId":"cmixq96ww0000l8pp4w1zu2cy","email":"paato.ferrari@hotmail.com","success":false,"message":"Missing RESEND_API_KEY or Recipient Email","skipped":false}]}}

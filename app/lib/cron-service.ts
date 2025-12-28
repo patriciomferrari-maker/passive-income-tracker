@@ -140,7 +140,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     });
                     const monthlyRentalIncomeUSD = activeContracts.reduce((sum, c) => sum + (c.currency === 'USD' ? c.initialRent : 0), 0);
 
-                    // 4. Debts
+                    // 4. Debts (Net Consolidated)
                     const debts = await prisma.debt.findMany({
                         where: { userId: user.id },
                         include: { payments: true }
@@ -155,32 +155,33 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             else if (p.type === 'PAYMENT') paid += p.amount;
                         });
                         const pending = Math.max(0, total - paid);
-                        if (pending > 1) debtTotalPendingUSD += pending;
+
+                        if (pending > 1) {
+                            if (d.type === 'I_OWE') {
+                                debtTotalPendingUSD -= pending;
+                            } else {
+                                debtTotalPendingUSD += pending;
+                            }
+                        }
                     });
 
                     const totalNetWorthUSD = bankTotalUSD + investmentsTotalUSD + debtTotalPendingUSD;
 
                     // --- KEY DATES (Calculations) ---
-
-                    let nextRentalExpiration: { date: Date; property: string; monthsTo: number } | null = null;
-                    let minDiffExp = Infinity;
-
-                    let nextRentalAdjustment: { date: Date; property: string; monthsTo: number } | null = null;
-                    let minDiffAdj = Infinity;
+                    // Collect ALL events for the next 12 months
+                    const rentalEventsList: { date: Date; property: string; type: 'ADJUSTMENT' | 'EXPIRATION'; monthsTo: number }[] = [];
+                    const eventHorizon = addMonths(now, 12);
 
                     contracts.forEach(c => {
                         // Expiration
                         const expDate = addMonths(new Date(c.startDate), c.durationMonths);
-                        if (isAfter(expDate, now)) {
-                            const diff = expDate.getTime() - now.getTime();
-                            if (diff < minDiffExp) {
-                                minDiffExp = diff;
-                                nextRentalExpiration = {
-                                    date: expDate,
-                                    property: c.property.name,
-                                    monthsTo: differenceInMonths(expDate, now)
-                                };
-                            }
+                        if (isAfter(expDate, now) && isBefore(expDate, eventHorizon)) {
+                            rentalEventsList.push({
+                                date: expDate,
+                                property: c.property.name,
+                                type: 'EXPIRATION',
+                                monthsTo: differenceInMonths(expDate, now)
+                            });
                         }
 
                         // Adjustment
@@ -190,17 +191,22 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             while (isBefore(nextAdjDate, now) || nextAdjDate.getTime() === now.getTime()) {
                                 nextAdjDate = addMonths(nextAdjDate, c.adjustmentFrequency);
                             }
-                            const diff = nextAdjDate.getTime() - now.getTime();
-                            if (diff < minDiffAdj) {
-                                minDiffAdj = diff;
-                                nextRentalAdjustment = {
-                                    date: nextAdjDate,
+
+                            // Iterate and add all adjustments within horizon
+                            while (isBefore(nextAdjDate, eventHorizon)) {
+                                rentalEventsList.push({
+                                    date: new Date(nextAdjDate), // Clone
                                     property: c.property.name,
+                                    type: 'ADJUSTMENT',
                                     monthsTo: differenceInMonths(nextAdjDate, now)
-                                };
+                                });
+                                nextAdjDate = addMonths(nextAdjDate, c.adjustmentFrequency);
                             }
                         }
                     });
+
+                    // Sort events by date
+                    rentalEventsList.sort((a, b) => a.date.getTime() - b.date.getTime());
 
                     // Next PF Maturity
                     let nextPFMaturity: { date: Date; bank: string; amount: number } | null = null;
@@ -285,20 +291,20 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             year: year.toString(),
                             dashboardUrl: appUrl + '/dashboard/global',
                             totalDebtPending: debtTotalPendingUSD,
+                            totalBank: bankTotalUSD, // Added
                             totalArg: totalArg,
                             totalUSA: totalUSA,
                             maturities: maturities,
-                            rentalEvents: {
-                                nextExpiration: nextRentalExpiration,
-                                nextAdjustment: nextRentalAdjustment
-                            },
+                            rentalEvents: rentalEventsList, // Updated
                             nextPFMaturity
                         });
 
                         // Prepare PDF Attachments
-                        const enabledSections = settings.enabledSections ? settings.enabledSections.split(',').map(s => s.trim()) : ['on', 'bank', 'rentals'];
-                        const attachments = [];
+                        // const enabledSections = settings.enabledSections ? settings.enabledSections.split(',').map(s => s.trim()) : ['on', 'bank', 'rentals'];
+                        const attachments: any[] = [];
 
+                        // PAUSED PER USER REQUEST (Dec 2025) - Until PDF design is finalized.
+                        /*
                         // 1. Consolidated Summary Report (React-PDF)
                         try {
                             const summaryPdfBuffer = await generateMonthlyReportPdfBuffer(
@@ -350,19 +356,29 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                                 console.error('Error generating Investments PDF:', e);
                             }
                         }
+                        */
 
                         // Send Email with Attachments
+                        console.log(`Sending email to: ${recipientEmail} with key: ${process.env.RESEND_API_KEY?.substring(0, 4)}...`);
+
                         const resend = new Resend(process.env.RESEND_API_KEY);
-                        await resend.emails.send({
+                        const emailResponse = await resend.emails.send({
                             from: 'Passive Income Tracker <onboarding@resend.dev>',
                             to: recipientEmail.split(',').map((e: string) => e.trim()),
                             subject: `Resumen Mensual: ${monthName} ${year}`,
                             html: htmlContent,
                             attachments: attachments
                         });
+                        console.log('Resend Response:', emailResponse);
+
+                        if (emailResponse.error) {
+                            throw new Error('Resend Error: ' + emailResponse.error.message);
+                        }
+
                         userResult.success = true;
-                        userResult.message = `Enhanced Email with ${attachments.length} PDFs sent to ${recipientEmail}`;
+                        userResult.message = `Enhanced Email with ${attachments.length} PDFs sent to ${recipientEmail}. ID: ${emailResponse.data?.id}`;
                     } else {
+                        console.log('Missing Key or Email:', { key: !!process.env.RESEND_API_KEY, recipientEmail });
                         userResult.success = false;
                         userResult.message = 'Missing RESEND_API_KEY or Recipient Email';
                     }
