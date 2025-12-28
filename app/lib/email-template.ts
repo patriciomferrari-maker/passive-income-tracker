@@ -122,35 +122,73 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 Hola <strong>${userName}</strong>, este es tu resumen:
             </p>
 
-            <!-- 1. Cards Row 1: Bank | Arg -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
-                <tr>
-                    <td width="48%" style="background-color: #eff6ff; padding: 12px; border-radius: 8px; border: 1px solid #bfdbfe; text-align: center;">
-                        <p style="margin: 0; color: #1e40af; font-size: 10px; text-transform: uppercase; font-weight: 600;">Saldo Banco</p>
-                        <p style="margin: 4px 0 0; color: #1e3a8a; font-size: 15px; font-weight: 700;">${formatCurrency(totalBank, 'USD')}</p>
-                    </td>
-                    <td width="4%"></td>
-                    <td width="48%" style="background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
-                        <p style="margin: 0; color: #64748b; font-size: 10px; text-transform: uppercase; font-weight: 600;">Cartera Arg</p>
-                        <p style="margin: 4px 0 0; color: #0f172a; font-size: 15px; font-weight: 700;">${formatCurrency(totalArg, 'USD')}</p>
-                    </td>
-                </tr>
-            </table>
+            <!-- Dynamic Header Cards -->
+            ${(() => {
+            // 1. Define Potential Cards
+            const allCards = [
+                {
+                    id: 'bank',
+                    condition: hasBank && totalBank > 1,
+                    label: 'Saldo Banco',
+                    value: formatCurrency(totalBank, 'USD'),
+                    bg: '#eff6ff', border: '#bfdbfe', colorInfo: '#1e40af', colorVal: '#1e3a8a'
+                },
+                {
+                    id: 'arg',
+                    condition: hasArg && totalArg > 1,
+                    label: 'Cartera Arg',
+                    value: formatCurrency(totalArg, 'USD'),
+                    bg: '#f8fafc', border: '#e2e8f0', colorInfo: '#64748b', colorVal: '#0f172a'
+                },
+                {
+                    id: 'usa',
+                    condition: hasUSA && totalUSA > 1,
+                    label: 'Cartera USA',
+                    value: formatCurrency(totalUSA, 'USD'),
+                    bg: '#f8fafc', border: '#e2e8f0', colorInfo: '#64748b', colorVal: '#0f172a'
+                },
+                {
+                    id: 'debt',
+                    condition: hasDebts && Math.abs(totalDebtPending) > 1,
+                    label: debtTitle,
+                    value: formatCurrency(totalDebtPending, 'USD'),
+                    bg: debtBg, border: debtBorder, colorInfo: debtColor, colorVal: debtColor
+                }
+            ];
 
-            <!-- 1b. Cards Row 2: USA | Deudas -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
-                <tr>
-                    <td width="48%" style="background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
-                        <p style="margin: 0; color: #64748b; font-size: 10px; text-transform: uppercase; font-weight: 600;">Cartera USA</p>
-                        <p style="margin: 4px 0 0; color: #0f172a; font-size: 15px; font-weight: 700;">${formatCurrency(totalUSA, 'USD')}</p>
-                    </td>
-                    <td width="4%"></td>
-                    <td width="48%" style="background-color: ${debtBg}; padding: 12px; border-radius: 8px; border: 1px solid ${debtBorder}; text-align: center;">
-                        <p style="margin: 0; color: ${debtColor}; font-size: 10px; text-transform: uppercase; font-weight: 600;">${debtTitle}</p>
-                        <p style="margin: 4px 0 0; color: ${debtColor}; font-size: 15px; font-weight: 700;">${formatCurrency(totalDebtPending, 'USD')}</p>
-                    </td>
-                </tr>
-            </table>
+            // 2. Filter Active Cards
+            const activeCards = allCards.filter(c => c.condition);
+
+            if (activeCards.length === 0) return '';
+
+            // 3. Render in Rows of 2
+            let html = '';
+            for (let i = 0; i < activeCards.length; i += 2) {
+                const card1 = activeCards[i];
+                const card2 = activeCards[i + 1]; // Might be undefined
+
+                html += `
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                        <tr>
+                            <td width="48%" style="background-color: ${card1.bg}; padding: 12px; border-radius: 8px; border: 1px solid ${card1.border}; text-align: center;">
+                                <p style="margin: 0; color: ${card1.colorInfo}; font-size: 10px; text-transform: uppercase; font-weight: 600;">${card1.label}</p>
+                                <p style="margin: 4px 0 0; color: ${card1.colorVal}; font-size: 15px; font-weight: 700;">${card1.value}</p>
+                            </td>
+                            <td width="4%"></td>
+                            ${card2 ? `
+                            <td width="48%" style="background-color: ${card2.bg}; padding: 12px; border-radius: 8px; border: 1px solid ${card2.border}; text-align: center;">
+                                <p style="margin: 0; color: ${card2.colorInfo}; font-size: 10px; text-transform: uppercase; font-weight: 600;">${card2.label}</p>
+                                <p style="margin: 4px 0 0; color: ${card2.colorVal}; font-size: 15px; font-weight: 700;">${card2.value}</p>
+                            </td>
+                            ` : `
+                            <td width="48%"></td>
+                            `}
+                        </tr>
+                    </table>
+                    `;
+            }
+            return html;
+        })()}
 
             <!-- 2. Vencimientos del Mes (Full Month) -->
             ${maturities.length > 0 ? `
