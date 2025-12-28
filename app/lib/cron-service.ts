@@ -112,6 +112,9 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     let totalArg = 0; // ONs
                     let totalUSA = 0; // Treasuries/Stocks
 
+                    let hasArg = false;
+                    let hasUSA = false;
+
                     investments.forEach(inv => {
                         const invested = inv.transactions.reduce((tSum, t) => tSum + t.totalAmount, 0);
                         const currentValue = Math.abs(invested);
@@ -120,10 +123,13 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
 
                         if (inv.type === 'ON' || inv.type === 'CEDEAR') {
                             totalArg += currentValue;
+                            hasArg = true;
                         } else if (inv.type === 'TREASURY' || inv.type === 'ETF' || inv.type === 'STOCK') {
                             totalUSA += currentValue;
+                            hasUSA = true;
                         } else {
                             totalArg += currentValue;
+                            hasArg = true;
                         }
                     });
 
@@ -132,6 +138,10 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         where: { property: { userId: user.id } },
                         include: { property: true }
                     });
+                    // Check if there are any PROPERTIES at all to decide if section should show, 
+                    // but contracts is what we have fetched. If no contracts, no rent.
+                    const hasRentals = contracts.length > 0;
+
                     const activeContracts = contracts.filter(c => {
                         const start = new Date(c.startDate);
                         const end = new Date(start);
@@ -145,6 +155,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         where: { userId: user.id },
                         include: { payments: true }
                     });
+                    const hasDebts = debts.length > 0;
 
                     let debtTotalPendingUSD = 0;
                     debts.forEach(d => {
@@ -296,7 +307,12 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             totalUSA: totalUSA,
                             maturities: maturities,
                             rentalEvents: rentalEventsList, // Updated
-                            nextPFMaturity
+                            nextPFMaturity,
+                            hasRentals,
+                            hasArg,
+                            hasUSA,
+                            hasBank: bankOps.length > 0,
+                            hasDebts
                         });
 
                         // Prepare PDF Attachments

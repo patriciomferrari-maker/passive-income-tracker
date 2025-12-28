@@ -33,6 +33,13 @@ interface MonthlyReportData {
     rentalEvents: { date: Date; property: string; type: 'ADJUSTMENT' | 'EXPIRATION'; monthsTo: number }[];
 
     nextPFMaturity?: { date: Date; bank: string; amount: number } | null;
+
+    // Flags
+    hasRentals?: boolean;
+    hasArg?: boolean;
+    hasUSA?: boolean;
+    hasBank?: boolean;
+    hasDebts?: boolean;
 }
 
 export function generateMonthlyReportEmail(data: MonthlyReportData): string {
