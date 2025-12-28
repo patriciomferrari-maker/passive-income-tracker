@@ -174,24 +174,52 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 </div>
                 <div style="padding: 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
-                        ${rentalEvents.length > 0 ? rentalEvents.map(event => {
-        const isExpiration = event.type === 'EXPIRATION';
-        const label = isExpiration ? 'Vencimiento Contrato' : 'Próximo Ajuste';
-        const color = isExpiration ? '#ef4444' : '#64748b'; // Red for expiration
-        return `
-                            <tr>
-                                <td style="padding-bottom: 8px; color: ${color}; font-size: 12px; font-weight: ${isExpiration ? '600' : '400'};">${label}</td>
-                                <td style="padding-bottom: 8px; color: #0f172a; font-weight: 500; text-align: right;">
-                                    ${format(event.date, 'dd/MM/yyyy')} 
-                                    <span style="display:block; color: #64748b; font-size: 11px;">
-                                        ${event.property} (${event.monthsTo} meses)
-                                    </span>
-                                </td>
-                            </tr>
-                            `;
-    }).join('') : `
-                            <tr><td colspan="2" style="text-align: center; color: #94a3b8; font-size: 12px;">No hay eventos de alquiler próximos en 12 meses.</td></tr>
-                        `}
+                        ${(() => {
+            if (rentalEvents.length === 0) {
+                return '<tr><td colspan="2" style="text-align: center; color: #94a3b8; font-size: 12px;">No hay eventos de alquiler próximos en 12 meses.</td></tr>';
+            }
+
+            // Group events by date + type
+            const groupedEvents: { [key: string]: { date: Date, type: string, items: { property: string, monthsTo: number }[] } } = {};
+
+            rentalEvents.forEach(event => {
+                const dateKey = format(event.date, 'yyyy-MM-dd') + '_' + event.type;
+                if (!groupedEvents[dateKey]) {
+                    groupedEvents[dateKey] = {
+                        date: event.date,
+                        type: event.type,
+                        items: []
+                    };
+                }
+                groupedEvents[dateKey].items.push({
+                    property: event.property,
+                    monthsTo: event.monthsTo
+                });
+            });
+
+            return Object.values(groupedEvents)
+                .sort((a, b) => a.date.getTime() - b.date.getTime())
+                .map(group => {
+                    const isExpiration = group.type === 'EXPIRATION';
+                    const label = isExpiration ? 'Vencimiento Contrato' : 'Próximo Ajuste';
+                    const color = isExpiration ? '#ef4444' : '#64748b';
+
+                    // Format: "Propiedad A (3 meses), Propiedad B (3 meses)"
+                    const propertiesList = group.items.map(i => `<b>${i.property}</b> (${i.monthsTo} meses)`).join(', ');
+
+                    return `
+                                    <tr>
+                                        <td style="padding-bottom: 8px; color: ${color}; font-size: 12px; font-weight: ${isExpiration ? '600' : '400'}; vertical-align: top; width: 35%">${label}</td>
+                                        <td style="padding-bottom: 8px; color: #0f172a; font-weight: 500; text-align: right; vertical-align: top;">
+                                            ${format(group.date, 'dd/MM/yyyy')} 
+                                            <span style="display:block; color: #64748b; font-size: 11px; line-height: 1.4; margin-top: 2px;">
+                                                ${propertiesList}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    `;
+                }).join('');
+        })()}
                     </table>
                 </div>
             </div>
