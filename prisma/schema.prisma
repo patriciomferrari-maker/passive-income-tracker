@@ -541,6 +541,7 @@ model BarbosaTransaction {
   linkedTransactionId String? // ID of the synced transaction in another module (e.g. Costa)
   
   status         String   @default("REAL") // REAL, PROJECTED
+  isStatistical  Boolean  @default(false)  // If true, excluded from Totals (e.g. Credit Card expenses)
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

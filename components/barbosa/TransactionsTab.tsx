@@ -37,7 +37,8 @@ export function TransactionsTab() {
         subCategoryId: '',
         description: '',
         exchangeRate: '',
-        status: 'REAL' // REAL, PROJECTED
+        status: 'REAL', // REAL, PROJECTED
+        isStatistical: false,
     });
 
     useEffect(() => {
@@ -140,7 +141,8 @@ export function TransactionsTab() {
             subCategoryId: tx.subCategoryId || '',
             description: tx.description || '',
             exchangeRate: tx.exchangeRate ? tx.exchangeRate.toString() : '',
-            status: tx.status || 'REAL'
+            status: tx.status || 'REAL',
+            isStatistical: tx.isStatistical || false
         });
     };
 
@@ -263,7 +265,25 @@ export function TransactionsTab() {
                                         className={`flex-1 p-2 rounded text-center text-xs font-bold cursor-pointer border ${formData.status === 'PROJECTED' ? 'bg-purple-600/20 border-purple-500 text-purple-400' : 'bg-slate-950 border-slate-700 text-slate-500 hover:border-slate-600'}`}
                                     >
                                         PROYECTADO
+                                        </div>
+
+                                {/* Statistical Expense Checkbox */}
+                                {formData.type === 'EXPENSE' && (
+                                    <div className="flex items-center space-x-2 mt-2 pt-2 border-t border-slate-800">
+                                        <input
+                                            type="checkbox"
+                                            id="isStatistical"
+                                            checked={formData.isStatistical}
+                                            onChange={e => setFormData({ ...formData, isStatistical: e.target.checked })}
+                                            className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900"
+                                        />
+                                        <label htmlFor="isStatistical" className="text-sm font-medium leading-none text-slate-400 cursor-pointer">
+                                            Pagado con Tarjeta (Estadístico)
+                                            <span className="block text-[10px] text-slate-500 font-normal mt-0.5">No suma al total de gastos (Evita duplicados)</span>
+                                        </label>
                                     </div>
+                                )}
+                            </div>
                                 </div>
                             </div>
 
@@ -395,11 +415,16 @@ export function TransactionsTab() {
                                                     {format(tx.utcDate, 'dd/MM/yyyy')}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    {tx.status === 'PROJECTED' ? (
-                                                        <span className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800">PROY</span>
-                                                    ) : (
-                                                        <span className="text-[10px] bg-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-800">REAL</span>
-                                                    )}
+                                                    <div className="flex flex-col gap-1">
+                                                        {tx.status === 'PROJECTED' ? (
+                                                            <span className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 w-fit">PROY</span>
+                                                        ) : (
+                                                            <span className="text-[10px] bg-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-800 w-fit">REAL</span>
+                                                        )}
+                                                        {tx.isStatistical && (
+                                                            <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700 w-fit" title="No suma al total">ESTADÍSTICO</span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center">
@@ -453,7 +478,7 @@ export function TransactionsTab() {
                 onSuccess={loadData}
                 categories={categories}
             />
-        </div>
+        </div >
     );
 }
 

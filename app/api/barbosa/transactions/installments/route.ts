@@ -20,7 +20,8 @@ export async function POST(req: NextRequest) {
             installmentsCount,
             amountMode, // 'TOTAL' | 'INSTALLMENT'
             amountValue,
-            status = 'PROJECTED'
+            status = 'PROJECTED',
+            isStatistical = false
         } = body;
 
         const count = parseInt(installmentsCount);
@@ -45,16 +46,7 @@ export async function POST(req: NextRequest) {
             const quotaDate = new Date(start);
             quotaDate.setMonth(quotaDate.getMonth() + i);
 
-            // Adjust day overflow (e.g. Jan 31 + 1 month -> Feb 28/29)
-            // default setMonth behaviour mostly handles this, clamping to last day if overflow?
-            // Actually JS setMonth(currentMonth + 1) on Jan 31 results in March 3 or 2 usually if Feb is short.
-            // Let's use a safer approach for "Next Month same Day".
-            // If day is > 28, we should be careful.
-            // Simple approach: Date(start.getFullYear(), start.getMonth() + i, start.getDate())
-            // But if start is Jan 31, and we do Feb, it becomes March 3.
-            // Typically installments keep the "Day of Month" or clamp to last day.
-            // Let's implement clamp logic.
-
+            // Adjust day overflow
             const targetMonth = start.getMonth() + i;
             const y = start.getFullYear() + Math.floor(targetMonth / 12);
             const m = targetMonth % 12;
@@ -78,7 +70,8 @@ export async function POST(req: NextRequest) {
                         categoryId,
                         subCategoryId: subCategoryId || null,
                         description: `${description} (${i + 1}/${count})`,
-                        status: status
+                        status: status,
+                        isStatistical: isStatistical
                     }
                 })
             );

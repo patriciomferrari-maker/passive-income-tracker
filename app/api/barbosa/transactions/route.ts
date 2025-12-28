@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
         type,
         description,
         exchangeRate,
-        status
+        status,
+        isStatistical
     } = body;
 
     // Validate Category Exists (and belongs to user)
@@ -85,7 +86,8 @@ export async function POST(req: NextRequest) {
             description,
             categoryId: category.id,
             subCategoryId: validSubCategoryId,
-            status: status || 'REAL'
+            status: status || 'REAL',
+            isStatistical: isStatistical || false
         },
         include: {
             category: true,

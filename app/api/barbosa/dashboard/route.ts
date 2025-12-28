@@ -61,20 +61,32 @@ export async function GET(req: NextRequest) {
             const amountUSD = rate > 0 ? amount / rate : 0;
             const isCosta = tx.category.name.toLowerCase().includes('costa esmeralda');
 
+            // STATISTICAL CHECK:
+            // If isStatistical is true, we DO NOT sum it to the Totals (Income/Expense/Savings)
+            // But we DO keep it for Category Distribution analysis.
+            const isStatistical = tx.isStatistical;
+
             if (monthlyData[key]) {
                 if (tx.category.type === 'INCOME') {
-                    monthlyData[key].income += amount;
-                    monthlyData[key].incomeUSD += amountUSD;
+                    // Income usually not statistical, but safe check
+                    if (!isStatistical) {
+                        monthlyData[key].income += amount;
+                        monthlyData[key].incomeUSD += amountUSD;
+                    }
                 } else {
-                    monthlyData[key].expense += amount;
-                    monthlyData[key].expenseUSD += amountUSD;
+                    // EXPENSE
+                    if (!isStatistical) {
+                        monthlyData[key].expense += amount;
+                        monthlyData[key].expenseUSD += amountUSD;
 
-                    if (isCosta) {
-                        monthlyData[key].expenseCosta += amount;
-                        monthlyData[key].expenseCostaUSD += amountUSD;
+                        if (isCosta) {
+                            monthlyData[key].expenseCosta += amount;
+                            monthlyData[key].expenseCostaUSD += amountUSD;
+                        }
                     }
 
-                    // Distribution: ONLY for the Last Month (most recent in range)
+                    // Distribution: ALWAYS include in Last Month Expenses (Pie Chart)
+                    // Allows analyzing "How much did I spend in Supermarket" regardless of payment method.
                     if (key === lastMonthKey) {
                         lastMonthExpenses[tx.category.name] = (lastMonthExpenses[tx.category.name] || 0) + amountUSD;
                     }

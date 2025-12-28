@@ -20,7 +20,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         type,
         description,
         exchangeRate,
-        status
+        status,
+        isStatistical
     } = body;
 
     // Verify ownership
@@ -65,7 +66,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             description,
             categoryId: category.id,
             subCategoryId: validSubCategoryId,
-            status: status || 'REAL'
+            status: status || 'REAL',
+            isStatistical: isStatistical || false
         },
         include: {
             category: true,

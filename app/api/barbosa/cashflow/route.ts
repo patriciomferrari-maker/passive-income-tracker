@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
         const subName = tx.subCategory?.name || 'General';
         const period = getPeriodKey(tx.date);
         const amount = tx.amount;
+        const isStatistical = tx.isStatistical;
 
         // Init Category
         if (!structure[type][catName]) structure[type][catName] = { total: {}, subs: {} };
@@ -74,11 +75,15 @@ export async function GET(req: NextRequest) {
         // Init SubCategory
         if (!structure[type][catName].subs[subName]) structure[type][catName].subs[subName] = {};
 
-        // Accumulate SubCategory
+        // Accumulate SubCategory (Row) - ALWAYS SHOW ROW
+        // Note: The frontend might need to know if this specific sub-row is fully statistical 
+        // to style it (italic/gray), but sticking to simple exclusion from Total first.
         structure[type][catName].subs[subName][period] = (structure[type][catName].subs[subName][period] || 0) + amount;
 
-        // Accumulate Category Total
-        structure[type][catName].total[period] = (structure[type][catName].total[period] || 0) + amount;
+        // Accumulate Category Total - ONLY IF REAL (Not Statistical)
+        if (!isStatistical) {
+            structure[type][catName].total[period] = (structure[type][catName].total[period] || 0) + amount;
+        }
     });
 
     // --- FETCH EXCHANGE RATES (Closing of Prev Month) ---
