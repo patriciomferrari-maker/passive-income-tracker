@@ -40,6 +40,8 @@ model User {
 
   monthlySummaries MonthlySummary[]
   appSettings     AppSettings[]
+  
+  barbosaInstallmentPlans BarbosaInstallmentPlan[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -490,6 +492,7 @@ model BarbosaCategory {
   subCategories BarbosaSubCategory[]
   transactions  BarbosaTransaction[]
   recurrences   BarbosaRecurrence[]
+  installmentPlans BarbosaInstallmentPlan[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
