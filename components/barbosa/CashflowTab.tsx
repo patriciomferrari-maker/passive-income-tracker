@@ -99,8 +99,12 @@ export function CashflowTab() {
             const hasRealSubs = subKeys.length > 1 || (subKeys.length === 1 && subKeys[0] !== 'General');
             const hasSubs = hasRealSubs;
 
-            // Calculate Category Totals
-            const catTotals = periods.map((p: string) => cat.total[p] || 0);
+            // Calculate Category Totals (Real + Statistical for Consumption View)
+            const catTotals = periods.map((p: string) => {
+                const real = cat.total[p] || 0;
+                const stat = cat.totalStatistical?.[p] || 0;
+                return real + stat;
+            });
 
             return (
                 <>

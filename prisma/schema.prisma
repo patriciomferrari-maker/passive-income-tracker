@@ -543,11 +543,16 @@ model BarbosaTransaction {
   status         String   @default("REAL") // REAL, PROJECTED
   isStatistical  Boolean  @default(false)  // If true, excluded from Totals (e.g. Credit Card expenses)
 
+  // Installment Plan Relation
+  installmentPlanId String?
+  installmentPlan   BarbosaInstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: SetNull)
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   
   @@index([userId])
   @@index([date])
+  @@index([installmentPlanId])
 }
 
 model BarbosaRecurrence {
@@ -602,4 +607,29 @@ model BarbosaCleaning {
   updatedAt      DateTime @updatedAt
   
   @@unique([userId, month, year])
+}
+
+model BarbosaInstallmentPlan {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  description       String
+  totalAmount       Float    // Monto total original de la compra
+  currency          String   @default("ARS")
+  
+  installmentsCount Int      // Cantidad total de cuotas (ej. 12)
+  startDate         DateTime // Fecha primera cuota
+  
+  categoryId        String
+  category          BarbosaCategory @relation(fields: [categoryId], references: [id])
+  
+  subCategoryId     String?
+  
+  transactions      BarbosaTransaction[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
 }

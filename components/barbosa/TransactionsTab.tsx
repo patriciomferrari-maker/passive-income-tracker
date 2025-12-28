@@ -131,19 +131,26 @@ export function TransactionsTab() {
     };
 
     const handleEdit = (tx: any) => {
-        setEditingId(tx.id);
-        setFormData({
-            date: new Date(tx.date).toISOString().split('T')[0],
-            type: tx.type,
-            amount: tx.amount.toString(),
-            currency: tx.currency,
-            categoryId: tx.categoryId,
-            subCategoryId: tx.subCategoryId || '',
-            description: tx.description || '',
-            exchangeRate: tx.exchangeRate ? tx.exchangeRate.toString() : '',
-            status: tx.status || 'REAL',
-            isStatistical: tx.isStatistical || false
-        });
+        try {
+            setEditingId(tx.id);
+            const safeDate = new Date(tx.date);
+            const dateStr = !isNaN(safeDate.getTime()) ? safeDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+
+            setFormData({
+                date: dateStr,
+                type: tx.type,
+                amount: tx.amount.toString(),
+                currency: tx.currency,
+                categoryId: tx.categoryId || '',
+                subCategoryId: tx.subCategoryId || '',
+                description: tx.description || '',
+                exchangeRate: tx.exchangeRate ? tx.exchangeRate.toString() : '',
+                status: tx.status || 'REAL',
+                isStatistical: tx.isStatistical || false
+            });
+        } catch (e) {
+            console.error("Error setting up edit form", e);
+        }
     };
 
     const handleDelete = async (id: string) => {

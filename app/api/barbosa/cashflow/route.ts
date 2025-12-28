@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
         const isStatistical = tx.isStatistical;
 
         // Init Category
-        if (!structure[type][catName]) structure[type][catName] = { total: {}, subs: {} };
+        if (!structure[type][catName]) structure[type][catName] = { total: {}, totalStatistical: {}, subs: {} };
 
         // Init SubCategory
         if (!structure[type][catName].subs[subName]) structure[type][catName].subs[subName] = {};
@@ -80,8 +80,10 @@ export async function GET(req: NextRequest) {
         // to style it (italic/gray), but sticking to simple exclusion from Total first.
         structure[type][catName].subs[subName][period] = (structure[type][catName].subs[subName][period] || 0) + amount;
 
-        // Accumulate Category Total - ONLY IF REAL (Not Statistical)
-        if (!isStatistical) {
+        // Accumulate Category Total
+        if (isStatistical) {
+            structure[type][catName].totalStatistical[period] = (structure[type][catName].totalStatistical[period] || 0) + amount;
+        } else {
             structure[type][catName].total[period] = (structure[type][catName].total[period] || 0) + amount;
         }
     });
