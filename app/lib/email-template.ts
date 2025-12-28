@@ -47,7 +47,8 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
         userName, month, year, dashboardUrl,
         totalDebtPending, totalBank, totalArg, totalUSA,
         maturities,
-        rentalEvents, nextPFMaturity
+        rentalEvents, nextPFMaturity,
+        hasRentals, hasArg, hasUSA, hasBank, hasDebts
     } = data;
 
     // Sort by date
