@@ -312,8 +312,8 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             hasRentals,
                             hasArg,
                             hasUSA,
-                            hasBank: bankOps.length > 0,
-                            hasDebts
+                            hasBank: bankTotalUSD > 1,
+                            hasDebts: Math.abs(debtTotalPendingUSD) > 1
                         });
 
                         // Prepare PDF Attachments
