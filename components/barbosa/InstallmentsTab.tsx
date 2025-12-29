@@ -21,7 +21,8 @@ import { EditInstallmentDialog } from './EditInstallmentDialog';
 export function InstallmentsTab() {
     const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showFinished, setShowFinished] = useState(false);
+    // SHOW ALL BY DEFAULT (Requested by user)
+    const [showFinished, setShowFinished] = useState(true);
 
     useEffect(() => {
         loadData();
