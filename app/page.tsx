@@ -329,7 +329,7 @@ export default function HomePage() {
                             title="Hogar"
                             description="Gastos y Limpieza"
                             icon="🏠"
-                            href="/barbosa"
+                            href="/hogar"
                             count={stats.barbosa?.monthName || "Mes Actual"}
                             totalValue={stats.barbosa?.totalMonthly || 0}
                             currency="USD" // Now USD!

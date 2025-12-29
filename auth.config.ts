@@ -11,7 +11,7 @@ export const authConfig = {
             const isOnDashboard = nextUrl.pathname.startsWith('/dashboard') ||
                 nextUrl.pathname.startsWith('/investments') ||
                 nextUrl.pathname.startsWith('/alquileres') ||
-                nextUrl.pathname.startsWith('/barbosa') ||
+                nextUrl.pathname.startsWith('/hogar') ||
                 nextUrl.pathname.startsWith('/settings');
 
             // 1. API Protection
