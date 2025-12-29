@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie, Legend } from 'recharts';
 import { InstallmentsChart } from './InstallmentsChart';
+import { InstallmentsEvolutionTable } from './InstallmentsEvolutionTable';
 
 export function DashboardTab() {
     const [data, setData] = useState<any>(null);
@@ -102,12 +103,7 @@ export function DashboardTab() {
                 </Card>
             </div>
 
-            {/* Installments Chart Section - Full Width */}
-            <div className="w-full">
-                <InstallmentsChart />
-            </div>
-
-            {/* Charts Section */}
+            {/* Main Section: Trend + Distribution + Recent */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* Main Trend Chart - Costa vs Others */}
@@ -155,80 +151,92 @@ export function DashboardTab() {
                     </div>
                 </div>
 
-                {/* Distribution Chart */}
-                <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
-                    <h3 className="text-lg font-bold text-white mb-6">Top Gastos (Último Mes)</h3>
-                    <div className="h-[300px] w-full relative">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={distribution}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    {distribution.map((entry: any, index: number) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip content={<CustomTooltip />} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                        {/* Legend Overlay */}
-                        <div className="absolute bottom-0 w-full flex flex-col justify-center items-center gap-2 pointer-events-none">
-                            <div className="text-xs text-slate-500">Distribución de mes actual</div>
+                {/* Distribution Chart and Recent Activity Stacked */}
+                <div className="space-y-6">
+
+                    <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
+                        <h3 className="text-lg font-bold text-white mb-6">Top Gastos (Último Mes)</h3>
+                        <div className="h-[200px] w-full relative">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={distribution}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={45}
+                                        outerRadius={60}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {distribution.map((entry: any, index: number) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip content={<CustomTooltip />} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="mt-2 space-y-2">
+                            {distribution.slice(0, 3).map((item: any, idx: number) => (
+                                <div key={idx} className="flex justify-between items-center text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                                        <span className="text-slate-400 truncate max-w-[100px]">{item.name}</span>
+                                    </div>
+                                    <span className="text-white font-mono">US${Math.round(item.value).toLocaleString()}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
-                    <div className="mt-4 space-y-2">
-                        {distribution.map((item: any, idx: number) => (
-                            <div key={idx} className="flex justify-between items-center text-sm">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
-                                    <span className="text-slate-400">{item.name}</span>
-                                </div>
-                                <span className="text-white font-mono">US${Math.round(item.value).toLocaleString()}</span>
+
+                    {/* Recent Activity Mini */}
+                    <Card className="bg-slate-950 border-slate-900">
+                        <CardHeader className="py-3">
+                            <CardTitle className="text-sm text-white">Actividad Reciente</CardTitle>
+                        </CardHeader>
+                        <CardContent className="py-2">
+                            <div className="space-y-3">
+                                {recentActivity.slice(0, 3).map((tx: any) => (
+                                    <div key={tx.id} className="flex items-center justify-between border-b border-slate-900 pb-2 last:border-0 last:pb-0">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`p-1.5 rounded-full ${tx.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                                                {tx.type === 'INCOME' ? <ArrowDownRight className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-white truncate max-w-[100px]">{tx.category}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className={`text-xs font-mono font-bold ${tx.type === 'INCOME' ? 'text-emerald-400' : 'text-white'}`}>
+                                                {tx.type === 'EXPENSE' ? '-' : '+'}${Math.abs(tx.amount).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
 
-            {/* Recent Activity */}
-            <Card className="bg-slate-950 border-slate-900">
-                <CardHeader>
-                    <CardTitle className="text-lg text-white">Actividad Reciente</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {recentActivity.map((tx: any) => (
-                            <div key={tx.id} className="flex items-center justify-between border-b border-slate-900 pb-4 last:border-0 last:pb-0">
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-2 rounded-full ${tx.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                                        {tx.type === 'INCOME' ? <ArrowDownRight className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-white">{tx.category}</p>
-                                        <p className="text-xs text-slate-500">{new Date(tx.date).toLocaleDateString()}</p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className={`font-mono font-bold ${tx.type === 'INCOME' ? 'text-emerald-400' : 'text-white'}`}>
-                                        {tx.type === 'EXPENSE' ? '-' : '+'}${Math.abs(tx.amount).toLocaleString()}
-                                    </p>
-                                    {tx.amountUSD && (
-                                        <p className="text-xs text-slate-500 font-mono">
-                                            US${Math.round(Math.abs(tx.amountUSD)).toLocaleString()}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
+            {/* Installments Section - Bottom */}
+            <div className="space-y-6 pt-6 border-t border-slate-900">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <TrendingDown className="h-6 w-6 text-blue-500" />
+                    Análisis de Cuotas
+                </h2>
+
+                {/* Chart Full Width */}
+                <div className="w-full h-[400px]">
+                    <InstallmentsChart />
+                </div>
+
+                {/* Evolution Table */}
+                <div className="w-full">
+                    <InstallmentsEvolutionTable />
+                </div>
+            </div>
         </div>
     );
 }
+
