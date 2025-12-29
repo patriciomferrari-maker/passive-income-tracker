@@ -13,7 +13,6 @@ import { CashflowTab } from '@/components/barbosa/CashflowTab';
 import { TransactionsTab } from '@/components/barbosa/TransactionsTab';
 import { SettingsTab } from '@/components/barbosa/SettingsTab';
 import { RecurrenceTab } from '@/components/barbosa/RecurrenceTab';
-import { InstallmentsTab } from '@/components/barbosa/InstallmentsTab';
 
 export default function BarbosaPage() {
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -23,7 +22,6 @@ export default function BarbosaPage() {
         { id: 'cashflow', label: 'Cashflow' },
         { id: 'cleaning', label: 'Limpieza' },
         { id: 'transactions', label: 'Carga' },
-        { id: 'installments', label: 'Cuotas' },
         { id: 'recurrence', label: 'Recurrentes' },
         { id: 'settings', label: 'Configuración' }
     ];

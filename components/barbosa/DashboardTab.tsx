@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie, Legend } from 'recharts';
+import { InstallmentsChart } from './InstallmentsChart';
 
 export function DashboardTab() {
     const [data, setData] = useState<any>(null);
@@ -99,6 +100,11 @@ export function DashboardTab() {
                         <p className="text-xs text-slate-500 mt-1">Cierre del periodo actual</p>
                     </CardContent>
                 </Card>
+            </div>
+
+            {/* Installments Chart Section - Full Width */}
+            <div className="w-full">
+                <InstallmentsChart />
             </div>
 
             {/* Charts Section */}
