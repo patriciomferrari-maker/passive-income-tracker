@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Table,
     TableBody,
@@ -21,6 +21,7 @@ import { EditInstallmentDialog } from './EditInstallmentDialog';
 export function InstallmentsTab() {
     const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showFinished, setShowFinished] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -40,22 +41,36 @@ export function InstallmentsTab() {
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-500" /></div>;
 
-    const activePlans = plans.filter(p => !p.isFinished);
-    const finishedPlans = plans.filter(p => p.isFinished);
+    const filteredPlans = plans.filter(p => showFinished ? true : !p.isFinished);
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
 
-            {/* 1. Evolution Table (The requested "Cuadro Detalle") */}
+            {/* 1. Evolution Table */}
             <div className="space-y-4">
                 <h2 className="text-xl font-bold text-white mb-4">Evolución y Detalle</h2>
                 <InstallmentsEvolutionTable />
             </div>
 
-            {/* 2. Active Plans Management (Table View) */}
+            {/* 2. Unified Installments Table */}
             <div className="space-y-4 pt-4 border-t border-slate-800">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-white">Gestión de Planes Activos</h2>
+                    <h2 className="text-xl font-bold text-white">Cuotas Cargadas</h2>
+
+                    <div className="flex items-center space-x-2 bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+                        <Checkbox
+                            id="showFinished"
+                            checked={showFinished}
+                            onCheckedChange={(checked) => setShowFinished(checked === true)}
+                            className="data-[state=checked]:bg-blue-600 border-slate-600"
+                        />
+                        <label
+                            htmlFor="showFinished"
+                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-300 cursor-pointer"
+                        >
+                            Mostrar Finalizadas
+                        </label>
+                    </div>
                 </div>
 
                 <div className="rounded-md border border-slate-800 bg-slate-950/50 overflow-hidden">
@@ -68,19 +83,23 @@ export function InstallmentsTab() {
                                 <TableHead className="text-slate-400 font-bold text-right">Monto Total</TableHead>
                                 <TableHead className="text-slate-400 font-bold text-right">Restante</TableHead>
                                 <TableHead className="text-slate-400 font-bold text-center">Próx. Venc.</TableHead>
+                                <TableHead className="text-slate-400 font-bold text-center">Estado</TableHead>
                                 <TableHead className="text-slate-400 font-bold text-center">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {activePlans.length === 0 ? (
+                            {filteredPlans.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-8 text-slate-500">
-                                        No hay planes activos
+                                    <TableCell colSpan={8} className="text-center py-8 text-slate-500">
+                                        No hay planes para mostrar
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                activePlans.map((plan) => (
-                                    <TableRow key={plan.id} className="border-slate-800 hover:bg-slate-900/40 transition-colors">
+                                filteredPlans.map((plan) => (
+                                    <TableRow
+                                        key={plan.id}
+                                        className={`border-slate-800 hover:bg-slate-900/40 transition-colors ${plan.isFinished ? 'opacity-50 hover:opacity-100 bg-slate-900/20' : ''}`}
+                                    >
                                         <TableCell className="font-medium text-white">
                                             {plan.description}
                                         </TableCell>
@@ -99,17 +118,28 @@ export function InstallmentsTab() {
                                                 <span className="text-xs text-slate-400">
                                                     {plan.paidCount} / {plan.installmentsCount}
                                                 </span>
-                                                <Progress value={plan.progress} className="h-1.5 w-full bg-slate-900" indicatorClassName="bg-blue-600" />
+                                                <Progress
+                                                    value={plan.progress}
+                                                    className="h-1.5 w-full bg-slate-900"
+                                                    indicatorClassName={plan.isFinished ? "bg-emerald-600" : "bg-blue-600"}
+                                                />
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right font-mono text-slate-300">
                                             {plan.currency === 'USD' ? 'US$' : '$'}{plan.totalAmount.toLocaleString()}
                                         </TableCell>
                                         <TableCell className="text-right font-mono font-bold text-red-400">
-                                            ${(plan.totalAmount - plan.paidAmount).toLocaleString()}
+                                            {plan.isFinished ? '-' : `$${(plan.totalAmount - plan.paidAmount).toLocaleString()}`}
                                         </TableCell>
                                         <TableCell className="text-center text-slate-400 text-xs">
-                                            {plan.nextDueDate ? format(new Date(plan.nextDueDate), 'dd/MM/yy') : '-'}
+                                            {plan.nextDueDate && !plan.isFinished ? format(new Date(plan.nextDueDate), 'dd/MM/yy') : '-'}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            {plan.isFinished ? (
+                                                <Badge className="bg-emerald-900/50 text-emerald-400 hover:bg-emerald-900/50 border-emerald-900" variant="secondary">Finalizado</Badge>
+                                            ) : (
+                                                <Badge className="bg-blue-900/50 text-blue-400 hover:bg-blue-900/50 border-blue-900" variant="secondary">Activo</Badge>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-center">
                                             <EditInstallmentDialog plan={plan} onSuccess={loadData} />
@@ -121,27 +151,6 @@ export function InstallmentsTab() {
                     </Table>
                 </div>
             </div>
-
-            {/* 3. Finished Plans */}
-            {finishedPlans.length > 0 && (
-                <div className="mt-8 pt-8 border-t border-slate-900">
-                    <h3 className="text-sm font-bold text-slate-500 mb-4 uppercase tracking-wider">Historial Finalizados</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                        {finishedPlans.map(plan => (
-                            <div key={plan.id} className="bg-slate-900/30 p-3 rounded-lg border border-slate-900 opacity-60 hover:opacity-100 transition-opacity">
-                                <div className="flex justify-between items-start">
-                                    <h4 className="text-slate-400 font-bold text-sm truncate">{plan.description}</h4>
-                                    <EditInstallmentDialog plan={plan} onSuccess={loadData} />
-                                </div>
-                                <div className="flex justify-between mt-2 text-xs">
-                                    <span className="text-slate-500">Total: ${plan.totalAmount.toLocaleString()}</span>
-                                    <span className="text-emerald-600 font-bold">✓ Completado</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
