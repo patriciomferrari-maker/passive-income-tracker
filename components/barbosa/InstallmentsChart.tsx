@@ -57,7 +57,7 @@ export function InstallmentsChart() {
             <div className="h-[300px] w-full">
                 {chartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <BarChart data={chartData} margin={{ top: 30, right: 10, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                             <XAxis
                                 dataKey="name"
