@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from 'lucide-react';
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function CashflowTab() {
     const [viewMode, setViewMode] = useState<string>("LAST_12"); // "LAST_12" or "2025" etc
@@ -12,6 +13,7 @@ export function CashflowTab() {
     // State for collapsible categories
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
     const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS');
+    const [showStatistical, setShowStatistical] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -45,9 +47,6 @@ export function CashflowTab() {
     const formatPeriod = (p: string) => {
         const [y, m] = p.split('-');
         const date = new Date(parseInt(y), parseInt(m) - 1, 1);
-        // If viewing specific year, just Month name is fine. If Last 12, maybe Month+Year?
-        // Let's use short MMM always, if Last 12 show Year too?
-        // User asked for "Last 12", likely spans years.
         return date.toLocaleDateString('es-ES', { month: 'short', year: viewMode === 'LAST_12' ? '2-digit' : undefined }).toUpperCase();
     };
 
@@ -62,6 +61,9 @@ export function CashflowTab() {
         const typeGroup = data.data[type] || {};
         Object.values(typeGroup).forEach((cat: any) => {
             total += cat.total[period] || 0;
+            if (showStatistical) {
+                total += cat.totalStatistical?.[period] || 0;
+            }
         });
         return total;
     };
@@ -94,16 +96,15 @@ export function CashflowTab() {
         return categories.map(catName => {
             const cat = typeGroup[catName];
             const isExpanded = expandedCategories[catName];
-            // Improved logic: If only sub is "General", treat as no subs for UI purposes (collapsible)
             const subKeys = Object.keys(cat.subs);
             const hasRealSubs = subKeys.length > 1 || (subKeys.length === 1 && subKeys[0] !== 'General');
             const hasSubs = hasRealSubs;
 
-            // Calculate Category Totals (Real + Statistical for Consumption View)
+            // Calculate Category Totals (Real + Statistical if enabled)
             const catTotals = periods.map((p: string) => {
                 const real = cat.total[p] || 0;
                 const stat = cat.totalStatistical?.[p] || 0;
-                return real + stat;
+                return showStatistical ? (real + stat) : real;
             });
 
             return (
@@ -161,7 +162,24 @@ export function CashflowTab() {
                     <p className="text-xs text-slate-500">Resumen financiero detallado</p>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-6">
+
+                    {/* Statistical Toggle */}
+                    <div className="flex items-center space-x-2 bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+                        <Checkbox
+                            id="statistical"
+                            checked={showStatistical}
+                            onCheckedChange={(checked) => setShowStatistical(checked === true)}
+                            className="data-[state=checked]:bg-indigo-600 border-slate-600"
+                        />
+                        <label
+                            htmlFor="statistical"
+                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-300 cursor-pointer"
+                        >
+                            Incluir Estadísticos
+                        </label>
+                    </div>
+
                     <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-800">
                         <button
                             onClick={() => setCurrency('ARS')}
