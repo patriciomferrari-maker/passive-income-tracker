@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { format } from 'date-fns';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 import { Loader2 } from 'lucide-react';
 
 export function InstallmentsChart() {
@@ -80,7 +80,14 @@ export function InstallmentsChart() {
                                 itemStyle={{ color: '#60a5fa' }}
                                 formatter={(val: number) => [`$${val.toLocaleString()}`, 'Total Cuotas']}
                             />
-                            <Bar dataKey="amount" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                            <Bar dataKey="amount" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40}>
+                                <LabelList
+                                    dataKey="amount"
+                                    position="top"
+                                    formatter={(val: number) => `$${(val / 1000).toFixed(0)}k`}
+                                    style={{ fill: '#e2e8f0', fontSize: '11px', fontWeight: 'bold' }}
+                                />
+                            </Bar>
                         </BarChart>
                     </ResponsiveContainer>
                 ) : (

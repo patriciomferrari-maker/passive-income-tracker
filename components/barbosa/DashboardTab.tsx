@@ -28,7 +28,7 @@ export function DashboardTab() {
     if (!data || data.error) return <div className="text-center text-red-500 p-8">Error cargando datos: {data?.error || 'Unknown Error'}</div>;
     if (!data.kpis) return <div className="text-center text-slate-500">No data structure found</div>;
 
-    const { kpis, trend, distribution, recentActivity } = data;
+    const { kpis, trend, distribution } = data;
 
     // Custom Tooltip for Charts
     const CustomTooltip = ({ active, payload, label }: any) => {
@@ -103,7 +103,7 @@ export function DashboardTab() {
                 </Card>
             </div>
 
-            {/* Main Section: Trend + Distribution + Recent */}
+            {/* Main Section: Trend + Distribution */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* Main Trend Chart - Costa vs Others */}
@@ -151,7 +151,7 @@ export function DashboardTab() {
                     </div>
                 </div>
 
-                {/* Distribution Chart and Recent Activity Stacked */}
+                {/* Distribution Chart */}
                 <div className="space-y-6">
 
                     <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
@@ -188,34 +188,6 @@ export function DashboardTab() {
                             ))}
                         </div>
                     </div>
-
-                    {/* Recent Activity Mini */}
-                    <Card className="bg-slate-950 border-slate-900">
-                        <CardHeader className="py-3">
-                            <CardTitle className="text-sm text-white">Actividad Reciente</CardTitle>
-                        </CardHeader>
-                        <CardContent className="py-2">
-                            <div className="space-y-3">
-                                {recentActivity.slice(0, 3).map((tx: any) => (
-                                    <div key={tx.id} className="flex items-center justify-between border-b border-slate-900 pb-2 last:border-0 last:pb-0">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`p-1.5 rounded-full ${tx.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                                                {tx.type === 'INCOME' ? <ArrowDownRight className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-bold text-white truncate max-w-[100px]">{tx.category}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className={`text-xs font-mono font-bold ${tx.type === 'INCOME' ? 'text-emerald-400' : 'text-white'}`}>
-                                                {tx.type === 'EXPENSE' ? '-' : '+'}${Math.abs(tx.amount).toLocaleString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
                 </div>
             </div>
 
@@ -239,4 +211,3 @@ export function DashboardTab() {
         </div>
     );
 }
-

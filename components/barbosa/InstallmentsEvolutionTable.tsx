@@ -9,7 +9,8 @@ import { es } from 'date-fns/locale';
 export function InstallmentsEvolutionTable() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+    // State for expanded rows: key can be "CatName" or "CatName-SubName"
+    const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         fetch('/api/barbosa/installments')
@@ -25,47 +26,47 @@ export function InstallmentsEvolutionTable() {
     }, []);
 
     const processData = (plans: any[]) => {
-        // We need a matrix: Rows = Category/Subcat, Cols = Months
-        // 1. Identify all months range (from min date to max date in transactions)
-        // 2. Aggregate data
-
         const monthsSet = new Set<string>();
-        const hierarchy: Record<string, { total: Record<string, number>, subs: Record<string, Record<string, number>> }> = {};
+        // Structure:
+        // Cat -> { total, subs: { Sub -> { total, concepts: { ConceptName -> { total } } } } }
+        const hierarchy: Record<string, any> = {};
 
         plans.forEach(plan => {
             const catName = plan.category.name;
-            const subName = plan.subCategory?.name || 'General';
+            const subName = plan.subCategory?.name || 'Varios'; // Group header
+            const conceptName = plan.description; // The Plan Name (e.g. "iPhone 15")
 
             if (!hierarchy[catName]) {
                 hierarchy[catName] = { total: {}, subs: {} };
             }
             if (!hierarchy[catName].subs[subName]) {
-                hierarchy[catName].subs[subName] = {};
+                hierarchy[catName].subs[subName] = { total: {}, concepts: {} };
+            }
+            if (!hierarchy[catName].subs[subName].concepts[conceptName]) {
+                hierarchy[catName].subs[subName].concepts[conceptName] = { total: {} };
             }
 
             plan.transactions.forEach((tx: any) => {
                 const date = new Date(tx.date);
                 const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
                 monthsSet.add(key);
+                const amount = tx.amount;
 
-                // Add to Category Total
-                hierarchy[catName].total[key] = (hierarchy[catName].total[key] || 0) + tx.amount;
-                // Add to Subcategory
-                hierarchy[catName].subs[subName][key] = (hierarchy[catName].subs[subName][key] || 0) + tx.amount;
+                // 1. Cat Total
+                hierarchy[catName].total[key] = (hierarchy[catName].total[key] || 0) + amount;
+                // 2. Sub Total
+                hierarchy[catName].subs[subName].total[key] = (hierarchy[catName].subs[subName].total[key] || 0) + amount;
+                // 3. Concept Total
+                hierarchy[catName].subs[subName].concepts[conceptName].total[key] = (hierarchy[catName].subs[subName].concepts[conceptName].total[key] || 0) + amount;
             });
         });
 
-        // Sort months
         const sortedMonths = Array.from(monthsSet).sort();
-
-        // If we want a fixed range (e.g. next 12 months), we could filter or generate here.
-        // For now, let's just use the data range.
-
         setData({ hierarchy, months: sortedMonths });
     };
 
-    const toggleCategory = (cat: string) => {
-        setExpandedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+    const toggleRow = (id: string) => {
+        setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-500" /></div>;
@@ -89,7 +90,7 @@ export function InstallmentsEvolutionTable() {
                 <table className="w-full text-sm text-left text-slate-300">
                     <thead className="bg-slate-900 text-xs text-slate-400 uppercase font-bold text-center">
                         <tr>
-                            <th className="px-4 py-3 sticky left-0 bg-slate-900 z-10 text-left min-w-[200px] border-r border-slate-800">CConcepto</th>
+                            <th className="px-4 py-3 sticky left-0 bg-slate-900 z-10 text-left min-w-[250px] border-r border-slate-800">Concepto</th>
                             {months.map((m: string) => (
                                 <th key={m} className="px-2 py-3 min-w-[80px]">{formatMonth(m)}</th>
                             ))}
@@ -98,46 +99,76 @@ export function InstallmentsEvolutionTable() {
                     <tbody className="divide-y divide-slate-800 bg-slate-950/30 font-mono text-xs">
                         {categories.map(cat => {
                             const catData = hierarchy[cat];
-                            const isExpanded = expandedCategories[cat];
+                            const isCatExpanded = expandedRows[cat];
                             const subs = Object.keys(catData.subs).sort();
-                            const hasSubs = subs.length > 1 || (subs.length === 1 && subs[0] !== 'General');
 
                             return (
                                 <>
-                                    {/* Category Row */}
+                                    {/* LEVEL 1: CATEGORY */}
                                     <tr
-                                        className={`hover:bg-slate-900/50 transition-colors cursor-pointer group ${isExpanded ? 'bg-slate-900/30' : ''}`}
-                                        onClick={() => toggleCategory(cat)}
+                                        className={`hover:bg-slate-900/50 transition-colors cursor-pointer group ${isCatExpanded ? 'bg-slate-900/30' : ''}`}
+                                        onClick={() => toggleRow(cat)}
                                     >
-                                        <td className="px-4 py-2 font-bold text-white border-r border-slate-800 sticky left-0 bg-slate-950 group-hover:bg-slate-900/50 flex items-center gap-2">
-                                            <div className={`transition-transform text-slate-500 ${isExpanded ? 'rotate-90' : ''}`}>
-                                                {hasSubs ? <ChevronRight size={14} /> : <div className="w-[14px]" />}
+                                        <td className="px-4 py-3 font-bold text-white border-r border-slate-800 sticky left-0 bg-slate-950 group-hover:bg-slate-900/50 flex items-center gap-2">
+                                            <div className={`transition-transform text-slate-500 ${isCatExpanded ? 'rotate-90' : ''}`}>
+                                                <ChevronRight size={14} />
                                             </div>
                                             {cat}
                                         </td>
                                         {months.map((m: string) => (
-                                            <td key={m} className="px-2 py-2 text-right">
+                                            <td key={m} className={`px-2 py-3 text-right ${catData.total[m] ? 'text-white font-bold' : 'text-slate-600'}`}>
                                                 {catData.total[m] ? `$${catData.total[m].toLocaleString()}` : '-'}
                                             </td>
                                         ))}
                                     </tr>
 
-                                    {/* Subcategories */}
-                                    {isExpanded && subs.map(sub => (
-                                        <tr key={`${cat}-${sub}`} className="bg-slate-900/10 hover:bg-slate-900/30 animate-in fade-in slide-in-from-top-1">
-                                            <td className="px-4 py-1 pl-10 text-slate-400 border-r border-slate-800 sticky left-0 bg-slate-950/95 border-l-4 border-l-slate-800">
-                                                {sub}
-                                            </td>
-                                            {months.map((m: string) => (
-                                                <td key={m} className="px-2 py-1 text-right text-slate-500">
-                                                    {catData.subs[sub][m] ? `$${catData.subs[sub][m].toLocaleString()}` : '-'}
-                                                </td>
-                                            ))}
-                                        </tr>
-                                    ))}
+                                    {/* LEVEL 2: SUBCATEGORY */}
+                                    {isCatExpanded && subs.map(sub => {
+                                        const subId = `${cat}-${sub}`;
+                                        const isSubExpanded = expandedRows[subId];
+                                        const subData = catData.subs[sub];
+                                        const concepts = Object.keys(subData.concepts).sort();
+
+                                        return (
+                                            <>
+                                                <tr
+                                                    key={subId}
+                                                    className="bg-slate-900/20 hover:bg-slate-900/40 cursor-pointer animate-in fade-in slide-in-from-top-1"
+                                                    onClick={() => toggleRow(subId)}
+                                                >
+                                                    <td className="px-4 py-2 pl-10 text-slate-300 font-medium border-r border-slate-800 sticky left-0 bg-slate-950/95 border-l-4 border-l-slate-800 flex items-center gap-2">
+                                                        <div className={`transition-transform text-slate-500 ${isSubExpanded ? 'rotate-90' : ''}`}>
+                                                            <ChevronRight size={12} />
+                                                        </div>
+                                                        {sub}
+                                                    </td>
+                                                    {months.map((m: string) => (
+                                                        <td key={m} className="px-2 py-2 text-right text-slate-400">
+                                                            {subData.total[m] ? `$${subData.total[m].toLocaleString()}` : '-'}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+
+                                                {/* LEVEL 3: CONCEPTS (Individual Plans) */}
+                                                {isSubExpanded && concepts.map(concept => (
+                                                    <tr key={`${subId}-${concept}`} className="bg-slate-900/10 hover:bg-slate-900/30 animate-in fade-in slide-in-from-top-1">
+                                                        <td className="px-4 py-1 pl-16 text-slate-500 border-r border-slate-800 sticky left-0 bg-slate-950/90 border-l border-l-slate-800/50">
+                                                            {concept}
+                                                        </td>
+                                                        {months.map((m: string) => (
+                                                            <td key={m} className="px-2 py-1 text-right text-slate-600 text-[10px]">
+                                                                {subData.concepts[concept].total[m] ? `$${subData.concepts[concept].total[m].toLocaleString()}` : '-'}
+                                                            </td>
+                                                        ))}
+                                                    </tr>
+                                                ))}
+                                            </>
+                                        );
+                                    })}
                                 </>
                             );
                         })}
+
                         {/* Grand Total Row */}
                         <tr className="bg-slate-900 font-bold text-emerald-400 border-t-2 border-slate-700">
                             <td className="px-4 py-3 border-r border-slate-800 sticky left-0 bg-slate-900">TOTAL</td>
