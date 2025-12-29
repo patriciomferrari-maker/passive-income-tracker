@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export function CashflowTab() {
@@ -52,18 +51,18 @@ export function CashflowTab() {
 
     // Helpers to access nested data safely
     const getValue = (type: string, cat: string, sub: string, period: string) => {
-        return data.data[type]?.[cat]?.subs?.[sub]?.[period] || 0;
+        const real = data.data[type]?.[cat]?.subs?.[sub]?.[period] || 0;
+        const stat = data.data[type]?.[cat]?.subsStatistical?.[sub]?.[period] || 0;
+        return showStatistical ? (real + stat) : real;
     };
 
-    // Calculate Monthly Totals for Types
+    // Calculate Monthly Totals for Types (ALWAYS REAL ONLY for Grand Totals)
     const getMonthlyTotal = (type: string, period: string) => {
         let total = 0;
         const typeGroup = data.data[type] || {};
         Object.values(typeGroup).forEach((cat: any) => {
             total += cat.total[period] || 0;
-            if (showStatistical) {
-                total += cat.totalStatistical?.[period] || 0;
-            }
+            // Never add statistical to the grand total, per user request
         });
         return total;
     };
@@ -96,8 +95,13 @@ export function CashflowTab() {
         return categories.map(catName => {
             const cat = typeGroup[catName];
             const isExpanded = expandedCategories[catName];
-            const subKeys = Object.keys(cat.subs);
-            const hasRealSubs = subKeys.length > 1 || (subKeys.length === 1 && subKeys[0] !== 'General');
+
+            // Merge subkeys from Real and Statistical to ensure we show all relevant subcategories
+            const realSubs = Object.keys(cat.subs || {});
+            const statSubs = Object.keys(cat.subsStatistical || {});
+            const allSubKeys = Array.from(new Set([...realSubs, ...statSubs])).sort();
+
+            const hasRealSubs = allSubKeys.length > 1 || (allSubKeys.length === 1 && allSubKeys[0] !== 'General');
             const hasSubs = hasRealSubs;
 
             // Calculate Category Totals (Real + Statistical if enabled)
@@ -133,7 +137,7 @@ export function CashflowTab() {
                     </tr>
 
                     {/* SubCategories List (Collapsible) */}
-                    {isExpanded && Object.keys(cat.subs).map(subName => (
+                    {isExpanded && allSubKeys.map(subName => (
                         <tr key={`${type}-${catName}-${subName}`} className="bg-slate-950/30 hover:bg-slate-900/50 border-b border-slate-900 last:border-0 animate-in fade-in slide-in-from-top-1">
                             <td className="px-4 py-1 text-slate-400 font-medium border-r border-slate-800 pl-12 text-xs border-l-4 border-l-slate-900">
                                 {subName}

@@ -18,9 +18,6 @@ export async function GET(req: NextRequest) {
 
     if (mode === 'LAST_12') {
         const today = new Date();
-        // Set to first day of current month? Or strictly last 12 months ending today?
-        // Usually "Last 12 Months" in reporting means "Current Month - 11" to "Current Month" (inclusive full months).
-        // Let's go with full months.
         endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59); // End of current month
         startDate = new Date(today.getFullYear(), today.getMonth() - 11, 1); // 1st of 11 months ago
     } else {
@@ -70,29 +67,32 @@ export async function GET(req: NextRequest) {
         const isStatistical = tx.isStatistical;
 
         // Init Category
-        if (!structure[type][catName]) structure[type][catName] = { total: {}, totalStatistical: {}, subs: {} };
+        if (!structure[type][catName]) structure[type][catName] = {
+            total: {},
+            totalStatistical: {},
+            subs: {},
+            subsStatistical: {}
+        };
 
         // Init SubCategory
         if (!structure[type][catName].subs[subName]) structure[type][catName].subs[subName] = {};
+        if (!structure[type][catName].subsStatistical[subName]) structure[type][catName].subsStatistical[subName] = {};
 
-        // Accumulate SubCategory (Row) - ALWAYS SHOW ROW
-        // Note: The frontend might need to know if this specific sub-row is fully statistical 
-        // to style it (italic/gray), but sticking to simple exclusion from Total first.
-        structure[type][catName].subs[subName][period] = (structure[type][catName].subs[subName][period] || 0) + amount;
-
-        // Accumulate Category Total
+        // Accumulate
         if (isStatistical) {
+            // Category Total Statistical
             structure[type][catName].totalStatistical[period] = (structure[type][catName].totalStatistical[period] || 0) + amount;
+            // Subcategory Statistical
+            structure[type][catName].subsStatistical[subName][period] = (structure[type][catName].subsStatistical[subName][period] || 0) + amount;
         } else {
+            // Category Total Real
             structure[type][catName].total[period] = (structure[type][catName].total[period] || 0) + amount;
+            // Subcategory Real
+            structure[type][catName].subs[subName][period] = (structure[type][catName].subs[subName][period] || 0) + amount;
         }
     });
 
     // --- FETCH EXCHANGE RATES (Closing of Prev Month) ---
-    // User Requirement: "El tipo de cambio a considerar es el de cierre del mes anterior"
-    // So for Period "2024-05", we want the Closing Rate of "2024-04".
-
-    // 1. Fetch Rates covering the range (starting 1 month before first period)
     const ratesStartDate = new Date(startDate);
     ratesStartDate.setMonth(ratesStartDate.getMonth() - 1);
 
@@ -104,48 +104,31 @@ export async function GET(req: NextRequest) {
         orderBy: { date: 'asc' }
     });
 
-    // 2. Map rates to Periods
     periodLabels.forEach(period => {
-        // Parse Period "YYYY-MM"
         const [yStr, mStr] = period.split('-');
         const pYear = parseInt(yStr);
-        const pMonth = parseInt(mStr); // 1-12
+        const pMonth = parseInt(mStr);
 
-        // Determine Previous Month
-        const prevDate = new Date(pYear, pMonth - 1, 1); // 1st of Current Month
-        prevDate.setMonth(prevDate.getMonth() - 1); // 1st of Previous Month
+        const prevDate = new Date(pYear, pMonth - 1, 1);
+        prevDate.setMonth(prevDate.getMonth() - 1);
 
         const targetYear = prevDate.getFullYear();
-        const targetMonth = prevDate.getMonth(); // 0-11
+        const targetMonth = prevDate.getMonth();
 
-        // Find relevant rates for that month
         const monthlyRates = dbRates.filter(r => {
-            const rDate = new Date(r.date); // Ensure Date object
-            // Adjust timezone offset if needed, but usually Date objects from Prism match UTC or Local correctly enough for Month/Year checks if stored as Date.
-            // Be careful: r.date from Prisma is Date.
+            const rDate = new Date(r.date);
             return rDate.getFullYear() === targetYear && rDate.getMonth() === targetMonth;
         });
 
         if (monthlyRates.length > 0) {
-            // Get the LAST one (Closing)
-            const closingRate = monthlyRates[monthlyRates.length - 1]; // Sorted asc by query
-
-            // User Requirement: Use Average of Buy and Sell
+            const closingRate = monthlyRates[monthlyRates.length - 1];
             if (closingRate.buyRate && closingRate.sellRate) {
                 monthlyExchangeRates[period] = (closingRate.buyRate + closingRate.sellRate) / 2;
             } else {
-                monthlyExchangeRates[period] = closingRate.value; // 'value' typically stores the average or single available rate
+                monthlyExchangeRates[period] = closingRate.value;
             }
-        } else {
-            // Fallback: Try finding closest before? Or existing from transactions?
-            // If no rate found (e.g. data missing), maybe check if we have one from transactions as backup?
-            // Actually, let's look for "most recent before this period" if 'closing' missing? 
-            // Better to leave empty or try finding verify if gap.
-            // For now, let's stick to strict "Previous Month" logic.
         }
     });
-
-    // -------------------------------
 
     // --- RENTAL INCOME INJECTION ---
     const rentalCashflows = await prisma.rentalCashflow.findMany({
@@ -167,26 +150,26 @@ export async function GET(req: NextRequest) {
 
     rentalCashflows.forEach(cf => {
         const period = getPeriodKey(cf.date);
-        const amount = Math.round(cf.amountARS || 0); // Use ARS amount, rounded to integer
+        const amount = Math.round(cf.amountARS || 0);
 
-        // Determine Role and Transaction Type
         const role = (cf.contract.property as any).role || 'OWNER';
         const type = role === 'TENANT' ? 'EXPENSE' : 'INCOME';
 
         const catName = 'Alquileres';
         const subName = cf.contract.property.name || 'General';
 
-        // Init Category
-        if (!structure[type][catName]) structure[type][catName] = { total: {}, subs: {} };
+        if (!structure[type][catName]) structure[type][catName] = {
+            total: {},
+            totalStatistical: {},
+            subs: {},
+            subsStatistical: {}
+        };
 
-        // Init SubCategory
         if (!structure[type][catName].subs[subName]) structure[type][catName].subs[subName] = {};
 
-        // Accumulate
         structure[type][catName].subs[subName][period] = (structure[type][catName].subs[subName][period] || 0) + amount;
         structure[type][catName].total[period] = (structure[type][catName].total[period] || 0) + amount;
     });
-    // -------------------------------
 
     return NextResponse.json({
         year: paramYear,
