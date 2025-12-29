@@ -4,8 +4,17 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 import { format } from 'date-fns';
-import { Loader2, Table } from 'lucide-react';
+import { Loader2, Edit } from 'lucide-react';
 import { InstallmentsEvolutionTable } from './InstallmentsEvolutionTable';
 import { EditInstallmentDialog } from './EditInstallmentDialog';
 
@@ -43,60 +52,73 @@ export function InstallmentsTab() {
                 <InstallmentsEvolutionTable />
             </div>
 
-            {/* 2. Active Plans Management */}
+            {/* 2. Active Plans Management (Table View) */}
             <div className="space-y-4 pt-4 border-t border-slate-800">
-                <h2 className="text-xl font-bold text-white mb-4">Gestión de Planes Activos</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {activePlans.map(plan => (
-                        <Card key={plan.id} className="bg-slate-950/50 border-slate-800 hover:border-slate-700 transition-colors">
-                            <CardHeader className="pb-2">
-                                <div className="flex justify-between items-start">
-                                    <div className="overflow-hidden">
-                                        <h3 className="font-bold text-white truncate text-sm">{plan.description}</h3>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <Badge variant="outline" className="text-[10px] border-slate-700 text-slate-400">{plan.category.name}</Badge>
-                                            {plan.subCategory && <span className="text-xs text-slate-600">{plan.subCategory.name}</span>}
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-1 ml-4">
-                                        <EditInstallmentDialog plan={plan} onSuccess={loadData} />
-                                        <div className="text-right whitespace-nowrap">
-                                            <div className="text-sm font-mono font-bold text-blue-400">
-                                                {plan.currency === 'USD' ? 'US$' : '$'}{plan.totalAmount.toLocaleString()}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {/* Progress Bar */}
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-xs text-slate-400">
-                                        <span>{plan.paidCount} de {plan.installmentsCount} cuotas</span>
-                                        <span>{Math.round(plan.progress)}%</span>
-                                    </div>
-                                    <Progress value={plan.progress} className="h-1.5 bg-slate-900" indicatorClassName="bg-blue-600" />
-                                </div>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-white">Gestión de Planes Activos</h2>
+                </div>
 
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div className="bg-slate-900/50 p-2 rounded border border-slate-900/50">
-                                        <span className="block text-slate-500 mb-1">Restante</span>
-                                        <span className="font-bold text-red-400 text-sm">${(plan.totalAmount - plan.paidAmount).toLocaleString()}</span>
-                                    </div>
-                                    <div className="bg-slate-900/50 p-2 rounded border border-slate-900/50 flex flex-col justify-center">
-                                        {plan.nextDueDate && (
-                                            <>
-                                                <span className="block text-slate-500 mb-1">Próx. Venc.</span>
-                                                <span className="text-slate-300 font-bold">
-                                                    {format(new Date(plan.nextDueDate), 'dd/MM/yy')}
+                <div className="rounded-md border border-slate-800 bg-slate-950/50 overflow-hidden">
+                    <Table>
+                        <TableHeader className="bg-slate-900">
+                            <TableRow className="hover:bg-slate-900 border-slate-800">
+                                <TableHead className="text-slate-400 font-bold min-w-[200px]">Concepto</TableHead>
+                                <TableHead className="text-slate-400 font-bold">Categoría</TableHead>
+                                <TableHead className="text-slate-400 font-bold text-center">Progreso</TableHead>
+                                <TableHead className="text-slate-400 font-bold text-right">Monto Total</TableHead>
+                                <TableHead className="text-slate-400 font-bold text-right">Restante</TableHead>
+                                <TableHead className="text-slate-400 font-bold text-center">Próx. Venc.</TableHead>
+                                <TableHead className="text-slate-400 font-bold text-center">Acciones</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {activePlans.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                                        No hay planes activos
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                activePlans.map((plan) => (
+                                    <TableRow key={plan.id} className="border-slate-800 hover:bg-slate-900/40 transition-colors">
+                                        <TableCell className="font-medium text-white">
+                                            {plan.description}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col gap-1">
+                                                <Badge variant="outline" className="w-fit text-[10px] border-slate-700 text-slate-400">
+                                                    {plan.category.name}
+                                                </Badge>
+                                                {plan.subCategory && (
+                                                    <span className="text-xs text-slate-600">{plan.subCategory.name}</span>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="flex flex-col items-center gap-1 w-[120px] mx-auto">
+                                                <span className="text-xs text-slate-400">
+                                                    {plan.paidCount} / {plan.installmentsCount}
                                                 </span>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                                                <Progress value={plan.progress} className="h-1.5 w-full bg-slate-900" indicatorClassName="bg-blue-600" />
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono text-slate-300">
+                                            {plan.currency === 'USD' ? 'US$' : '$'}{plan.totalAmount.toLocaleString()}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono font-bold text-red-400">
+                                            ${(plan.totalAmount - plan.paidAmount).toLocaleString()}
+                                        </TableCell>
+                                        <TableCell className="text-center text-slate-400 text-xs">
+                                            {plan.nextDueDate ? format(new Date(plan.nextDueDate), 'dd/MM/yy') : '-'}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <EditInstallmentDialog plan={plan} onSuccess={loadData} />
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
                 </div>
             </div>
 
