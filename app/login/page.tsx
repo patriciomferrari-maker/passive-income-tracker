@@ -41,6 +41,11 @@ export default function LoginPage() {
                                 required
                                 className="h-12 bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
                             />
+                            <div className="flex justify-end pt-1">
+                                <a href="/forgot-password" className="text-sm text-purple-400 hover:text-purple-300 hover:underline">
+                                    ¿Olvidaste tu contraseña?
+                                </a>
+                            </div>
                         </div>
                         <LoginButton />
 

@@ -23,6 +23,9 @@ model User {
   name      String?
   role      String   @default("USER") // USER, ADMIN
   
+  resetToken       String?   @unique
+  resetTokenExpiry DateTime?
+  
   // Relations
   properties      Property[]
   investments     Investment[]
