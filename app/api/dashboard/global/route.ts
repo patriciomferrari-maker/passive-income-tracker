@@ -241,8 +241,7 @@ export async function GET() {
         // 4. Fetch Active Investments (for Portfolio & KPI)
         const investments = await prisma.investment.findMany({
             where: {
-                userId,
-                status: 'ACTIVE'
+                userId
             },
             include: {
                 transactions: true
