@@ -61,9 +61,9 @@ export async function GET() {
                 monthLabel: new Date(cf.date).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }),
                 amountUSD: cf.amountUSD || 0,
                 amountARS: cf.amountARS || 0,
-                // These might be null/0 if future relative to IPC, which is fine (line will drop or stop)
-                inflationAccum: (cf.inflationAccum || 0) * 100,
-                devaluationAccum: (cf.devaluationAccum || 0) * 100
+                // Pass null if data is missing, so Recharts breaks the line instead of plotting 0
+                inflationAccum: cf.inflationAccum !== null ? (cf.inflationAccum * 100) : null,
+                devaluationAccum: cf.devaluationAccum !== null ? (cf.devaluationAccum * 100) : null
             }));
 
             return {
