@@ -72,8 +72,10 @@ export function BankOperationsTab({ operations, onRefresh, showValues }: BankOpe
                                     <TableRow key={op.id} className="border-slate-800 hover:bg-slate-800/50">
                                         <TableCell>
                                             <div className="flex flex-col">
-                                                <span className="font-medium text-white">{op.alias || op.type.replace(/_/g, ' ')}</span>
-                                                <span className="text-xs text-slate-500 uppercase">{op.type.replace(/_/g, ' ')}</span>
+                                                <span className="font-medium text-white">
+                                                    {op.type.replace(/_/g, ' ')} {op.name ? `- ${op.name}` : ''}
+                                                </span>
+                                                {op.alias && <span className="text-xs text-slate-500 italic">{op.alias}</span>}
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-slate-300">

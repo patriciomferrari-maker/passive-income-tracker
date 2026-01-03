@@ -19,6 +19,7 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
 
     // Form State
     const [type, setType] = useState('PLAZO_FIJO');
+    const [name, setName] = useState('');
     const [alias, setAlias] = useState('');
     const [amount, setAmount] = useState('');
     const [currency, setCurrency] = useState('USD');
@@ -35,6 +36,7 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
     useEffect(() => {
         if (initialData) {
             setType(initialData.type);
+            setName(initialData.name || '');
             setAlias(initialData.alias || '');
             setAmount(initialData.amount.toString());
             setCurrency(initialData.currency);
@@ -77,6 +79,7 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     type,
+                    name,
                     alias, // Sending empty or current state
                     amount,
                     currency,
@@ -89,6 +92,7 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
 
             // Reset form if creating new
             if (!initialData) {
+                setName('');
                 setAlias('');
                 setAmount('');
                 setTna('');
@@ -119,20 +123,29 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
                 </Select>
             </div>
 
-            {/* Custom Name for "OTRO" */}
-            {type === 'OTRO' && (
-                <div className="space-y-2">
-                    <Label className="text-white">Nombre de la Inversión</Label>
-                    <Input
-                        type="text"
-                        placeholder="Ej. Caución Bursátil"
-                        value={alias}
-                        onChange={(e) => setAlias(e.target.value)}
-                        required
-                        className="bg-slate-800 border-slate-700 text-white"
-                    />
-                </div>
-            )}
+            {/* Name Input (New) */}
+            <div className="space-y-2">
+                <Label className="text-white">Nombre / Entidad (Ej. Galicia, Santander)</Label>
+                <Input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Nombre del Banco o Entidad"
+                    className="bg-slate-800 border-slate-700 text-white"
+                />
+            </div>
+
+            {/* Custom Alias for "OTRO" (Preserve existing logic if desired, or merge) */}
+            <div className="space-y-2">
+                <Label className="text-white">Alias / Descripción (Opcional)</Label>
+                <Input
+                    type="text"
+                    value={alias}
+                    onChange={(e) => setAlias(e.target.value)}
+                    placeholder="Ej. Ahorro para vacaciones"
+                    className="bg-slate-800 border-slate-700 text-white"
+                />
+            </div>
 
             {/* Common Fields */}
             <div className="grid grid-cols-2 gap-4">
