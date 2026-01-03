@@ -315,6 +315,9 @@ export async function GET() {
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
 
+        // Map for easier lookup for specific categories if needed locally
+        const portfolioMap = assetGroupMap;
+
 
         // --- PROJECTION CHART DATA (Grouped by Asset) ---
         // Query ALL cashflows for projection range
