@@ -412,6 +412,12 @@ export async function GET() {
         // Essentially this is Caja Ahorro + Caja Seguridad + Otros
         const kpiIdle = totalCajaAhorro + totalCajaSeguridad + totalBankOther;
 
+        // 3. Rentals Valuation
+        const properties = await prisma.property.findMany({
+            where: { userId, isConsolidated: true, role: 'OWNER' }
+        });
+        const rentalsValuation = properties.length * 90000; // Estimated avg value
+
         return NextResponse.json({
             summary: {
                 totalInvested: kpiTotalInvested,
