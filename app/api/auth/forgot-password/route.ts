@@ -62,10 +62,19 @@ export async function POST(req: Request) {
       `,
         });
 
+        if (error) {
+            console.error('Resend Error:', error);
+            return NextResponse.json({ error: 'Error sending email: ' + error.message }, { status: 500 });
+        }
+
         return NextResponse.json({ message: 'Email sent' });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Forgot Password Error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
     }
+}
+
+export async function GET() {
+    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
 }

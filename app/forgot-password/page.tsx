@@ -25,13 +25,15 @@ export default function ForgotPasswordPage() {
                 body: JSON.stringify({ email }),
             });
 
+            const data = await res.json();
+
             if (!res.ok) {
-                throw new Error('Something went wrong. Please try again.');
+                throw new Error(data.error || 'Something went wrong. Please try again.');
             }
 
             setSubmitted(true);
-        } catch (err) {
-            setError('Error al enviar el correo. Intenta nuevamente.');
+        } catch (err: any) {
+            setError(err.message || 'Error al enviar el correo. Intenta nuevamente.');
         } finally {
             setLoading(false);
         }
