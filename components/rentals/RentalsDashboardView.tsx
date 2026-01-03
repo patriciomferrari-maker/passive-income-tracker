@@ -52,6 +52,7 @@ export interface RentalsDashboardViewProps {
 }
 
 export function RentalsDashboardView({ contractsData, globalData, showValues, loading = false }: RentalsDashboardViewProps) {
+    const [currency, setCurrency] = useState<'USD' | 'ARS'>('USD');
     // const [chartFilter, setChartFilter] = useState<'ALL' | 'OWNER' | 'TENANT'>('ALL'); // Removed: Moved to ConsolidatedCashflowTab
     const activeContracts = useMemo(() => {
         const now = new Date();
@@ -73,10 +74,8 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
         const now = new Date();
 
         // 1. Current Month Finances
-        let totalIncomeUSD = 0;
-        let totalIncomeARS = 0;
-        let totalExpenseUSD = 0;
-        let totalExpenseARS = 0;
+        let totalIncome = 0;
+        let totalExpense = 0;
 
         consolidatedContracts.forEach(c => {
             const current = c.chartData.find(d => {
@@ -86,13 +85,12 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
 
             const amountUSD = current ? current.amountUSD : (c.chartData[c.chartData.length - 1]?.amountUSD || 0);
             const amountARS = current ? current.amountARS : (c.chartData[c.chartData.length - 1]?.amountARS || 0);
+            const amount = currency === 'USD' ? amountUSD : amountARS;
 
             if (c.propertyRole === 'TENANT') {
-                totalExpenseUSD += amountUSD;
-                if (c.currency === 'ARS') totalExpenseARS += amountARS;
+                totalExpense += amount;
             } else {
-                totalIncomeUSD += amountUSD;
-                if (c.currency === 'ARS') totalIncomeARS += amountARS;
+                totalIncome += amount;
             }
         });
 

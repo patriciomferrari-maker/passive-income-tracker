@@ -67,10 +67,13 @@ export async function GET() {
 
         // --- Aggregation Logic ---
         // Group by Month (YYYY-MM)
+        // Group by Month (YYYY-MM)
         const monthlyData = new Map<string, {
             date: Date,
             incomeUSD: number,
+            incomeARS: number,
             expenseUSD: number,
+            expenseARS: number,
             count: number
         }>();
 
@@ -81,7 +84,9 @@ export async function GET() {
                 monthlyData.set(dateKey, {
                     date: cf.date,
                     incomeUSD: 0,
+                    incomeARS: 0,
                     expenseUSD: 0,
+                    expenseARS: 0,
                     count: 0
                 });
             }
@@ -92,9 +97,11 @@ export async function GET() {
 
             if (role === 'TENANT') {
                 entry.expenseUSD += cf.amountUSD || 0;
+                entry.expenseARS += cf.amountARS || 0;
             } else {
                 // OWNER
                 entry.incomeUSD += cf.amountUSD || 0;
+                entry.incomeARS += cf.amountARS || 0;
             }
 
             entry.count += 1;
