@@ -19,7 +19,6 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
 
     // Form State
     const [type, setType] = useState('PLAZO_FIJO');
-    const [name, setName] = useState('');
     const [alias, setAlias] = useState('');
     const [amount, setAmount] = useState('');
     const [currency, setCurrency] = useState('USD');
@@ -36,7 +35,6 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
     useEffect(() => {
         if (initialData) {
             setType(initialData.type);
-            setName(initialData.name || '');
             setAlias(initialData.alias || '');
             setAmount(initialData.amount.toString());
             setCurrency(initialData.currency);
@@ -79,7 +77,6 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     type,
-                    name,
                     alias, // Sending empty or current state
                     amount,
                     currency,
@@ -92,7 +89,6 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
 
             // Reset form if creating new
             if (!initialData) {
-                setName('');
                 setAlias('');
                 setAmount('');
                 setTna('');
@@ -123,26 +119,13 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
                 </Select>
             </div>
 
-            {/* Name Input (New) */}
             <div className="space-y-2">
-                <Label className="text-white">Nombre / Entidad (Ej. Galicia, Santander)</Label>
-                <Input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Nombre del Banco o Entidad"
-                    className="bg-slate-800 border-slate-700 text-white"
-                />
-            </div>
-
-            {/* Custom Alias for "OTRO" (Preserve existing logic if desired, or merge) */}
-            <div className="space-y-2">
-                <Label className="text-white">Alias / Descripción (Opcional)</Label>
+                <Label className="text-white">Nombre / Alias (Ej. Galicia, Santander)</Label>
                 <Input
                     type="text"
                     value={alias}
                     onChange={(e) => setAlias(e.target.value)}
-                    placeholder="Ej. Ahorro para vacaciones"
+                    placeholder="Ej. Galicia"
                     className="bg-slate-800 border-slate-700 text-white"
                 />
             </div>

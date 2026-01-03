@@ -46,13 +46,12 @@ export async function POST(request: Request) {
     try {
         const userId = await getUserId();
         const body = await request.json();
-        const { type, name, alias, amount, currency, startDate, durationDays, tna } = body;
+        const { type, alias, amount, currency, startDate, durationDays, tna } = body;
 
         const newOp = await prisma.bankOperation.create({
             data: {
                 userId,
                 type,
-                name,
                 alias,
                 amount: parseFloat(amount),
                 currency,
