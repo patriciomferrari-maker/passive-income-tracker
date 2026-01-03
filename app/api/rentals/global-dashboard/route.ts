@@ -31,12 +31,7 @@ export async function GET() {
             return start <= now && end >= now;
         });
 
-        // Fetch last IPC for date cutoff (consistency with other charts)
-        const lastIPC = await prisma.economicIndicator.findFirst({
-            where: { type: 'IPC' },
-            orderBy: { date: 'desc' }
-        });
-        const cutoffDate = lastIPC ? lastIPC.date : new Date();
+        const cutoffDate = new Date(now.getFullYear(), now.getMonth() + 1, 0); // End of current month
 
         // --- KPIs ---
         const activeCount = activeContracts.length;
