@@ -323,7 +323,6 @@ model BankOperation {
 
   type          String   // 'FCI', 'PLAZO_FIJO', 'CAJA_SEGURIDAD'
   alias         String?  // Alias (deprecated/old use?) or short name
-  name          String?  // Explicit name (e.g. "Galicia", "Santander")
   
   amount        Float    // Invested Amount or Current Value
   currency      String   @default("ARS")
