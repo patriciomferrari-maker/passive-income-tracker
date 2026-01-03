@@ -46,333 +46,332 @@ function calculateXIRR(values: number[], dates: Date[], guess = 0.1): number {
 export const dynamic = 'force-dynamic';
 export async function GET() {
     try {
+        let session;
         try {
-            let session;
-            try {
-                const { auth } = await import('@/auth');
-                session = await auth();
-            } catch (e) {
-                console.error('Auth check failed:', e);
-                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-            }
-
-            if (!session?.user?.id) {
-                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-            }
-            const userId = session.user.id;
-
-            const settings = await prisma.appSettings.findUnique({ where: { userId } });
-            const enabledSections = settings?.enabledSections ? settings.enabledSections.split(',') : [];
-
-            const today = new Date();
-
-            // 0. Latest Valid IPC Date (History Limit for Adjusted Metrics)
-            const lastIPC = await prisma.economicIndicator.findFirst({
-                where: { type: 'IPC' },
-                orderBy: { date: 'desc' }
-            });
-            // maxValidDate restricts charts that depend on inflation (e.g. real returns)
-            const maxValidDate = lastIPC ? endOfMonth(lastIPC.date) : endOfMonth(today);
-
-            // History Range: Last 12 months ending TODAY (for nominal charts)
-            // User requested: "ingresos ultimos 12 meses... hasta el mes en curso"
-            const nominalHistoryEnd = endOfMonth(today);
-            const nominalHistoryStart = subMonths(startOfMonth(nominalHistoryEnd), 11);
-
-            // Projection Start: Month strictly after nominalHistoryEnd
-            const projectionStart = startOfMonth(addMonths(nominalHistoryEnd, 1));
-            const projectionEnd = endOfMonth(addMonths(projectionStart, 11)); // 12 months projection
-
-            // 1. Fetch History Cashflows (Interest Only, No Debt)
-            const historyCashflows = await prisma.cashflow.findMany({
-                where: {
-                    investment: { userId },
-                    date: { gte: nominalHistoryStart, lte: nominalHistoryEnd },
-                    type: 'INTEREST',
-                },
-                include: { investment: { select: { type: true } } }
-            });
-
-            // 2. Fetch Rental Income (History)
-            const rentalCashflows = await prisma.rentalCashflow.findMany({
-                where: {
-                    contract: { property: { userId, isConsolidated: true, role: 'OWNER' } },
-                    date: { gte: nominalHistoryStart, lte: nominalHistoryEnd }
-                },
-                select: { date: true, amountUSD: true }
-            });
-
-            // ... (skipping unchanged code) ...
-
-            // --- HISTORY CHART DATA (Strictly bounded by IPC) ---
-            // UPDATE: Bounded by nominalHistoryEnd (Today)
-            const monthlyData = new Map<string, { ON: number; Treasury: number; Rentals: number; Bank: number }>();
-            // Fill Map from historyStart to historyEnd
-            let iterDate = startOfMonth(nominalHistoryStart);
-            while (isBefore(iterDate, nominalHistoryEnd) || iterDate.getTime() === startOfMonth(nominalHistoryEnd).getTime()) {
-                const key = format(iterDate, 'yyyy-MM');
-                monthlyData.set(key, { ON: 0, Treasury: 0, Rentals: 0, Bank: 0 });
-                iterDate = addMonths(iterDate, 1);
-            }
-
-            historyCashflows.forEach(cf => {
-                const key = format(cf.date, 'yyyy-MM');
-                if (monthlyData.has(key)) {
-                    const type = cf.investment.type === 'ON' ? 'ON' : 'Treasury'; // Default logic
-                    // Ensure Treasury is captured correctly
-                    if (cf.investment.type === 'TREASURY') {
-                        monthlyData.get(key)!.Treasury += cf.amount;
-                    } else {
-                        monthlyData.get(key)!.ON += cf.amount;
-                    }
-                }
-            });
-
-            rentalCashflows.forEach(cf => {
-                // Fix: Rentals nominal date
-                const key = format(cf.date, 'yyyy-MM');
-                if (monthlyData.has(key)) {
-                    monthlyData.get(key)!.Rentals += (cf.amountUSD || 0);
-                }
-            });
-
-            // Integrate PF Interest into History
-            allPFMaturities.forEach(pf => {
-                const key = format(pf.date, 'yyyy-MM');
-                if (monthlyData.has(key)) {
-                    monthlyData.get(key)!.Bank += pf.interest;
-                }
-            });
-
-            const history = Array.from(monthlyData.entries())
-                .sort((a, b) => a[0].localeCompare(b[0]))
-                .map(([key, values]) => {
-                    const [year, month] = key.split('-');
-                    return {
-                        month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
-                        fullDate: key,
-                        total: values.ON + values.Treasury + values.Rentals + values.Bank,
-                        ...values
-                    };
-                });
-
-            // Calculate Average
-            const totalSum = history.reduce((sum, item) => sum + item.total, 0);
-            const average = history.length > 0 ? totalSum / history.length : 0;
-            const historyWithAvg = history.map(h => ({ ...h, average }));
-
-            // Composition (Last valid month) - Used for "Income Composition" Chart
-            let composition: any[] = [];
-            let totalMonthlyIncome = 0;
-            if (history.length > 0) {
-                const lastMonth = history[history.length - 1]; // Use last month of generated history
-                totalMonthlyIncome = lastMonth.total;
-                composition = [
-                    { name: 'Obligaciones Negociables', value: lastMonth.ON, fill: '#3b82f6' },
-                    { name: 'Treasuries', value: lastMonth.Treasury, fill: '#8b5cf6' },
-                    { name: 'Alquileres', value: lastMonth.Rentals, fill: '#10b981' },
-                    { name: 'Intereses Banco', value: lastMonth.Bank, fill: '#f59e0b' }
-                ].filter(item => item.value > 0);
-            }
-
-            // --- INVESTMENT COMPOSITION (ASSETS) ---
-            // Refactored to Group by Type as requested
-            const assetGroupMap = new Map<string, number>();
-
-            // 1. Market Assets
-            investments.forEach(inv => {
-                // ... Price Logic (Re-implemented succinctly) ...
-                const priceInfo = pricesMap.get(inv.ticker);
-                let currentPrice = priceInfo?.price || 0;
-                const currency = priceInfo?.currency || 'USD';
-                if (currency === 'ARS' || (currency === 'USD' && currentPrice > 400)) currentPrice /= exchangeRate;
-                if (inv.type === 'ON' && currentPrice > 2.0) currentPrice /= 100;
-
-                const qty = inv.transactions.reduce((acc, tx) => acc + (tx.type === 'BUY' ? tx.quantity : -tx.quantity), 0);
-                let marketValue = qty * currentPrice;
-
-                if (marketValue <= 1) { // Fallback cost basis
-                    const costBasis = inv.transactions.reduce((s, tx) => s + (tx.type === 'BUY' ? tx.totalAmount : 0), 0);
-                    if (Math.abs(costBasis) > 1) marketValue = qty * (Math.abs(costBasis) / qty);
-                }
-
-                let effectiveMarketValue = marketValue;
-                if (['ON', 'CEDEAR', 'FCI', 'PF'].includes(inv.type || '') && marketValue > 500000 && currency === 'ARS') {
-                    effectiveMarketValue /= exchangeRate;
-                }
-
-                if (effectiveMarketValue > 1) {
-                    // Grouping Logic
-                    let groupName = 'Otros';
-                    if (inv.type === 'ON') groupName = 'ON'; // Simplified label
-                    else if (inv.type === 'TREASURY') groupName = 'Treasury';
-                    else if (inv.type === 'CEDEAR') groupName = 'CEDEAR Argentina';
-                    else if (inv.type === 'ETF') groupName = 'ETF USA'; // Assuming ETF implies USA unless specified
-                    else if (inv.type === 'BONO') groupName = 'Bonos Arg';
-                    else groupName = inv.type || 'Otros';
-
-                    assetGroupMap.set(groupName, (assetGroupMap.get(groupName) || 0) + effectiveMarketValue);
-                }
-            });
-
-            // 2. Add Bank Assets (Grouped)
-            bankOperations.forEach(op => {
-                let amountUSD = op.amount;
-                if (op.currency === 'ARS') {
-                    amountUSD = op.amount / exchangeRate;
-                }
-
-                if (op.type === 'PLAZO_FIJO') {
-                    assetGroupMap.set('Plazo Fijo', (assetGroupMap.get('Plazo Fijo') || 0) + amountUSD);
-                } else if (op.type === 'FCI') {
-                    assetGroupMap.set('FCI', (assetGroupMap.get('FCI') || 0) + amountUSD);
-                } else if (op.type === 'CAJA_AHORRO') {
-                    assetGroupMap.set('Caja de Ahorro', (assetGroupMap.get('Caja de Ahorro') || 0) + amountUSD);
-                } else if (op.type === 'CAJA_SEGURIDAD') {
-                    assetGroupMap.set('Caja de Seguridad', (assetGroupMap.get('Caja de Seguridad') || 0) + amountUSD);
-                } else {
-                    // For "OTRO" or undefined types, use the Alias
-                    const label = op.alias || 'Otros Banco';
-                    assetGroupMap.set(label, (assetGroupMap.get(label) || 0) + amountUSD);
-                }
-            });
-
-            const portfolioDistribution = Array.from(assetGroupMap.entries())
-                .map(([name, value]) => ({ name, value }))
-                .sort((a, b) => b.value - a.value);
-
-
-            // --- PROJECTION CHART DATA (Grouped by Asset) ---
-            // Query ALL cashflows for projection range
-            const projectedCashflowsRaw = await prisma.cashflow.findMany({
-                where: {
-                    investment: { userId },
-                    date: { gte: projectionStart, lte: projectionEnd }
-                },
-                include: { investment: { select: { type: true } } }
-            });
-
-            // Also get Projected Rental Income
-            // We need to 'simulate' rental income for future months based on active contracts
-            // For simplicity, we can fetch 'Projected' rental cashflows if they exist in DB, 
-            // OR we can extrapolate. 
-            // The previous implementation ignored Rentals in projection. Let's add them if they exist in rentalCashflow table as projected?
-            // Actually, the rental system generates rows. Let's check rentalCashflow for future dates.
-            const projectedRentalCashflows = await prisma.rentalCashflow.findMany({
-                where: {
-                    contract: { property: { userId, isConsolidated: true, role: 'OWNER' } },
-                    date: { gte: projectionStart, lte: projectionEnd }
-                },
-                select: { date: true, amountUSD: true }
-            });
-
-            const projectedMap = new Map<string, { ON: number, Treasury: number, Rentals: number, PF: number }>();
-
-            iterDate = startOfMonth(projectionStart);
-            while (isBefore(iterDate, projectionEnd) || iterDate.getTime() === startOfMonth(projectionEnd).getTime()) {
-                const key = format(iterDate, 'yyyy-MM');
-                projectedMap.set(key, { ON: 0, Treasury: 0, Rentals: 0, PF: 0 });
-                iterDate = addMonths(iterDate, 1);
-            }
-
-            projectedCashflowsRaw.forEach(cf => {
-                const key = format(cf.date, 'yyyy-MM');
-                if (projectedMap.has(key)) {
-                    // We sum ALL flows (Capital + Interest) as "Inflow" for that asset type
-                    // User asked: "No separaremos entre capital e interes, sino entre tipo de activo"
-                    if (cf.investment.type === 'ON') projectedMap.get(key)!.ON += cf.amount;
-                    else if (cf.investment.type === 'TREASURY') projectedMap.get(key)!.Treasury += cf.amount;
-                }
-            });
-
-            projectedRentalCashflows.forEach(cf => {
-                const key = format(cf.date, 'yyyy-MM');
-                if (projectedMap.has(key)) {
-                    projectedMap.get(key)!.Rentals += (cf.amountUSD || 0);
-                }
-            });
-
-            allPFMaturities.forEach(pf => {
-                const key = format(pf.date, 'yyyy-MM');
-                if (projectedMap.has(key)) {
-                    projectedMap.get(key)!.PF += pf.interest; // Only interested in Interest for PF usually? Or full amount?
-                    // For consistency with "Cashflow", PF maturity returns principal. 
-                    // But for "Income Projection" usually we want P&L. 
-                    // However, for ONs we included Amortization (Capital). 
-                    // So strictly speaking, we should include PF Capital if we included ON Capital.
-                    // But PF Capital is just cycled money. ON Capital is also cycled money.
-                    // Let's stick to Interest for PF to avoid huge spikes that look like "Income".
-                    // Actually, user said "Proyeccion... no separar capital e interes". 
-                    // If I show ON Amortization, it's a huge spike. 
-                    // Let's assume user wants to see Liquidity Flow? 
-                    // "El grafico esta vacio ahora" -> implicitly wants to see non-zero bars.
-                    // Let's inclue PF Interest only for now as it's the "Gain". including capital makes the bar huge.
-                }
-            });
-
-            const projected = Array.from(projectedMap.entries())
-                .sort((a, b) => a[0].localeCompare(b[0]))
-                .map(([key, values]) => {
-                    const [year, month] = key.split('-');
-                    return {
-                        month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
-                        total: values.ON + values.Treasury + values.Rentals + values.PF,
-                        ...values
-                    };
-                });
-
-            // --- KPI CORRECTIONS ---
-            // 1. Total Invested: Cartera Arg + Cartera USA + Plazo Fijo
-            // We can get Cartera Arg (ON + CEDEAR + BONO) and USA (Treasury + ETF) from our Asset Map
-            const totalMarketInvested = Array.from(portfolioMap.values()).reduce((a, b) => a + b, 0);
-
-            // Robust KPI Calculation: Explicitly sum Invested Components
-            // Market Assets + Plazo Fijo + FCI
-            // This avoids issues with dynamic keys in assetGroupMap (like specific Bank Aliases) being counted as invested.
-            const kpiTotalInvested = totalMarketInvested + totalPF + totalFCI;
-
-            // 2. Monto sin Invertir: Total Bancos - Plazo Fijo
-            // Essentially this is Caja Ahorro + Caja Seguridad + Otros
-            const kpiIdle = totalCajaAhorro + totalCajaSeguridad + totalBankOther;
-
-            return NextResponse.json({
-                summary: {
-                    totalInvested: kpiTotalInvested,
-                    totalIdle: kpiIdle,
-                    totalDebtReceivable: totalDebtPending,
-                    tir,
-                    nextInterestON: nextInterestON ? { date: nextInterestON.date, amount: nextInterestON.amount, name: nextInterestON.investment.name } : null,
-                    nextInterestTreasury: nextInterestTreasury ? { date: nextInterestTreasury.date, amount: nextInterestTreasury.amount, name: nextInterestTreasury.investment.name } : null,
-                    nextRentalAdjustment,
-                    nextContractExpiration,
-                    totalMonthlyIncome,
-                    totalBankUSD,
-                    nextMaturitiesPF
-                },
-                pnl: {
-                    realized: totalRealizedGL,
-                    unrealized: totalUnrealizedGL
-                },
-                bankComposition,
-                portfolioDistribution,
-                history: historyWithAvg,
-                composition,
-                projected,
-                debtDetails,
-                enabledSections,
-                debug: { userId, raw: settings?.enabledSections }
-            });
-
-        } catch (error) {
-            console.error('Error fetching global dashboard data:', error);
-
-            if (error instanceof Error && error.message === 'Unauthorized') {
-                return unauthorized();
-            }
-
-            return NextResponse.json(
-                { error: 'Internal Server Error', details: error instanceof Error ? error.message : String(error) },
-                { status: 500 }
-            );
+            const { auth } = await import('@/auth');
+            session = await auth();
+        } catch (e) {
+            console.error('Auth check failed:', e);
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        const userId = session.user.id;
+
+        const settings = await prisma.appSettings.findUnique({ where: { userId } });
+        const enabledSections = settings?.enabledSections ? settings.enabledSections.split(',') : [];
+
+        const today = new Date();
+
+        // 0. Latest Valid IPC Date (History Limit for Adjusted Metrics)
+        const lastIPC = await prisma.economicIndicator.findFirst({
+            where: { type: 'IPC' },
+            orderBy: { date: 'desc' }
+        });
+        // maxValidDate restricts charts that depend on inflation (e.g. real returns)
+        const maxValidDate = lastIPC ? endOfMonth(lastIPC.date) : endOfMonth(today);
+
+        // History Range: Last 12 months ending TODAY (for nominal charts)
+        // User requested: "ingresos ultimos 12 meses... hasta el mes en curso"
+        const nominalHistoryEnd = endOfMonth(today);
+        const nominalHistoryStart = subMonths(startOfMonth(nominalHistoryEnd), 11);
+
+        // Projection Start: Month strictly after nominalHistoryEnd
+        const projectionStart = startOfMonth(addMonths(nominalHistoryEnd, 1));
+        const projectionEnd = endOfMonth(addMonths(projectionStart, 11)); // 12 months projection
+
+        // 1. Fetch History Cashflows (Interest Only, No Debt)
+        const historyCashflows = await prisma.cashflow.findMany({
+            where: {
+                investment: { userId },
+                date: { gte: nominalHistoryStart, lte: nominalHistoryEnd },
+                type: 'INTEREST',
+            },
+            include: { investment: { select: { type: true } } }
+        });
+
+        // 2. Fetch Rental Income (History)
+        const rentalCashflows = await prisma.rentalCashflow.findMany({
+            where: {
+                contract: { property: { userId, isConsolidated: true, role: 'OWNER' } },
+                date: { gte: nominalHistoryStart, lte: nominalHistoryEnd }
+            },
+            select: { date: true, amountUSD: true }
+        });
+
+        // ... (skipping unchanged code) ...
+
+        // --- HISTORY CHART DATA (Strictly bounded by IPC) ---
+        // UPDATE: Bounded by nominalHistoryEnd (Today)
+        const monthlyData = new Map<string, { ON: number; Treasury: number; Rentals: number; Bank: number }>();
+        // Fill Map from historyStart to historyEnd
+        let iterDate = startOfMonth(nominalHistoryStart);
+        while (isBefore(iterDate, nominalHistoryEnd) || iterDate.getTime() === startOfMonth(nominalHistoryEnd).getTime()) {
+            const key = format(iterDate, 'yyyy-MM');
+            monthlyData.set(key, { ON: 0, Treasury: 0, Rentals: 0, Bank: 0 });
+            iterDate = addMonths(iterDate, 1);
+        }
+
+        historyCashflows.forEach(cf => {
+            const key = format(cf.date, 'yyyy-MM');
+            if (monthlyData.has(key)) {
+                const type = cf.investment.type === 'ON' ? 'ON' : 'Treasury'; // Default logic
+                // Ensure Treasury is captured correctly
+                if (cf.investment.type === 'TREASURY') {
+                    monthlyData.get(key)!.Treasury += cf.amount;
+                } else {
+                    monthlyData.get(key)!.ON += cf.amount;
+                }
+            }
+        });
+
+        rentalCashflows.forEach(cf => {
+            // Fix: Rentals nominal date
+            const key = format(cf.date, 'yyyy-MM');
+            if (monthlyData.has(key)) {
+                monthlyData.get(key)!.Rentals += (cf.amountUSD || 0);
+            }
+        });
+
+        // Integrate PF Interest into History
+        allPFMaturities.forEach(pf => {
+            const key = format(pf.date, 'yyyy-MM');
+            if (monthlyData.has(key)) {
+                monthlyData.get(key)!.Bank += pf.interest;
+            }
+        });
+
+        const history = Array.from(monthlyData.entries())
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([key, values]) => {
+                const [year, month] = key.split('-');
+                return {
+                    month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
+                    fullDate: key,
+                    total: values.ON + values.Treasury + values.Rentals + values.Bank,
+                    ...values
+                };
+            });
+
+        // Calculate Average
+        const totalSum = history.reduce((sum, item) => sum + item.total, 0);
+        const average = history.length > 0 ? totalSum / history.length : 0;
+        const historyWithAvg = history.map(h => ({ ...h, average }));
+
+        // Composition (Last valid month) - Used for "Income Composition" Chart
+        let composition: any[] = [];
+        let totalMonthlyIncome = 0;
+        if (history.length > 0) {
+            const lastMonth = history[history.length - 1]; // Use last month of generated history
+            totalMonthlyIncome = lastMonth.total;
+            composition = [
+                { name: 'Obligaciones Negociables', value: lastMonth.ON, fill: '#3b82f6' },
+                { name: 'Treasuries', value: lastMonth.Treasury, fill: '#8b5cf6' },
+                { name: 'Alquileres', value: lastMonth.Rentals, fill: '#10b981' },
+                { name: 'Intereses Banco', value: lastMonth.Bank, fill: '#f59e0b' }
+            ].filter(item => item.value > 0);
+        }
+
+        // --- INVESTMENT COMPOSITION (ASSETS) ---
+        // Refactored to Group by Type as requested
+        const assetGroupMap = new Map<string, number>();
+
+        // 1. Market Assets
+        investments.forEach(inv => {
+            // ... Price Logic (Re-implemented succinctly) ...
+            const priceInfo = pricesMap.get(inv.ticker);
+            let currentPrice = priceInfo?.price || 0;
+            const currency = priceInfo?.currency || 'USD';
+            if (currency === 'ARS' || (currency === 'USD' && currentPrice > 400)) currentPrice /= exchangeRate;
+            if (inv.type === 'ON' && currentPrice > 2.0) currentPrice /= 100;
+
+            const qty = inv.transactions.reduce((acc, tx) => acc + (tx.type === 'BUY' ? tx.quantity : -tx.quantity), 0);
+            let marketValue = qty * currentPrice;
+
+            if (marketValue <= 1) { // Fallback cost basis
+                const costBasis = inv.transactions.reduce((s, tx) => s + (tx.type === 'BUY' ? tx.totalAmount : 0), 0);
+                if (Math.abs(costBasis) > 1) marketValue = qty * (Math.abs(costBasis) / qty);
+            }
+
+            let effectiveMarketValue = marketValue;
+            if (['ON', 'CEDEAR', 'FCI', 'PF'].includes(inv.type || '') && marketValue > 500000 && currency === 'ARS') {
+                effectiveMarketValue /= exchangeRate;
+            }
+
+            if (effectiveMarketValue > 1) {
+                // Grouping Logic
+                let groupName = 'Otros';
+                if (inv.type === 'ON') groupName = 'ON'; // Simplified label
+                else if (inv.type === 'TREASURY') groupName = 'Treasury';
+                else if (inv.type === 'CEDEAR') groupName = 'CEDEAR Argentina';
+                else if (inv.type === 'ETF') groupName = 'ETF USA'; // Assuming ETF implies USA unless specified
+                else if (inv.type === 'BONO') groupName = 'Bonos Arg';
+                else groupName = inv.type || 'Otros';
+
+                assetGroupMap.set(groupName, (assetGroupMap.get(groupName) || 0) + effectiveMarketValue);
+            }
+        });
+
+        // 2. Add Bank Assets (Grouped)
+        bankOperations.forEach(op => {
+            let amountUSD = op.amount;
+            if (op.currency === 'ARS') {
+                amountUSD = op.amount / exchangeRate;
+            }
+
+            if (op.type === 'PLAZO_FIJO') {
+                assetGroupMap.set('Plazo Fijo', (assetGroupMap.get('Plazo Fijo') || 0) + amountUSD);
+            } else if (op.type === 'FCI') {
+                assetGroupMap.set('FCI', (assetGroupMap.get('FCI') || 0) + amountUSD);
+            } else if (op.type === 'CAJA_AHORRO') {
+                assetGroupMap.set('Caja de Ahorro', (assetGroupMap.get('Caja de Ahorro') || 0) + amountUSD);
+            } else if (op.type === 'CAJA_SEGURIDAD') {
+                assetGroupMap.set('Caja de Seguridad', (assetGroupMap.get('Caja de Seguridad') || 0) + amountUSD);
+            } else {
+                // For "OTRO" or undefined types, use the Alias
+                const label = op.alias || 'Otros Banco';
+                assetGroupMap.set(label, (assetGroupMap.get(label) || 0) + amountUSD);
+            }
+        });
+
+        const portfolioDistribution = Array.from(assetGroupMap.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+
+
+        // --- PROJECTION CHART DATA (Grouped by Asset) ---
+        // Query ALL cashflows for projection range
+        const projectedCashflowsRaw = await prisma.cashflow.findMany({
+            where: {
+                investment: { userId },
+                date: { gte: projectionStart, lte: projectionEnd }
+            },
+            include: { investment: { select: { type: true } } }
+        });
+
+        // Also get Projected Rental Income
+        // We need to 'simulate' rental income for future months based on active contracts
+        // For simplicity, we can fetch 'Projected' rental cashflows if they exist in DB, 
+        // OR we can extrapolate. 
+        // The previous implementation ignored Rentals in projection. Let's add them if they exist in rentalCashflow table as projected?
+        // Actually, the rental system generates rows. Let's check rentalCashflow for future dates.
+        const projectedRentalCashflows = await prisma.rentalCashflow.findMany({
+            where: {
+                contract: { property: { userId, isConsolidated: true, role: 'OWNER' } },
+                date: { gte: projectionStart, lte: projectionEnd }
+            },
+            select: { date: true, amountUSD: true }
+        });
+
+        const projectedMap = new Map<string, { ON: number, Treasury: number, Rentals: number, PF: number }>();
+
+        iterDate = startOfMonth(projectionStart);
+        while (isBefore(iterDate, projectionEnd) || iterDate.getTime() === startOfMonth(projectionEnd).getTime()) {
+            const key = format(iterDate, 'yyyy-MM');
+            projectedMap.set(key, { ON: 0, Treasury: 0, Rentals: 0, PF: 0 });
+            iterDate = addMonths(iterDate, 1);
+        }
+
+        projectedCashflowsRaw.forEach(cf => {
+            const key = format(cf.date, 'yyyy-MM');
+            if (projectedMap.has(key)) {
+                // We sum ALL flows (Capital + Interest) as "Inflow" for that asset type
+                // User asked: "No separaremos entre capital e interes, sino entre tipo de activo"
+                if (cf.investment.type === 'ON') projectedMap.get(key)!.ON += cf.amount;
+                else if (cf.investment.type === 'TREASURY') projectedMap.get(key)!.Treasury += cf.amount;
+            }
+        });
+
+        projectedRentalCashflows.forEach(cf => {
+            const key = format(cf.date, 'yyyy-MM');
+            if (projectedMap.has(key)) {
+                projectedMap.get(key)!.Rentals += (cf.amountUSD || 0);
+            }
+        });
+
+        allPFMaturities.forEach(pf => {
+            const key = format(pf.date, 'yyyy-MM');
+            if (projectedMap.has(key)) {
+                projectedMap.get(key)!.PF += pf.interest; // Only interested in Interest for PF usually? Or full amount?
+                // For consistency with "Cashflow", PF maturity returns principal. 
+                // But for "Income Projection" usually we want P&L. 
+                // However, for ONs we included Amortization (Capital). 
+                // So strictly speaking, we should include PF Capital if we included ON Capital.
+                // But PF Capital is just cycled money. ON Capital is also cycled money.
+                // Let's stick to Interest for PF to avoid huge spikes that look like "Income".
+                // Actually, user said "Proyeccion... no separar capital e interes". 
+                // If I show ON Amortization, it's a huge spike. 
+                // Let's assume user wants to see Liquidity Flow? 
+                // "El grafico esta vacio ahora" -> implicitly wants to see non-zero bars.
+                // Let's inclue PF Interest only for now as it's the "Gain". including capital makes the bar huge.
+            }
+        });
+
+        const projected = Array.from(projectedMap.entries())
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([key, values]) => {
+                const [year, month] = key.split('-');
+                return {
+                    month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
+                    total: values.ON + values.Treasury + values.Rentals + values.PF,
+                    ...values
+                };
+            });
+
+        // --- KPI CORRECTIONS ---
+        // 1. Total Invested: Cartera Arg + Cartera USA + Plazo Fijo
+        // We can get Cartera Arg (ON + CEDEAR + BONO) and USA (Treasury + ETF) from our Asset Map
+        const totalMarketInvested = Array.from(portfolioMap.values()).reduce((a, b) => a + b, 0);
+
+        // Robust KPI Calculation: Explicitly sum Invested Components
+        // Market Assets + Plazo Fijo + FCI
+        // This avoids issues with dynamic keys in assetGroupMap (like specific Bank Aliases) being counted as invested.
+        const kpiTotalInvested = totalMarketInvested + totalPF + totalFCI;
+
+        // 2. Monto sin Invertir: Total Bancos - Plazo Fijo
+        // Essentially this is Caja Ahorro + Caja Seguridad + Otros
+        const kpiIdle = totalCajaAhorro + totalCajaSeguridad + totalBankOther;
+
+        return NextResponse.json({
+            summary: {
+                totalInvested: kpiTotalInvested,
+                totalIdle: kpiIdle,
+                totalDebtReceivable: totalDebtPending,
+                tir,
+                nextInterestON: nextInterestON ? { date: nextInterestON.date, amount: nextInterestON.amount, name: nextInterestON.investment.name } : null,
+                nextInterestTreasury: nextInterestTreasury ? { date: nextInterestTreasury.date, amount: nextInterestTreasury.amount, name: nextInterestTreasury.investment.name } : null,
+                nextRentalAdjustment,
+                nextContractExpiration,
+                totalMonthlyIncome,
+                totalBankUSD,
+                nextMaturitiesPF
+            },
+            pnl: {
+                realized: totalRealizedGL,
+                unrealized: totalUnrealizedGL
+            },
+            bankComposition,
+            portfolioDistribution,
+            history: historyWithAvg,
+            composition,
+            projected,
+            debtDetails,
+            enabledSections,
+            debug: { userId, raw: settings?.enabledSections }
+        });
+
+    } catch (error) {
+        console.error('Error fetching global dashboard data:', error);
+
+        if (error instanceof Error && error.message === 'Unauthorized') {
+            return unauthorized();
+        }
+
+        return NextResponse.json(
+            { error: 'Internal Server Error', details: error instanceof Error ? error.message : String(error) },
+            { status: 500 }
+        );
     }
+}
