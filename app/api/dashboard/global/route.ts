@@ -233,9 +233,25 @@ export async function GET() {
             ].filter(item => item.value > 0);
         }
 
+
         // --- INVESTMENT COMPOSITION (ASSETS) ---
         // Refactored to Group by Type as requested
         const assetGroupMap = new Map<string, number>();
+
+        // 4. Fetch Active Investments (for Portfolio & KPI)
+        const investments = await prisma.investment.findMany({
+            where: {
+                userId,
+                status: 'ACTIVE'
+            },
+            include: {
+                transactions: true
+            }
+        });
+
+        // 5. Get Latest Prices for Valuation
+        const tickers = [...new Set(investments.map(i => i.ticker))];
+        const pricesMap = await getLatestPrices(tickers);
 
         // 1. Market Assets
         investments.forEach(inv => {
