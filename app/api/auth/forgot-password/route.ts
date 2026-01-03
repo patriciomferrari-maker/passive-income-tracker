@@ -39,8 +39,10 @@ export async function POST(req: Request) {
         });
 
         // 4. Send Email
-        // Replace with your actual domain/url
-        const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+        // Use environment variable or dynamic host detection
+        const { protocol, host } = new URL(req.url);
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}//${host}`;
+        const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
         const { error } = await resend.emails.send({
             from: 'Soporte <onboarding@resend.dev>', // Or your verified domain
