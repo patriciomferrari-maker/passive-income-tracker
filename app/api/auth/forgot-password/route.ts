@@ -42,7 +42,7 @@ export async function POST(req: Request) {
         // Replace with your actual domain/url
         const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
-        await resend.emails.send({
+        const { error } = await resend.emails.send({
             from: 'Soporte <onboarding@resend.dev>', // Or your verified domain
             to: email,
             subject: 'Restaurar Contraseña - Passive Income Tracker',
