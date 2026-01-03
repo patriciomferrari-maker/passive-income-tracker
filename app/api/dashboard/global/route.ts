@@ -250,7 +250,8 @@ export async function GET() {
 
         // 5. Get Latest Prices for Valuation
         const tickers = [...new Set(investments.map(i => i.ticker))];
-        const pricesMap = await getLatestPrices(tickers);
+        const pricesArray = await getLatestPrices(tickers);
+        const pricesMap = new Map(pricesArray.map(p => [p.ticker, p]));
 
         // 1. Market Assets
         investments.forEach(inv => {
