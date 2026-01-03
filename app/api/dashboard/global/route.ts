@@ -99,6 +99,64 @@ export async function GET() {
                 date: { gte: nominalHistoryStart, lte: nominalHistoryEnd }
             },
             select: { date: true, amountUSD: true }
+
+        // 3. Fetch Bank Operations (for PF History & KPIs)
+        const bankOperations = await prisma.bankOperation.findMany({
+                where: { userId }
+            });
+
+            // Calculate PF Maturities
+            const allPFMaturities: { date: Date, interest: number, amount: number }[] = [];
+        bankOperations.filter(op => op.type === 'PLAZO_FIJO').forEach(op => {
+            if (op.startDate && op.durationDays && op.tna && op.amount) {
+                const maturityDate = new Date(op.startDate);
+                maturityDate.setDate(maturityDate.getDate() + op.durationDays);
+                const interest = op.amount * (op.tna / 100) * (op.durationDays / 365);
+
+                // Adjust currency if needed (simplified: assuming base currency is fine or handled later)
+                // The later code uses 'interest' directly for 'Bank' history. 
+                // We should ensure currency consistency if mixed, but for now restoring previous logic.
+                let finalInterest = interest;
+                if (op.currency === 'ARS') {
+                    // We need exchange rate for historical data? 
+                    // Usually history is kept in USD. The file seems to rely on 'exchangeRate' variable later.
+                }
+
+                allPFMaturities.push({
+                    date: maturityDate,
+                    interest: interest,
+                    amount: op.amount + interest,
+                    currency: op.currency // Keeping track of currency might be useful
+                } as any);
+            }
+        });
+
+        // Fetch Exchange Rate (Blue) for conversions
+        const blueRate = await prisma.economicIndicator.findFirst({
+            where: { type: 'USD_BLUE' },
+            orderBy: { date: 'desc' }
+        });
+        const exchangeRate = blueRate?.value || 1100; // Fallback
+
+        // Re-process PF Maturities to USD if needed (History is usually USD)
+        // We will do a simple conversion for 'Bank' history line using CURRENT rate if historical rate missing?
+        // Ideally we'd use historical rate, but for quick fix:
+        const allPFMaturitiesUSD = allPFMaturities.map(pf => {
+            let interestUSD = pf.interest;
+            if ((pf as any).currency === 'ARS') {
+                interestUSD = pf.interest / exchangeRate;
+            }
+            return { ...pf, interest: interestUSD };
+        });
+        // Override the original array to force USD usage in history loop?
+        // The original usage was: monthlyData.get(key)!.Bank += pf.interest;
+        // Let's ensure we use the converted one.
+
+        // Actually, let's just expose 'allPFMaturities' as the processed USD one for the loop.
+        const allPFMaturitiesProcessed = allPFMaturities.map(pf => {
+            let interest = pf.interest;
+            if ((pf as any).currency === 'ARS') interest /= exchangeRate;
+            return { ...pf, interest };
         });
 
         // ... (skipping unchanged code) ...
