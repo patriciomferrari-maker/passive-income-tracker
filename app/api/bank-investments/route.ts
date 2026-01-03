@@ -1,11 +1,25 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
-import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+// import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 
 export const dynamic = 'force-dynamic';
 export async function GET() {
     try {
-        const userId = await getUserId();
+        // Robust Auth Check (copied from dashboard/stats)
+        let session;
+        try {
+            const { auth } = await import('@/auth');
+            session = await auth();
+        } catch (e) {
+            console.error('Auth check failed:', e);
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const userId = session.user.id;
         const operations = await prisma.bankOperation.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' }
@@ -44,7 +58,16 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const userId = await getUserId();
+        let session;
+        try {
+            const { auth } = await import('@/auth');
+            session = await auth();
+        } catch (e) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const userId = session.user.id;
         const body = await request.json();
         const { type, alias, amount, currency, startDate, durationDays, tna } = body;
 
