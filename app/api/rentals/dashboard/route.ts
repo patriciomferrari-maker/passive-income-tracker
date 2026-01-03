@@ -47,15 +47,21 @@ export async function GET() {
                 }
             });
 
-            // Filter cashflows to only show data up to the last known IPC date
-            // This prevents plotting future projected months where Inf/Dev data is missing/flat
-            const filteredCashflows = cashflows.filter(cf => cf.date <= cutoffDate);
+            // NEW RULE: Nominal Charts (Income/Expense) go up to TODAY.
+            // Charts with Inflation/Devaluation stop at last IPC.
+            // We pass ALL data, and let the frontend decide (or valid nulls).
+            // Actually, we can just return all cashflows up to today for general charts.
+            const todayEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+            // Filter cashflows up to current month (regardless of IPC)
+            const filteredCashflows = cashflows.filter(cf => cf.date <= todayEnd);
 
             const chartData = filteredCashflows.map(cf => ({
                 date: cf.date.toISOString(),
                 monthLabel: new Date(cf.date).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }),
                 amountUSD: cf.amountUSD || 0,
-                amountARS: cf.amountARS || 0, // Needed for Total Income calculation if we want ARS too
+                amountARS: cf.amountARS || 0,
+                // These might be null/0 if future relative to IPC, which is fine (line will drop or stop)
                 inflationAccum: (cf.inflationAccum || 0) * 100,
                 devaluationAccum: (cf.devaluationAccum || 0) * 100
             }));
