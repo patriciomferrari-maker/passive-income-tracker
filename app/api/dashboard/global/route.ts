@@ -99,14 +99,15 @@ export async function GET() {
                 date: { gte: nominalHistoryStart, lte: nominalHistoryEnd }
             },
             select: { date: true, amountUSD: true }
+        });
 
         // 3. Fetch Bank Operations (for PF History & KPIs)
         const bankOperations = await prisma.bankOperation.findMany({
-                where: { userId }
-            });
+            where: { userId }
+        });
 
-            // Calculate PF Maturities
-            const allPFMaturities: { date: Date, interest: number, amount: number }[] = [];
+        // Calculate PF Maturities
+        const allPFMaturities: { date: Date, interest: number, amount: number }[] = [];
         bankOperations.filter(op => op.type === 'PLAZO_FIJO').forEach(op => {
             if (op.startDate && op.durationDays && op.tna && op.amount) {
                 const maturityDate = new Date(op.startDate);
