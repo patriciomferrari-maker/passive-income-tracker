@@ -328,11 +328,9 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                                     {showValues ? `${summaryMetrics.nextExpiration.monthsRemaining} meses` : '****'}
                                                 </span>
                                             </div>
-                                            <div className="mt-2 text-xs text-slate-400 max-w-full">
+                                            <div className="mt-2 text-xs text-slate-400 max-w-full text-center px-2">
                                                 {showValues ? (
-                                                    summaryMetrics.nextExpiration.properties.map((p, idx) => (
-                                                        <div key={idx} className="truncate">{p.propertyName}</div>
-                                                    ))
+                                                    summaryMetrics.nextExpiration.properties.map(p => p.propertyName).join(', ')
                                                 ) : (
                                                     <div>****</div>
                                                 )}
@@ -382,11 +380,9 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                                     {summaryMetrics.nextAdjustment.monthsRemaining} meses
                                                 </span>
                                             </div>
-                                            <div className="mt-2 text-xs text-slate-400 max-w-full">
+                                            <div className="mt-2 text-xs text-slate-400 max-w-full text-center px-2">
                                                 {showValues ? (
-                                                    summaryMetrics.nextAdjustment.properties.map((p, idx) => (
-                                                        <div key={idx} className="truncate">{p.propertyName}</div>
-                                                    ))
+                                                    summaryMetrics.nextAdjustment.properties.map(p => p.propertyName).join(', ')
                                                 ) : (
                                                     <div>****</div>
                                                 )}
