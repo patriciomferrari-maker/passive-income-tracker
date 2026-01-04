@@ -301,18 +301,32 @@ export function GlobalDashboardTab() {
                 )}
 
                 {/* 3. Debts (Receivables / Payables) */}
-                {shouldShow('debts') && (
-                    <Card className={`flex-1 min-w-[240px] bg-gradient-to-br ${stats.summary.totalDebtReceivable >= 0 ? 'from-emerald-950/40 border-emerald-500/20' : 'from-rose-950/40 border-rose-500/20'} to-slate-900 text-center flex flex-col items-center justify-center`}>
+                {/* 3a. Receivables */}
+                {shouldShow('debts') && stats.summary.totalDebtReceivable > 0 && (
+                    <Card className="flex-1 min-w-[240px] bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/20 text-center flex flex-col items-center justify-center">
                         <CardHeader className="pb-2 flex flex-col items-center">
                             <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
-                                <HandCoins size={18} /> {stats.summary.totalDebtReceivable >= 0 ? 'Deudas a Cobrar' : 'Deudas a Pagar'}
+                                <HandCoins size={18} /> Deudas a Cobrar
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="flex flex-col items-center">
                             <div className="text-4xl font-bold text-white mb-1">{formatMoney(stats.summary.totalDebtReceivable)}</div>
-                            <p className={`text-sm ${stats.summary.totalDebtReceivable >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                {stats.summary.totalDebtReceivable >= 0 ? 'Préstamos Activos' : 'Saldo Deudor Neto'}
-                            </p>
+                            <p className="text-sm text-emerald-400">Préstamos Activos</p>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* 3b. Payables */}
+                {shouldShow('debts') && (stats.summary.totalDebtPayable || 0) > 0 && (
+                    <Card className="flex-1 min-w-[240px] bg-gradient-to-br from-rose-950/40 to-slate-900 border-rose-500/20 text-center flex flex-col items-center justify-center">
+                        <CardHeader className="pb-2 flex flex-col items-center">
+                            <CardTitle className="text-slate-400 text-sm font-medium flex items-center gap-2">
+                                <HandCoins size={18} /> Deudas a Pagar
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-center">
+                            <div className="text-4xl font-bold text-white mb-1">{formatMoney(stats.summary.totalDebtPayable || 0)}</div>
+                            <p className="text-sm text-rose-400">Saldo Pendiente</p>
                         </CardContent>
                     </Card>
                 )}

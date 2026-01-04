@@ -206,7 +206,7 @@ model AmortizationSchedule {
 model Transaction {
   id           String     @id @default(cuid())
   investmentId String
-  investment   Investment @relation(fields: [investmentId], references: [id])
+  investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
   
   date         DateTime
   type         String     // BUY, SELL

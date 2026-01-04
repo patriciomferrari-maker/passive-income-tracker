@@ -505,6 +505,7 @@ export async function GET() {
                 totalInvested: kpiTotalInvested,
                 totalIdle: kpiIdle,
                 totalDebtReceivable: totalDebtPending,
+                totalDebtPayable: totalDebtPayable,
                 tir,
                 nextInterestON,
                 nextInterestTreasury,
