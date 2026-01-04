@@ -3,10 +3,10 @@ import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 import { Resend } from 'resend';
 
-// Initialize Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(req: Request) {
+    // Initialize Resend lazily to avoid build-time errors if env var is missing
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
     try {
         const { email } = await req.json();
 
@@ -14,7 +14,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Email is required' }, { status: 400 });
         }
 
-        // 1. Check if user exists
         const user = await prisma.user.findUnique({
             where: { email },
         });
