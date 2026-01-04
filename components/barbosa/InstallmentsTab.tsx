@@ -16,17 +16,35 @@ import {
 import { format } from 'date-fns';
 import { Loader2, Edit } from 'lucide-react';
 import { InstallmentsEvolutionTable } from './InstallmentsEvolutionTable';
-import { EditInstallmentDialog } from './EditInstallmentDialog';
+// import { EditInstallmentDialog } from './EditInstallmentDialog';
+import { InstallmentsDialog } from './InstallmentsDialog';
 
 export function InstallmentsTab() {
     const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     // SHOW ALL BY DEFAULT (Requested by user)
     const [showFinished, setShowFinished] = useState(true);
+    const [categories, setCategories] = useState<any[]>([]);
+
+    // Edit Dialog State
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [editPlanId, setEditPlanId] = useState<string | null>(null);
+    const [editPlanData, setEditPlanData] = useState<any | null>(null);
 
     useEffect(() => {
         loadData();
+        fetchCategories();
     }, []);
+
+    const fetchCategories = async () => {
+        try {
+            const res = await fetch('/api/barbosa/categories');
+            const data = await res.json();
+            setCategories(data);
+        } catch (error) {
+            console.error('Error fetching categories:', error);
+        }
+    };
 
     const loadData = async () => {
         try {
@@ -38,6 +56,23 @@ export function InstallmentsTab() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleEdit = (plan: any) => {
+        setEditPlanId(plan.id);
+        setEditPlanData({
+            description: plan.description,
+            categoryId: plan.categoryId,
+            subCategoryId: plan.subCategoryId || '',
+            currency: plan.currency,
+            startDate: new Date(plan.startDate).toISOString().split('T')[0],
+            installmentsCount: plan.installmentsCount.toString(),
+            amountMode: 'TOTAL', // Default to TOTAL when editing existing, logic can be smarter but this is safe
+            amountValue: plan.totalAmount.toString(),
+            status: 'REAL', // Default
+            isStatistical: plan.isStatistical
+        });
+        setDialogOpen(true);
     };
 
     const handleDelete = async (id: string, description: string) => {
@@ -155,9 +190,14 @@ export function InstallmentsTab() {
                                         </TableCell>
                                         <TableCell className="text-center">
                                             <div className="flex items-center justify-center gap-2">
-                                                <EditInstallmentDialog plan={plan} onSuccess={loadData} />
-                                                <button onClick={() => handleDelete(plan.id, plan.description)} className="text-slate-500 hover:text-red-500 transition-colors">
-                                                    <Loader2 className="w-4 h-4 hidden" /> {/* Placeholder for consistent size if needed */}
+                                                <button
+                                                    onClick={() => handleEdit(plan)}
+                                                    className="text-slate-500 hover:text-white transition-colors"
+                                                    title="Editar Plan"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button onClick={() => handleDelete(plan.id, plan.description)} className="text-slate-500 hover:text-red-500 transition-colors" title="Eliminar Plan">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
                                                 </button>
                                             </div>
@@ -169,6 +209,15 @@ export function InstallmentsTab() {
                     </Table>
                 </div>
             </div>
-        </div>
+
+            <InstallmentsDialog
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                onSuccess={loadData}
+                categories={categories}
+                editId={editPlanId}
+                initialData={editPlanData}
+            />
+        </div >
     );
 }
