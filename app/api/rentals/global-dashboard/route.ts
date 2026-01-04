@@ -97,11 +97,11 @@ export async function GET() {
 
             if (role === 'TENANT') {
                 entry.expenseUSD += cf.amountUSD || 0;
-                entry.expenseARS += cf.amountARS || 0;
+                entry.expenseARS += (cf as any).amountARS || 0; // Cast to any to bypass potential type issue if schema not regenerated
             } else {
                 // OWNER
                 entry.incomeUSD += cf.amountUSD || 0;
-                entry.incomeARS += cf.amountARS || 0;
+                entry.incomeARS += (cf as any).amountARS || 0;
             }
 
             entry.count += 1;

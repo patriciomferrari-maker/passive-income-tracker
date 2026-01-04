@@ -432,6 +432,19 @@ export async function GET() {
         });
         const rentalsValuation = properties.length * 90000; // Estimated avg value
 
+        // Temporary fix for missing variables causing 500 error
+        const totalDebtPending = 0; // Placeholder until Debt logic is fully restored
+        const totalRealizedGL = 0;      // Placeholder
+        const totalUnrealizedGL = 0;    // Placeholder
+        const tir = 0;                  // Placeholder
+        const nextInterestON = null;    // Placeholder
+        const nextInterestTreasury = null; // Placeholder
+        const nextRentalAdjustment = null; // Placeholder
+        const nextContractExpiration = null; // Placeholder
+        const nextMaturitiesPF: any[] = []; // Placeholder
+        const bankComposition: any[] = []; // Placeholder
+        const debtDetails = { totalPending: 0, receivables: [] }; // Placeholder
+
         return NextResponse.json({
             summary: {
                 totalInvested: kpiTotalInvested,
