@@ -81,10 +81,15 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
 
         consolidatedContracts.forEach(c => {
             const currentMonthData = c.chartData.find(d => {
-                // Robust date matching: Compare YYYY-MM strings
-                const dataDateStr = d.date.substring(0, 7); // "2024-12"
-                const currentDateStr = now.toISOString().substring(0, 7);
-                return dataDateStr === currentDateStr;
+                // Robust date matching: Compare YYYY-MM strings based on Data Date (which should be start of month)
+                // Data is UTC YYYY-MM-01. We want to match it with "Current Month".
+                // If we use toISOString() on 'now', it converts to UTC based on system time if it was created locally? No, toISOString is always UTC.
+                // But the 'now' object is local.
+                const dDate = new Date(d.date); // d.date is string from JSON, likely YYYY-MM-DDTHH:mm:ss.sssZ
+
+                // We want to match against the Viewing User's Current Month (System Time)
+                // If User is in Jan, we want Jan data.
+                return dDate.getUTCFullYear() === currentYear && dDate.getUTCMonth() === currentMonth;
             });
 
             // Use current month data if available, otherwise fallback to the last available data point

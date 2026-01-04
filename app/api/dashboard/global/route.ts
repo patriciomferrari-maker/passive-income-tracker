@@ -455,7 +455,7 @@ export async function GET() {
 
         installmentPlans.forEach(plan => {
             const totalAmount = plan.totalAmount || 0;
-            const paid = plan.transactions.reduce((sum, p) => sum + Math.abs(p.totalAmount), 0);
+            const paid = plan.transactions.reduce((sum, p) => sum + Math.abs(p.amount), 0);
             const remaining = Math.max(0, totalAmount - paid);
 
             if (remaining > 1) { // 1 unit threshold

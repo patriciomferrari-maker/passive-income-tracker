@@ -37,12 +37,7 @@ export async function GET() {
 
         let enabledSections = settings?.enabledSections ? settings.enabledSections.split(',') : [];
 
-        // STRICT ACCESS CONTROL
-        // Only allow 'barbosa' and 'costa' for the specific admin email
-        const ADMIN_EMAIL = 'patriciomferrari@gmail.com';
-        if (user?.email !== ADMIN_EMAIL) {
-            enabledSections = enabledSections.filter(s => s !== 'barbosa' && s !== 'costa' && s !== 'costa-esmeralda');
-        }
+
 
 
         // Fetch latest Exchange Rate (TC_USD_ARS) - Blue Dollar
