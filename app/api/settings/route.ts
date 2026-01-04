@@ -63,12 +63,7 @@ export async function PUT(req: Request) {
 
         let cleanEnabledSections = enabledSections || '';
 
-        // Sanitize restricted sections if not admin
-        if (user?.email !== ADMIN_EMAIL) {
-            const sections = cleanEnabledSections.split(',');
-            const filtered = sections.filter((s: string) => s !== 'barbosa' && s !== 'costa' && s !== 'costa-esmeralda');
-            cleanEnabledSections = filtered.join(',');
-        }
+
 
         const settings = await prisma.appSettings.upsert({
             where: { userId },
