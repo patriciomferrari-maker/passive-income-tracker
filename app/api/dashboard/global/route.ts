@@ -433,18 +433,58 @@ export async function GET() {
         });
         const rentalsValuation = properties.length * 90000; // Estimated avg value
 
-        // Temporary fix for missing variables causing 500 error
-        const totalDebtPending = 0; // Placeholder until Debt logic is fully restored
-        const totalRealizedGL = 0;      // Placeholder
-        const totalUnrealizedGL = 0;    // Placeholder
-        const tir = 0;                  // Placeholder
-        const nextInterestON = null;    // Placeholder
-        const nextInterestTreasury = null; // Placeholder
-        const nextRentalAdjustment = null; // Placeholder
-        const nextContractExpiration = null; // Placeholder
-        const nextMaturitiesPF: any[] = []; // Placeholder
-        const bankComposition: any[] = []; // Placeholder
-        const debtDetails = { totalPending: 0, receivables: [] }; // Placeholder
+        // 0. Fetch Debts (Receivables & Payables)
+        const debts = await prisma.debt.findMany({
+            where: { userId, status: 'ACTIVE' },
+            include: { payments: true }
+        });
+
+        // 6. Calculate Debt Metrics
+        let totalDebtPending = 0; // Receivables (OWED_TO_ME)
+        const receivablesList: any[] = [];
+
+        debts.forEach(debt => {
+            let amountUSD = debt.initialAmount;
+            if (debt.currency === 'ARS') amountUSD /= exchangeRate;
+
+            const totalPaid = debt.payments.reduce((sum, p) => {
+                let paidUSD = p.amount;
+                if (debt.currency === 'ARS') paidUSD /= exchangeRate;
+                // Note: ideally use historical rate for payment, but simplified here
+                return sum + paidUSD;
+            }, 0);
+
+            const remainingUSD = amountUSD - totalPaid;
+
+            if (remainingUSD > 0) {
+                if (debt.type === 'OWED_TO_ME') {
+                    totalDebtPending += remainingUSD;
+                    receivablesList.push({
+                        name: debt.debtorName,
+                        amount: remainingUSD,
+                        currency: debt.currency,
+                        details: debt.details
+                    });
+                }
+                // If I_OWE, we might want to track it elsewhere, but 'totalDebtReceivable' implies Assets
+            }
+        });
+
+        const debtDetails = {
+            totalPending: totalDebtPending,
+            receivables: receivablesList
+        };
+
+        // Temporary placeholders for other missing sections
+        const totalRealizedGL = 0;
+        const totalUnrealizedGL = 0;
+        const tir = 0;
+        const nextInterestON = null;
+        const nextInterestTreasury = null;
+        const nextRentalAdjustment = null;
+        const nextContractExpiration = null;
+        const nextMaturitiesPF: any[] = [];
+        const bankComposition: any[] = [];
 
         return NextResponse.json({
             summary: {
@@ -452,8 +492,8 @@ export async function GET() {
                 totalIdle: kpiIdle,
                 totalDebtReceivable: totalDebtPending,
                 tir,
-                nextInterestON: nextInterestON ? { date: nextInterestON.date, amount: nextInterestON.amount, name: nextInterestON.investment.name } : null,
-                nextInterestTreasury: nextInterestTreasury ? { date: nextInterestTreasury.date, amount: nextInterestTreasury.amount, name: nextInterestTreasury.investment.name } : null,
+                nextInterestON,
+                nextInterestTreasury,
                 nextRentalAdjustment,
                 nextContractExpiration,
                 totalMonthlyIncome,
