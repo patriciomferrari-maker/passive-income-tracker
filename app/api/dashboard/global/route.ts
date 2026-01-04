@@ -487,10 +487,7 @@ export async function GET() {
             payables: payablesList
         };
 
-        const debtDetails = {
-            totalPending: totalDebtPending,
-            receivables: receivablesList
-        };
+        // Duplicate removed
 
         // Temporary placeholders for other missing sections
         const totalRealizedGL = 0;
