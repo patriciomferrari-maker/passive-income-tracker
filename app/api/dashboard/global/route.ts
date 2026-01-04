@@ -479,14 +479,22 @@ export async function GET() {
             let amountUSD = debt.initialAmount;
             if (debt.currency === 'ARS') amountUSD /= exchangeRate;
 
-            const totalPaid = debt.payments.reduce((sum, p) => {
-                let paidUSD = p.amount;
-                if (debt.currency === 'ARS') paidUSD /= exchangeRate;
-                // Note: ideally use historical rate for payment, but simplified here
-                return sum + paidUSD;
-            }, 0);
+            let currentAmountUSD = amountUSD; // Start with initial
 
-            const remainingUSD = amountUSD - totalPaid;
+            debt.payments.forEach(p => {
+                let pAmountUSD = p.amount;
+                if (debt.currency === 'ARS') pAmountUSD /= exchangeRate;
+
+                // If type is INCREASE, it adds to debt.
+                // If type is PAYMENT (or null/undefined), it reduces debt.
+                if (p.type === 'INCREASE') {
+                    currentAmountUSD += pAmountUSD;
+                } else {
+                    currentAmountUSD -= pAmountUSD;
+                }
+            });
+
+            const remainingUSD = Math.max(0, currentAmountUSD);
 
             if (remainingUSD > 0.01) { // Threshold for precision
                 if (debt.type === 'OWED_TO_ME') {
