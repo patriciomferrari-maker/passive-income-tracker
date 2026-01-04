@@ -118,14 +118,15 @@ export default function OperacionesTab() {
     const handleAddTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch(`/api/investments/crypto/${selectedCryptoId}/transactions`, {
+            const res = await fetch('/api/investments/crypto/transaction', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    ticker: selectedCryptoId, // This now holds the Ticker, not ID
                     type: txForm.type,
                     quantity: parseFloat(txForm.quantity),
                     price: parseFloat(txForm.price),
-                    commission: parseFloat(txForm.commission),
+                    commission: txForm.commission ? parseFloat(txForm.commission) : 0,
                     date: txForm.date,
                     notes: txForm.notes
                 })
@@ -143,9 +144,13 @@ export default function OperacionesTab() {
                 setShowTransactionForm(false);
                 setSelectedCryptoId('');
                 fetchCryptos();
+            } else {
+                const err = await res.json();
+                alert(`Error: ${err.error || 'Unknown error'}`);
             }
         } catch (error) {
             console.error('Error adding transaction:', error);
+            alert('Error creating transaction');
         }
     };
 
@@ -174,14 +179,7 @@ export default function OperacionesTab() {
                     Nueva Crypto
                 </Button>
                 <Button
-                    onClick={() => {
-                        if (cryptos.length === 0) {
-                            alert("Primero debes agregar una Criptomoneda.");
-                            setShowNewCryptoForm(true);
-                            return;
-                        }
-                        setShowTransactionForm(!showTransactionForm);
-                    }}
+                    onClick={() => setShowTransactionForm(!showTransactionForm)}
                     className="bg-green-600 hover:bg-green-700"
                 >
                     <Plus className="h-4 w-4 mr-2" />
@@ -318,11 +316,20 @@ export default function OperacionesTab() {
                                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2"
                                 >
                                     <option value="">Seleccionar...</option>
-                                    {cryptos.map(crypto => (
-                                        <option key={crypto.id} value={crypto.id}>
-                                            {getCryptoIcon(crypto.ticker)} {crypto.ticker} - {crypto.name}
-                                        </option>
-                                    ))}
+                                    {/* Merge Popular Cryptos with User's Custom Cryptos */}
+                                    {Array.from(new Set([
+                                        ...POPULAR_CRYPTOS.map(c => c.symbol),
+                                        ...cryptos.map(c => c.ticker)
+                                    ])).sort().map(ticker => {
+                                        const popularInfo = POPULAR_CRYPTOS.find(c => c.symbol === ticker);
+                                        const customInfo = cryptos.find(c => c.ticker === ticker);
+                                        const name = popularInfo?.name || customInfo?.name || ticker;
+                                        return (
+                                            <option key={ticker} value={ticker}>
+                                                {getCryptoIcon(ticker)} {ticker} - {name}
+                                            </option>
+                                        );
+                                    })}
                                 </select>
                             </div>
                             <div>
