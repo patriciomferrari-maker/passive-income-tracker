@@ -278,8 +278,8 @@ export function CashflowTab() {
                             })}
                         </tr>
 
-                        {/* TC USD (Only visible in ARS mode) */}
-                        {currency === 'ARS' && (
+                        {/* TC USD (Visible always if USD mode for context, or just ARS?) User asked to see it "when seeing in USD" */}
+                        {(currency === 'ARS' || currency === 'USD') && (
                             <tr className="bg-slate-950 text-slate-500 font-mono text-xs border-t border-slate-800">
                                 <td className="px-4 py-2 text-right border-r border-slate-800">TIPO DE CAMBIO</td>
                                 {periods.map((p: string) => (
@@ -289,6 +289,21 @@ export function CashflowTab() {
                                 ))}
                             </tr>
                         )}
+
+                        {/* AHORRO % */}
+                        <tr className="bg-slate-900 text-blue-400 font-bold text-xs border-t border-slate-800">
+                            <td className="px-4 py-2 text-right border-r border-slate-800">AHORRO %</td>
+                            {periods.map((p: string) => {
+                                const inc = incomeTotal(p);
+                                const net = netTotal(p);
+                                const percent = inc > 0 ? (net / inc) * 100 : 0;
+                                return (
+                                    <td key={p} className={`px-2 py-2 text-right ${percent >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                                        {Math.round(percent)}%
+                                    </td>
+                                );
+                            })}
+                        </tr>
 
                     </tbody>
                 </table>

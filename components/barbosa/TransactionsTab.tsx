@@ -28,6 +28,10 @@ export function TransactionsTab() {
         targetYear: new Date().getFullYear().toString(),
     });
 
+    const [filterStatistical, setFilterStatistical] = useState(false);
+    const [filterMonth, setFilterMonth] = useState('ALL'); // 'ALL' or '0'-'11'
+    const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString()); // Default current year
+
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
         type: 'EXPENSE',
@@ -184,38 +188,80 @@ export function TransactionsTab() {
     return (
         <div className="space-y-6">
             {/* Toolbar */}
-            <div className="flex justify-end bg-slate-900/50 p-2 rounded-lg border border-slate-800 gap-2">
-                <Button variant="outline" size="sm" onClick={() => setInstallmentsDialogOpen(true)} className="border-slate-700 text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800">
-                    <span className="mr-2 text-xs font-bold">💳</span> Cargar Cuotas
-                </Button>
+            <div className="flex flex-col md:flex-row justify-between bg-slate-900/50 p-2 rounded-lg border border-slate-800 gap-2">
+                <div className="flex items-center gap-2 overflow-x-auto">
+                    <Button variant="outline" size="sm" onClick={() => setInstallmentsDialogOpen(true)} className="border-slate-700 text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 whitespace-nowrap">
+                        <span className="mr-2 text-xs font-bold">💳</span> Cuotas
+                    </Button>
+
+                    {/* Filters */}
+                    <div className="flex items-center gap-2 bg-slate-950 px-2 py-1 rounded border border-slate-800 ml-2">
+                        <span className="text-xs text-slate-500 font-bold uppercase mr-1">Filtros:</span>
+
+                        {/* Month Filter */}
+                        <Select value={filterMonth} onValueChange={setFilterMonth}>
+                            <SelectTrigger className="w-[100px] h-7 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                                <SelectValue placeholder="Mes" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-950 border-slate-800 text-slate-300">
+                                <SelectItem value="ALL">Todo Año</SelectItem>
+                                {Array.from({ length: 12 }).map((_, i) => (
+                                    <SelectItem key={i} value={i.toString()}>{format(new Date(2024, i, 1), 'MMMM')}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        {/* Year Filter */}
+                        <Select value={filterYear} onValueChange={setFilterYear}>
+                            <SelectTrigger className="w-[80px] h-7 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                                <SelectValue placeholder="Año" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-950 border-slate-800 text-slate-300">
+                                <SelectItem value="ALL">Histórico</SelectItem>
+                                {['2024', '2025', '2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+
+                        {/* Statistical Toggle */}
+                        <div className={`cursor-pointer h-7 px-2 rounded flex items-center justify-center border transition-all ${filterStatistical
+                            ? 'bg-blue-900/30 border-blue-600 text-blue-400'
+                            : 'bg-slate-900 border-slate-700 text-slate-500 hover:text-slate-300'}`}
+                            onClick={() => setFilterStatistical(!filterStatistical)}
+                            title="Ver solo movimientos estadísticos"
+                        >
+                            <span className="text-[10px] font-bold">ESTAD.</span>
+                        </div>
+                    </div>
+                </div>
 
                 <div className="flex items-center gap-2">
                     {/* Clone Dialog Trigger */}
                     {!cloneDialogOpen ? (
-                        <Button variant="outline" size="sm" onClick={() => setCloneDialogOpen(true)} className="border-slate-700 text-slate-300 hover:text-white">
-                            <Calendar className="w-4 h-4 mr-2" /> Clonar Mes (Proyectar)
+                        <Button variant="outline" size="sm" onClick={() => setCloneDialogOpen(true)} className="border-slate-700 text-slate-300 hover:text-white whitespace-nowrap">
+                            <Calendar className="w-4 h-4 mr-2" /> Clonar Mes
                         </Button>
                     ) : (
                         <div className="flex items-center gap-2 bg-slate-900 p-2 rounded border border-slate-700 animate-in slide-in-from-right">
+                            {/* ... existing clone dialog content ... */}
                             <span className="text-xs font-bold text-slate-300">Origen:</span>
                             <Select value={cloneData.sourceMonth} onValueChange={v => setCloneData({ ...cloneData, sourceMonth: v })}>
-                                <SelectTrigger className="w-[120px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="w-[100px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
                                 <SelectContent className="bg-slate-900 border-slate-700 text-white">{Array.from({ length: 12 }).map((_, i) => <SelectItem key={i} value={i.toString()}>{format(new Date(2024, i, 1), 'MMMM')}</SelectItem>)}</SelectContent>
                             </Select>
                             <Select value={cloneData.sourceYear} onValueChange={v => setCloneData({ ...cloneData, sourceYear: v })}>
-                                <SelectTrigger className="w-[80px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="w-[70px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
                                 <SelectContent className="bg-slate-900 border-slate-700 text-white">{['2024', '2025', '2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
                             </Select>
-                            <span className="text-xs font-bold text-slate-300 mx-1">→ Destino:</span>
+                            <span className="text-xs font-bold text-slate-300 mx-1">→</span>
                             <Select value={cloneData.targetMonth} onValueChange={v => setCloneData({ ...cloneData, targetMonth: v })}>
-                                <SelectTrigger className="w-[120px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="w-[100px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
                                 <SelectContent className="bg-slate-900 border-slate-700 text-white">{Array.from({ length: 12 }).map((_, i) => <SelectItem key={i} value={i.toString()}>{format(new Date(2024, i, 1), 'MMMM')}</SelectItem>)}</SelectContent>
                             </Select>
                             <Select value={cloneData.targetYear} onValueChange={v => setCloneData({ ...cloneData, targetYear: v })}>
-                                <SelectTrigger className="w-[80px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="w-[70px] h-8 text-xs bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
                                 <SelectContent className="bg-slate-900 border-slate-700 text-white">{['2025', '2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
                             </Select>
-                            <Button size="sm" onClick={handleClone} className="h-8 bg-blue-600 hover:bg-blue-700 text-xs ml-2 text-white">Clonar</Button>
+                            <Button size="sm" onClick={handleClone} className="h-8 bg-blue-600 hover:bg-blue-700 text-xs ml-2 text-white px-2">OK</Button>
                             <Button size="sm" variant="ghost" onClick={() => setCloneDialogOpen(false)} className="h-8 w-8 p-0 text-slate-400 hover:text-white">X</Button>
                         </div>
                     )}
@@ -384,92 +430,120 @@ export function TransactionsTab() {
 
                 {/* List */}
                 <div className="lg:col-span-2 space-y-4">
-                    <h3 className="text-lg font-bold text-white mb-4">Últimos Movimientos</h3>
+                    <h3 className="text-lg font-bold text-white mb-4">
+                        Movimientos
+                        <span className="text-slate-500 font-normal ml-2 text-sm">
+                            {(filterMonth !== 'ALL' || filterYear !== 'ALL') && `(${filterMonth !== 'ALL' ? format(new Date(2024, parseInt(filterMonth), 1), 'MMMM') : ''} ${filterYear !== 'ALL' ? filterYear : ''})`}
+                        </span>
+                    </h3>
 
-                    {transactions.reduce((groups: any[], tx) => {
-                        const date = new Date(tx.date);
-                        // Force UTC to avoid timezone shifts
-                        const utcDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60000);
-                        const key = format(utcDate, 'MMMM yyyy', { locale: undefined }); // Use default or Spanish locale if configured
+                    {transactions
+                        .filter(tx => {
+                            const date = new Date(tx.date);
+                            // UTC fix check
+                            const utcDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60000);
 
-                        const group = groups.find(g => g.key === key);
-                        if (group) {
-                            group.items.push({ ...tx, utcDate });
-                        } else {
-                            groups.push({ key, items: [{ ...tx, utcDate }] });
-                        }
-                        return groups;
-                    }, []).map((group: any) => (
-                        <div key={group.key} className="space-y-2">
-                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider pl-1">{group.key}</h4>
-                            <div className="border border-slate-800 rounded-lg overflow-hidden">
-                                <table className="w-full text-sm text-left text-slate-300">
-                                    <thead className="bg-slate-900/50 text-slate-500 uppercase font-bold text-[10px]">
-                                        <tr>
-                                            <th className="px-4 py-2 w-[100px]">Fecha</th>
-                                            <th className="px-4 py-2">Estado</th>
-                                            <th className="px-4 py-2">Categoría</th>
-                                            <th className="px-4 py-2">Desc</th>
-                                            <th className="px-4 py-2 text-right">Monto</th>
-                                            <th className="px-4 py-2 text-right w-[80px]">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-800 bg-slate-950">
-                                        {group.items.map((tx: any) => (
-                                            <tr key={tx.id} className={`hover:bg-slate-900/50 ${tx.status === 'PROJECTED' ? 'italic opacity-80' : ''}`}>
-                                                <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
-                                                    {format(tx.utcDate, 'dd/MM/yyyy')}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex flex-col gap-1">
-                                                        {tx.status === 'PROJECTED' ? (
-                                                            <span className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 w-fit">PROY</span>
-                                                        ) : (
-                                                            <span className="text-[10px] bg-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-800 w-fit">REAL</span>
-                                                        )}
-                                                        {tx.isStatistical && (
-                                                            <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700 w-fit" title="No suma al total">ESTADÍSTICO</span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center">
-                                                        <span className={`inline-block w-2 h-2 rounded-full mr-2 ${tx.type === 'INCOME' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                                        <span className="font-medium text-slate-300">{tx.category.name}</span>
-                                                        {tx.subCategory && <span className="text-slate-500 ml-1 text-xs">({tx.subCategory.name})</span>}
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-500 truncate max-w-[150px]">{tx.description}</td>
-                                                <td className={`px-4 py-3 text-right font-mono font-medium ${tx.status === 'PROJECTED' ? 'text-purple-300' : 'text-white'}`}>
-                                                    {tx.currency === 'USD' ? 'US$' : '$'} {tx.amount.toLocaleString()}
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-8 w-8 p-0 text-slate-400 hover:text-white"
-                                                            onClick={() => handleEdit(tx)}
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
-                                                            onClick={() => handleDelete(tx.id)}
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
-                                                        </Button>
-                                                    </div>
-                                                </td>
+                            // 1. Statistical Filter
+                            if (filterStatistical) {
+                                if (!tx.isStatistical) return false;
+                            }
+
+                            // 2. Year Filter
+                            if (filterYear !== 'ALL') {
+                                if (utcDate.getFullYear().toString() !== filterYear) return false;
+                            }
+
+                            // 3. Month Filter
+                            if (filterMonth !== 'ALL') {
+                                if (utcDate.getMonth().toString() !== filterMonth) return false;
+                            }
+
+                            return true;
+                        })
+                        .reduce((groups: any[], tx) => {
+                            const date = new Date(tx.date);
+                            // Force UTC to avoid timezone shifts
+                            const utcDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60000);
+                            const key = format(utcDate, 'MMMM yyyy', { locale: undefined }); // Use default or Spanish locale if configured
+
+                            const group = groups.find(g => g.key === key);
+                            if (group) {
+                                group.items.push({ ...tx, utcDate });
+                            } else {
+                                groups.push({ key, items: [{ ...tx, utcDate }] });
+                            }
+                            return groups;
+                        }, []).map((group: any) => (
+                            <div key={group.key} className="space-y-2">
+                                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider pl-1">{group.key}</h4>
+                                <div className="border border-slate-800 rounded-lg overflow-hidden">
+                                    <table className="w-full text-sm text-left text-slate-300">
+                                        <thead className="bg-slate-900/50 text-slate-500 uppercase font-bold text-[10px]">
+                                            <tr>
+                                                <th className="px-4 py-2 w-[100px]">Fecha</th>
+                                                <th className="px-4 py-2">Estado</th>
+                                                <th className="px-4 py-2">Categoría</th>
+                                                <th className="px-4 py-2">Desc</th>
+                                                <th className="px-4 py-2 text-right">Monto</th>
+                                                <th className="px-4 py-2 text-right w-[80px]">Acciones</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-800 bg-slate-950">
+                                            {group.items.map((tx: any) => (
+                                                <tr key={tx.id} className={`hover:bg-slate-900/50 ${tx.status === 'PROJECTED' ? 'italic opacity-80' : ''}`}>
+                                                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
+                                                        {format(tx.utcDate, 'dd/MM/yyyy')}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex flex-col gap-1">
+                                                            {tx.status === 'PROJECTED' ? (
+                                                                <span className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 w-fit">PROY</span>
+                                                            ) : (
+                                                                <span className="text-[10px] bg-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-800 w-fit">REAL</span>
+                                                            )}
+                                                            {tx.isStatistical && (
+                                                                <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700 w-fit" title="No suma al total">ESTADÍSTICO</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center">
+                                                            <span className={`inline-block w-2 h-2 rounded-full mr-2 ${tx.type === 'INCOME' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                                            <span className="font-medium text-slate-300">{tx.category.name}</span>
+                                                            {tx.subCategory && <span className="text-slate-500 ml-1 text-xs">({tx.subCategory.name})</span>}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-500 truncate max-w-[150px]">{tx.description}</td>
+                                                    <td className={`px-4 py-3 text-right font-mono font-medium ${tx.status === 'PROJECTED' ? 'text-purple-300' : 'text-white'}`}>
+                                                        {tx.currency === 'USD' ? 'US$' : '$'} {tx.amount.toLocaleString()}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0 text-slate-400 hover:text-white"
+                                                                onClick={() => handleEdit(tx)}
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
+                                                                onClick={() => handleDelete(tx.id)}
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
 
                     {transactions.length === 0 && (
                         <div className="border border-slate-800 rounded-lg p-8 text-center text-slate-500">
