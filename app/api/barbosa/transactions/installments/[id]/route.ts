@@ -38,11 +38,11 @@ export async function PUT(
     try {
         const body = await req.json();
         const { id } = params;
-        const {
+        let {
             description,
             categoryId,
             subCategoryId,
-            totalAmount, // This might be recalculated if user changed installments/amount
+            totalAmount,
             installmentsCount,
             startDate,
             currency,
@@ -51,6 +51,22 @@ export async function PUT(
             status, // 'PROJECTED' | 'REAL'
             isStatistical
         } = body;
+
+        // Ensure numeric values
+        const count = parseInt(installmentsCount);
+        const value = parseFloat(amountValue);
+
+        // Robust Calculation: If totalAmount is missing or potentially stale, recalculate it
+        if (amountMode && !isNaN(value)) {
+            if (amountMode === 'TOTAL') {
+                totalAmount = value;
+            } else {
+                totalAmount = value * count;
+            }
+        } else if (!totalAmount) {
+            // Fallback if no amount data
+            totalAmount = 0;
+        }
 
         // 1. Fetch existing plan to verify ownership and compare state
         const existingPlan = await prisma.barbosaInstallmentPlan.findUnique({
@@ -63,25 +79,21 @@ export async function PUT(
         }
 
         // 2. Logic Check: Do we need to regenerate transactions?
-        // Regenerate if structural fields change: Count, Amount, StartDate, Currency
-        // OR if status changes from PROJECTED <-> REAL (though usually we just update status)
-
         let shouldRegenerate = false;
 
-        // Simple comparison. Note: Dates need care.
         const newStartDate = new Date(startDate).toISOString().split('T')[0];
         const oldStartDate = existingPlan.startDate.toISOString().split('T')[0];
 
         if (
-            existingPlan.installmentsCount !== parseInt(installmentsCount) ||
-            Math.abs(existingPlan.totalAmount - parseFloat(totalAmount)) > 0.01 || // floating point tolerance
+            existingPlan.installmentsCount !== count ||
+            Math.abs(existingPlan.totalAmount - parseFloat(totalAmount)) > 0.01 ||
             oldStartDate !== newStartDate ||
             existingPlan.currency !== currency
         ) {
             shouldRegenerate = true;
         }
 
-        // 3. Transactions Transaction
+        // 3. Atomic Transaction
         await prisma.$transaction(async (tx) => {
             // A. Update Plan Header
             await tx.barbosaInstallmentPlan.update({
@@ -91,41 +103,36 @@ export async function PUT(
                     categoryId,
                     subCategoryId: subCategoryId || null,
                     totalAmount: parseFloat(totalAmount),
-                    installmentsCount: parseInt(installmentsCount),
+                    installmentsCount: count,
                     startDate: new Date(startDate),
                     currency,
-                    isStatistical: isStatistical || false
+                    // Remove isStatistical logic from Plan if it doesn't exist in model, assuming it relies on Transactions
+                    // But if it's not in the model, why was it in previous code?
+                    // Checked Schema => BarbosaInstallmentPlan does NOT have isStatistical. BarbosaTransaction DOES.
+                    // So we remove isStatistical from Plan update.
                 }
             });
 
             // B. Regenerate Transactions if needed
-            // Strategy: Delete ONLY 'PROJECTED' transactions belonging to this plan.
-            // Keep 'REAL' transactions as they represent actual payments made.
-            // If the user wants to fully reset, they should probably delete and recreate, but here we try to be smart.
-
             if (shouldRegenerate) {
-                // Delete future/projected ones
+                // Delete future/projected ones using CORRECT FIELD NAME
                 await tx.barbosaTransaction.deleteMany({
                     where: {
-                        installmentsPlanId: id,
+                        installmentPlanId: id,
                         status: 'PROJECTED'
                     }
                 });
 
-                // Calculate amounts
-                const count = parseInt(installmentsCount);
-                const total = parseFloat(totalAmount);
-                const amountPerInstallment = total / count;
+                const amountPerInstallment = parseFloat(totalAmount) / count;
 
-                // We need to know how many 'REAL' transactions already exist to avoid creating duplicates or "extra" installments if we strictly follow the count.
-                // However, a simpler approach for now is:
-                // If we regenerate, we are likely changing the FUTURE plan.
-                // But if the count changed from 12 to 6, and we already paid 3, we should only generate 3 more.
+                // Simple regeneration logic:
+                // We recreate ALL projected installments that don't overlap with existing REAL ones?
+                // Or just regenerate the REMAINING ones?
 
-                // Let's count existing REAL transactions
+                // Count existing REAL transactions
                 const existingRealCount = await tx.barbosaTransaction.count({
                     where: {
-                        installmentsPlanId: id,
+                        installmentPlanId: id,
                         status: 'REAL'
                     }
                 });
@@ -134,22 +141,11 @@ export async function PUT(
 
                 if (remainingToGenerate > 0) {
                     const start = new Date(startDate);
-                    // We need to offset the start date by the number of ALREADY existing installments (real + the ones we just deleted)
-                    // Actually, simpler: Generate the full 1..N installments.
-                    // Check if installment #K already exists as REAL. If so, skip. If not, create PROJECTED.
-                    // This assumes "installment number" logic, but we don't strictly store "installment number 3 of 12" in a dedicated field (we rely on date/order).
-
-                    // ALTERNATIVE SIMPLER LOGIC for MVP:
-                    // Just generating 'remainingToGenerate' starting from (Start Date + existingRealCount months).
 
                     for (let i = 0; i < remainingToGenerate; i++) {
                         const installmentNumber = existingRealCount + i + 1; // e.g. 4, 5, 6
                         const txDate = new Date(start);
                         txDate.setMonth(start.getMonth() + (installmentNumber - 1));
-
-                        // Check if a transaction for this "slot" already exists? 
-                        // It's hard to match exactly without an index.
-                        // Let's trust the "Delete Many Projected" + "Create New Projected" approach.
 
                         await tx.barbosaTransaction.create({
                             data: {
@@ -160,44 +156,34 @@ export async function PUT(
                                 subCategoryId: subCategoryId || null,
                                 description: `${description} (${installmentNumber}/${count})`,
                                 currency,
-                                amount: amountPerInstallment, // Use strict division
-                                status: status === 'REAL' ? 'REAL' : 'PROJECTED', // If user set global status to REAL, we create REAL. Else PROJECTED.
+                                amount: amountPerInstallment,
+                                status: 'PROJECTED', // Only generating future ones
                                 isStatistical: isStatistical || false,
-                                installmentsPlanId: id
+                                installmentPlanId: id // CORRECT FIELD NAME
                             }
                         });
                     }
                 }
             } else {
-                // C. Updates WITHOUT regeneration (just metadata like desc/category)
-                // We should update the associated transactions too!
+                // C. Updates WITHOUT regeneration
                 await tx.barbosaTransaction.updateMany({
-                    where: { installmentsPlanId: id },
+                    where: { installmentPlanId: id }, // CORRECT FIELD NAME
                     data: {
-                        description: {
-                            // Complex: We can't easily do a regex replace in Prisma.
-                            // We might overwrite the "(x/y)" part if we are not careful.
-                            // For MVP: Let's NOT update description of transactions to avoid losing the "(1/12)" marker.
-                            // OR: fetching and updating one by one? Too heavy.
-                            // Let's just update Category/SubCategory/IsStatistical
-                        },
                         categoryId,
                         subCategoryId: subCategoryId || null,
                         isStatistical: isStatistical || false
                     }
                 });
 
-                // If Description changed, we might want to update it.
+                // If Description changed, update numbering
                 if (description !== existingPlan.description) {
-                    // Fetch all and update manually to preserve numbering
                     const allTx = await tx.barbosaTransaction.findMany({
-                        where: { installmentsPlanId: id },
+                        where: { installmentPlanId: id }, // CORRECT FIELD NAME
                         select: { id: true, description: true }
                     });
 
                     for (const t of allTx) {
-                        // Try to preserve numbering: "Old Desc (1/12)" -> "New Desc (1/12)"
-                        const match = t.description.match(/\(\d+\/\d+\)/);
+                        const match = t.description?.match(/\(\d+\/\d+\)/); // description might be null? Schema says String?, so yes.
                         const numbering = match ? match[0] : '';
                         await tx.barbosaTransaction.update({
                             where: { id: t.id },
@@ -234,14 +220,9 @@ export async function DELETE(
             return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
         }
 
-        // Delete plan (Cascade should facilitate deleting transactions if configured, 
-        // but explicit transaction delete is safer/cleaner to ensure consistency if schema differs)
-        // Schema usually has cascade on transactions -> installmentsPlanId.
-        // Let's rely on Prisma Cascade if defined, or delete transactions first.
-
         await prisma.$transaction(async (tx) => {
             await tx.barbosaTransaction.deleteMany({
-                where: { installmentsPlanId: id }
+                where: { installmentPlanId: id } // CORRECT FIELD NAME
             });
             await tx.barbosaInstallmentPlan.delete({
                 where: { id }
