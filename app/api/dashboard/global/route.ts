@@ -290,24 +290,38 @@ export async function GET() {
         });
 
         // 2. Add Bank Assets (Grouped)
+        // 2. Add Bank Assets (Grouped) & Calculate Totals
+        let totalPF = 0;
+        let totalFCI = 0;
+        let totalCajaAhorro = 0;
+        let totalCajaSeguridad = 0;
+        let totalBankOther = 0;
+        let totalBankUSD = 0;
+
         bankOperations.forEach(op => {
             let amountUSD = op.amount;
             if (op.currency === 'ARS') {
                 amountUSD = op.amount / exchangeRate;
             }
+            totalBankUSD += amountUSD;
 
             if (op.type === 'PLAZO_FIJO') {
                 assetGroupMap.set('Plazo Fijo', (assetGroupMap.get('Plazo Fijo') || 0) + amountUSD);
+                totalPF += amountUSD;
             } else if (op.type === 'FCI') {
                 assetGroupMap.set('FCI', (assetGroupMap.get('FCI') || 0) + amountUSD);
+                totalFCI += amountUSD;
             } else if (op.type === 'CAJA_AHORRO') {
                 assetGroupMap.set('Caja de Ahorro', (assetGroupMap.get('Caja de Ahorro') || 0) + amountUSD);
+                totalCajaAhorro += amountUSD;
             } else if (op.type === 'CAJA_SEGURIDAD') {
                 assetGroupMap.set('Caja de Seguridad', (assetGroupMap.get('Caja de Seguridad') || 0) + amountUSD);
+                totalCajaSeguridad += amountUSD;
             } else {
                 // For "OTRO" or undefined types, use the Alias
                 const label = op.alias || 'Otros Banco';
                 assetGroupMap.set(label, (assetGroupMap.get(label) || 0) + amountUSD);
+                totalBankOther += amountUSD;
             }
         });
 
