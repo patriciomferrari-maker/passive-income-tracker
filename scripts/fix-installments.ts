@@ -7,6 +7,7 @@ async function main() {
     // Fetch all plans with transactions count
     const plans = await prisma.barbosaInstallmentPlan.findMany({
         include: {
+            user: { select: { email: true } },
             _count: {
                 select: { transactions: true }
             }
@@ -20,7 +21,7 @@ async function main() {
     for (const p of plans) {
         // Normalize Key: Remove whitespace, lowercase
         const key = `${p.description.trim().toLowerCase()}-${p.totalAmount.toFixed(2)}`;
-        console.log(`Plan: ${p.id} -> Key: ${key}`);
+        console.log(`Plan: ${p.id} [${p.user?.email}] -> Key: ${key}`);
         if (!groups.has(key)) {
             groups.set(key, []);
         }
@@ -60,7 +61,7 @@ async function main() {
             const winner = sorted[0];
             const losers = sorted.slice(1);
 
-            console.log(`  Keeping: ${winner.id} (User: ${winner.userId}) (${winner._count.transactions} txs) - ${winner.description} ($${winner.totalAmount})`);
+            console.log(`  Keeping: ${winner.id} (User: ${winner.user?.email}) (${winner._count.transactions} txs) - ${winner.description} ($${winner.totalAmount})`);
 
             for (const loser of losers) {
                 console.log(`  DELETING: ${loser.id} (${loser._count.transactions} txs) - Created: ${loser.createdAt.toISOString()}`);
