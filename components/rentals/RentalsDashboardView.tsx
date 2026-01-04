@@ -155,10 +155,8 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
         }
 
         return {
-            totalIncomeUSD,
-            totalIncomeARS,
-            totalExpenseUSD,
-            totalExpenseARS,
+            totalIncome,
+            totalExpense,
             nextExpiration: nextExpirationGroup,
             nextAdjustment: nextAdjustmentGroup,
             count: consolidatedContracts.length
@@ -222,21 +220,17 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                             </div>
                             <h3 className="text-2xl font-bold text-emerald-400 print:text-emerald-700">
                                 {showValues
-                                    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summaryMetrics.totalIncomeUSD)
+                                    ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency }).format(summaryMetrics.totalIncome)
                                     : '****'}
                             </h3>
-                            {summaryMetrics.totalIncomeARS > 0 && (
-                                <p className="text-xs text-slate-500 mt-1">
-                                    + {showValues
-                                        ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(summaryMetrics.totalIncomeARS)
-                                        : '****'} (ARS)
-                                </p>
-                            )}
+                            <p className="text-xs text-slate-500 mt-1">
+                                {consolidatedContracts.filter(c => c.propertyRole === 'OWNER').length} propiedades activas
+                            </p>
                         </CardContent>
                     </Card>
 
                     {/* Expenses Card - Only if Tenant */}
-                    {summaryMetrics.totalExpenseUSD > 0 && (
+                    {summaryMetrics.totalExpense > 0 && (
                         <Card className="bg-slate-950 border-slate-800 print:border-slate-300 print:bg-white print:text-slate-900">
                             <CardContent className="p-4 flex flex-col items-center text-center justify-center">
                                 <div className="flex items-center gap-2 mb-2 text-rose-500">
@@ -245,16 +239,12 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                 </div>
                                 <h3 className="text-2xl font-bold text-rose-400 print:text-rose-700">
                                     {showValues
-                                        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summaryMetrics.totalExpenseUSD)
+                                        ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency }).format(summaryMetrics.totalExpense)
                                         : '****'}
                                 </h3>
-                                {summaryMetrics.totalExpenseARS > 0 && (
-                                    <p className="text-xs text-slate-500 mt-1">
-                                        + {showValues
-                                            ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(summaryMetrics.totalExpenseARS)
-                                            : '****'} (ARS)
-                                    </p>
-                                )}
+                                <p className="text-xs text-slate-500 mt-1">
+                                    {consolidatedContracts.filter(c => c.propertyRole === 'TENANT').length} propiedades alquiladas
+                                </p>
                             </CardContent>
                         </Card>
                     )}
