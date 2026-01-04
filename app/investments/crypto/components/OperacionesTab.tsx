@@ -174,9 +174,15 @@ export default function OperacionesTab() {
                     Nueva Crypto
                 </Button>
                 <Button
-                    onClick={() => setShowTransactionForm(!showTransactionForm)}
+                    onClick={() => {
+                        if (cryptos.length === 0) {
+                            alert("Primero debes agregar una Criptomoneda.");
+                            setShowNewCryptoForm(true);
+                            return;
+                        }
+                        setShowTransactionForm(!showTransactionForm);
+                    }}
                     className="bg-green-600 hover:bg-green-700"
-                    disabled={cryptos.length === 0}
                 >
                     <Plus className="h-4 w-4 mr-2" />
                     Nueva Operación
