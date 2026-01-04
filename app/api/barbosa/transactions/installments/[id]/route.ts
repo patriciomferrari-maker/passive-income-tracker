@@ -214,3 +214,43 @@ export async function PUT(
         return NextResponse.json({ error: 'Internal Error' }, { status: 500 });
     }
 }
+
+export async function DELETE(
+    req: NextRequest,
+    props: { params: Promise<{ id: string }> }
+) {
+    const params = await props.params;
+    const session = await auth();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    try {
+        const { id } = params;
+        const plan = await prisma.barbosaInstallmentPlan.findUnique({
+            where: { id },
+            include: { user: true }
+        });
+
+        if (!plan || plan.user.email !== session.user?.email) {
+            return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
+        }
+
+        // Delete plan (Cascade should facilitate deleting transactions if configured, 
+        // but explicit transaction delete is safer/cleaner to ensure consistency if schema differs)
+        // Schema usually has cascade on transactions -> installmentsPlanId.
+        // Let's rely on Prisma Cascade if defined, or delete transactions first.
+
+        await prisma.$transaction(async (tx) => {
+            await tx.barbosaTransaction.deleteMany({
+                where: { installmentsPlanId: id }
+            });
+            await tx.barbosaInstallmentPlan.delete({
+                where: { id }
+            });
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error("Error deleting plan:", error);
+        return NextResponse.json({ error: 'Internal Error' }, { status: 500 });
+    }
+}

@@ -277,7 +277,7 @@ export function TransactionsTab() {
 
                         {/* Month Filter */}
                         <Select value={filterMonth} onValueChange={setFilterMonth}>
-                            <SelectTrigger className="w-[110px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                            <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
                                 <SelectValue placeholder="Mes" />
                             </SelectTrigger>
                             <SelectContent className="bg-slate-900 border-slate-800 text-slate-300 z-50">
@@ -290,7 +290,7 @@ export function TransactionsTab() {
 
                         {/* Year Filter */}
                         <Select value={filterYear} onValueChange={setFilterYear}>
-                            <SelectTrigger className="w-[90px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                            <SelectTrigger className="w-auto min-w-[100px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
                                 <SelectValue placeholder="Año" />
                             </SelectTrigger>
                             <SelectContent className="bg-slate-900 border-slate-800 text-slate-300 z-50">
@@ -311,19 +311,20 @@ export function TransactionsTab() {
                     </div>
 
                     {/* Batch Actions */}
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {/* Batch Actions (Moved to right) */}
                     {selectedIds.size > 0 && (
                         <Button
                             variant="destructive"
                             size="sm"
                             onClick={handleBatchDelete}
-                            className="h-8 text-xs animate-in fade-in zoom-in"
+                            className="h-8 text-xs animate-in fade-in zoom-in mr-2"
                         >
                             Eliminar ({selectedIds.size})
                         </Button>
                     )}
-                </div>
-
-                <div className="flex items-center gap-2">
                     {/* Clone Dialog Trigger */}
                     {/* Clone Dialog Trigger */}
                     {!cloneDialogOpen ? (
@@ -684,19 +685,13 @@ export function TransactionsTab() {
                                                 <th className="px-4 py-2">Categoría</th>
                                                 <th className="px-4 py-2">Desc</th>
                                                 <th className="px-4 py-2 text-right">Monto</th>
-                                                <th className="px-4 py-2 text-right w-[80px]">Acciones</th>
+                                                <th className="px-4 py-2 text-right w-[100px]">Acciones</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-800 bg-slate-950">
                                             {group.items.map((tx: any) => (
                                                 <tr key={tx.id} className={`hover:bg-slate-900/50 ${tx.status === 'PROJECTED' ? 'italic opacity-80' : ''}`}>
-                                                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap flex items-center gap-3">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedIds.has(tx.id)}
-                                                            onChange={() => toggleSelection(tx.id)}
-                                                            className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900"
-                                                        />
+                                                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
                                                         {format(tx.utcDate, 'dd/MM/yyyy')}
                                                     </td>
                                                     <td className="px-4 py-3">
@@ -723,7 +718,7 @@ export function TransactionsTab() {
                                                         {tx.currency === 'USD' ? 'US$' : '$'} {tx.amount.toLocaleString()}
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
-                                                        <div className="flex justify-end gap-2">
+                                                        <div className="flex justify-end items-center gap-3">
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
@@ -732,14 +727,12 @@ export function TransactionsTab() {
                                                             >
                                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
                                                             </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
-                                                                onClick={() => handleDelete(tx.id)}
-                                                            >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
-                                                            </Button>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedIds.has(tx.id)}
+                                                                onChange={() => toggleSelection(tx.id)}
+                                                                className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900 outline-none"
+                                                            />
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -816,7 +809,7 @@ function InstallmentsDialog({ open, onOpenChange, onSuccess, categories, editId 
         installmentsCount: '12',
         amountMode: 'TOTAL', // TOTAL | INSTALLMENT
         amountValue: '',
-        status: 'PROJECTED',
+        status: 'REAL',
         isStatistical: false
     };
 
@@ -949,7 +942,7 @@ function InstallmentsDialog({ open, onOpenChange, onSuccess, categories, editId 
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between hidden">
                         <Label>Estado Cuotas</Label>
                         <Select value={data.status} onValueChange={v => setData({ ...data, status: v })}>
                             <SelectTrigger className="w-[140px] bg-slate-950 border-slate-700"><SelectValue /></SelectTrigger>

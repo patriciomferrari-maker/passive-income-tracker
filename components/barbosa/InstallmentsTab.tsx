@@ -40,6 +40,17 @@ export function InstallmentsTab() {
         }
     };
 
+    const handleDelete = async (id: string, description: string) => {
+        if (!confirm(`¿Eliminar plan "${description}" y todas sus cuotas?`)) return;
+        try {
+            await fetch(`/api/barbosa/transactions/installments/${id}`, { method: 'DELETE' });
+            loadData();
+        } catch (error) {
+            console.error(error);
+            alert("Error al eliminar");
+        }
+    };
+
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-500" /></div>;
 
     const filteredPlans = plans.filter(p => showFinished ? true : !p.isFinished);
@@ -143,7 +154,13 @@ export function InstallmentsTab() {
                                             )}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            <EditInstallmentDialog plan={plan} onSuccess={loadData} />
+                                            <div className="flex items-center justify-center gap-2">
+                                                <EditInstallmentDialog plan={plan} onSuccess={loadData} />
+                                                <button onClick={() => handleDelete(plan.id, plan.description)} className="text-slate-500 hover:text-red-500 transition-colors">
+                                                    <Loader2 className="w-4 h-4 hidden" /> {/* Placeholder for consistent size if needed */}
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                                </button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))

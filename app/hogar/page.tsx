@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 
 // Tabs
 import { DashboardTab } from '@/components/barbosa/DashboardTab';
-import { CleaningTab } from '@/components/barbosa/CleaningTab';
+// import { CleaningTab } from '@/components/barbosa/CleaningTab'; // Removed
 import { CashflowTab } from '@/components/barbosa/CashflowTab';
 import { TransactionsTab } from '@/components/barbosa/TransactionsTab';
 import { SettingsTab } from '@/components/barbosa/SettingsTab';
@@ -21,7 +21,7 @@ export default function BarbosaPage() {
     const tabs = [
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'cashflow', label: 'Cashflow' },
-        { id: 'cleaning', label: 'Limpieza' },
+        // { id: 'cleaning', label: 'Limpieza' },
         { id: 'transactions', label: 'Carga' },
         { id: 'installments', label: 'Cuotas' },
         { id: 'recurrence', label: 'Recurrentes' },
@@ -69,7 +69,7 @@ export default function BarbosaPage() {
                 {/* Content */}
                 <div className="min-h-[500px]">
                     {activeTab === 'dashboard' && <DashboardTab />}
-                    {activeTab === 'cleaning' && <CleaningTab />}
+                    {/* {activeTab === 'cleaning' && <CleaningTab />} */}
                     {activeTab === 'cashflow' && <CashflowTab />}
                     {activeTab === 'transactions' && <TransactionsTab />}
                     {activeTab === 'installments' && <InstallmentsTab />}
