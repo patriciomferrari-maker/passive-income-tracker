@@ -189,9 +189,14 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                 {entry.name}: {' '}
                             </span>
                             <span className="font-mono font-medium text-white">
-                                {entry.name.includes('USD') || entry.name.includes('Ingreso') || entry.name.includes('Gasto')
-                                    ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency }).format(entry.value)
-                                    : `${entry.value.toFixed(2)}%`
+                                {entry.name.includes('Inf.') || entry.name.includes('Dev.')
+                                    ? `${entry.value.toFixed(2)}%`
+                                    : new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', {
+                                        style: 'currency',
+                                        currency,
+                                        maximumFractionDigits: 0,
+                                        minimumFractionDigits: 0
+                                    }).format(entry.value)
                                 }
                             </span>
                         </div>
@@ -436,16 +441,33 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                             <BarChart data={showValues ? globalData.history : []} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} vertical={false} />
                                                 <XAxis dataKey="monthLabel" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 12 }} tickMargin={10} />
-                                                <YAxis stroke="#10b981" tick={{ fill: '#10b981', fontSize: 12 }} tickFormatter={(value) => `$${value}`} width={80} />
+                                                <YAxis
+                                                    stroke="#10b981"
+                                                    tick={{ fill: '#10b981', fontSize: 12 }}
+                                                    tickFormatter={(value) => new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)}
+                                                    width={80}
+                                                />
                                                 {showValues && (
-                                                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} formatter={(value: number) => [`$${Math.round(value)}`, `Total ${currency}`]} labelStyle={{ color: '#94a3b8' }} />
+                                                    <Tooltip
+                                                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }}
+                                                        formatter={(value: number) => [
+                                                            new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value),
+                                                            `Total ${currency}`
+                                                        ]}
+                                                        labelStyle={{ color: '#94a3b8' }}
+                                                    />
                                                 )}
                                                 <Bar
                                                     dataKey={currency === 'ARS' ? 'incomeARS' : 'incomeUSD'}
                                                     fill="#10b981"
                                                     radius={[4, 4, 0, 0]}
                                                     name={`Ingreso ${currency}`}
-                                                    label={{ position: 'top', fill: '#10b981', fontSize: 11, formatter: (value: number) => value > 0 ? `$${Math.round(value)}` : '' }}
+                                                    label={{
+                                                        position: 'top',
+                                                        fill: '#10b981',
+                                                        fontSize: 11,
+                                                        formatter: (value: number) => value > 0 ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value) : ''
+                                                    }}
                                                 />
                                             </BarChart>
                                         </ResponsiveContainer>
@@ -565,7 +587,11 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                                 <span className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Último</span>
                                                 <span className="text-xl font-mono font-bold text-white print:text-slate-900">
                                                     {showValues
-                                                        ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency }).format(
+                                                        ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', {
+                                                            style: 'currency',
+                                                            currency,
+                                                            maximumFractionDigits: 0
+                                                        }).format(
                                                             currency === 'ARS'
                                                                 ? (contract.chartData[contract.chartData.length - 1]?.amountARS || 0)
                                                                 : (contract.chartData[contract.chartData.length - 1]?.amountUSD || 0)
@@ -583,7 +609,11 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                                 <span className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Promedio</span>
                                                 <span className="text-xl font-mono font-bold text-white print:text-slate-900">
                                                     {showValues
-                                                        ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency }).format(
+                                                        ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', {
+                                                            style: 'currency',
+                                                            currency,
+                                                            maximumFractionDigits: 0
+                                                        }).format(
                                                             currency === 'ARS'
                                                                 ? (contract.chartData.reduce((sum, d) => sum + d.amountARS, 0) / (contract.chartData.length || 1))
                                                                 : avgRent
@@ -626,7 +656,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                                 yAxisId="left"
                                                 stroke="#10b981"
                                                 tick={{ fill: '#10b981', fontSize: 12 }}
-                                                tickFormatter={(value) => `$${value}`}
+                                                tickFormatter={(value) => new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)}
                                                 width={80}
                                             />
                                             <YAxis
