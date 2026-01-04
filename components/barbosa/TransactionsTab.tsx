@@ -278,7 +278,7 @@ export function TransactionsTab() {
 
                         {/* Month Filter */}
                         <Select value={filterMonth} onValueChange={setFilterMonth}>
-                            <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                            <SelectTrigger className="w-auto min-w-[150px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
                                 <SelectValue placeholder="Mes" />
                             </SelectTrigger>
                             <SelectContent className="bg-slate-900 border-slate-800 text-slate-300 z-50">
@@ -291,7 +291,7 @@ export function TransactionsTab() {
 
                         {/* Year Filter */}
                         <Select value={filterYear} onValueChange={setFilterYear}>
-                            <SelectTrigger className="w-auto min-w-[100px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                            <SelectTrigger className="w-auto min-w-[150px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
                                 <SelectValue placeholder="Año" />
                             </SelectTrigger>
                             <SelectContent className="bg-slate-900 border-slate-800 text-slate-300 z-50">
