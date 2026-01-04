@@ -174,7 +174,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
             count: consolidatedContracts.length
         };
 
-    }, [consolidatedContracts]);
+    }, [consolidatedContracts, currency]);
 
 
     const CustomTooltip = ({ active, payload, label }: any) => {
@@ -263,7 +263,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                             </div>
                             <h3 className="text-2xl font-bold text-emerald-400 print:text-emerald-700">
                                 {showValues
-                                    ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency }).format(summaryMetrics.totalIncome)
+                                    ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(summaryMetrics.totalIncome)
                                     : '****'}
                             </h3>
                             <p className="text-xs text-slate-500 mt-1">
@@ -282,7 +282,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                 </div>
                                 <h3 className="text-2xl font-bold text-rose-400 print:text-rose-700">
                                     {showValues
-                                        ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency }).format(summaryMetrics.totalExpense)
+                                        ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(summaryMetrics.totalExpense)
                                         : '****'}
                                 </h3>
                                 <p className="text-xs text-slate-500 mt-1">
@@ -500,16 +500,33 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                                 <BarChart data={showValues ? globalData.history : []} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} vertical={false} />
                                                     <XAxis dataKey="monthLabel" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 12 }} tickMargin={10} />
-                                                    <YAxis stroke="#f43f5e" tick={{ fill: '#f43f5e', fontSize: 12 }} tickFormatter={(value) => `$${value}`} width={80} />
+                                                    <YAxis
+                                                        stroke="#f43f5e"
+                                                        tick={{ fill: '#f43f5e', fontSize: 12 }}
+                                                        tickFormatter={(value) => new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)}
+                                                        width={80}
+                                                    />
                                                     {showValues && (
-                                                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }} formatter={(value: number) => [`$${Math.round(value)}`, `Total ${currency}`]} labelStyle={{ color: '#94a3b8' }} />
+                                                        <Tooltip
+                                                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }}
+                                                            formatter={(value: number) => [
+                                                                new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value),
+                                                                `Total ${currency}`
+                                                            ]}
+                                                            labelStyle={{ color: '#94a3b8' }}
+                                                        />
                                                     )}
                                                     <Bar
                                                         dataKey={currency === 'ARS' ? 'expenseARS' : 'expenseUSD'}
                                                         fill="#f43f5e"
                                                         radius={[4, 4, 0, 0]}
                                                         name={`Gasto ${currency}`}
-                                                        label={{ position: 'top', fill: '#f43f5e', fontSize: 11, formatter: (value: number) => value > 0 ? `$${Math.round(value)}` : '' }}
+                                                        label={{
+                                                            position: 'top',
+                                                            fill: '#f43f5e',
+                                                            fontSize: 11,
+                                                            formatter: (value: number) => value > 0 ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value) : ''
+                                                        }}
                                                     />
                                                 </BarChart>
                                             </ResponsiveContainer>
