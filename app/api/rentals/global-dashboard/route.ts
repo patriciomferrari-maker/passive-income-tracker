@@ -114,7 +114,9 @@ export async function GET() {
                 monthLabel: new Date(d.date).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }),
                 totalUSD: d.incomeUSD, // Legacy support for existing charts expecting totalUSD
                 incomeUSD: d.incomeUSD,
+                incomeARS: d.incomeARS,
                 expenseUSD: d.expenseUSD,
+                expenseARS: d.expenseARS,
                 contractCount: d.count
             }));
 

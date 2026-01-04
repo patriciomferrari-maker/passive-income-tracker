@@ -420,7 +420,8 @@ export async function GET() {
         // Robust KPI Calculation: Explicitly sum Invested Components
         // Market Assets + Plazo Fijo + FCI
         // This avoids issues with dynamic keys in assetGroupMap (like specific Bank Aliases) being counted as invested.
-        const kpiTotalInvested = totalMarketInvested + totalPF + totalFCI;
+        // CORRECTION: totalMarketInvested ALREADY includes PF and FCI because we added them to assetGroupMap above.
+        const kpiTotalInvested = totalMarketInvested;
 
         // 2. Monto sin Invertir: Total Bancos - Plazo Fijo
         // Essentially this is Caja Ahorro + Caja Seguridad + Otros
