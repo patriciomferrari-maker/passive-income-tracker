@@ -26,6 +26,45 @@ export async function GET() {
             }
         });
 
+        // --- NEW: Fetch and Update Live Prices ---
+        const tickers = [...new Set(investments.map(i => i.ticker))];
+        const { findCryptoBySymbol } = await import('@/app/lib/crypto-list');
+        const { getCryptoPrices } = await import('@/app/lib/coingecko');
+
+        const coingeckoIds = tickers
+            .map(t => findCryptoBySymbol(t)?.coingeckoId)
+            .filter((id): id is string => !!id);
+
+        if (coingeckoIds.length > 0) {
+            try {
+                const livePrices = await getCryptoPrices(coingeckoIds);
+
+                // Update investments with new prices (in memory for calc, and persist to DB)
+                const updatePromises = [];
+
+                for (const inv of investments) {
+                    const cryptoInfo = findCryptoBySymbol(inv.ticker);
+                    if (cryptoInfo && livePrices[cryptoInfo.coingeckoId]) {
+                        const newPrice = livePrices[cryptoInfo.coingeckoId];
+                        inv.lastPrice = newPrice; // Update in memory for correct calc below
+
+                        updatePromises.push(
+                            prisma.investment.update({
+                                where: { id: inv.id },
+                                data: { lastPrice: newPrice }
+                            })
+                        );
+                    }
+                }
+
+                await Promise.all(updatePromises);
+            } catch (error) {
+                console.error('Failed to update live crypto prices:', error);
+                // Continue with existing DB prices if fetch fails
+            }
+        }
+        // ----------------------------------------
+
         // Calculate P&L using FIFO
         let totalInvested = 0;
         let totalCurrentValue = 0;
