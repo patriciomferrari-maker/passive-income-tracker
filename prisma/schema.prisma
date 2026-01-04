@@ -217,6 +217,8 @@ model Transaction {
   totalAmount  Float      // quantity * price + commission (usually negative for buys)
   currency     String
   
+  notes        String?    // Optional notes
+
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
