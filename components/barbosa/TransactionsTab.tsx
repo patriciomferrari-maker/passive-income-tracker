@@ -30,7 +30,7 @@ export function TransactionsTab() {
 
     const [filterStatistical, setFilterStatistical] = useState(false);
     const [filterMonth, setFilterMonth] = useState('ALL'); // 'ALL' or '0'-'11'
-    const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString()); // Default current year
+    const [filterYear, setFilterYear] = useState('ALL'); // Default ALL years
 
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
@@ -303,27 +303,11 @@ export function TransactionsTab() {
                                 </div>
                             </div>
 
-                            {/* Status Selector */}
+                            {/* Status Selector REMOVED - Defaulting to REAL internally */}
                             <div className="space-y-2">
-                                <Label className="text-slate-300">Estado</Label>
-                                <div className="flex gap-2">
-                                    <div
-                                        onClick={() => setFormData({ ...formData, status: 'REAL' })}
-                                        className={`flex-1 p-2 rounded text-center text-xs font-bold cursor-pointer border ${formData.status === 'REAL' ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400' : 'bg-slate-950 border-slate-700 text-slate-500 hover:border-slate-600'}`}
-                                    >
-                                        REAL
-                                    </div>
-                                    <div
-                                        onClick={() => setFormData({ ...formData, status: 'PROJECTED' })}
-                                        className={`flex-1 p-2 rounded text-center text-xs font-bold cursor-pointer border ${formData.status === 'PROJECTED' ? 'bg-purple-600/20 border-purple-500 text-purple-400' : 'bg-slate-950 border-slate-700 text-slate-500 hover:border-slate-600'}`}
-                                    >
-                                        PROYECTADO
-                                    </div>
-                                </div>
-
                                 {/* Statistical Expense Checkbox */}
                                 {formData.type === 'EXPENSE' && (
-                                    <div className="flex items-center space-x-2 mt-2 pt-2 border-t border-slate-800">
+                                    <div className="flex items-center space-x-2 pt-2">
                                         <input
                                             type="checkbox"
                                             id="isStatistical"
