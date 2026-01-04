@@ -446,6 +446,35 @@ export async function GET() {
         const receivablesList: any[] = [];
         const payablesList: any[] = [];
 
+        // 6.1 Add Barbosa Installment Plans to Payables
+        // These are effectively debts the user is paying off
+        const installmentPlans = await prisma.barbosaInstallmentPlan.findMany({
+            where: { userId },
+            include: { transactions: true }
+        });
+
+        installmentPlans.forEach(plan => {
+            const totalAmount = plan.totalAmount || 0;
+            const paid = plan.transactions.reduce((sum, p) => sum + Math.abs(p.totalAmount), 0);
+            const remaining = Math.max(0, totalAmount - paid);
+
+            if (remaining > 1) { // 1 unit threshold
+                let remainingUSD = remaining;
+                if (plan.currency === 'ARS') {
+                    remainingUSD = remaining / exchangeRate;
+                }
+
+                totalDebtPayable += remainingUSD;
+
+                payablesList.push({
+                    name: plan.description || 'Plan Cuotas',
+                    amount: remainingUSD,
+                    currency: 'USD', // Converted for display consistency with Global Dashboard
+                    details: `${plan.installmentsCount} cts (${plan.currency})`
+                });
+            }
+        });
+
         debts.forEach(debt => {
             let amountUSD = debt.initialAmount;
             if (debt.currency === 'ARS') amountUSD /= exchangeRate;

@@ -297,15 +297,14 @@ export default function HomePage() {
                         )}
 
                         {/* Economic Data - Restricted to admin only */}
-                        {['patriciomferrari@gmail.com', 'paato.ferrari@hotmail.com'].includes(stats.userEmail || '') && (
-                          <DashboardCard
-                            title="Datos Económicos"
-                            description="Inflación, devaluación y UVA"
-                            icon="📈"
-                            href="/datos-economicos"
-                            enabled={true}
-                          />
-                        )}
+                        {/* Economic Data - Visible to all */}
+                        <DashboardCard
+                          title="Datos Económicos"
+                          description="Inflación, devaluación y UVA"
+                          icon="📈"
+                          href="/datos-economicos"
+                          enabled={true}
+                        />
 
                         {/* Costa Card - Only show if specifically allowed OR legacy (showAll) */}
                         {(showAll || shouldShow('costa')) && (

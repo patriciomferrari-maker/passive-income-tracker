@@ -70,8 +70,9 @@ export async function PUT(
         });
 
         // Regenerate cashflows for the investment
+        // Regenerate cashflows for the investment
         const cashflows = await generateInvestmentCashflow(transaction.investmentId);
-        await saveInvestmentCashflows(cashflows);
+        await saveInvestmentCashflows(transaction.investmentId, cashflows);
 
         return NextResponse.json(updatedTransaction);
     } catch (error) {
@@ -110,7 +111,7 @@ export async function DELETE(
 
         // Regenerate cashflows for the investment
         const cashflows = await generateInvestmentCashflow(investmentId);
-        await saveInvestmentCashflows(cashflows);
+        await saveInvestmentCashflows(investmentId, cashflows);
 
         return NextResponse.json({ success: true });
     } catch (error) {

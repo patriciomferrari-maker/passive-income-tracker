@@ -220,18 +220,20 @@ export async function generateInvestmentCashflow(investmentId: string): Promise<
 /**
  * Saves generated cashflows to the database
  */
-export async function saveInvestmentCashflows(cashflows: CashflowRow[]) {
-    if (cashflows.length === 0) return;
-
-    const investmentId = cashflows[0].investmentId;
-
-    // Delete existing projected cashflows for this investment
+/**
+ * Saves generated cashflows to the database
+ */
+export async function saveInvestmentCashflows(investmentId: string, cashflows: CashflowRow[]) {
+    // 1. Always delete existing projected cashflows for this investment
+    // This ensures that if the new list is empty (e.g. all positions sold), the old projections are removed.
     await prisma.cashflow.deleteMany({
         where: {
             investmentId,
             status: 'PROJECTED'
         }
     });
+
+    if (cashflows.length === 0) return;
 
     // Bulk insert new cashflows
     await prisma.$transaction(

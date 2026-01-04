@@ -72,20 +72,27 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
         if (consolidatedContracts.length === 0) return null;
 
         const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
 
         // 1. Current Month Finances
         let totalIncome = 0;
         let totalExpense = 0;
 
         consolidatedContracts.forEach(c => {
-            const current = c.chartData.find(d => {
-                const date = new Date(d.date);
-                return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+            const currentMonthData = c.chartData.find(d => {
+                // Robust date matching: Compare YYYY-MM strings
+                const dataDateStr = d.date.substring(0, 7); // "2024-12"
+                const currentDateStr = now.toISOString().substring(0, 7);
+                return dataDateStr === currentDateStr;
             });
 
-            const amountUSD = current ? current.amountUSD : (c.chartData[c.chartData.length - 1]?.amountUSD || 0);
-            const amountARS = current ? current.amountARS : (c.chartData[c.chartData.length - 1]?.amountARS || 0);
-            const amount = currency === 'USD' ? amountUSD : amountARS;
+            // Use current month data if available, otherwise fallback to the last available data point
+            const amountUSD = currentMonthData ? currentMonthData.amountUSD : (c.chartData[c.chartData.length - 1]?.amountUSD || 0);
+            const amountARS = currentMonthData ? currentMonthData.amountARS : (c.chartData[c.chartData.length - 1]?.amountARS || 0);
+
+            // Select amount based on current currency
+            const amount = currency === 'ARS' ? amountARS : amountUSD;
 
             if (c.propertyRole === 'TENANT') {
                 totalExpense += amount;

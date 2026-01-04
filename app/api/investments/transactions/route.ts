@@ -108,6 +108,11 @@ export async function POST(request: Request) {
             }
         });
 
+        // Regenerate cashflows for the investment (New Logic)
+        const { generateInvestmentCashflow, saveInvestmentCashflows } = await import('@/lib/investments');
+        const cashflows = await generateInvestmentCashflow(investmentId);
+        await saveInvestmentCashflows(investmentId, cashflows);
+
         return NextResponse.json(transaction);
 
     } catch (error) {
