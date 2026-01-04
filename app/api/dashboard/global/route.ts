@@ -440,8 +440,11 @@ export async function GET() {
         });
 
         // 6. Calculate Debt Metrics
+        // 6. Calculate Debt Metrics
         let totalDebtPending = 0; // Receivables (OWED_TO_ME)
+        let totalDebtPayable = 0; // Payables (I_OWE)
         const receivablesList: any[] = [];
+        const payablesList: any[] = [];
 
         debts.forEach(debt => {
             let amountUSD = debt.initialAmount;
@@ -456,7 +459,7 @@ export async function GET() {
 
             const remainingUSD = amountUSD - totalPaid;
 
-            if (remainingUSD > 0) {
+            if (remainingUSD > 0.01) { // Threshold for precision
                 if (debt.type === 'OWED_TO_ME') {
                     totalDebtPending += remainingUSD;
                     receivablesList.push({
@@ -465,10 +468,24 @@ export async function GET() {
                         currency: debt.currency,
                         details: debt.details
                     });
+                } else if (debt.type === 'I_OWE') {
+                    totalDebtPayable += remainingUSD;
+                    payablesList.push({
+                        name: debt.debtorName,
+                        amount: remainingUSD,
+                        currency: debt.currency,
+                        details: debt.details
+                    });
                 }
-                // If I_OWE, we might want to track it elsewhere, but 'totalDebtReceivable' implies Assets
             }
         });
+
+        const debtDetails = {
+            totalPending: totalDebtPending,
+            totalPayable: totalDebtPayable,
+            receivables: receivablesList,
+            payables: payablesList
+        };
 
         const debtDetails = {
             totalPending: totalDebtPending,

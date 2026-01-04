@@ -287,11 +287,11 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                     {summaryMetrics.nextExpiration.count === 1 ? (
                                         <>
                                             <h3 className="text-2xl font-bold text-white print:text-slate-900">
-                                                {summaryMetrics.nextExpiration.properties[0].propertyName}
+                                                {showValues ? summaryMetrics.nextExpiration.properties[0].propertyName : '****'}
                                             </h3>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <p className="text-lg text-purple-400 print:text-purple-700 font-medium">
-                                                    {summaryMetrics.nextExpiration.endDate.toLocaleDateString('es-AR')}
+                                                    {showValues ? summaryMetrics.nextExpiration.endDate.toLocaleDateString('es-AR') : '****'}
                                                 </p>
                                                 <span className="text-sm font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded uppercase">
                                                     {summaryMetrics.nextExpiration.monthsRemaining} meses
@@ -305,16 +305,20 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                             </h3>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <p className="text-lg text-purple-400 print:text-purple-700 font-medium">
-                                                    {summaryMetrics.nextExpiration.endDate.toLocaleDateString('es-AR')}
+                                                    {showValues ? summaryMetrics.nextExpiration.endDate.toLocaleDateString('es-AR') : '****'}
                                                 </p>
                                                 <span className="text-sm font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded uppercase">
                                                     {summaryMetrics.nextExpiration.monthsRemaining} meses
                                                 </span>
                                             </div>
                                             <div className="mt-2 text-xs text-slate-400 max-w-full">
-                                                {summaryMetrics.nextExpiration.properties.map((p, idx) => (
-                                                    <div key={idx} className="truncate">{p.propertyName}</div>
-                                                ))}
+                                                {showValues ? (
+                                                    summaryMetrics.nextExpiration.properties.map((p, idx) => (
+                                                        <div key={idx} className="truncate">{p.propertyName}</div>
+                                                    ))
+                                                ) : (
+                                                    <div>****</div>
+                                                )}
                                             </div>
                                         </>
                                     )}
@@ -337,11 +341,11 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                     {summaryMetrics.nextAdjustment.count === 1 ? (
                                         <>
                                             <h3 className="text-2xl font-bold text-white print:text-slate-900">
-                                                {summaryMetrics.nextAdjustment.properties[0].propertyName}
+                                                {showValues ? summaryMetrics.nextAdjustment.properties[0].propertyName : '****'}
                                             </h3>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <p className="text-lg text-amber-500 print:text-amber-700 font-medium">
-                                                    {summaryMetrics.nextAdjustment.nextAdjDate.toLocaleDateString('es-AR')}
+                                                <p className="text-lg text-amber-400 print:text-amber-700 font-medium">
+                                                    {showValues ? summaryMetrics.nextAdjustment.nextAdjDate.toLocaleDateString('es-AR') : '****'}
                                                 </p>
                                                 <span className="text-sm font-bold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded uppercase">
                                                     {summaryMetrics.nextAdjustment.monthsRemaining} meses
@@ -351,20 +355,24 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                     ) : (
                                         <>
                                             <h3 className="text-2xl font-bold text-white print:text-slate-900">
-                                                {summaryMetrics.nextAdjustment.count} Propiedades
+                                                {showValues ? summaryMetrics.nextAdjustment.count + ' Propiedades' : '****'}
                                             </h3>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <p className="text-lg text-amber-500 print:text-amber-700 font-medium">
-                                                    {summaryMetrics.nextAdjustment.nextAdjDate.toLocaleDateString('es-AR')}
+                                                <p className="text-lg text-amber-400 print:text-amber-700 font-medium">
+                                                    {showValues ? summaryMetrics.nextAdjustment.nextAdjDate.toLocaleDateString('es-AR') : '****'}
                                                 </p>
                                                 <span className="text-sm font-bold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded uppercase">
                                                     {summaryMetrics.nextAdjustment.monthsRemaining} meses
                                                 </span>
                                             </div>
                                             <div className="mt-2 text-xs text-slate-400 max-w-full">
-                                                {summaryMetrics.nextAdjustment.properties.map((p, idx) => (
-                                                    <div key={idx} className="truncate">{p.propertyName}</div>
-                                                ))}
+                                                {showValues ? (
+                                                    summaryMetrics.nextAdjustment.properties.map((p, idx) => (
+                                                        <div key={idx} className="truncate">{p.propertyName}</div>
+                                                    ))
+                                                ) : (
+                                                    <div>****</div>
+                                                )}
                                             </div>
                                         </>
                                     )}
