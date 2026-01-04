@@ -41,12 +41,25 @@ interface GlobalStats {
         BankInterest?: number;
     }[];
     debtDetails: {
-        name: string;
-        paid: number;
-        pending: number;
-        total: number;
-        currency: string;
-    }[];
+        totalPending: number;
+        totalPayable: number;
+        receivables: {
+            name: string;
+            paid: number;
+            pending: number;
+            total: number;
+            currency: string;
+            details?: string;
+        }[];
+        payables: {
+            name: string;
+            paid: number;
+            pending: number;
+            total: number;
+            currency: string;
+            details?: string;
+        }[];
+    };
     enabledSections: string[];
     pnl?: {
         realized: number;
@@ -220,9 +233,6 @@ export function GlobalDashboardTab() {
     // Consolidated Portfolio Data (Market + Bank)
     const portfolioDistData = showValues ? (stats.portfolioDistribution || []) : [{ name: 'Oculto', value: 1 }];
     const projectedData = showValues ? (stats.projected || []) : [];
-
-    // Filter Debt Details
-    const debtDetails = showValues && shouldShow('debts') ? (stats.debtDetails || []) : [];
 
     // Check if Bank history exists for Chart Rendering
     const showBankHistory = historyData.some((h: any) => (h.Bank || 0) > 0);
@@ -727,40 +737,88 @@ export function GlobalDashboardTab() {
             </div>
 
             {/* ROW 4: Debts */}
-            {shouldShow('debts') && debtDetails.length > 0 && (
-                <div className="grid grid-cols-1 gap-6">
-                    <Card className="bg-slate-950 border-slate-800 overflow-y-auto custom-scrollbar">
-                        <CardHeader className="text-center">
-                            <CardTitle className="text-white">Estado de Deudas</CardTitle>
-                            <CardDescription className="text-slate-400">Progreso de cobro por deudor</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {debtDetails.map((d, index) => (
-                                <div key={index} className="space-y-2">
-                                    <span className="text-white font-medium block text-lg">{d.name}</span>
-                                    {showValues && (
-                                        <div className="relative h-8 w-full bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
-                                            <div
-                                                className="absolute top-0 left-0 h-full bg-emerald-600 flex items-center justify-start pl-2"
-                                                style={{ width: `${(d.paid / d.total) * 100}%` }}
-                                            >
-                                                {d.paid > 0 && (
-                                                    <span className="text-white font-bold text-xs whitespace-nowrap drop-shadow-md">
-                                                        Pagado {formatMoney(d.paid)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="absolute top-0 right-0 h-full flex items-center pr-2">
-                                                <span className="text-red-400 font-bold text-xs whitespace-nowrap">
-                                                    Faltan {formatMoney(d.pending)}
-                                                </span>
-                                            </div>
+            {/* ROW 4: Debts Detail */}
+            {shouldShow('debts') && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Receivables */}
+                    {stats.debtDetails?.receivables?.length > 0 && (
+                        <Card className="bg-slate-950 border-slate-800 overflow-hidden">
+                            <CardHeader className="text-center pb-2">
+                                <CardTitle className="text-emerald-400 text-lg flex items-center justify-center gap-2">
+                                    <ArrowUpRight size={20} /> Cuentas por Cobrar
+                                </CardTitle>
+                                <CardDescription className="text-slate-400">Préstamos otorgados</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar p-4">
+                                {stats.debtDetails.receivables.map((d, index) => (
+                                    <div key={index} className="space-y-1">
+                                        <div className="flex justify-between items-end">
+                                            <span className="text-white font-medium text-sm">{d.name}</span>
+                                            <span className="text-slate-500 text-xs">{d.details}</span>
                                         </div>
-                                    )}
-                                </div>
-                            ))}
-                        </CardContent>
-                    </Card>
+                                        {showValues && (
+                                            <div className="relative h-6 w-full bg-slate-800 rounded overflow-hidden border border-slate-700">
+                                                <div
+                                                    className="absolute top-0 left-0 h-full bg-emerald-600/50"
+                                                    style={{ width: `${Math.min(100, (d.paid / d.total) * 100)}%` }}
+                                                ></div>
+                                                <div className="absolute inset-0 flex items-center justify-between px-2 text-xs font-mono font-bold">
+                                                    <span className="text-emerald-300 z-10">{formatMoney(d.paid)}</span>
+                                                    <span className="text-white z-10">{formatMoney(d.pending)}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {showValues && (
+                                            <div className="flex justify-between text-[10px] text-slate-500">
+                                                <span>Cobrado</span>
+                                                <span>Pendiente</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Payables */}
+                    {stats.debtDetails?.payables?.length > 0 && (
+                        <Card className="bg-slate-950 border-slate-800 overflow-hidden">
+                            <CardHeader className="text-center pb-2">
+                                <CardTitle className="text-rose-400 text-lg flex items-center justify-center gap-2">
+                                    <HandCoins size={20} /> Cuentas por Pagar
+                                </CardTitle>
+                                <CardDescription className="text-slate-400">Cuotas y Deudas</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar p-4">
+                                {stats.debtDetails.payables.map((d, index) => (
+                                    <div key={index} className="space-y-1">
+                                        <div className="flex justify-between items-end">
+                                            <span className="text-white font-medium text-sm">{d.name}</span>
+                                            <span className="text-slate-500 text-xs">{d.details}</span>
+                                        </div>
+                                        {showValues && (
+                                            <div className="relative h-6 w-full bg-slate-800 rounded overflow-hidden border border-slate-700">
+                                                <div
+                                                    className="absolute top-0 left-0 h-full bg-rose-600/50"
+                                                    style={{ width: `${Math.min(100, (d.paid / d.total) * 100)}%` }}
+                                                ></div>
+                                                <div className="absolute inset-0 flex items-center justify-between px-2 text-xs font-mono font-bold">
+                                                    <span className="text-rose-300 z-10">{formatMoney(d.paid)}</span>
+                                                    <span className="text-white z-10">{formatMoney(d.pending)}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {showValues && (
+                                            <div className="flex justify-between text-[10px] text-slate-500">
+                                                <span>Pagado</span>
+                                                <span>Pendiente</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             )}
         </div>

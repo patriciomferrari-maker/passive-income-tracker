@@ -468,51 +468,54 @@ export async function GET() {
 
                 payablesList.push({
                     name: plan.description || 'Plan Cuotas',
-                    amount: remainingUSD,
-                    currency: 'USD', // Converted for display consistency with Global Dashboard
+                    pending: remainingUSD,
+                    paid: plan.currency === 'ARS' ? paid / exchangeRate : paid,
+                    total: plan.currency === 'ARS' ? totalAmount / exchangeRate : totalAmount,
+                    currency: 'USD',
                     details: `${plan.installmentsCount} cts (${plan.currency})`
                 });
             }
         });
 
         debts.forEach(debt => {
-            let amountUSD = debt.initialAmount;
-            if (debt.currency === 'ARS') amountUSD /= exchangeRate;
+            let initialUSD = debt.initialAmount;
+            if (debt.currency === 'ARS') initialUSD /= exchangeRate;
 
-            let currentAmountUSD = amountUSD; // Start with initial
+            let currentAmountUSD = initialUSD;
+            // Re-calc logic
+            let paidUSD = 0;
 
             debt.payments.forEach(p => {
                 let pAmountUSD = p.amount;
                 if (debt.currency === 'ARS') pAmountUSD /= exchangeRate;
 
-                // If type is INCREASE, it adds to debt.
-                // If type is PAYMENT (or null/undefined), it reduces debt.
                 if (p.type === 'INCREASE') {
                     currentAmountUSD += pAmountUSD;
+                    initialUSD += pAmountUSD; // Treated as new principal
                 } else {
                     currentAmountUSD -= pAmountUSD;
+                    paidUSD += pAmountUSD;
                 }
             });
 
             const remainingUSD = Math.max(0, currentAmountUSD);
 
-            if (remainingUSD > 0.01) { // Threshold for precision
+            if (remainingUSD > 0.01) {
+                const item = {
+                    name: debt.debtorName,
+                    pending: remainingUSD,
+                    paid: paidUSD,
+                    total: initialUSD, // Approximate total (initial + increases)
+                    currency: debt.currency,
+                    details: debt.details
+                };
+
                 if (debt.type === 'OWED_TO_ME') {
                     totalDebtPending += remainingUSD;
-                    receivablesList.push({
-                        name: debt.debtorName,
-                        amount: remainingUSD,
-                        currency: debt.currency,
-                        details: debt.details
-                    });
+                    receivablesList.push(item);
                 } else if (debt.type === 'I_OWE') {
                     totalDebtPayable += remainingUSD;
-                    payablesList.push({
-                        name: debt.debtorName,
-                        amount: remainingUSD,
-                        currency: debt.currency,
-                        details: debt.details
-                    });
+                    payablesList.push(item);
                 }
             }
         });
