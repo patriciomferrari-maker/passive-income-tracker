@@ -10,6 +10,7 @@ interface GlobalStats {
         totalInvested: number;
         totalIdle: number;
         totalDebtReceivable: number;
+        totalDebtPayable: number;
         tir: number;
         nextInterestON: { date: string, amount: number, name: string } | null;
         nextInterestTreasury: { date: string, amount: number, name: string } | null;

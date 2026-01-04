@@ -250,7 +250,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                     : '****'}
                             </h3>
                             <p className="text-xs text-slate-500 mt-1">
-                                {consolidatedContracts.filter(c => c.propertyRole === 'OWNER').length} propiedades activas
+                                {showValues ? `${consolidatedContracts.filter(c => c.propertyRole === 'OWNER').length} propiedades activas` : '****'}
                             </p>
                         </CardContent>
                     </Card>
@@ -269,7 +269,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                         : '****'}
                                 </h3>
                                 <p className="text-xs text-slate-500 mt-1">
-                                    {consolidatedContracts.filter(c => c.propertyRole === 'TENANT').length} propiedades alquiladas
+                                    {showValues ? `${consolidatedContracts.filter(c => c.propertyRole === 'TENANT').length} propiedades alquiladas` : '****'}
                                 </p>
                             </CardContent>
                         </Card>
@@ -348,7 +348,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                                     {showValues ? summaryMetrics.nextAdjustment.nextAdjDate.toLocaleDateString('es-AR') : '****'}
                                                 </p>
                                                 <span className="text-sm font-bold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded uppercase">
-                                                    {summaryMetrics.nextAdjustment.monthsRemaining} meses
+                                                    {showValues ? `${summaryMetrics.nextAdjustment.monthsRemaining} meses` : '****'}
                                                 </span>
                                             </div>
                                         </>
@@ -390,10 +390,12 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                 <Building2 size={20} />
                                 <span className="text-sm font-semibold uppercase text-slate-400 print:text-slate-600 tracking-wider">Contratos Activos</span>
                             </div>
-                            <h3 className="text-3xl font-bold text-white print:text-slate-900">
-                                {summaryMetrics.count}
+                            <h3 className="text-2xl font-bold text-blue-400 print:text-blue-700">
+                                {showValues ? summaryMetrics.count : '****'}
                             </h3>
-                            <p className="text-xs text-slate-500 mt-1">propiedades alquiladas</p>
+                            <p className="text-xs text-slate-500 mt-1">
+                                {showValues ? 'propiedades alquiladas' : '****'}
+                            </p>
                         </CardContent>
                     </Card>
                 </div>
