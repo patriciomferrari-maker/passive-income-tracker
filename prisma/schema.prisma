@@ -551,7 +551,7 @@ model BarbosaTransaction {
 
   // Installment Plan Relation
   installmentPlanId String?
-  installmentPlan   BarbosaInstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: SetNull)
+  installmentPlan   BarbosaInstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: Cascade)
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

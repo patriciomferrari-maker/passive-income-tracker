@@ -178,7 +178,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                             </span>
                             <span className="font-mono font-medium text-white">
                                 {entry.name.includes('USD') || entry.name.includes('Ingreso') || entry.name.includes('Gasto')
-                                    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(entry.value)
+                                    ? new Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency }).format(entry.value)
                                     : `${entry.value.toFixed(2)}%`
                                 }
                             </span>
@@ -216,7 +216,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                     <button
                         onClick={() => setCurrency('USD')}
                         className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${currency === 'USD'
-                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
                             : 'text-slate-400 hover:text-white'
                             }`}
                     >
