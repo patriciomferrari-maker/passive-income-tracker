@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, ArrowUpCircle, ArrowDownCircle, Loader2, Download } from 'lucide-react';
+import { Plus, ArrowUpCircle, ArrowDownCircle, Loader2, Download, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { POPULAR_CRYPTOS, getCryptoIcon } from '@/app/lib/crypto-list';
@@ -22,6 +22,8 @@ interface Transaction {
     commission: number;
     totalAmount: number;
     notes?: string;
+    cryptoTicker?: string; // Enhanced locally
+    cryptoName?: string;   // Enhanced locally
 }
 
 export default function OperacionesTab() {
@@ -31,6 +33,9 @@ export default function OperacionesTab() {
     const [selectedCryptoId, setSelectedCryptoId] = useState('');
     const [loading, setLoading] = useState(true);
     const [fetchingPrice, setFetchingPrice] = useState(false);
+
+    // Editing State
+    const [editingTxId, setEditingTxId] = useState<string | null>(null);
 
     // Form states
     const [cryptoFormMode, setCryptoFormMode] = useState<'select' | 'custom'>('select');
@@ -115,14 +120,59 @@ export default function OperacionesTab() {
         }
     };
 
-    const handleAddTransaction = async (e: React.FormEvent) => {
+    const handleEditTransaction = (tx: Transaction) => {
+        setEditingTxId(tx.id);
+        setSelectedCryptoId(tx.cryptoTicker || ''); // Ticker
+
+        // Find existing crypto to get the ID if needed, but for now we rely on Ticker for new/edit
+        // Note: The form uses Ticker as selectedCryptoId value
+
+        setTxForm({
+            type: tx.type,
+            quantity: tx.quantity.toString(),
+            price: tx.price.toString(),
+            commission: tx.commission.toString(),
+            date: new Date(tx.date).toISOString().split('T')[0],
+            notes: tx.notes || ''
+        });
+
+        setShowTransactionForm(true);
+        // Scroll to form
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleDeleteTransaction = async (id: string) => {
+        if (!confirm('¿Estás seguro de eliminar esta operación?')) return;
+
+        try {
+            const res = await fetch(`/api/investments/crypto/transaction/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                fetchCryptos();
+            } else {
+                alert('Error al eliminar');
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleSubmitTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch('/api/investments/crypto/transaction', {
-                method: 'POST',
+            const url = editingTxId
+                ? `/api/investments/crypto/transaction/${editingTxId}`
+                : '/api/investments/crypto/transaction';
+
+            const method = editingTxId ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    ticker: selectedCryptoId, // This now holds the Ticker, not ID
+                    ticker: selectedCryptoId, // Used mainly for creation
                     type: txForm.type,
                     quantity: parseFloat(txForm.quantity),
                     price: parseFloat(txForm.price),
@@ -133,6 +183,7 @@ export default function OperacionesTab() {
             });
 
             if (res.ok) {
+                // Reset Form
                 setTxForm({
                     type: 'BUY',
                     quantity: '',
@@ -142,6 +193,7 @@ export default function OperacionesTab() {
                     notes: ''
                 });
                 setShowTransactionForm(false);
+                setEditingTxId(null);
                 setSelectedCryptoId('');
                 fetchCryptos();
             } else {
@@ -149,8 +201,8 @@ export default function OperacionesTab() {
                 alert(`Error: ${err.error || 'Unknown error'}`);
             }
         } catch (error) {
-            console.error('Error adding transaction:', error);
-            alert('Error creating transaction');
+            console.error('Error adding/editing transaction:', error);
+            alert('Error processing transaction');
         }
     };
 
@@ -179,7 +231,18 @@ export default function OperacionesTab() {
                     Nueva Crypto
                 </Button>
                 <Button
-                    onClick={() => setShowTransactionForm(!showTransactionForm)}
+                    onClick={() => {
+                        setShowTransactionForm(!showTransactionForm);
+                        setEditingTxId(null); // Clear editing state if toggling manually
+                        setTxForm({
+                            type: 'BUY',
+                            quantity: '',
+                            price: '',
+                            commission: '0',
+                            date: new Date().toISOString().split('T')[0],
+                            notes: ''
+                        });
+                    }}
                     className="bg-green-600 hover:bg-green-700"
                 >
                     <Plus className="h-4 w-4 mr-2" />
@@ -301,11 +364,11 @@ export default function OperacionesTab() {
                 </div>
             )}
 
-            {/* New Transaction Form */}
+            {/* New/Edit Transaction Form */}
             {showTransactionForm && (
                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold mb-4">Nueva Operación</h3>
-                    <form onSubmit={handleAddTransaction} className="space-y-4">
+                    <h3 className="text-lg font-semibold mb-4">{editingTxId ? 'Editar Operación' : 'Nueva Operación'}</h3>
+                    <form onSubmit={handleSubmitTransaction} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm text-slate-400 mb-2">Crypto</label>
@@ -313,7 +376,8 @@ export default function OperacionesTab() {
                                     value={selectedCryptoId}
                                     onChange={(e) => setSelectedCryptoId(e.target.value)}
                                     required
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2"
+                                    disabled={!!editingTxId} // Disable changing crypto when editing for simplicity
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 disabled:opacity-50"
                                 >
                                     <option value="">Seleccionar...</option>
                                     {/* Merge Popular Cryptos with User's Custom Cryptos */}
@@ -399,8 +463,11 @@ export default function OperacionesTab() {
                             />
                         </div>
                         <div className="flex gap-2">
-                            <Button type="submit" className="bg-green-600 hover:bg-green-700">Guardar</Button>
-                            <Button type="button" className="bg-slate-800 hover:bg-slate-700 border border-slate-600" onClick={() => setShowTransactionForm(false)}>
+                            <Button type="submit" className="bg-green-600 hover:bg-green-700">{editingTxId ? 'Actualizar' : 'Guardar'}</Button>
+                            <Button type="button" className="bg-slate-800 hover:bg-slate-700 border border-slate-600" onClick={() => {
+                                setShowTransactionForm(false);
+                                setEditingTxId(null);
+                            }}>
                                 Cancelar
                             </Button>
                         </div>
@@ -416,7 +483,7 @@ export default function OperacionesTab() {
                 ) : (
                     <div className="space-y-2">
                         {allTransactions.map((tx) => (
-                            <div key={tx.id} className="flex items-center justify-between p-4 bg-slate-800 rounded-lg">
+                            <div key={tx.id} className="flex items-center justify-between p-4 bg-slate-800 rounded-lg group">
                                 <div className="flex items-center gap-4">
                                     {tx.type === 'BUY' ? (
                                         <ArrowUpCircle className="h-6 w-6 text-green-400" />
@@ -425,18 +492,40 @@ export default function OperacionesTab() {
                                     )}
                                     <div>
                                         <div className="font-semibold flex items-center gap-2">
-                                            <span>{getCryptoIcon(tx.cryptoTicker)}</span>
+                                            <span>{getCryptoIcon(tx.cryptoTicker || '')}</span>
                                             {tx.cryptoTicker}
                                         </div>
                                         <div className="text-sm text-slate-400">{new Date(tx.date).toLocaleDateString('es-AR')}</div>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <div className="font-mono">
-                                        {tx.quantity} × ${tx.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                <div className="flex items-center gap-6">
+                                    <div className="text-right">
+                                        <div className="font-mono">
+                                            {tx.quantity} × ${tx.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                        </div>
+                                        <div className={`text-sm font-semibold ${tx.type === 'BUY' ? 'text-red-400' : 'text-green-400'}`}>
+                                            {tx.type === 'BUY' ? '-' : '+'}${Math.abs(tx.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                        </div>
                                     </div>
-                                    <div className={`text-sm font-semibold ${tx.type === 'BUY' ? 'text-red-400' : 'text-green-400'}`}>
-                                        {tx.type === 'BUY' ? '-' : '+'}${Math.abs(tx.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+
+                                    {/* Action Buttons (Visible on hover or always for mobile friendly) */}
+                                    <div className="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-slate-700"
+                                            onClick={() => handleEditTransaction(tx)}
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-slate-700"
+                                            onClick={() => handleDeleteTransaction(tx.id)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
                                     </div>
                                 </div>
                             </div>
