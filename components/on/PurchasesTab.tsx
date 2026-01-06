@@ -479,7 +479,6 @@ export function PurchasesTab() {
                                                                                         <td className="px-4 py-2 text-right text-slate-500 text-xs">
                                                                                             {currencyMode}
                                                                                         </td>
-                                                                                        </td>
                                                                                         <td className="px-4 py-2 text-right flex justify-end gap-1">
                                                                                             <button
                                                                                                 onClick={() => handleEditTransaction(tx)}
@@ -495,58 +494,58 @@ export function PurchasesTab() {
                                                                                             </button>
                                                                                         </td>
                                                                                     </tr>
-                                                                    );
+                                                                                );
                                                                             })}
-                                                                </tbody>
-                                                            </table>
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
                                                         </div>
-                                                        </div>
-                                            )
-                                        }
+                                                    )
+                                                    }
                                                 </div>
-                                    );
+                                            );
                                         })}
+                                    </div>
                                 </div>
-                                </div>
-                    ))
+                            ))
                         )}
-                </div>
-            </CardContent>
-        </Card>
+                    </div>
+                </CardContent>
+            </Card>
 
             {
-        showSaleModal && (
-            <RegisterSaleModal
-                onClose={() => setShowSaleModal(false)}
+                showSaleModal && (
+                    <RegisterSaleModal
+                        onClose={() => setShowSaleModal(false)}
+                        onSuccess={handleSuccess}
+                        assets={assets}
+                    />
+                )
+            }
+
+            {
+                showImport && (
+                    <BulkImportDialog
+                        onClose={() => setShowImport(false)}
+                        onSuccess={handleSuccess}
+                    />
+                )
+            }
+
+            <TransactionFormModal
+                isOpen={isTxModalOpen}
+                onClose={handleCloseTxModal}
                 onSuccess={handleSuccess}
+                initialData={editingTxId ? {
+                    id: editingTxId,
+                    date: '', // Fetched by component
+                    quantity: 0,
+                    price: 0,
+                    commission: 0,
+                    currency: 'ARS'
+                } : null}
                 assets={assets}
             />
-        )
-    }
-
-    {
-        showImport && (
-            <BulkImportDialog
-                onClose={() => setShowImport(false)}
-                onSuccess={handleSuccess}
-            />
-        )
-    }
-
-    <TransactionFormModal
-        isOpen={isTxModalOpen}
-        onClose={handleCloseTxModal}
-        onSuccess={handleSuccess}
-        initialData={editingTxId ? {
-            id: editingTxId,
-            date: '', // Fetched by component
-            quantity: 0,
-            price: 0,
-            commission: 0,
-            currency: 'ARS'
-        } : null}
-        assets={assets}
-    />
         </div >
     );
 }
