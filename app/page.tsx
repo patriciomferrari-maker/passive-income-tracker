@@ -284,7 +284,7 @@ export default function HomePage() {
                           />
                         )}
 
-                        {shouldShow('crypto') && ['paato.ferrari@hotmail.com', 'patriciomferrari@gmail.com'].includes(stats.userEmail || '') && (
+                        {shouldShow('crypto') && (
                           <DashboardCard
                             title="Crypto Portfolio"
                             description="Bitcoin, Ethereum y otras"

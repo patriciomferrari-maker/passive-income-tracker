@@ -50,8 +50,11 @@ export function RecurrenceTab() {
                 fetch('/api/barbosa/recurrence'),
                 fetch('/api/barbosa/categories')
             ]);
-            setRules(await rulesRes.json());
-            setCategories(await catRes.json());
+            const rulesData = await rulesRes.json();
+            const catsData = await catRes.json();
+
+            setRules(Array.isArray(rulesData) ? rulesData : []);
+            setCategories(Array.isArray(catsData) ? catsData : []);
         } catch (e) {
             console.error(e);
         } finally {

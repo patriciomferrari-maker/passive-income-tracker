@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,7 +29,11 @@ export function CashflowTab() {
             }
             const res = await fetch(url);
             const json = await res.json();
-            setData(json);
+            if (json && json.periods && json.data) {
+                setData(json);
+            } else {
+                setData(null);
+            }
         } catch (e) {
             console.error(e);
         } finally {
@@ -112,7 +116,7 @@ export function CashflowTab() {
             });
 
             return (
-                <>
+                <Fragment key={`${type}-${catName}`}>
                     {/* Category Header Row (Clickable) */}
                     <tr
                         key={`${type}-${catName}`}
@@ -153,7 +157,7 @@ export function CashflowTab() {
                             })}
                         </tr>
                     ))}
-                </>
+                </Fragment>
             );
         });
     };

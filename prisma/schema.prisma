@@ -40,6 +40,7 @@ model User {
   barbosaTransactions BarbosaTransaction[]
   barbosaCleaning BarbosaCleaning[]
   barbosaRecurrences BarbosaRecurrence[]
+  barbosaCategorizationRules BarbosaCategorizationRule[]
 
   monthlySummaries MonthlySummary[]
   appSettings     AppSettings[]
@@ -498,6 +499,7 @@ model BarbosaCategory {
   transactions  BarbosaTransaction[]
   recurrences   BarbosaRecurrence[]
   installmentPlans BarbosaInstallmentPlan[]
+  categorizationRules BarbosaCategorizationRule[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -554,6 +556,9 @@ model BarbosaTransaction {
   // Installment Plan Relation
   installmentPlanId String?
   installmentPlan   BarbosaInstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: Cascade)
+
+  importSource      String? // e.g. "PDF_20240105_1234"
+  attachmentUrl     String? // URL to the uploaded PDF file
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -639,5 +644,24 @@ model BarbosaInstallmentPlan {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  @@index([userId])
+}
+
+model BarbosaCategorizationRule {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  pattern   String   // Text to match in description (case insensitive)
+  
+  categoryId String
+  category   BarbosaCategory @relation(fields: [categoryId], references: [id])
+  
+  subCategoryId String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, pattern])
   @@index([userId])
 }

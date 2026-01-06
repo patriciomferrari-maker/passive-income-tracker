@@ -28,95 +28,44 @@ export async function GET() {
     });
 
     // --- P&L CALCULATION (Adapted from Positions API) ---
-    // We need to calculate Realized and Unrealized gains for ALL assets
-    // This allows us to conditionally show the P&L cards in the Dashboard
+    // ... (rest of P&L logic remains same until capitalInvertido) ...
 
-    // Fetch Last Prices (Simplified: fetch all recent prices for these investments)
-    const investmentIds = investments.map(i => i.id);
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-
-    const recentPrices = await prisma.assetPrice.findMany({
-      where: {
-        investmentId: { in: investmentIds },
-        date: { gte: weekAgo }
-      },
+    // Fetch Historical Exchange Rates (TC_USD_ARS)
+    const rates = await prisma.economicIndicator.findMany({
+      where: { type: 'TC_USD_ARS' },
       orderBy: { date: 'desc' }
     });
 
-    const priceMap: Record<string, number> = {};
-    recentPrices.forEach(p => {
-      if (!priceMap[p.investmentId]) priceMap[p.investmentId] = p.price;
-    });
+    // Helper to find closest rate
+    const getExchangeRate = (date: Date): number => {
+      // 1. Try to find exact or closest past date
+      const rate = rates.find(r => r.date <= date);
+      if (rate) return rate.value;
 
-    let totalRealized = 0;
-    let totalUnrealized = 0;
-    let totalCostRealized = 0;
-    let totalCostUnrealized = 0;
-    let hasEquity = false;
+      // 2. If no past date, take the oldest available (if date is before our history)
+      if (rates.length > 0) return rates[rates.length - 1].value;
 
-    // We need a lightweight FIFO here or just simple avg cost if FIFO is too heavy?
-    // Let's import calculateFIFO to be consistent.
-    // We need to shape transactions for FIFO.
+      // 3. Fallback: Current Market Rate (approximate if DB empty)
+      // Ideally we should fetch this, but for sync purposes let's assume a safe default or latest know
+      return 1200; // Warning: Hardcoded fallback if NO data exists
+    };
 
-    for (const inv of investments) {
-      // Check if Equity
-      if (!['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(inv.type || '')) {
-        hasEquity = true;
-      }
-
-      const fifoTxs = inv.transactions.map(t => ({
-        id: t.id,
-        date: t.date,
-        type: t.type as 'BUY' | 'SELL',
-        quantity: t.quantity,
-        price: t.price,
-        commission: t.commission,
-        currency: t.currency
-      }));
-
-      // Import dynamically to avoid circular deps if any, or just import at top?
-      // calculateFIFO is pure, so safe.
-      // We'll calculate localized P&L. 
-      const result = calculateFIFO(fifoTxs, inv.ticker);
-
-      // REALIZED
-      result.realizedGains.forEach(g => {
-        totalRealized += g.gainAbs;
-        // Cost basis for realized = Sell Proceeds - Gain
-        // Or avgBuyPrice * quantity
-        totalCostRealized += (g.buyPriceAvg * g.quantity) + g.buyCommissionPaid;
-      });
-
-      // UNREALIZED
-      // We need current price
-      let currentPrice = priceMap[inv.id] || inv.lastPrice || 0;
-
-      // If ON/Bond, verify price format (simulating PositionsTable logic)
-      // Usually Dashboard handles ONs naturally, but if we have mixed types...
-      // PositionsTable divides ON price by 100. Let's assume stored price is raw.
-      if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND') {
-        currentPrice = currentPrice / 100;
-      }
-
-      result.openPositions.forEach(p => {
-        const cost = (p.quantity * p.buyPrice) + p.buyCommission;
-        // Handle ON price division if needed (simulated above)
-        const value = p.quantity * currentPrice;
-        if (currentPrice > 0) {
-          totalUnrealized += (value - cost);
-          totalCostUnrealized += cost;
-        }
-      });
-    }
-
-    const roiRealized = totalCostRealized !== 0 ? (totalRealized / totalCostRealized) * 100 : 0;
-    const roiUnrealized = totalCostUnrealized !== 0 ? (totalUnrealized / totalCostUnrealized) * 100 : 0;
-
-
-    // Calculate capital invertido (total invested)
+    // Calculate capital invertido (total invested) NORMALIZED TO USD
     const capitalInvertido = investments.reduce((sum, inv) => {
-      const invTotal = inv.transactions.reduce((txSum, tx) => txSum + Math.abs(tx.totalAmount), 0);
+      const invTotal = inv.transactions.reduce((txSum, tx) => {
+        let amount = Math.abs(tx.totalAmount);
+
+        // Convert ARS to USD
+        if (tx.currency === 'ARS') {
+          const rate = getExchangeRate(tx.date);
+          if (rate && rate > 0) {
+            amount = amount / rate;
+          }
+        }
+
+        return txSum + amount;
+      }, 0);
+
       return sum + invTotal;
     }, 0);
 

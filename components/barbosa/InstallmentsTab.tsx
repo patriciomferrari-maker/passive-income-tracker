@@ -40,7 +40,7 @@ export function InstallmentsTab() {
         try {
             const res = await fetch('/api/barbosa/categories');
             const data = await res.json();
-            setCategories(data);
+            setCategories(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching categories:', error);
         }
@@ -50,7 +50,7 @@ export function InstallmentsTab() {
         try {
             const res = await fetch('/api/barbosa/installments');
             const data = await res.json();
-            setPlans(data);
+            setPlans(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error(error);
         } finally {

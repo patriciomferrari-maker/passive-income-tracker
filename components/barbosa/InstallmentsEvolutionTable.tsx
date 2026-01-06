@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { Card } from '@/components/ui/card';
 import { Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
@@ -16,7 +16,9 @@ export function InstallmentsEvolutionTable() {
         fetch('/api/barbosa/installments')
             .then(res => res.json())
             .then(json => {
-                processData(json);
+                if (Array.isArray(json)) {
+                    processData(json);
+                }
                 setLoading(false);
             })
             .catch(err => {
@@ -103,7 +105,7 @@ export function InstallmentsEvolutionTable() {
                             const subs = Object.keys(catData.subs).sort();
 
                             return (
-                                <>
+                                <Fragment key={cat}>
                                     {/* LEVEL 1: CATEGORY */}
                                     <tr
                                         className={`hover:bg-slate-900/50 transition-colors cursor-pointer group ${isCatExpanded ? 'bg-slate-900/30' : ''}`}
@@ -165,7 +167,7 @@ export function InstallmentsEvolutionTable() {
                                             </>
                                         );
                                     })}
-                                </>
+                                </Fragment>
                             );
                         })}
 

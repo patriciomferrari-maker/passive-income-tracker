@@ -148,6 +148,52 @@ export async function GET(req: NextRequest) {
         }
     });
 
+    // --- INSTALLMENT PLANS PROJECTION ---
+    const activePlans = await prisma.barbosaInstallmentPlan.findMany({
+        where: { userId },
+        include: { category: true, subCategory: true }
+    });
+
+    activePlans.forEach(plan => {
+        let planDate = new Date(plan.startDate);
+        for (let i = 0; i < plan.installmentsCount; i++) {
+            // Check if this installment falls within requested window
+            if (planDate >= startDate && planDate <= endDate) {
+                const planPeriod = getPeriodKey(planDate);
+
+                // Check if a REAL transaction exists for this plan in this month
+                // We check existing loaded txs to avoid extra DB calls
+                const realTxExists = txs.some(t =>
+                    t.installmentPlanId === plan.id &&
+                    getPeriodKey(t.date) === planPeriod
+                );
+
+                if (!realTxExists) {
+                    // Inject Projected Amount
+                    const type = 'EXPENSE'; // Plans are usually expenses
+                    const catName = plan.category.name;
+                    const subName = plan.subCategory?.name || 'General';
+                    // Calculate individual installment amount if not stored explicitly?
+                    // Schema has `totalAmount` and `installmentsCount`. 
+                    // Usually we store totalAmount. Let's assume equal installments:
+                    const amount = plan.totalAmount / plan.installmentsCount;
+
+                    // Init Category/Sub if missing (reuse logic)
+                    if (!structure[type][catName]) structure[type][catName] = {
+                        total: {}, totalStatistical: {}, subs: {}, subsStatistical: {}
+                    };
+                    if (!structure[type][catName].subs[subName]) structure[type][catName].subs[subName] = {};
+
+                    // Add to "Real" (Projected is treated as Real for Cashflow)
+                    structure[type][catName].total[planPeriod] = (structure[type][catName].total[planPeriod] || 0) + amount;
+                    structure[type][catName].subs[subName][planPeriod] = (structure[type][catName].subs[subName][planPeriod] || 0) + amount;
+                }
+            }
+            // Advance 1 month
+            planDate.setMonth(planDate.getMonth() + 1);
+        }
+    });
+
     rentalCashflows.forEach(cf => {
         const period = getPeriodKey(cf.date);
         const amount = Math.round(cf.amountARS || 0);

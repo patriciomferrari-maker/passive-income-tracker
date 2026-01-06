@@ -50,30 +50,131 @@ export async function POST(req: NextRequest) {
         description,
         exchangeRate,
         status,
-        isStatistical
+        isStatistical,
+        isInstallmentPlan, // boolean
+        installments       // { current: number, total: number }
     } = body;
 
-    // Validate Category Exists (and belongs to user)
-    const category = await prisma.barbosaCategory.findFirst({
-        where: { id: categoryId, userId }
-    });
+    // 1. Validate Category
+    let validCategoryId = categoryId;
+    let category = null;
 
-    if (!category) {
-        return NextResponse.json({ error: 'Invalid Category' }, { status: 400 });
+    if (validCategoryId) {
+        // Verify it belongs to user
+        category = await prisma.barbosaCategory.findFirst({
+            where: { id: validCategoryId, userId }
+        });
     }
 
-    // Validate SubCategory (if provided)
+    // Fallback: If no category provided or found, look for "General" or create it
+    if (!category) {
+        console.log('[API] No valid category provided, looking for default "General"');
+        category = await prisma.barbosaCategory.findFirst({
+            where: { userId, name: 'General', type: 'EXPENSE' }
+        });
+
+        if (!category) {
+            console.log('[API] "General" category not found, creating it...');
+            category = await prisma.barbosaCategory.create({
+                data: {
+                    userId,
+                    name: 'General',
+                    type: 'EXPENSE'
+                }
+            });
+        }
+        validCategoryId = category.id;
+    }
+
+    // 2. Validate SubCategory (if provided)
     let validSubCategoryId = null;
     if (subCategoryId) {
         const subCategory = await prisma.barbosaSubCategory.findFirst({
-            where: { id: subCategoryId, categoryId: category.id }
+            where: { id: subCategoryId, categoryId: validCategoryId }
         });
         if (subCategory) {
             validSubCategoryId = subCategory.id;
         }
     }
 
-    // Create Transaction
+    // 3. Handle Installment Plan Creation
+    let installmentPlanId = null;
+
+    if (isInstallmentPlan && installments && installments.total > 1) {
+        // Calculate THE REAL Start Date of the plan (Month 1)
+        // If we are importing "Cuota 5/12" on Aug 2025, Start (1/12) was April 2025.
+        const currentQuota = installments.current || 1;
+
+        const trueStartDate = new Date(date);
+        trueStartDate.setMonth(trueStartDate.getMonth() - (currentQuota - 1));
+
+        console.log(`[API] Creating Installment Plan (Total: ${installments.total}). Current: ${currentQuota}. Start Date: ${trueStartDate.toISOString()}`);
+
+        const plan = await prisma.barbosaInstallmentPlan.create({
+            data: {
+                userId,
+                description: description || 'Compra en cuotas',
+                totalAmount: parseFloat(amount) * installments.total,
+                currency,
+                installmentsCount: installments.total,
+                startDate: trueStartDate,
+                categoryId: validCategoryId,
+                subCategoryId: validSubCategoryId
+            }
+        });
+        installmentPlanId = plan.id;
+
+        // Create Future Projected Transactions (Any installment > current)
+        // AND ALSO Past Projected Transactions? No, user only cares about future usually. 
+        // But for completeness, we might want to fill gaps? 
+        // For now, let's stick to FUTURE projections as per previous logic, 
+        // BUT we must base the loop on the trueStartDate to align correctly.
+
+        // Actually, the previous logic was: loop remaining (current+1 to total).
+        // That is still valid for creating PROJECTED rows.
+        const remaining = installments.total - currentQuota;
+
+        if (remaining > 0) {
+            console.log(`[API] Generating ${remaining} future installments...`);
+            const promises = [];
+
+            // Loop for FUTURE installments
+            for (let i = 1; i <= remaining; i++) {
+                const nextQuotaNum = currentQuota + i;
+                const nextDate = new Date(date); // Base on CURRENT date
+                nextDate.setMonth(nextDate.getMonth() + i);
+
+                // Keep day of month, handle rollover
+                if (date.substring(8, 10) !== nextDate.toISOString().substring(8, 10)) {
+                    // Simple check if day changed due to month length diff
+                    // Actually better: use Date object logic but check day mismatch
+                    const originalDay = new Date(date).getDate();
+                    if (nextDate.getDate() !== originalDay) {
+                        nextDate.setDate(0); // Set to last day of previous month = end of target month
+                    }
+                }
+
+                promises.push(prisma.barbosaTransaction.create({
+                    data: {
+                        userId,
+                        date: nextDate,
+                        amount: parseFloat(amount),
+                        currency,
+                        type: 'EXPENSE',
+                        description: `${description} (Cuota ${nextQuotaNum}/${installments.total})`,
+                        categoryId: validCategoryId,
+                        subCategoryId: validSubCategoryId,
+                        status: 'PROJECTED',
+                        isStatistical: isStatistical || false,
+                        installmentPlanId: plan.id
+                    }
+                }));
+            }
+            await Promise.all(promises);
+        }
+    }
+
+    // 4. Create the MAIN Transaction (The one being imported currently)
     const tx = await prisma.barbosaTransaction.create({
         data: {
             userId,
@@ -83,11 +184,12 @@ export async function POST(req: NextRequest) {
             type,
             exchangeRate: exchangeRate ? parseFloat(exchangeRate) : null,
             amountUSD: currency === 'USD' ? parseFloat(amount) : (exchangeRate ? parseFloat(amount) / parseFloat(exchangeRate) : null),
-            description,
-            categoryId: category.id,
+            description: description, // Should already include (Cuota X/Y) from frontend parsing
+            categoryId: validCategoryId,
             subCategoryId: validSubCategoryId,
             status: status || 'REAL',
-            isStatistical: isStatistical || false
+            isStatistical: isStatistical || false,
+            installmentPlanId: installmentPlanId // Link if created
         },
         include: {
             category: true,
@@ -96,57 +198,42 @@ export async function POST(req: NextRequest) {
     });
 
     // --- COSTA SYNC LOGIC ---
-    // If the category is "Costa Esmeralda", also create a transaction in the Costa module.
-    // Logic: Barbosa SubCategory -> Costa Category.
     if (category.name.toLowerCase().includes('costa')) {
         try {
             console.log('Syncing to Costa module...');
-
-            // 1. Determine Target Category Name in Costa
-            // If subcategory exists, use its name. Otherwise fallback to "Varios" or the generic Category name.
             let targetCategoryName = 'Varios';
             if (validSubCategoryId) {
-                // We need to fetch the subcategory name if we checked validSubCategoryId but didn't keep the object reference
                 const subCatObj = await prisma.barbosaSubCategory.findUnique({ where: { id: validSubCategoryId } });
                 if (subCatObj) targetCategoryName = subCatObj.name;
             } else {
-                targetCategoryName = 'General'; // Fallback if no subcategory
+                targetCategoryName = 'General';
             }
 
-            // 2. Find or Create Costa Category
             let costaCategory = await prisma.costaCategory.findFirst({
                 where: { userId, name: targetCategoryName, type: 'EXPENSE' }
             });
 
             if (!costaCategory) {
-                console.log(`Creating new Costa Category: ${targetCategoryName}`);
                 costaCategory = await prisma.costaCategory.create({
-                    data: {
-                        userId,
-                        name: targetCategoryName,
-                        type: 'EXPENSE'
-                    }
+                    data: { userId, name: targetCategoryName, type: 'EXPENSE' }
                 });
             }
 
-            // 3. Create Costa Transaction
             await prisma.costaTransaction.create({
                 data: {
                     userId,
                     date: new Date(date),
-                    type: 'EXPENSE', // Always expense for now when syncing from generic Barbosa expense
+                    type: 'EXPENSE',
                     amount: parseFloat(amount),
                     currency,
                     description: description || `Sync desde Barbosa (${category.name})`,
-                    categoryId: costaCategory.id
+                    categoryId: costaCategory.id,
+                    linkedTransactionId: tx.id
                 }
             });
-
             console.log('Costa Sync successful.');
-
         } catch (error) {
             console.error('Error syncing to Costa:', error);
-            // Non-blocking error. We don't fail the main request if sync fails.
         }
     }
     // ------------------------

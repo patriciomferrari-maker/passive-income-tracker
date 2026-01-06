@@ -27,7 +27,8 @@ export function SettingsTab() {
         setLoading(true);
         try {
             const res = await fetch('/api/barbosa/categories');
-            setCategories(await res.json());
+            const data = await res.json();
+            setCategories(Array.isArray(data) ? data : []);
         } catch (e) {
             console.error(e);
         } finally {

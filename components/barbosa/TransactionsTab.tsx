@@ -6,17 +6,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { InstallmentsDialog } from './InstallmentsDialog';
-import { Plus, Save, Search, Calendar, DollarSign } from 'lucide-react';
+import { TransactionTable } from './TransactionTable';
+import { TransactionForm } from './TransactionForm';
+import { Plus, Save, Search, Calendar, DollarSign, FileText, Loader2, Check, X, AlertTriangle, Paperclip, Receipt, Upload, Copy } from 'lucide-react';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export function TransactionsTab() {
     const [transactions, setTransactions] = useState<any[]>([]);
     const [categories, setCategories] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
 
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [formOpen, setFormOpen] = useState(false);
+    const [editingTx, setEditingTx] = useState<any>(null);
 
     // Clone Month State
     const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
@@ -29,9 +34,17 @@ export function TransactionsTab() {
         targetYear: new Date().getFullYear().toString(),
     });
 
+    // PDF Parsing State
+    const [isParsing, setIsParsing] = useState(false);
+    const [parsedResults, setParsedResults] = useState<any[] | null>(null);
+    const [pendingFile, setPendingFile] = useState<File | null>(null); // NEW: Track file to upload after review
+    const [currentImportSource, setCurrentImportSource] = useState<string | null>(null);
+    const [showParsedDialog, setShowParsedDialog] = useState(false);
+
     const [filterStatistical, setFilterStatistical] = useState(false);
     const [filterMonth, setFilterMonth] = useState('ALL'); // 'ALL' or '0'-'11'
     const [filterYear, setFilterYear] = useState('ALL'); // Default ALL years
+    const [filterSource, setFilterSource] = useState('ALL'); // NEW: Source filter
 
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
@@ -51,6 +64,16 @@ export function TransactionsTab() {
     }, []);
 
     const loadData = async () => {
+        const safeJson = async (res: Response) => {
+            const contentType = res.headers.get('content-type');
+            if (res.ok && contentType && contentType.includes('application/json')) {
+                return await res.json();
+            }
+            // If response is not OK or not JSON, return a safe default
+            console.warn(`[FRONTEND] safeJson: Invalid response from ${res.url}. Status: ${res.status}. Content-Type: ${contentType}`);
+            return null;
+        };
+
         try {
             const [txRes, catRes, rateRes] = await Promise.all([
                 fetch('/api/barbosa/transactions'),
@@ -58,12 +81,15 @@ export function TransactionsTab() {
                 fetch('/api/barbosa/exchange-rate')
             ]);
 
-            setTransactions(await txRes.json());
-            setCategories(await catRes.json());
-            const rateData = await rateRes.json();
+            const txData = await safeJson(txRes);
+            const catData = await safeJson(catRes);
+            const rateData = await safeJson(rateRes);
+
+            setTransactions(Array.isArray(txData) ? txData : []);
+            setCategories(Array.isArray(catData) ? catData : []);
 
             // Store Exchange Rate if available, to be used in background calculation
-            if (rateData.rate && !editingId) {
+            if (rateData?.rate && !editingId) {
                 setFormData(prev => ({
                     ...prev,
                     exchangeRate: prev.exchangeRate || rateData.rate.toString()
@@ -71,9 +97,9 @@ export function TransactionsTab() {
             }
 
         } catch (e) {
-            console.error(e);
+            console.error('[FRONTEND] Error in loadData:', e);
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
@@ -121,17 +147,175 @@ export function TransactionsTab() {
                     targetYear: parseInt(cloneData.targetYear)
                 })
             });
-            const json = await res.json();
-            if (res.ok) {
-                alert(`Se clonaron ${json.count} movimientos correctamente.`);
+            const contentType = res.headers.get('content-type');
+            const data = (contentType && contentType.includes('application/json'))
+                ? await res.json()
+                : null;
+
+            if (res.ok && data) {
+                alert(`Se clonaron ${data.count} movimientos correctamente.`);
                 setCloneDialogOpen(false);
                 loadData();
             } else {
-                alert(`Error: ${json.message || json.error}`);
+                alert(`Error: ${data?.message || data?.error || 'Error desconocido'}`);
             }
         } catch (error) {
             console.error(error);
             alert("Error de conexión");
+        }
+    };
+
+    const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        console.log('[FRONTEND] File selected:', file?.name);
+        if (!file) return;
+
+        setIsParsing(true);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            console.log('[FRONTEND] Sending PDF to server...');
+            const res = await fetch('/api/barbosa/transactions/parse-pdf', {
+                method: 'POST',
+                body: formData
+            });
+
+            console.log('[FRONTEND] Server response status:', res.status);
+
+            const contentType = res.headers.get('content-type');
+            const data = (contentType && contentType.includes('application/json'))
+                ? await res.json()
+                : null;
+
+            if (res.ok && data) {
+                console.log('[FRONTEND] Data received, transactions:', data.transactions?.length);
+                if (data.transactions && data.transactions.length > 0) {
+                    // Enrich transactions with installment detection
+                    const enriched = data.transactions.map((tx: any) => {
+                        const installmentMatch = tx.description?.match(/Cuota (\d+)\/(\d+)/i) || tx.description?.match(/(\d+)\/(\d+)$/);
+                        let installments = null;
+                        if (installmentMatch) {
+                            installments = {
+                                current: parseInt(installmentMatch[1]),
+                                total: parseInt(installmentMatch[2])
+                            };
+                        }
+                        return {
+                            ...tx,
+                            installments,
+                            isInstallmentPlan: !!installments,
+                            isStatistical: false,
+                            subCategoryId: null,
+                            skip: false
+                        };
+                    });
+
+                    setParsedResults(enriched);
+                    setCurrentImportSource(data.importSource);
+                    setPendingFile(file); // Save for later upload
+                    setShowParsedDialog(true);
+                } else {
+                    alert('No se detectaron transacciones en el PDF. Intenta con otro archivo.');
+                }
+            } else {
+                console.error('[FRONTEND] Server error or invalid response:', data);
+                const errorMsg = data?.error || (res.status === 401 ? 'Sesión expirada o no autorizado' : 'Error desconocido de servidor');
+                alert('Error al procesar el PDF: ' + errorMsg);
+            }
+        } catch (error) {
+            console.error('[FRONTEND] Connection error:', error);
+            alert('Error de conexión al procesar PDF.');
+        } finally {
+            setIsParsing(false);
+            e.target.value = ''; // Reset input
+        }
+    };
+
+    const confirmParsedTransactions = async () => {
+        if (!parsedResults || !currentImportSource) return;
+
+        setIsParsing(true); // Re-use parsing state for upload/save
+        let attachmentUrl = undefined;
+
+        try {
+            // Step 1: Upload to Vercel Blob if we have a pending file
+            if (pendingFile) {
+                try {
+                    const uploadRes = await fetch(`/api/upload?filename=${encodeURIComponent(pendingFile.name)}`, {
+                        method: 'POST',
+                        body: pendingFile,
+                    });
+
+                    if (uploadRes.ok) {
+                        const blob = await uploadRes.json();
+                        attachmentUrl = blob.url;
+                    } else {
+                        console.warn('[FRONTEND] Upload failed, status:', uploadRes.status);
+                        // Optional: notify user but continue
+                    }
+                } catch (uploadError) {
+                    console.error('[FRONTEND] Upload error (soft fail):', uploadError);
+                    // Continue without attachment
+                }
+            }
+
+            // Step 2: Create transactions
+            let successCount = 0;
+            const validResults = parsedResults.filter(tx => !tx.skip);
+
+            for (const tx of validResults) {
+                const res = await fetch('/api/barbosa/transactions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...tx,
+                        categoryId: tx.categoryId || '',
+                        subCategoryId: tx.subCategoryId || null,
+                        importSource: currentImportSource,
+                        attachmentUrl: attachmentUrl, // Link the PDF
+                        status: 'REAL',
+                        isStatistical: tx.isStatistical,
+                        isStatistical: tx.isStatistical,
+                        isInstallmentPlan: tx.isInstallmentPlan,
+                        // If it's a plan, strip the ' (Cuota X/Y)' part from description to keep it clean
+                        description: tx.isInstallmentPlan
+                            ? tx.description.replace(/\s*\(?Cuota\s*\d+\/\d+\)?/i, '').replace(/\s*\d+\/\d+$/, '').trim()
+                            : tx.description,
+                        installments: tx.installments
+                    })
+                });
+
+                if (res.ok && tx.categoryId) {
+                    // If the user manually assigned or the system auto-assigned a category,
+                    // we can optionally "learn" it. 
+                    // For now, only learn if the user actively confirms it.
+                    // Actually, let's create a rule automatically if a category was assigned.
+                    await fetch('/api/barbosa/categories/rules', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            pattern: tx.description,
+                            categoryId: tx.categoryId,
+                            subCategoryId: tx.subCategoryId
+                        })
+                    });
+                }
+
+                if (res.ok) successCount++;
+            }
+
+            alert(`Se importaron ${successCount} transacciones correctamente.`);
+            setShowParsedDialog(false);
+            setParsedResults(null);
+            setCurrentImportSource(null);
+            setPendingFile(null);
+            loadData();
+        } catch (error) {
+            console.error(error);
+            alert('Error al guardar las transacciones.');
+        } finally {
+            setIsParsing(false);
         }
     };
 
@@ -256,12 +440,46 @@ export function TransactionsTab() {
         }
     };
 
+    const handleDeleteBySource = async (source: string) => {
+        if (!confirm(`¿Estás seguro de eliminar TODOS los movimientos importados de "${source}"?`)) return;
+
+        const idsToDelete = transactions.filter(tx => tx.importSource === source).map(tx => tx.id);
+        if (idsToDelete.length === 0) return;
+
+        try {
+            await fetch('/api/barbosa/transactions/batch-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: idsToDelete })
+            });
+            alert(`Se eliminaron ${idsToDelete.length} transacciones.`);
+            loadData();
+        } catch (error) {
+            console.error(error);
+            alert('Error al eliminar');
+        }
+    };
+
     const toggleSelection = (id: string) => {
         const newSet = new Set(selectedIds);
         if (newSet.has(id)) newSet.delete(id);
         else newSet.add(id);
         setSelectedIds(newSet);
     };
+
+    const filteredTransactions = transactions.filter(tx => {
+        const date = new Date(tx.date);
+        const utcDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60000);
+
+        if (filterStatistical && !tx.isStatistical) return false;
+        if (filterYear !== 'ALL' && utcDate.getFullYear().toString() !== filterYear) return false;
+        if (filterMonth !== 'ALL' && utcDate.getMonth().toString() !== filterMonth) return false;
+        if (filterSource !== 'ALL') {
+            if (filterSource === 'MANUAL' && tx.importSource) return false;
+            if (filterSource !== 'MANUAL' && tx.importSource !== filterSource) return false;
+        }
+        return true;
+    });
 
     return (
         <div className="space-y-6">
@@ -271,6 +489,30 @@ export function TransactionsTab() {
                     <Button variant="outline" size="sm" onClick={() => setInstallmentsDialogOpen(true)} className="border-slate-700 text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800">
                         <span className="mr-2 text-xs font-bold">💳</span> Cuotas
                     </Button>
+
+                    <div className="relative">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isParsing}
+                            className="border-blue-800 text-blue-400 hover:text-blue-300 bg-blue-950/30 hover:bg-blue-900/40"
+                            onClick={() => document.getElementById('pdf-upload')?.click()}
+                        >
+                            {isParsing ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                                <FileText className="w-4 h-4 mr-2" />
+                            )}
+                            Lector PDF
+                        </Button>
+                        <input
+                            type="file"
+                            id="pdf-upload"
+                            accept=".pdf"
+                            className="hidden"
+                            onChange={handlePdfUpload}
+                        />
+                    </div>
 
                     {/* Filters Group */}
                     <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded border border-slate-800">
@@ -299,6 +541,32 @@ export function TransactionsTab() {
                                 {['2024', '2025', '2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                             </SelectContent>
                         </Select>
+
+                        {/* Source Filter */}
+                        <Select value={filterSource} onValueChange={setFilterSource}>
+                            <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                                <SelectValue placeholder="Origen" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-900 border-slate-800 text-slate-300 z-50">
+                                <SelectItem value="ALL">Todos los Orígenes</SelectItem>
+                                <SelectItem value="MANUAL">Carga Manual</SelectItem>
+                                {Array.from(new Set(transactions.map(tx => tx.importSource).filter(Boolean))).map((s: any) => (
+                                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        {/* Quick Delete by source */}
+                        {filterSource !== 'ALL' && filterSource !== 'MANUAL' && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteBySource(filterSource)}
+                                className="h-8 text-[10px] text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                            >
+                                <X className="w-3 h-3 mr-1" /> BORRAR CARGA
+                            </Button>
+                        )}
 
                         {/* Statistical Toggle */}
                         <div className={`cursor-pointer h-8 px-3 rounded flex items-center justify-center border transition-all select-none ${filterStatistical
@@ -631,149 +899,356 @@ export function TransactionsTab() {
 
                 {/* List */}
                 <div className="lg:col-span-2 space-y-4">
-                    <h3 className="text-lg font-bold text-white mb-4">
-                        Movimientos
-                        <span className="text-slate-500 font-normal ml-2 text-sm">
-                            {(filterMonth !== 'ALL' || filterYear !== 'ALL') && `(${filterMonth !== 'ALL' ? format(new Date(2024, parseInt(filterMonth), 1), 'MMMM') : ''} ${filterYear !== 'ALL' ? filterYear : ''})`}
-                        </span>
+                    <h3 className="text-lg font-bold text-white mb-4 flex justify-between items-center">
+                        <div>
+                            Movimientos
+                            <span className="text-slate-500 font-normal ml-2 text-sm">
+                                {(filterMonth !== 'ALL' || filterYear !== 'ALL') && `(${filterMonth !== 'ALL' ? format(new Date(2024, parseInt(filterMonth), 1), 'MMMM') : ''} ${filterYear !== 'ALL' ? filterYear : ''})`}
+                            </span>
+                        </div>
+                        {selectedIds.size > 0 && (
+                            <Button variant="destructive" size="sm" onClick={handleBatchDelete} className="animate-in fade-in zoom-in">
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Eliminar ({selectedIds.size})
+                            </Button>
+                        )}
                     </h3>
 
-                    {transactions
-                        .filter(tx => {
-                            const date = new Date(tx.date);
-                            // UTC fix check
-                            const utcDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60000);
+                    {isLoading ? (
+                        <div className="text-center py-20 text-slate-500">
+                            <Loader2 className="w-8 h-8 mx-auto animate-spin mb-2" />
+                            Cargando movimientos...
+                        </div>
+                    ) : filteredTransactions.length === 0 ? (
+                        <div className="text-center py-20 text-slate-500 border border-slate-800 rounded-xl bg-slate-900/30 border-dashed">
+                            <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                            <p>No hay movimientos registrados para este período</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-8">
+                            {Object.entries(
+                                filteredTransactions.reduce((groups: any, tx) => {
+                                    const date = new Date(tx.date);
+                                    // Key format: "YYYY-MM" for sorting, but we display nicely
+                                    const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                                    if (!groups[key]) groups[key] = [];
+                                    groups[key].push(tx);
+                                    return groups;
+                                }, {})
+                            ).sort((a: any, b: any) => b[0].localeCompare(a[0])) // Sort descending (newest month first)
+                                .map(([key, groupTxs]: any) => {
+                                    const [year, month] = key.split('-');
+                                    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+                                    const title = format(date, 'MMMM yyyy', { locale: es as any }); // Cast needed if TS complains about Locale type
 
-                            // 1. Statistical Filter
-                            if (filterStatistical) {
-                                if (!tx.isStatistical) return false;
-                            }
+                                    return (
+                                        <div key={key} className="bg-slate-900/50 rounded-xl border border-slate-800 overflow-hidden shadow-sm">
+                                            <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 text-sm font-bold text-slate-400 uppercase tracking-wider">
+                                                {title}
+                                            </div>
+                                            <TransactionTable
+                                                transactions={groupTxs}
+                                                categories={categories}
+                                                selectedIds={Array.from(selectedIds)}
+                                                onSelect={(newSelection) => {
+                                                    // Handle selection for THIS group specifically
+                                                    // 1. Identify IDs belonging to this group
+                                                    const groupIds = new Set(groupTxs.map((t: any) => t.id));
 
-                            // 2. Year Filter
-                            if (filterYear !== 'ALL') {
-                                if (utcDate.getFullYear().toString() !== filterYear) return false;
-                            }
+                                                    // 2. Prepare new global selection set
+                                                    const next = new Set(selectedIds);
 
-                            // 3. Month Filter
-                            if (filterMonth !== 'ALL') {
-                                if (utcDate.getMonth().toString() !== filterMonth) return false;
-                            }
+                                                    // 3. If newSelection is empty, remove all groupIds from global
+                                                    if (newSelection.length === 0) {
+                                                        groupIds.forEach(id => next.delete(id as string));
+                                                    } else {
+                                                        // 4. Add all from newSelection
+                                                        newSelection.forEach(id => next.add(id));
 
-                            return true;
-                        })
-                        .reduce((groups: any[], tx) => {
-                            const date = new Date(tx.date);
-                            // Force UTC to avoid timezone shifts
-                            const utcDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60000);
-                            const key = format(utcDate, 'MMMM yyyy', { locale: undefined }); // Use default or Spanish locale if configured
-
-                            const group = groups.find(g => g.key === key);
-                            if (group) {
-                                group.items.push({ ...tx, utcDate });
-                            } else {
-                                groups.push({ key, items: [{ ...tx, utcDate }] });
-                            }
-                            return groups;
-                        }, []).map((group: any) => (
-                            <div key={group.key} className="space-y-2">
-                                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider pl-1">{group.key}</h4>
-                                <div className="border border-slate-800 rounded-lg overflow-hidden">
-                                    <table className="w-full text-sm text-left text-slate-300">
-                                        <thead className="bg-slate-900/50 text-slate-500 uppercase font-bold text-[10px]">
-                                            <tr>
-                                                <th className="px-4 py-2 w-[100px]">Fecha</th>
-                                                <th className="px-4 py-2">Estado</th>
-                                                <th className="px-4 py-2">Categoría</th>
-                                                <th className="px-4 py-2">Desc</th>
-                                                <th className="px-4 py-2 text-right">Monto</th>
-                                                <th className="px-4 py-2 text-right w-[100px]">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-800 bg-slate-950">
-                                            {group.items.map((tx: any) => (
-                                                <tr key={tx.id} className={`hover:bg-slate-900/50 ${tx.status === 'PROJECTED' ? 'italic opacity-80' : ''}`}>
-                                                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
-                                                        {format(tx.utcDate, 'dd/MM/yyyy')}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex flex-col gap-1">
-                                                            {tx.status === 'PROJECTED' ? (
-                                                                <span className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 w-fit">PROY</span>
-                                                            ) : (
-                                                                <span className="text-[10px] bg-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-800 w-fit">REAL</span>
-                                                            )}
-                                                            {tx.isStatistical && (
-                                                                <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700 w-fit" title="No suma al total">ESTADÍSTICO</span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex items-center">
-                                                            <span className={`inline-block w-2 h-2 rounded-full mr-2 ${tx.type === 'INCOME' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                                            <span className="font-medium text-slate-300">{tx.category.name}</span>
-                                                            {tx.subCategory && <span className="text-slate-500 ml-1 text-xs">({tx.subCategory.name})</span>}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-slate-500 truncate max-w-[150px]">{tx.description}</td>
-                                                    <td className={`px-4 py-3 text-right font-mono font-medium ${tx.status === 'PROJECTED' ? 'text-purple-300' : 'text-white'}`}>
-                                                        {tx.currency === 'USD' ? 'US$' : '$'} {tx.amount.toLocaleString()}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right">
-                                                        <div className="flex justify-end items-center gap-3">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="h-8 w-8 p-0 text-slate-400 hover:text-white"
-                                                                onClick={() => handleEdit(tx)}
-                                                            >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
-                                                            </Button>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedIds.has(tx.id)}
-                                                                onChange={() => toggleSelection(tx.id)}
-                                                                className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900 outline-none"
-                                                            />
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        ))}
-
-                    {transactions.length === 0 && (
-                        <div className="border border-slate-800 rounded-lg p-8 text-center text-slate-500">
-                            No hay movimientos registrados
+                                                        // 5. Remove any that are in groupIds but NOT in newSelection (unselect one)
+                                                        groupIds.forEach(id => {
+                                                            if (!newSelection.includes(id as string)) next.delete(id as string);
+                                                        });
+                                                    }
+                                                    setSelectedIds(next);
+                                                }}
+                                                onEdit={handleEdit}
+                                                onDelete={handleDelete}
+                                            />
+                                        </div>
+                                    );
+                                })}
                         </div>
                     )}
                 </div>
             </div>
-            {/* Choice Dialog */}
-            <Dialog open={choiceDialogOpen} onOpenChange={setChoiceDialogOpen}>
-                <DialogContent className="bg-slate-900 border-slate-800 text-white sm:max-w-[400px]">
+
+            {/* Dialogs */}
+            <Dialog open={formOpen} onOpenChange={setFormOpen}>
+                <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-lg">
+                    <TransactionForm
+                        initialData={editingTx}
+                        categories={categories}
+                        onClose={() => setFormOpen(false)}
+                        onSaved={() => {
+                            setFormOpen(false);
+                            loadData();
+                        }}
+                    />
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={cloneDialogOpen} onOpenChange={setCloneDialogOpen}>
+                <DialogContent className="bg-slate-900 border-slate-800 text-white sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Editar Cuota</DialogTitle>
+                        <DialogTitle>Clonar Movimientos</DialogTitle>
                     </DialogHeader>
-                    <div className="flex flex-col gap-4 pt-4">
-                        <p className="text-slate-300 text-sm">Este movimiento pertenece a un plan de cuotas.</p>
-                        <div className="flex gap-4">
-                            <Button
-                                onClick={() => {
-                                    setChoiceDialogOpen(false);
-                                    if (selectedTxForChoice) startEditingTransaction(selectedTxForChoice);
-                                }}
-                                className="flex-1 bg-slate-800 hover:bg-slate-700 text-white"
-                            >
-                                Solo esta cuota
+                    <div className="grid gap-4 py-4">
+                        <div className="flex items-center gap-4">
+                            <Label className="text-right">Origen</Label>
+                            <Select value={cloneData.sourceMonth} onValueChange={v => setCloneData({ ...cloneData, sourceMonth: v })}>
+                                <SelectTrigger className="w-[180px] bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+                                <SelectContent>{Array.from({ length: 12 }).map((_, i) => <SelectItem key={i} value={i.toString()}>{format(new Date(2024, i, 1), 'MMMM')}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Select value={cloneData.sourceYear} onValueChange={v => setCloneData({ ...cloneData, sourceYear: v })}>
+                                <SelectTrigger className="w-[100px] bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+                                <SelectContent>{['2024', '2025', '2026'].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <Label className="text-right">Destino</Label>
+                            <Select value={cloneData.targetMonth} onValueChange={v => setCloneData({ ...cloneData, targetMonth: v })}>
+                                <SelectTrigger className="w-[180px] bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+                                <SelectContent>{Array.from({ length: 12 }).map((_, i) => <SelectItem key={i} value={i.toString()}>{format(new Date(2024, i, 1), 'MMMM')}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Select value={cloneData.targetYear} onValueChange={v => setCloneData({ ...cloneData, targetYear: v })}>
+                                <SelectTrigger className="w-[100px] bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+                                <SelectContent>{['2024', '2025', '2026'].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="ghost" onClick={() => setCloneDialogOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleClone}>Clonar</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+
+            <Dialog open={showParsedDialog} onOpenChange={setShowParsedDialog}>
+                <DialogContent className="bg-slate-950 border-slate-800 text-white max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                        <div>
+                            <DialogTitle className="text-xl flex items-center gap-2">
+                                <Receipt className="text-blue-400" />
+                                Transacciones Detectadas
+                            </DialogTitle>
+                            <DialogDescription className="text-slate-400 mt-1">
+                                Revisa y categoriza los movimientos antes de importarlos.
+                            </DialogDescription>
+                        </div>
+                        <div className="text-sm text-slate-400 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700">
+                            {parsedResults?.length} movimientos encontrados
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-auto p-0 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-900/50 sticky top-0 z-10 backdrop-blur-sm">
+                                <tr>
+                                    <th className="px-4 py-3 text-left font-medium text-slate-400 w-[120px]">FECHA</th>
+                                    <th className="px-4 py-3 text-left font-medium text-slate-400">
+                                        <div className="flex items-center gap-2">
+                                            DESCRIPCIÓN / OPCIONES
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 text-[10px] px-2 text-blue-400 hover:text-blue-300 hover:bg-blue-950/30 ml-4 border border-blue-900/50"
+                                                onClick={() => {
+                                                    if (!parsedResults) return;
+                                                    const allStat = parsedResults.every(tx => tx.isStatistical);
+                                                    const newResults = parsedResults.map(tx => ({ ...tx, isStatistical: !allStat }));
+                                                    setParsedResults(newResults);
+                                                }}
+                                            >
+                                                {parsedResults?.every(tx => tx.isStatistical) ? 'Desmarcar Todos' : 'Marcar Todos Estad.'}
+                                            </Button>
+                                        </div>
+                                    </th>
+                                    <th className="px-4 py-3 text-right font-medium text-slate-400 w-[150px]">MONTO</th>
+                                    <th className="px-4 py-3 text-right font-medium text-slate-400 w-[80px]"></th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/50">
+                                {parsedResults?.map((tx, idx) => (
+                                    <tr key={idx} className={`group transition-colors ${tx.skip ? 'opacity-30 bg-slate-900/20' : 'hover:bg-slate-900/30'}`}>
+                                        <td className="px-4 py-3 align-top font-mono text-slate-400">
+                                            {tx.date}
+                                        </td>
+                                        <td className="px-4 py-3 align-top">
+                                            <div className="space-y-2">
+                                                <div className="font-medium text-slate-200 mb-1">{tx.description}</div>
+
+                                                <div className="flex flex-col gap-1 mb-2">
+                                                    <label className="text-xs flex items-center gap-1.5 text-slate-400 cursor-pointer hover:text-indigo-300 transition-colors w-fit">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={tx.isInstallmentPlan}
+                                                            onChange={(e) => {
+                                                                const newResults = [...parsedResults];
+                                                                newResults[idx].isInstallmentPlan = e.target.checked;
+                                                                if (e.target.checked && !newResults[idx].installments) {
+                                                                    newResults[idx].installments = { current: 1, total: 12 };
+                                                                }
+                                                                setParsedResults(newResults);
+                                                            }}
+                                                            className="rounded border-slate-700 bg-slate-900 text-indigo-500 focus:ring-offset-0 focus:ring-1 focus:ring-indigo-500"
+                                                        />
+                                                        {tx.isInstallmentPlan ? <span className="text-indigo-300 font-medium">Es Plan de Cuotas</span> : <span>Marcar como cuotas</span>}
+                                                    </label>
+
+                                                    {tx.isInstallmentPlan && tx.installments && (
+                                                        <div className="flex items-center gap-2 pl-[1.3rem]">
+                                                            <span className="text-xs text-slate-500">Cuota</span>
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                className="h-6 w-10 text-xs bg-slate-900 border border-slate-700 rounded px-1 text-center text-indigo-300 focus:border-indigo-500 outline-none"
+                                                                value={tx.installments.current}
+                                                                onChange={(e) => {
+                                                                    const newResults = [...parsedResults];
+                                                                    if (newResults[idx].installments) {
+                                                                        newResults[idx].installments.current = parseInt(e.target.value) || 1;
+                                                                    }
+                                                                    setParsedResults(newResults);
+                                                                }}
+                                                            />
+                                                            <span className="text-xs text-slate-500">de</span>
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                className="h-6 w-10 text-xs bg-slate-900 border border-slate-700 rounded px-1 text-center text-indigo-300 focus:border-indigo-500 outline-none"
+                                                                value={tx.installments.total}
+                                                                onChange={(e) => {
+                                                                    const newResults = [...parsedResults];
+                                                                    if (newResults[idx].installments) {
+                                                                        newResults[idx].installments.total = parseInt(e.target.value) || 1;
+                                                                    }
+                                                                    setParsedResults(newResults);
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex gap-2 items-center flex-wrap">
+                                                    <Select
+                                                        value={tx.categoryId || ''}
+                                                        onValueChange={(val) => {
+                                                            const newResults = [...parsedResults];
+                                                            newResults[idx].categoryId = val;
+                                                            newResults[idx].subCategoryId = null;
+                                                            setParsedResults(newResults);
+                                                        }}
+                                                    >
+                                                        <SelectTrigger className="h-8 text-xs w-[180px] bg-slate-900 border-slate-700">
+                                                            <SelectValue placeholder="Categoría" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {categories.map((cat: any) => (
+                                                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+
+                                                    {tx.categoryId && (
+                                                        <Select
+                                                            value={tx.subCategoryId || 'none'}
+                                                            onValueChange={(val) => {
+                                                                const newResults = [...parsedResults];
+                                                                newResults[idx].subCategoryId = val === 'none' ? null : val;
+                                                                setParsedResults(newResults);
+                                                            }}
+                                                        >
+                                                            <SelectTrigger className="h-8 text-xs w-[180px] bg-slate-900 border-slate-700">
+                                                                <SelectValue placeholder="Subcategoría (Opcional)" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="none">-- Ninguna --</SelectItem>
+                                                                {categories.find((c: any) => c.id === tx.categoryId)?.subCategories?.map((sub: any) => (
+                                                                    <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    )}
+
+                                                    <label className="text-xs flex items-center gap-1.5 text-slate-500 cursor-pointer hover:text-slate-300 transition-colors ml-2" title="No cuenta para los totales mensuales">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={tx.isStatistical}
+                                                            onChange={(e) => {
+                                                                const newResults = [...parsedResults];
+                                                                newResults[idx].isStatistical = e.target.checked;
+                                                                setParsedResults(newResults);
+                                                            }}
+                                                            className="rounded border-slate-700 bg-slate-900 text-slate-500 focus:ring-offset-0 focus:ring-1 focus:ring-slate-500"
+                                                        />
+                                                        Estadístico
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 align-top text-right">
+                                            <div className="font-mono font-medium text-slate-200">
+                                                $ {tx.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                            </div>
+                                            <div className="text-xs text-slate-500 mt-1">{tx.currency}</div>
+                                        </td>
+                                        <td className="px-4 py-3 align-top text-right">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className={`h-8 w-8 ${tx.skip ? 'text-slate-600' : 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20'}`}
+                                                    onClick={() => {
+                                                        const newResults = [...parsedResults];
+                                                        newResults[idx].skip = !newResults[idx].skip;
+                                                        setParsedResults(newResults);
+                                                    }}
+                                                >
+                                                    <Check className={`w-4 h-4 ${tx.skip ? 'opacity-0' : 'opacity-100'}`} />
+                                                </Button>
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-900/20"
+                                                    onClick={() => {
+                                                        const newResults = [...parsedResults];
+                                                        newResults[idx].skip = true;
+                                                        setParsedResults(newResults);
+                                                    }}
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="p-4 border-t border-slate-800 bg-slate-900 flex justify-between items-center">
+                        <div className="text-xs text-slate-500 italic max-w-[50%]">
+                            * El sistema aprenderá las categorías que selecciones para la próxima carga.
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="ghost" onClick={() => setShowParsedDialog(false)} className="text-slate-400 hover:text-white">
+                                Cancelar
                             </Button>
-                            <Button
-                                onClick={handleEditPlan}
-                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                                Todo el Plan
+                            <Button onClick={confirmParsedTransactions} disabled={isParsing} className="bg-blue-600 hover:bg-blue-700 text-white min-w-[140px]">
+                                {isParsing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+                                Confirmar ({parsedResults?.filter(tx => !tx.skip).length})
                             </Button>
                         </div>
                     </div>
@@ -782,23 +1257,37 @@ export function TransactionsTab() {
 
             <InstallmentsDialog
                 open={installmentsDialogOpen}
-                onOpenChange={(open: boolean) => {
-                    setInstallmentsDialogOpen(open);
-                    if (!open) {
-                        setPlanEditId(null);
-                        setPlanInitialData(null);
-                    }
-                }}
-                onSuccess={loadData}
-                categories={categories}
-                editId={planEditId}
+                onOpenChange={setInstallmentsDialogOpen}
+                transactionId={planEditId}
                 initialData={planInitialData}
+                categories={categories}
+                onSaved={() => {
+                    setInstallmentsDialogOpen(false);
+                    setPlanEditId(null);
+                    setPlanInitialData(null);
+                    loadData();
+                }}
             />
-        </div >
+
+            <Dialog open={choiceDialogOpen} onOpenChange={setChoiceDialogOpen}>
+                <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-sm">
+                    <DialogHeader><DialogTitle>Editar</DialogTitle></DialogHeader>
+                    <div className="flex flex-col gap-3 py-4">
+                        <Button variant="outline" onClick={() => startEditingTransaction(selectedTxForChoice)}>
+                            Editar este movimiento individual
+                        </Button>
+                        <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleEditPlan}>
+                            Editar Plan de Cuotas Orig
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </div>
     );
 }
 
-// End of component
 
 
-// ... (Exported TransactionsTab)
+
+
+
