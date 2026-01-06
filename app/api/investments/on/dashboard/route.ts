@@ -209,19 +209,39 @@ export async function GET() {
 
     // Calculate portfolio breakdown and TIR
     const portfolioBreakdown = investments.map(inv => {
-      const invested = inv.transactions.reduce((sum, tx) => sum + Math.abs(tx.totalAmount), 0);
+      // 1. Normalize Invested Capital
+      const invested = inv.transactions.reduce((sum, tx) => {
+        let amount = Math.abs(tx.totalAmount);
+        if (tx.currency === 'ARS') {
+          const rate = getExchangeRate(tx.date);
+          if (rate && rate > 0) amount = amount / rate;
+        }
+        return sum + amount;
+      }, 0);
 
       // Calculate TIR
       const amounts: number[] = [];
       const dates: Date[] = [];
 
       inv.transactions.forEach(tx => {
-        amounts.push(-Math.abs(tx.totalAmount));
+        let amount = -Math.abs(tx.totalAmount);
+        // Normalize Transaction Amount
+        if (tx.currency === 'ARS') {
+          const rate = getExchangeRate(tx.date);
+          if (rate && rate > 0) amount = amount / rate;
+        }
+        amounts.push(amount);
         dates.push(new Date(tx.date));
       });
 
       inv.cashflows.forEach(cf => {
-        amounts.push(cf.amount);
+        let amount = cf.amount;
+        // Normalize Cashflow Amount
+        if (cf.currency === 'ARS') {
+          const rate = getExchangeRate(cf.date);
+          if (rate && rate > 0) amount = amount / rate;
+        }
+        amounts.push(amount);
         dates.push(new Date(cf.date));
       });
 
@@ -234,6 +254,13 @@ export async function GET() {
       // Apply same price normalization as positions API
       if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND') {
         if (currentPrice > 2.0) currentPrice = currentPrice / 100;
+        // Optimization: Convert market price to USD if asset is in ARS?
+        // Usually 'inv.currency' tells us the trading currency. 
+        // If inv.currency is ARS, 'currentPrice' is in ARS.
+        if (inv.currency === 'ARS') {
+          const currentRate = getExchangeRate(new Date()); // Use today's rate
+          if (currentRate > 0) currentPrice = currentPrice / currentRate;
+        }
       }
 
       if (currentPrice > 0) {
@@ -251,14 +278,20 @@ export async function GET() {
         const totalHolding = fifoResult.openPositions.reduce((s, p) => s + p.quantity, 0);
 
         if (totalHolding > 0) {
-          const marketValue = totalHolding * currentPrice;
+          const marketValue = totalHolding * currentPrice; // Now in USD
           const flows = [-marketValue];
           const flowDates = [new Date()];
 
           const today = new Date();
           inv.cashflows.forEach(cf => {
             if (new Date(cf.date) > today) {
-              flows.push(cf.amount);
+              let amount = cf.amount;
+              // Normalize Projected Cashflow
+              if (cf.currency === 'ARS') {
+                const rate = getExchangeRate(cf.date);
+                if (rate && rate > 0) amount = amount / rate;
+              }
+              flows.push(amount);
               flowDates.push(new Date(cf.date));
             }
           });
@@ -287,14 +320,26 @@ export async function GET() {
       // Add all BUY transactions as negative cashflows
       inv.transactions.forEach(tx => {
         if (tx.type === 'BUY') {
-          allAmounts.push(-Math.abs(tx.totalAmount));
+          let amount = -Math.abs(tx.totalAmount);
+          // Normalize
+          if (tx.currency === 'ARS') {
+            const rate = getExchangeRate(tx.date);
+            if (rate && rate > 0) amount = amount / rate;
+          }
+          allAmounts.push(amount);
           allDates.push(new Date(tx.date));
         }
       });
 
       // Add all projected cashflows as positive cashflows
       inv.cashflows.forEach(cf => {
-        allAmounts.push(cf.amount);
+        let amount = cf.amount;
+        // Normalize
+        if (cf.currency === 'ARS') {
+          const rate = getExchangeRate(cf.date);
+          if (rate && rate > 0) amount = amount / rate;
+        }
+        allAmounts.push(amount);
         allDates.push(new Date(cf.date));
       });
     });
