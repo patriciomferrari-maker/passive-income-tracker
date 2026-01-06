@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { Eye, EyeOff, PlusCircle, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button'; // Ensure Button is imported
 
 interface ON {
     id: string;
     ticker: string;
     name: string;
+    currency?: string;
 }
 
 interface Cashflow {
@@ -26,6 +28,7 @@ interface Transaction {
     quantity: number;
     price: number;
     totalAmount: number;
+    currency: string;             // ARS or USD
     type: 'BUY' | 'SELL';
 }
 
@@ -34,11 +37,14 @@ interface MergedItem {
     date: string;
     type: 'BUY' | 'SELL' | 'INTEREST' | 'AMORTIZATION';
     description: string;
-    amount: number; // Cash flow amount (negative for buy, positive for sell/interest/amort)
+    amount: number; // Display Amount (possibly converted)
+    originalAmount: number;
+    currency: string; // The currency of the displayed amount
+    originalCurrency: string;
     quantity?: number; // For transactions
     price?: number; // For transactions
     isTransaction: boolean;
-    originalData: any;
+    runningBalance: number;
 }
 
 export function IndividualCashflowTab() {
@@ -48,13 +54,16 @@ export function IndividualCashflowTab() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(false);
 
-
+    // Currency & Rates
+    const [currencyMode, setCurrencyMode] = useState<'ORIGINAL' | 'USD'>('ORIGINAL');
+    const [rates, setRates] = useState<Record<string, number>>({});
 
     // Privacy Mode
     const [showValues, setShowValues] = useState(true);
 
     useEffect(() => {
         loadONs();
+        fetchRates();
         // Load privacy setting
         const savedPrivacy = localStorage.getItem('privacy_mode');
         if (savedPrivacy !== null) {
@@ -96,6 +105,18 @@ export function IndividualCashflowTab() {
         }
     };
 
+    const fetchRates = async () => {
+        try {
+            const res = await fetch('/api/economic-data/history?type=TC_USD_ARS');
+            if (res.ok) {
+                const data = await res.json();
+                setRates(data);
+            }
+        } catch (error) {
+            console.error('Error fetching rates:', error);
+        }
+    };
+
     const loadData = async (id: string) => {
         setLoading(true);
         try {
@@ -115,11 +136,32 @@ export function IndividualCashflowTab() {
         }
     };
 
+    const getExchangeRate = (dateStr: string): number => {
+        // Try exact match
+        if (rates[dateStr]) return rates[dateStr];
 
+        // Try finding closest previous date
+        // Since rates keys are YYYY-MM-DD, we can sort and find.
+        // But for performance, assuming keys are roughly continuous.
+        // Let's just fallback to a recent rate if exact missing.
+        // Quick & Dirty: Iterate back 7 days?
+        const d = new Date(dateStr);
+        for (let i = 0; i < 7; i++) {
+            const iso = d.toISOString().split('T')[0];
+            if (rates[iso]) return rates[iso];
+            d.setDate(d.getDate() - 1);
+        }
 
-    const formatMoney = (amount: number) => {
+        // Fallback to latest
+        return 1200;
+    };
+
+    const formatMoney = (amount: number, currency: string) => {
         if (!showValues) return '****';
-        return `$${amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return Intl.NumberFormat(currency === 'ARS' ? 'es-AR' : 'en-US', {
+            style: 'currency',
+            currency: currency
+        }).format(amount);
     };
 
     const formatNumber = (num: number) => {
@@ -133,29 +175,49 @@ export function IndividualCashflowTab() {
 
         // Add Transactions
         transactions.forEach(tx => {
+            const dateStr = new Date(tx.date).toISOString().split('T')[0];
+            let amount = -Math.abs(tx.totalAmount);
+            let currency = tx.currency;
+
+            // Conversion Logic
+            if (currencyMode === 'USD' && tx.currency === 'ARS') {
+                const rate = getExchangeRate(dateStr);
+                amount = amount / rate;
+                currency = 'USD';
+            }
+
             merged.push({
                 id: tx.id,
                 date: tx.date,
-                type: 'BUY', // Assuming only buys for now based on context
+                type: 'BUY',
                 description: `Compra de ${tx.quantity} nominales`,
-                amount: -Math.abs(tx.totalAmount), // Outflow
+                amount: amount,
+                originalAmount: -Math.abs(tx.totalAmount),
+                currency: currency,
+                originalCurrency: tx.currency,
                 quantity: tx.quantity,
                 price: tx.price,
                 isTransaction: true,
-                originalData: tx
+                runningBalance: 0 // Calc later
             });
         });
 
         // Add Cashflows
         cashflows.forEach(cf => {
+            // Assume Cashflows are in USD (Investment Currency)
+            // If we ever support ARS ONs, we might need logic here.
+            // For now, treat as USD.
             merged.push({
                 id: cf.id,
                 date: cf.date,
                 type: cf.type as any,
                 description: cf.description,
-                amount: cf.amount, // Inflow
+                amount: cf.amount,
+                originalAmount: cf.amount,
+                currency: 'USD',
+                originalCurrency: 'USD',
                 isTransaction: false,
-                originalData: cf
+                runningBalance: 0
             });
         });
 
@@ -164,118 +226,25 @@ export function IndividualCashflowTab() {
 
         // Calculate Running Balances (Nominales Residuales)
         let currentNominales = 0;
-        // We need to track the "Factor" to know how much Amortization reduces the Nominal Balance
-        // But simpler: 
-        // If it's a BUY, we add Quantity.
-        // If it's AMORTIZATION, we need to know how much capital is being returned.
-        // The 'amount' is $. The 'quantity' (holdings) doesn't change, but the 'residual value' changes.
-        // The user wants "Nominales que va subir a medida que se hagan compras y bajar a medida que haya amortizaciones".
-        // This means they want to track the "Outstanding Principal" (Capital Residual).
-
-        // For AMORTIZATION: Amount = Holdings * Factor.
-        // So Factor = Amount / Holdings.
-        // And Capital Reduced = Amount.
-        // So Capital Residual = Previous Capital Residual - Amount.
-
-        // Let's track "Capital Residual" (Outstanding Principal in $)
 
         const processed = merged.map(item => {
             if (item.type === 'BUY') {
-                // When buying, we add the Nominal Quantity. 
-                // BUT, if the bond has already amortized, the "Capital Residual" added is Quantity * CurrentFactor.
-                // However, usually you buy "Nominals". 
-                // Let's assume for the "Running Balance" column, we want to show "Capital Residual" (Value of the principal held).
-
-                // Actually, the user said "Nominales". 
-                // "Nominales... bajar a medida que haya amortizaciones".
-                // This is technically "Valor Residual".
-                // If I have 1000 nominals, and 20% amortizes, I get $200. My "Valor Residual" drops by 200.
-
-                // So:
-                // Buy: + Quantity (assuming par or close to par, or just tracking face value? No, tracking residual).
-                // Actually, if I buy 1000 nominals of a bond that has 50% residual, I am adding 500 to my Capital Residual.
-                // But I don't easily know the factor at purchase time here without complex logic.
-
-                // SIMPLIFICATION:
-                // Track "Nominales" (Face Value) and "Capital Residual" separately?
-                // User asked for ONE column.
-                // "Nominales (que va subir... y bajar...)".
-                // This behaves exactly like "Capital Residual".
-
-                // Logic:
-                // 1. Buy: Add Quantity (Assuming 100% factor? Or should we try to deduce?)
-                //    If we assume the user buys "Nominals", we add Quantity.
-                // 2. Amortization: Subtract the Amortization Amount?
-                //    Yes, because Amortization is return of capital.
-                //    If I have 1000 Capital, and get 200 Amortization, I have 800 Capital left.
-
-                // There is a nuance: If I buy a bond that is already amortized, say factor 0.5.
-                // I buy 1000 nominals. My "Capital Claim" is 500.
-                // If I just add 1000, it's wrong.
-
-                // However, without historical factor data here, it's hard.
-                // BUT, `generateInvestmentCashflow` calculates `capitalResidual` for each cashflow row!
-                // Let's use that!
-                // The `cashflow` object has `capitalResidual`. This is the residual AFTER the payment.
-                // So for Cashflow rows, we can just display that value.
-
-                // What about Purchase rows?
-                // We can interpolate?
-                // Or just show "-" for purchases and let the next cashflow show the updated residual.
-
-                // User wants to see it "go up" when buying.
-                // If I show "-" for purchases, it doesn't "go up".
-
-                // Let's try to maintain a running `currentResidual` state.
-                // For BUY: We add `item.quantity`. (Assuming Factor=1 at purchase? This is a risk).
-                // For AMORTIZATION: We subtract `item.amount`?
-                //    If `item.amount` is the amortization payment.
-
-                // BETTER APPROACH:
-                // The `cashflows` from API *already* contain the correct `capitalResidual` calculated with full schedule knowledge.
-                // We can just use the `capitalResidual` from the *next* cashflow (or previous?)
-                // Actually, `cashflows` are projected.
-                // If I have a purchase, the *next* cashflow will reflect that purchase in its `capitalResidual` calculation.
-                // So, for the Purchase row itself, what do we show?
-                // Maybe we can't show exact residual at purchase moment easily.
-
-                // Alternative: Just show "Nominales" (Face Value).
-                // Buy: +Quantity.
-                // Amortization: No change.
-                // This contradicts "bajar a medida que haya amortizaciones".
-
-                // Alternative 2: "Capital Residual"
-                // Buy: +Quantity (Approximate, assuming user buys Face Value, which is standard for "Quantity" input).
-                // Amortization: -Amount.
-                // This works if the bond hasn't amortized yet.
-                // If it has, buying 1000 nominals adds 1000 to this counter, but should add less.
-
-                // Let's stick to the user's request: "Nominales que sube con compras y baja con amortizaciones".
-                // I will implement:
-                // Balance = Balance + (Type == BUY ? Quantity : 0) - (Type == AMORTIZATION ? Amount : 0).
-                // Note: Amortization Amount is in $. Quantity is in Nominals.
-                // Usually 1 Nominal = $1 (or $100).
-                // In Argentina ONs, usually 1 Nominal = 1 USD/ARS.
-                // So subtracting Amount from Quantity works if currency matches.
-
-                if (item.type === 'BUY') {
-                    currentNominales += (item.quantity || 0);
-                } else if (item.type === 'AMORTIZATION') {
-                    // Amortization amount is the capital returned.
-                    currentNominales -= item.amount;
-                }
-
-                // Round to avoid floating point errors
-                currentNominales = Math.round(currentNominales * 100) / 100;
+                currentNominales += (item.quantity || 0);
+            } else if (item.type === 'AMORTIZATION') {
+                // Amortization amount (in USD) reduces the Nominal Principle
+                // We use originalAmount if available, assuming it matches Nominals 1:1
+                // For USD ONs, Amount in USD = Nominals Amortized.
+                currentNominales -= Math.abs(item.type === 'AMORTIZATION' ? item.originalAmount : 0);
             }
+
+            // Round to avoid floating point errors
+            currentNominales = Math.round(currentNominales * 100) / 100;
 
             return {
                 ...item,
                 runningBalance: currentNominales
             };
         });
-
-
 
         return processed;
     };
@@ -302,7 +271,29 @@ export function IndividualCashflowTab() {
                         </select>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-4">
+                        {/* Currency Toggle */}
+                        <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
+                            <button
+                                onClick={() => setCurrencyMode('ORIGINAL')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${currencyMode === 'ORIGINAL'
+                                        ? 'bg-blue-600 text-white shadow-sm'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                    }`}
+                            >
+                                Original (Mix)
+                            </button>
+                            <button
+                                onClick={() => setCurrencyMode('USD')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${currencyMode === 'USD'
+                                        ? 'bg-emerald-600 text-white shadow-sm'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                    }`}
+                            >
+                                USD Unificado
+                            </button>
+                        </div>
+
                         <button
                             onClick={togglePrivacy}
                             className="p-2 bg-slate-700 rounded-md text-slate-300 hover:text-white"
@@ -337,7 +328,7 @@ export function IndividualCashflowTab() {
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Concepto</th>
                                     <th className="text-right py-3 px-4 text-slate-300 font-medium">Monto</th>
                                     <th className="text-right py-3 px-4 text-slate-300 font-medium">Saldo Nominales</th>
-
+                                    <th className="text-right py-3 px-4 text-slate-500 font-medium text-xs">Moneda</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -353,8 +344,8 @@ export function IndividualCashflowTab() {
                                                 {item.type === 'AMORTIZATION' && <ArrowDownCircle size={16} className="text-blue-400" />}
 
                                                 <span className={`px-2 py-1 rounded text-xs ${item.type === 'BUY' ? 'bg-purple-500/20 text-purple-300' :
-                                                    item.type === 'INTEREST' ? 'bg-green-500/20 text-green-300' :
-                                                        'bg-blue-500/20 text-blue-300'
+                                                        item.type === 'INTEREST' ? 'bg-green-500/20 text-green-300' :
+                                                            'bg-blue-500/20 text-blue-300'
                                                     }`}>
                                                     {item.type === 'BUY' ? 'COMPRA' :
                                                         item.type === 'INTEREST' ? 'INTERÉS' : 'AMORTIZACIÓN'}
@@ -363,12 +354,14 @@ export function IndividualCashflowTab() {
                                             </div>
                                         </td>
                                         <td className={`py-3 px-4 text-right font-mono ${item.amount > 0 ? 'text-green-400' : item.amount < 0 ? 'text-red-400' : 'text-white'}`}>
-                                            {formatMoney(item.amount)}
+                                            {formatMoney(item.amount, item.currency)}
                                         </td>
                                         <td className="py-3 px-4 text-slate-400 text-right font-mono">
                                             {formatNumber(item.runningBalance)}
                                         </td>
-
+                                        <td className="py-3 px-4 text-slate-500 text-right text-xs">
+                                            {item.currency}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>

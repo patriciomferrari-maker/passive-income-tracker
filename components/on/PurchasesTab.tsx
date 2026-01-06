@@ -54,8 +54,8 @@ export function PurchasesTab() {
     // Selection State
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-    // Expansion State
-    const [expandedTickers, setExpandedTickers] = useState<Set<string>>(new Set());
+    // Expansion State (Default expanded, so we track collapsed)
+    const [collapsedTickers, setCollapsedTickers] = useState<Set<string>>(new Set());
 
     // Modals
     const [showSaleModal, setShowSaleModal] = useState(false);
@@ -205,10 +205,10 @@ export function PurchasesTab() {
     }, [filteredTransactions]);
 
     const toggleTicker = (ticker: string) => {
-        const newSet = new Set(expandedTickers);
+        const newSet = new Set(collapsedTickers);
         if (newSet.has(ticker)) newSet.delete(ticker);
         else newSet.add(ticker);
-        setExpandedTickers(newSet);
+        setCollapsedTickers(newSet);
     };
 
     const handleSelectRow = (id: string, checked: boolean) => {
@@ -329,7 +329,7 @@ export function PurchasesTab() {
 
                                     <div className="space-y-3">
                                         {Object.values(tickersMap).sort((a, b) => a.ticker.localeCompare(b.ticker)).map(group => {
-                                            const isExpanded = expandedTickers.has(group.ticker);
+                                            const isExpanded = !collapsedTickers.has(group.ticker);
                                             return (
                                                 <div key={group.ticker} className="border border-slate-800 rounded-lg bg-slate-900/30 overflow-hidden">
                                                     {/* Asset Header */}
