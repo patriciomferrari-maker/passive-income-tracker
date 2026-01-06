@@ -318,8 +318,7 @@ export async function GET() {
     }).filter(item => item.invested > 0);
 
     // Calculate Consolidated TIR (XIRR)
-    const allAmounts: number[] = [];
-    const allDates: Date[] = [];
+    const consolidatedFlows: { amount: number; date: Date }[] = [];
 
     investments.forEach(inv => {
       // Add all BUY transactions as negative cashflows
@@ -331,8 +330,7 @@ export async function GET() {
             const rate = getExchangeRate(tx.date);
             if (rate && rate > 0) amount = amount / rate;
           }
-          allAmounts.push(amount);
-          allDates.push(new Date(tx.date));
+          consolidatedFlows.push({ amount, date: new Date(tx.date) });
         }
       });
 
@@ -344,10 +342,15 @@ export async function GET() {
           const rate = getExchangeRate(cf.date);
           if (rate && rate > 0) amount = amount / rate;
         }
-        allAmounts.push(amount);
-        allDates.push(new Date(cf.date));
+        consolidatedFlows.push({ amount, date: new Date(cf.date) });
       });
     });
+
+    // Sort by date to ensure stable XIRR calculation
+    consolidatedFlows.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    const allAmounts = consolidatedFlows.map(f => f.amount);
+    const allDates = consolidatedFlows.map(f => f.date);
 
     const tirConsolidada = calculateXIRR(allAmounts, allDates);
 
