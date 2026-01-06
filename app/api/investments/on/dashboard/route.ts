@@ -225,13 +225,16 @@ export async function GET() {
       const rawFlows: { amount: number; date: Date }[] = [];
 
       inv.transactions.forEach(tx => {
-        let amount = -Math.abs(tx.totalAmount);
-        // Normalize Transaction Amount
-        if (tx.currency === 'ARS') {
-          const rate = getExchangeRate(tx.date);
-          if (rate && rate > 0) amount = amount / rate;
+        // Only include BUY transactions for purchase-based TIR
+        if (tx.type === 'BUY') {
+          let amount = -Math.abs(tx.totalAmount);
+          // Normalize Transaction Amount
+          if (tx.currency === 'ARS') {
+            const rate = getExchangeRate(tx.date);
+            if (rate && rate > 0) amount = amount / rate;
+          }
+          rawFlows.push({ amount, date: new Date(tx.date) });
         }
-        rawFlows.push({ amount, date: new Date(tx.date) });
       });
 
       inv.cashflows.forEach(cf => {
