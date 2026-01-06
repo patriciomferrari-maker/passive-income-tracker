@@ -253,7 +253,18 @@ export async function GET() {
       const amounts = rawFlows.map(f => f.amount);
       const dates = rawFlows.map(f => f.date);
 
+      // Debug logging
+      console.log(`[TIR DEBUG] ${inv.ticker}:`, {
+        txCount: inv.transactions.length,
+        buyCount: inv.transactions.filter(t => t.type === 'BUY').length,
+        cfCount: inv.cashflows.length,
+        flowCount: rawFlows.length,
+        amounts: amounts.map(a => a.toFixed(2)),
+        dates: dates.map(d => d.toISOString().split('T')[0])
+      });
+
       const tir = calculateXIRR(amounts, dates);
+      console.log(`[TIR RESULT] ${inv.ticker}: ${tir ? (tir * 100).toFixed(2) : 'NULL'}%`);
 
       // Calculate Theoretical TIR (market-based)
       let theoreticalTir: number | null = null;
@@ -355,7 +366,16 @@ export async function GET() {
     const allAmounts = consolidatedFlows.map(f => f.amount);
     const allDates = consolidatedFlows.map(f => f.date);
 
+    // Debug logging
+    console.log('[CONSOLIDATED TIR DEBUG]:', {
+      investmentCount: investments.length,
+      totalFlows: consolidatedFlows.length,
+      amounts: allAmounts.map(a => a.toFixed(2)).slice(0, 10), // First 10
+      dates: allDates.map(d => d.toISOString().split('T')[0]).slice(0, 10)
+    });
+
     const tirConsolidada = calculateXIRR(allAmounts, allDates);
+    console.log('[CONSOLIDATED TIR RESULT]:', tirConsolidada ? (tirConsolidada * 100).toFixed(2) : 'NULL', '%');
 
     // Calculate total a cobrar (capital + interés)
     const totalACobrar = capitalACobrar + interesACobrar;
