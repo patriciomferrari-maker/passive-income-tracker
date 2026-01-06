@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { Eye, EyeOff, PlusCircle, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button'; // Ensure Button is imported
+import { Button } from '@/components/ui/button';
 
 interface ON {
     id: string;
@@ -37,7 +37,7 @@ interface MergedItem {
     date: string;
     type: 'BUY' | 'SELL' | 'INTEREST' | 'AMORTIZATION';
     description: string;
-    amount: number; // Display Amount (possibly converted)
+    amount: number; // Display Amount (converted)
     originalAmount: number;
     currency: string; // The currency of the displayed amount
     originalCurrency: string;
@@ -54,8 +54,8 @@ export function IndividualCashflowTab() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(false);
 
-    // Currency & Rates
-    const [currencyMode, setCurrencyMode] = useState<'ORIGINAL' | 'USD'>('ORIGINAL');
+    // Currency & Rates (Default USD)
+    const [currencyMode, setCurrencyMode] = useState<'ARS' | 'USD'>('USD');
     const [rates, setRates] = useState<Record<string, number>>({});
 
     // Privacy Mode
@@ -64,7 +64,6 @@ export function IndividualCashflowTab() {
     useEffect(() => {
         loadONs();
         fetchRates();
-        // Load privacy setting
         const savedPrivacy = localStorage.getItem('privacy_mode');
         if (savedPrivacy !== null) {
             setShowValues(savedPrivacy === 'true');
@@ -90,13 +89,11 @@ export function IndividualCashflowTab() {
         try {
             const res = await fetch('/api/investments/on');
             const data = await res.json();
-            // Filter only ONs and Bonds, and those with transactions
             const onsWithPurchases = data.filter((on: any) =>
                 (on._count && on._count.transactions > 0) &&
                 (on.type === 'ON' || on.type === 'CORPORATE_BOND')
             );
             setOns(onsWithPurchases);
-
             if (onsWithPurchases.length > 0 && !selectedON) {
                 setSelectedON(onsWithPurchases[0].id);
             }
@@ -120,12 +117,10 @@ export function IndividualCashflowTab() {
     const loadData = async (id: string) => {
         setLoading(true);
         try {
-            // Load Cashflows
             const resCf = await fetch(`/api/investments/on/${id}/cashflows`);
             const dataCf = await resCf.json();
             setCashflows(dataCf);
 
-            // Load Transactions (Purchases)
             const resTx = await fetch(`/api/investments/on/${id}/transactions`);
             const dataTx = await resTx.json();
             setTransactions(dataTx);
@@ -139,20 +134,14 @@ export function IndividualCashflowTab() {
     const getExchangeRate = (dateStr: string): number => {
         // Try exact match
         if (rates[dateStr]) return rates[dateStr];
-
-        // Try finding closest previous date
-        // Since rates keys are YYYY-MM-DD, we can sort and find.
-        // But for performance, assuming keys are roughly continuous.
-        // Let's just fallback to a recent rate if exact missing.
-        // Quick & Dirty: Iterate back 7 days?
+        // Fallback: look back 7 days
         const d = new Date(dateStr);
         for (let i = 0; i < 7; i++) {
             const iso = d.toISOString().split('T')[0];
             if (rates[iso]) return rates[iso];
             d.setDate(d.getDate() - 1);
         }
-
-        // Fallback to latest
+        // Last resort fallback
         return 1200;
     };
 
@@ -177,14 +166,20 @@ export function IndividualCashflowTab() {
         transactions.forEach(tx => {
             const dateStr = new Date(tx.date).toISOString().split('T')[0];
             let amount = -Math.abs(tx.totalAmount);
-            let currency = tx.currency;
+            let currency = currencyMode;
 
-            // Conversion Logic
+            // Logic: Normalize everything to `currencyMode`
+            const rate = getExchangeRate(dateStr);
+
+            // If Tx is ARS and we want USD -> Divide
             if (currencyMode === 'USD' && tx.currency === 'ARS') {
-                const rate = getExchangeRate(dateStr);
                 amount = amount / rate;
-                currency = 'USD';
             }
+            // If Tx is USD and we want ARS -> Multiply
+            else if (currencyMode === 'ARS' && tx.currency === 'USD') {
+                amount = amount * rate;
+            }
+            // Else matching currencies -> Keep amount
 
             merged.push({
                 id: tx.id,
@@ -193,28 +188,36 @@ export function IndividualCashflowTab() {
                 description: `Compra de ${tx.quantity} nominales`,
                 amount: amount,
                 originalAmount: -Math.abs(tx.totalAmount),
-                currency: currency,
+                currency: currencyMode,
                 originalCurrency: tx.currency,
                 quantity: tx.quantity,
                 price: tx.price,
                 isTransaction: true,
-                runningBalance: 0 // Calc later
+                runningBalance: 0
             });
         });
 
         // Add Cashflows
         cashflows.forEach(cf => {
-            // Assume Cashflows are in USD (Investment Currency)
-            // If we ever support ARS ONs, we might need logic here.
-            // For now, treat as USD.
+            const dateStr = new Date(cf.date).toISOString().split('T')[0];
+            let amount = cf.amount;
+
+            // Assume Cashflows are natively in USD
+            // If Mode is ARS -> Multiply by rate
+            if (currencyMode === 'ARS') {
+                const rate = getExchangeRate(dateStr);
+                amount = amount * rate;
+            }
+            // If Mode is USD -> Keep (since nature is USD)
+
             merged.push({
                 id: cf.id,
                 date: cf.date,
                 type: cf.type as any,
                 description: cf.description,
-                amount: cf.amount,
+                amount: amount,
                 originalAmount: cf.amount,
-                currency: 'USD',
+                currency: currencyMode,
                 originalCurrency: 'USD',
                 isTransaction: false,
                 runningBalance: 0
@@ -224,17 +227,21 @@ export function IndividualCashflowTab() {
         // Sort by Date
         merged.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-        // Calculate Running Balances (Nominales Residuales)
+        // Calculate Running Balances (Nominales)
+        // This should track the BOND's FACE VALUE claim.
+        // Usually independent of currency mode, i.e. 1000 Nominales is 1000 Nominales.
         let currentNominales = 0;
 
         const processed = merged.map(item => {
             if (item.type === 'BUY') {
                 currentNominales += (item.quantity || 0);
             } else if (item.type === 'AMORTIZATION') {
-                // Amortization amount (in USD) reduces the Nominal Principle
-                // We use originalAmount if available, assuming it matches Nominals 1:1
-                // For USD ONs, Amount in USD = Nominals Amortized.
-                currentNominales -= Math.abs(item.type === 'AMORTIZATION' ? item.originalAmount : 0);
+                // Determine Amortization in Original/Base Currency (USD) to deduct form Principal
+                // If item is normalized to ARS, we must convert back or use originalAmount
+                let amortAmount = Math.abs(item.originalAmount);
+                // If original currency was ARS (unlikely for Cashflow), handle it.
+                // Assuming cashflow original is USD.
+                currentNominales -= amortAmount;
             }
 
             // Round to avoid floating point errors
@@ -275,13 +282,13 @@ export function IndividualCashflowTab() {
                         {/* Currency Toggle */}
                         <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
                             <button
-                                onClick={() => setCurrencyMode('ORIGINAL')}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${currencyMode === 'ORIGINAL'
+                                onClick={() => setCurrencyMode('ARS')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${currencyMode === 'ARS'
                                         ? 'bg-blue-600 text-white shadow-sm'
                                         : 'text-slate-400 hover:text-white hover:bg-slate-800'
                                     }`}
                             >
-                                Original (Mix)
+                                ARS
                             </button>
                             <button
                                 onClick={() => setCurrencyMode('USD')}
@@ -290,7 +297,7 @@ export function IndividualCashflowTab() {
                                         : 'text-slate-400 hover:text-white hover:bg-slate-800'
                                     }`}
                             >
-                                USD Unificado
+                                USD
                             </button>
                         </div>
 
@@ -304,8 +311,7 @@ export function IndividualCashflowTab() {
                     </div>
                 </CardTitle>
                 <CardDescription className="text-slate-300 flex items-center gap-4">
-                    Visualiza compras y flujo de fondos unificado
-
+                    Visualiza compras y flujo de fondos unificado en {currencyMode}
                 </CardDescription>
             </CardHeader>
             <CardContent>
