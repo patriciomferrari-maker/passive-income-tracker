@@ -19,7 +19,9 @@ export async function GET() {
         }
       },
       include: {
-        transactions: true,
+        transactions: {
+          orderBy: { date: 'asc' }
+        },
         cashflows: {
           where: { status: 'PROJECTED' },
           orderBy: { date: 'asc' }
@@ -220,8 +222,7 @@ export async function GET() {
       }, 0);
 
       // Calculate TIR
-      const amounts: number[] = [];
-      const dates: Date[] = [];
+      const rawFlows: { amount: number; date: Date }[] = [];
 
       inv.transactions.forEach(tx => {
         let amount = -Math.abs(tx.totalAmount);
@@ -230,8 +231,7 @@ export async function GET() {
           const rate = getExchangeRate(tx.date);
           if (rate && rate > 0) amount = amount / rate;
         }
-        amounts.push(amount);
-        dates.push(new Date(tx.date));
+        rawFlows.push({ amount, date: new Date(tx.date) });
       });
 
       inv.cashflows.forEach(cf => {
@@ -241,9 +241,14 @@ export async function GET() {
           const rate = getExchangeRate(cf.date);
           if (rate && rate > 0) amount = amount / rate;
         }
-        amounts.push(amount);
-        dates.push(new Date(cf.date));
+        rawFlows.push({ amount, date: new Date(cf.date) });
       });
+
+      // Sort flows by date to ensure stable XIRR calculation
+      rawFlows.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+      const amounts = rawFlows.map(f => f.amount);
+      const dates = rawFlows.map(f => f.date);
 
       const tir = calculateXIRR(amounts, dates);
 
