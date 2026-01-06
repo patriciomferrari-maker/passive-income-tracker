@@ -49,7 +49,11 @@ export function PurchasesTab() {
 
     // View Config
     const [viewType, setViewType] = useState<string>('ALL');
-    const [viewAction, setViewAction] = useState<'ALL' | 'BUY' | 'SELL'>('ALL'); // Added Filter
+    const [viewAction, setViewAction] = useState<'ALL' | 'BUY' | 'SELL'>('ALL');
+
+    // Currency & Rates (Default USD)
+    const [currencyMode, setCurrencyMode] = useState<'ARS' | 'USD'>('USD');
+    const [rates, setRates] = useState<Record<string, number>>({});
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -68,7 +72,7 @@ export function PurchasesTab() {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [showValues, setShowValues] = useState(true);
 
-    // Fetch Assets
+    // Fetch Assets & Rates
     useEffect(() => {
         fetch('/api/investments/on?market=ARG')
             .then(res => res.json())
@@ -81,6 +85,12 @@ export function PurchasesTab() {
                 setAssets(mapped);
             })
             .catch(err => console.error('Error fetching assets:', err));
+
+        // Fetch Exchange Rates
+        fetch('/api/economic-data/history?type=TC_USD_ARS')
+            .then(res => res.json())
+            .then(data => setRates(data))
+            .catch(err => console.error('Error fetching rates:', err));
 
         const savedPrivacy = localStorage.getItem('privacy_mode');
         if (savedPrivacy !== null) setShowValues(savedPrivacy === 'true');
@@ -218,6 +228,40 @@ export function PurchasesTab() {
         setSelectedIds(newSelected);
     };
 
+    // Exchange Rate Helper
+    const getExchangeRate = (dateStr: string): number => {
+        if (rates[dateStr]) return rates[dateStr];
+        const d = new Date(dateStr);
+        for (let i = 0; i < 7; i++) {
+            const iso = d.toISOString().split('T')[0];
+            if (rates[iso]) return rates[iso];
+            d.setDate(d.getDate() - 1);
+        }
+        return 1200;
+    };
+
+    // Convert Transaction Amount
+    const convertAmount = (amount: number, currency: string, date: string): number => {
+        const rate = getExchangeRate(date);
+        if (currencyMode === 'USD' && currency === 'ARS') {
+            return amount / rate;
+        }
+        if (currencyMode === 'ARS' && currency === 'USD') {
+            return amount * rate;
+        }
+        return amount;
+    };
+
+    // Format Money with conversion
+    const formatMoney = (amount: number, currency: string, date: string) => {
+        if (!showValues) return '****';
+        const convertedAmount = convertAmount(amount, currency, date);
+        return Intl.NumberFormat(currencyMode === 'ARS' ? 'es-AR' : 'en-US', {
+            style: 'currency',
+            currency: currencyMode
+        }).format(convertedAmount);
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in zoom-in duration-300">
             <Card className="bg-slate-950 border-slate-800">
@@ -266,6 +310,28 @@ export function PurchasesTab() {
                                     {type === 'ALL' ? 'Todos' : type}
                                 </button>
                             ))}
+                        </div>
+
+                        {/* Currency Toggle */}
+                        <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800 ml-2">
+                            <button
+                                onClick={() => setCurrencyMode('ARS')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${currencyMode === 'ARS'
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                    }`}
+                            >
+                                ARS
+                            </button>
+                            <button
+                                onClick={() => setCurrencyMode('USD')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${currencyMode === 'USD'
+                                    ? 'bg-emerald-600 text-white shadow-sm'
+                                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                    }`}
+                            >
+                                USD
+                            </button>
                         </div>
                     </div>
                 </CardHeader>
@@ -402,16 +468,17 @@ export function PurchasesTab() {
                                                                                             {tx.quantity}
                                                                                         </td>
                                                                                         <td className="px-4 py-2 text-right text-slate-300 tabular-nums">
-                                                                                            {!showValues ? '****' : Intl.NumberFormat(tx.currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: tx.currency }).format(tx.price)}
+                                                                                            {formatMoney(tx.price, tx.currency, tx.date)}
                                                                                         </td>
                                                                                         <td className="px-4 py-2 text-right text-slate-400 tabular-nums text-xs">
-                                                                                            {!showValues ? '****' : Intl.NumberFormat(tx.currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: tx.currency }).format(tx.commission)}
+                                                                                            {formatMoney(tx.commission, tx.currency, tx.date)}
                                                                                         </td>
                                                                                         <td className={`px-4 py-2 text-right font-medium tabular-nums ${isSell ? 'text-green-400' : 'text-red-400'}`}>
-                                                                                            {!showValues ? '****' : Intl.NumberFormat(tx.currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: tx.currency }).format(Math.abs(tx.totalAmount))}
+                                                                                            {formatMoney(Math.abs(tx.totalAmount), tx.currency, tx.date)}
                                                                                         </td>
                                                                                         <td className="px-4 py-2 text-right text-slate-500 text-xs">
-                                                                                            {tx.currency}
+                                                                                            {currencyMode}
+                                                                                        </td>
                                                                                         </td>
                                                                                         <td className="px-4 py-2 text-right flex justify-end gap-1">
                                                                                             <button
@@ -428,53 +495,58 @@ export function PurchasesTab() {
                                                                                             </button>
                                                                                         </td>
                                                                                     </tr>
-                                                                                );
+                                                                    );
                                                                             })}
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
+                                                                </tbody>
+                                                            </table>
                                                         </div>
-                                                    )}
+                                                        </div>
+                                            )
+                                        }
                                                 </div>
-                                            );
+                                    );
                                         })}
-                                    </div>
                                 </div>
-                            ))
+                                </div>
+                    ))
                         )}
-                    </div>
-                </CardContent>
-            </Card>
+                </div>
+            </CardContent>
+        </Card>
 
-            {showSaleModal && (
-                <RegisterSaleModal
-                    onClose={() => setShowSaleModal(false)}
-                    onSuccess={handleSuccess}
-                    assets={assets}
-                />
-            )}
-
-            {showImport && (
-                <BulkImportDialog
-                    onClose={() => setShowImport(false)}
-                    onSuccess={handleSuccess}
-                />
-            )}
-
-            <TransactionFormModal
-                isOpen={isTxModalOpen}
-                onClose={handleCloseTxModal}
+            {
+        showSaleModal && (
+            <RegisterSaleModal
+                onClose={() => setShowSaleModal(false)}
                 onSuccess={handleSuccess}
-                initialData={editingTxId ? {
-                    id: editingTxId,
-                    date: '', // Fetched by component
-                    quantity: 0,
-                    price: 0,
-                    commission: 0,
-                    currency: 'ARS'
-                } : null}
                 assets={assets}
             />
-        </div>
+        )
+    }
+
+    {
+        showImport && (
+            <BulkImportDialog
+                onClose={() => setShowImport(false)}
+                onSuccess={handleSuccess}
+            />
+        )
+    }
+
+    <TransactionFormModal
+        isOpen={isTxModalOpen}
+        onClose={handleCloseTxModal}
+        onSuccess={handleSuccess}
+        initialData={editingTxId ? {
+            id: editingTxId,
+            date: '', // Fetched by component
+            quantity: 0,
+            price: 0,
+            commission: 0,
+            currency: 'ARS'
+        } : null}
+        assets={assets}
+    />
+        </div >
     );
 }
