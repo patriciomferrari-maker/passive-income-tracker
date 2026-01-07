@@ -26,6 +26,24 @@ export async function GET(req: NextRequest) {
             orderBy: { date: 'desc' }
         });
 
+        // --- FETCH RENTAL CASHFLOWS ---
+        const rentalCashflows = await prisma.rentalCashflow.findMany({
+            where: {
+                contract: {
+                    property: {
+                        userId,
+                        isConsolidated: true
+                    }
+                },
+                date: { gte: startDate, lte: endDate }
+            },
+            include: {
+                contract: {
+                    include: { property: true }
+                }
+            }
+        });
+
         // --- DATA PROCESSING ---
 
         // 1. Trend Data (Last 12 Months)
@@ -93,6 +111,33 @@ export async function GET(req: NextRequest) {
                 }
             } else {
                 console.warn(`Transaction date ${tx.date} generated key ${key} which is out of range.`);
+            }
+        });
+
+        // Process Rental Cashflows
+        rentalCashflows.forEach(cf => {
+            const key = `${cf.date.getFullYear()}-${(cf.date.getMonth() + 1).toString().padStart(2, '0')}`;
+
+            // Should verify if key exists in monthlyData (it should because of date filter)
+            if (monthlyData[key]) {
+                const amount = cf.amountARS || 0;
+                const amountUSD = cf.amountUSD || 0;
+                const role = (cf.contract.property as any).role || 'OWNER';
+
+                if (role === 'OWNER') {
+                    // INCOME
+                    monthlyData[key].income += amount;
+                    monthlyData[key].incomeUSD += amountUSD;
+                } else {
+                    // EXPENSE (TENANT)
+                    monthlyData[key].expense += amount;
+                    monthlyData[key].expenseUSD += amountUSD;
+                    // Note: We don't add to lastMonthExpenses here as it's not a category-based expense yet
+                    // If user wants to see 'Alquileres' in distribution, we'd need to add it:
+                    if (key === lastMonthKey) {
+                        lastMonthExpenses['Alquileres'] = (lastMonthExpenses['Alquileres'] || 0) + amountUSD;
+                    }
+                }
             }
         });
 
