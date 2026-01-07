@@ -377,8 +377,9 @@ function parseTextToTransactions(text: string, rules: any[]) {
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
-        // Skip noise lines
-        if (/saldo|balance|cierre|página|hoja|extracto|resumen|total|límite|tasa/i.test(line)) continue;
+        // Skip noise lines - HARDENED
+        // Added "su pago", "pago en", "pago de", "saldo anterior"
+        if (/saldo|balance|cierre|página|hoja|extracto|resumen|total|límite|tasa|su pago|pago en|pago de|vencimiento|anterior/i.test(line)) continue;
 
         const dateMatch = line.match(dateRegex);
         const amountMatch = line.match(amountRegex);
@@ -397,13 +398,24 @@ function parseTextToTransactions(text: string, rules: any[]) {
                 const amount = cleanAmount(amountStr);
 
                 // Clean description from amount and currency codes
-                const finalDesc = lineDesc.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
+                let finalDesc = lineDesc.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
+
+                // Extract Comprobante if present (usually 6 digits at end of desc)
+                // e.g. "VISUAR SA 12/12 009821" -> desc="VISUAR SA 12/12", comp="009821"
+                let comprobante = '';
+                const compMatch = finalDesc.match(/\b(\d{6})\b/);
+                if (compMatch) {
+                    comprobante = compMatch[1];
+                    // Create pattern to remove comprobante from description
+                    // We only remove it if it's at the end or standalone
+                    finalDesc = finalDesc.replace(comprobante, '').trim();
+                }
 
                 if (!isNaN(amount) && Math.abs(amount) > 0.01) {
                     // Check currency based on line content
                     const isUSD = /USD|U\$S|DOLARES/i.test(line);
 
-                    transactions.push(createTransaction(currentDate, amount, finalDesc, rules, isUSD ? 'USD' : 'ARS'));
+                    transactions.push(createTransaction(currentDate, amount, finalDesc, rules, isUSD ? 'USD' : 'ARS', comprobante));
                     currentDescription = [];
                 }
             } else {
@@ -416,11 +428,20 @@ function parseTextToTransactions(text: string, rules: any[]) {
             const amount = cleanAmount(amountStr);
 
             const extraDesc = line.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
-            const finalDesc = [...currentDescription, extraDesc].join(' ').trim();
+            const fullDesc = [...currentDescription, extraDesc].join(' ').trim();
+
+            // Extract Comprobante
+            let comprobante = '';
+            let finalDesc = fullDesc;
+            const compMatch = finalDesc.match(/\b(\d{6})\b/);
+            if (compMatch) {
+                comprobante = compMatch[1];
+                finalDesc = finalDesc.replace(comprobante, '').trim();
+            }
 
             if (!isNaN(amount) && Math.abs(amount) > 0.01) {
                 const isUSD = /USD|U\$S|DOLARES/i.test(line);
-                transactions.push(createTransaction(currentDate, amount, finalDesc, rules, isUSD ? 'USD' : 'ARS'));
+                transactions.push(createTransaction(currentDate, amount, finalDesc, rules, isUSD ? 'USD' : 'ARS', comprobante));
                 currentDescription = [];
                 // Do not reset currentDate, allowing for multiple items under one date? 
                 // Actually reset it to avoid attaching random numbers later.
@@ -452,7 +473,7 @@ function cleanAmount(amountStr: string): number {
     return parseFloat(clean);
 }
 
-function createTransaction(date: string, amount: number, description: string, rules: any[], currency: string = 'ARS') {
+function createTransaction(date: string, amount: number, description: string, rules: any[], currency: string = 'ARS', comprobante: string = '') {
     let type = 'EXPENSE';
     let finalAmount = Math.abs(amount);
 
@@ -485,7 +506,8 @@ function createTransaction(date: string, amount: number, description: string, ru
         currency,
         type,
         categoryId,
-        subCategoryId
+        subCategoryId,
+        comprobante: comprobante || null
     };
 }
 
