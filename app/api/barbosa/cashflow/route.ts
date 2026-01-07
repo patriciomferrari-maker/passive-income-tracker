@@ -151,7 +151,7 @@ export async function GET(req: NextRequest) {
     // --- INSTALLMENT PLANS PROJECTION ---
     const activePlans = await prisma.barbosaInstallmentPlan.findMany({
         where: { userId },
-        include: { category: true, subCategory: true }
+        include: { category: true }
     });
 
     activePlans.forEach(plan => {
