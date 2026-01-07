@@ -1109,34 +1109,10 @@ export function TransactionsTab() {
 
                                                     {tx.isInstallmentPlan && tx.installments && (
                                                         <div className="flex items-center gap-2 pl-[1.3rem]">
-                                                            <span className="text-xs text-slate-500">Cuota</span>
-                                                            <input
-                                                                type="number"
-                                                                min="1"
-                                                                className="h-6 w-10 text-xs bg-slate-900 border border-slate-700 rounded px-1 text-center text-indigo-300 focus:border-indigo-500 outline-none"
-                                                                value={tx.installments.current}
-                                                                onChange={(e) => {
-                                                                    const newResults = [...parsedResults];
-                                                                    if (newResults[idx].installments) {
-                                                                        newResults[idx].installments.current = parseInt(e.target.value) || 1;
-                                                                    }
-                                                                    setParsedResults(newResults);
-                                                                }}
-                                                            />
-                                                            <span className="text-xs text-slate-500">de</span>
-                                                            <input
-                                                                type="number"
-                                                                min="1"
-                                                                className="h-6 w-10 text-xs bg-slate-900 border border-slate-700 rounded px-1 text-center text-indigo-300 focus:border-indigo-500 outline-none"
-                                                                value={tx.installments.total}
-                                                                onChange={(e) => {
-                                                                    const newResults = [...parsedResults];
-                                                                    if (newResults[idx].installments) {
-                                                                        newResults[idx].installments.total = parseInt(e.target.value) || 1;
-                                                                    }
-                                                                    setParsedResults(newResults);
-                                                                }}
-                                                            />
+                                                            <span className="text-xs text-slate-500">Plan:</span>
+                                                            <span className="text-xs font-mono font-bold text-indigo-300 bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-900/50">
+                                                                {tx.installments.current} / {tx.installments.total}
+                                                            </span>
                                                         </div>
                                                     )}
                                                 </div>
