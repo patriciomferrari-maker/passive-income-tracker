@@ -187,9 +187,13 @@ export async function POST(req: NextRequest) {
             description: description, // Should already include (Cuota X/Y) from frontend parsing
             categoryId: validCategoryId,
             subCategoryId: validSubCategoryId,
-            status: status || 'REAL',
-            isStatistical: isStatistical || false,
-            installmentPlanId: installmentPlanId // Link if created
+            status: body.status || 'REAL',
+            isStatistical: body.isStatistical || false,
+            isInstallmentPlan: body.isInstallmentPlan || false,
+            installmentPlanId: body.installmentPlanId,
+            importSource: body.importSource,
+            attachmentUrl: body.attachmentUrl,
+            comprobante: body.comprobante // Save comprobante
         },
         include: {
             category: true,

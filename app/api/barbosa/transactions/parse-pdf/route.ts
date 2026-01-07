@@ -104,18 +104,34 @@ export async function POST(req: NextRequest) {
         try {
             existingTransactions = await (prisma as any).barbosaTransaction.findMany({
                 where: { userId },
-                select: { date: true, amount: true, description: true }
+                select: { date: true, amount: true, description: true, comprobante: true }
             });
         } catch (err) {
             console.warn('[PDF] Could not fetch existing transactions (table or columns might be missing):', err);
         }
 
         transactions = transactions.map(tx => {
-            const isDuplicate = existingTransactions.some(etx =>
-                etx.date.toISOString().split('T')[0] === tx.date &&
-                Math.abs(etx.amount - tx.amount) < 0.01 &&
-                etx.description?.toLowerCase() === tx.description?.toLowerCase()
-            );
+            let isDuplicate = false;
+
+            // Check by Comprobante first (Strongest check)
+            if (tx.comprobante && tx.comprobante.length > 2) {
+                isDuplicate = existingTransactions.some(etx =>
+                    etx.comprobante === tx.comprobante &&
+                    // Amount check just in case same comprobante is reused? Unlikely, but safety.
+                    // Actually, keep it strict to avoid false positives if comprobante is short
+                    Math.abs(etx.amount - tx.amount) < 0.1
+                );
+            }
+
+            // Fallback to fuzzy match logic if not found by comprobante
+            if (!isDuplicate) {
+                isDuplicate = existingTransactions.some(etx =>
+                    etx.date.toISOString().split('T')[0] === tx.date &&
+                    Math.abs(etx.amount - tx.amount) < 0.01 &&
+                    etx.description?.toLowerCase() === tx.description?.toLowerCase()
+                );
+            }
+
             return { ...tx, isDuplicate, skip: isDuplicate };
         });
 
@@ -293,15 +309,23 @@ SALIDA ESPERADA (Solo JSON Array):
     const invalidKeywords = [
         'total', 'limite', 'tasa', 'saldo', 'pago minimo', 'vencimiento',
         'nominal', 'efectiva', 'cierre', 'periodo', 'consolidado', 'su pago en',
+        'nominal', 'efectiva', 'cierre', 'periodo', 'consolidado',
         'pago en pesos', 'pago en dolares', 'pago en usd'
     ];
 
     const validTransactions = parsed.transactions.filter((tx: any) => {
         const desc = (tx.description || '').toLowerCase();
+        const descNormalized = desc.replace(/\s+/g, ' '); // Normalize double spaces
 
         // Filter out if description contains invalid keywords
-        if (invalidKeywords.some(keyword => desc.includes(keyword))) {
+        if (invalidKeywords.some(keyword => descNormalized.includes(keyword))) {
             console.log('[GEMINI] Filtered out (invalid keyword):', desc);
+            return false;
+        }
+
+        // Filter out exact match "SU PAGO EN PESOS" etc using normalized string
+        if (descNormalized.includes('su pago en')) {
+            console.log('[GEMINI] Filtered out (payment text):', desc);
             return false;
         }
 
