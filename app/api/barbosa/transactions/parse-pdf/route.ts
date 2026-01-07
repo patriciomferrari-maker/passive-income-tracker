@@ -153,50 +153,43 @@ async function parseWithGemini(text: string, categories: any[], rules: any[]) {
     let processedText = text;
 
     // Find the start marker (table header)
-    const startMarkers = [
-        'DETALLE DEL CONSUMO',
-        'FECHA REFERENCIA CUOTA COMPROBANTE'
-    ];
+    // We split by lines to find the header line more reliably
+    const lines = text.split('\n');
+    let startLineIndex = -1;
 
-    // Find the end marker (total section)
-    const endMarkers = [
-        'TOTAL A PAGAR',
-        'TARJETA',
-        'Total Consumos',
-        'Resumen de tarjeta',
-        'LÍMITES'
-    ];
-
-    let startIndex = -1;
-    for (const marker of startMarkers) {
-        // Case insensitive search might be safer
-        const idx = text.toUpperCase().indexOf(marker);
-        if (idx !== -1) {
-            startIndex = idx; // Start AT the header so AI sees column names
-            console.log('[PDF] Found start marker:', marker);
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].toUpperCase().replace(/\s+/g, ' '); // Normalize spaces
+        if (line.includes('DETALLE DEL CONSUMO') || line.includes('FECHA REFERENCIA CUOTA')) {
+            startLineIndex = i;
+            console.log('[PDF] Found start line:', line);
             break;
         }
     }
 
-    let endIndex = -1;
-    if (startIndex !== -1) {
-        for (const marker of endMarkers) {
-            const idx = text.toUpperCase().indexOf(marker, startIndex + 50); // Search AFTER start
-            if (idx !== -1) {
-                endIndex = idx;
-                console.log('[PDF] Found end marker:', marker);
+    if (startLineIndex !== -1) {
+        // Find end marker (TOTAL, LIMITES) starting from startLineIndex
+        let endLineIndex = lines.length;
+        for (let i = startLineIndex + 1; i < lines.length; i++) {
+            const line = lines[i].toUpperCase();
+            if (line.includes('TOTAL A PAGAR') ||
+                line.includes('SALDO ACTUAL') ||
+                line.includes('LIMITES DE COMPRA') ||
+                line.includes('LÍMITES DE COMPRA')) {
+                endLineIndex = i;
+                console.log('[PDF] Found end line:', line);
                 break;
             }
         }
-    }
-
-    if (startIndex !== -1) {
-        // If endIndex is not found, take until end (risky but better than nothing)
-        const effectiveEnd = endIndex !== -1 ? endIndex : text.length;
-        processedText = text.substring(startIndex, effectiveEnd).trim();
-        console.log('[PDF] Extracted transaction section. Length:', processedText.length);
+        // Reconstruct text only from the relevant lines
+        processedText = lines.slice(startLineIndex, endLineIndex).join('\n');
+        console.log('[PDF] Sliced text length:', processedText.length);
     } else {
-        console.warn('[PDF] No start marker found, using full text (may include summary noise)');
+        console.warn('[PDF] Header "DETALLE DEL CONSUMO" not found. Using simple text search fallback.');
+        const idx = text.toUpperCase().indexOf('DETALLE DEL CONSUMO');
+        if (idx !== -1) {
+            processedText = text.substring(idx);
+        }
+        // Otherwise use full text (fallback)
     }
 
     // Limit context size if too huge
@@ -224,20 +217,27 @@ REGLAS DE CATEGORIZACIÓN:
 ${rulesText}
 
 INSTRUCCIONES CRÍTICAS DE EXTRACCIÓN:
-1. **ORIGEN DE DATOS**: Ignora cualquier texto que NO sea una línea de consumo/gasto. Ignora "SU PAGO EN PESOS", "SU PAGO EN DOLARES", "SALDO ANTERIOR".
-2. **DETECTAR CUOTAS**: Es muy importante detectar si el consumo es en cuotas.
+1. **EXCLUSIÓN ABSOLUTA DE PAGOS**:
+   - ELIMINA CUALQUIER LÍNEA QUE DIGA "SU PAGO EN PESOS", "SU PAGO EN DOLARES", "SU PAGO EN USD".
+   - ELIMINA "SALDO ANTERIOR".
+   - ESTO ES CRÍTICO. NO QUIERO VER PAGOS EN LA LISTA.
+
+2. **DETECTAR CUOTAS**:
    - Busca patrones como "01/12", "12/12", "05/06" en la columna 'CUOTA' o en la descripción.
    - Si encuentras cuotas, agrégalo al texto de descripción como "(Cuota X/Y)".
+   - Ejemplo: "VISUAR SA 12/12" -> "VISUAR SA (Cuota 12/12)" (Elimina el 12/12 original si queda redundante).
+
 3. **FECHA**:
    - Formato de salida: YYYY-MM-DD.
-   - EL TEXTO TIENE FECHAS COMO "dd-mm-yy" (ej: 05-12-25 es 5 de Diciembre 2025).
-   - IMPORTANTE: Si estamos en Enero 2026, y ves boletas de Diciembre (12), son de 2025 using logical year inference.
-   - NO inventes años futuros (ej: 2032). Si el año dice '25', es 2025.
+   - Infiere el año correctamente. Si es consumo de Diciembre y estamos en Enero, es año anterior.
+   - JAMÁS inventes años futuros como 2032.
+
 4. **MONTO Y MONEDA**:
    - Detecta si es ARS o USD (columna PESOS vs DOLARES).
-   - Formato Argentina: 1.000,00 (punto miles, coma decimal). Conviértelo a numero Float JS estándar.
-5. **IGNORAR PAGOS**:
-   - NO extraigas líneas que digan "SU PAGO EN PESOS", "PAGO DE TARJETA", etc. Son movimientos de saldo, no gastos.
+   - Formato Argentina: 1.000,00 (punto miles, coma decimal).
+
+5. **LIMPIEZA DE DESCRIPCIÓN**:
+   - Elimina números de referencia largos que no aportan valor (ej: "009821" si es comprobante, sacalo de la descripción y ponlo en el campo comprobante).
 
 SALIDA ESPERADA (Solo JSON Array):
 {
@@ -292,12 +292,12 @@ SALIDA ESPERADA (Solo JSON Array):
     // Post-processing: Filter out invalid transactions
     const invalidKeywords = [
         'total', 'limite', 'tasa', 'saldo', 'pago minimo', 'vencimiento',
-        'nominal', 'efectiva', 'cierre', 'periodo', 'consolidado', 'su pago en'
+        'nominal', 'efectiva', 'cierre', 'periodo', 'consolidado', 'su pago en',
+        'pago en pesos', 'pago en dolares', 'pago en usd'
     ];
 
     const validTransactions = parsed.transactions.filter((tx: any) => {
         const desc = (tx.description || '').toLowerCase();
-        const amount = parseFloat(tx.amount);
 
         // Filter out if description contains invalid keywords
         if (invalidKeywords.some(keyword => desc.includes(keyword))) {
@@ -305,11 +305,9 @@ SALIDA ESPERADA (Solo JSON Array):
             return false;
         }
 
-        // Filter out exact match "SU PAGO EN PESOS" etc if AI missed instruction
-        if (desc.includes('su pago en')) return false;
-
+        const amount = parseFloat(tx.amount);
         // Filter out if amount is unreasonably high (likely a limit or total)
-        if (amount > 10000000) { // Increased limit but still sanity check
+        if (amount > 10000000) {
             console.log('[GEMINI] Filtered out (amount too high):', amount);
             return false;
         }
