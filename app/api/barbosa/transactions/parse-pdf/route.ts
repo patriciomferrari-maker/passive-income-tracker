@@ -81,11 +81,10 @@ export async function POST(req: NextRequest) {
         let transactions: any[] = [];
         let parserUsed = 'regex';
 
-        // FORCE REGEX PARSER (Gemini disabled due to hallucinations)
-        /*
         if (process.env.GEMINI_API_KEY) {
             try {
                 console.log('[PDF] Attempting Gemini AI parsing...');
+                // Pass text but we will slice it inside the function
                 transactions = await parseWithGemini(text, categories, rules);
                 parserUsed = 'gemini';
                 console.log('[PDF] Gemini parsing successful. Detected', transactions.length, 'transactions');
@@ -99,9 +98,6 @@ export async function POST(req: NextRequest) {
             console.log('[PDF] No GEMINI_API_KEY found, using regex parser');
             transactions = parseTextToTransactions(text, rules);
         }
-        */
-        console.log('[PDF] Using hardened Regex parser');
-        transactions = parseTextToTransactions(text, rules);
 
         // Duplicate Detection - Resilient to missing tables or columns
         let existingTransactions: any[] = [];
@@ -142,10 +138,202 @@ export async function POST(req: NextRequest) {
     }
 }
 
-// ... Gemini function remains commented out or unused ...
+// ============================================================================
+// GEMINI AI PARSER
+// ============================================================================
+
+async function parseWithGemini(text: string, categories: any[], rules: any[]) {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    const model = genAI.getGenerativeModel({
+        model: "gemini-1.5-flash-latest" // Using flash for speed/cost, pro might be better for complex logic
+    });
+
+    // CRITICAL: Preprocess text to extract only the transactions section.
+    // The user specifically requested to start from "DETALLE DEL CONSUMO"
+    let processedText = text;
+
+    // Find the start marker (table header)
+    const startMarkers = [
+        'DETALLE DEL CONSUMO',
+        'FECHA REFERENCIA CUOTA COMPROBANTE'
+    ];
+
+    // Find the end marker (total section)
+    const endMarkers = [
+        'TOTAL A PAGAR',
+        'TARJETA',
+        'Total Consumos',
+        'Resumen de tarjeta',
+        'LÍMITES'
+    ];
+
+    let startIndex = -1;
+    for (const marker of startMarkers) {
+        // Case insensitive search might be safer
+        const idx = text.toUpperCase().indexOf(marker);
+        if (idx !== -1) {
+            startIndex = idx; // Start AT the header so AI sees column names
+            console.log('[PDF] Found start marker:', marker);
+            break;
+        }
+    }
+
+    let endIndex = -1;
+    if (startIndex !== -1) {
+        for (const marker of endMarkers) {
+            const idx = text.toUpperCase().indexOf(marker, startIndex + 50); // Search AFTER start
+            if (idx !== -1) {
+                endIndex = idx;
+                console.log('[PDF] Found end marker:', marker);
+                break;
+            }
+        }
+    }
+
+    if (startIndex !== -1) {
+        // If endIndex is not found, take until end (risky but better than nothing)
+        const effectiveEnd = endIndex !== -1 ? endIndex : text.length;
+        processedText = text.substring(startIndex, effectiveEnd).trim();
+        console.log('[PDF] Extracted transaction section. Length:', processedText.length);
+    } else {
+        console.warn('[PDF] No start marker found, using full text (may include summary noise)');
+    }
+
+    // Limit context size if too huge
+    if (processedText.length > 20000) processedText = processedText.substring(0, 20000);
+
+    const categoriesText = categories.length > 0
+        ? categories.map(c => `- ${c.name} (${c.type}, ID: ${c.id})`).join('\n')
+        : 'No hay categorías definidas aún';
+
+    const rulesText = rules.length > 0
+        ? rules.map(r => `- Si la descripción contiene "${r.pattern}" → Categoría ID: ${r.categoryId}`).join('\n')
+        : 'No hay reglas de categorización definidas';
+
+    const prompt = `Actúa como un extractor de datos contables experto. Tu tarea es analizar el texto de un resumen de tarjeta de crédito (sección 'DETALLE DEL CONSUMO') y extraer transacciones individuales.
+
+TEXTO A ANALIZAR:
+"""
+${processedText}
+"""
+
+CATEGORÍAS DISPONIBLES:
+${categoriesText}
+
+REGLAS DE CATEGORIZACIÓN:
+${rulesText}
+
+INSTRUCCIONES CRÍTICAS DE EXTRACCIÓN:
+1. **ORIGEN DE DATOS**: Ignora cualquier texto que NO sea una línea de consumo/gasto. Ignora "SU PAGO EN PESOS", "SU PAGO EN DOLARES", "SALDO ANTERIOR".
+2. **DETECTAR CUOTAS**: Es muy importante detectar si el consumo es en cuotas.
+   - Busca patrones como "01/12", "12/12", "05/06" en la columna 'CUOTA' o en la descripción.
+   - Si encuentras cuotas, agrégalo al texto de descripción como "(Cuota X/Y)".
+3. **FECHA**:
+   - Formato de salida: YYYY-MM-DD.
+   - EL TEXTO TIENE FECHAS COMO "dd-mm-yy" (ej: 05-12-25 es 5 de Diciembre 2025).
+   - IMPORTANTE: Si estamos en Enero 2026, y ves boletas de Diciembre (12), son de 2025 using logical year inference.
+   - NO inventes años futuros (ej: 2032). Si el año dice '25', es 2025.
+4. **MONTO Y MONEDA**:
+   - Detecta si es ARS o USD (columna PESOS vs DOLARES).
+   - Formato Argentina: 1.000,00 (punto miles, coma decimal). Conviértelo a numero Float JS estándar.
+5. **IGNORAR PAGOS**:
+   - NO extraigas líneas que digan "SU PAGO EN PESOS", "PAGO DE TARJETA", etc. Son movimientos de saldo, no gastos.
+
+SALIDA ESPERADA (Solo JSON Array):
+{
+  "transactions": [
+    {
+      "date": "2025-12-05",
+      "description": "MERPAGO*SOLODEPYURB (Cuota 05/06)",
+      "amount": 10833.16,
+      "currency": "ARS",
+      "type": "EXPENSE",
+      "categoryId": "",
+      "subCategoryId": null,
+      "comprobante": "077569"
+    }
+  ]
+}
+`;
+
+    // Use REST API instead of SDK
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const apiResponse = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }]
+        })
+    });
+    if (!apiResponse.ok) {
+        throw new Error(`Gemini API error: ${apiResponse.status}`);
+    }
+    const result = await apiResponse.json();
+    const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    console.log('[GEMINI] Raw response:', responseText.substring(0, 500));
+
+    // Extract JSON from response (handle markdown code blocks)
+    let jsonText = responseText.trim();
+
+    // Remove markdown code blocks if present
+    if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?$/g, '');
+    } else if (jsonText.startsWith('```')) {
+        jsonText = jsonText.replace(/```\n?/g, '').replace(/```\n?$/g, '');
+    }
+
+    const parsed = JSON.parse(jsonText.trim());
+
+    if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
+        throw new Error('Invalid Gemini response format');
+    }
+
+    // Post-processing: Filter out invalid transactions
+    const invalidKeywords = [
+        'total', 'limite', 'tasa', 'saldo', 'pago minimo', 'vencimiento',
+        'nominal', 'efectiva', 'cierre', 'periodo', 'consolidado', 'su pago en'
+    ];
+
+    const validTransactions = parsed.transactions.filter((tx: any) => {
+        const desc = (tx.description || '').toLowerCase();
+        const amount = parseFloat(tx.amount);
+
+        // Filter out if description contains invalid keywords
+        if (invalidKeywords.some(keyword => desc.includes(keyword))) {
+            console.log('[GEMINI] Filtered out (invalid keyword):', desc);
+            return false;
+        }
+
+        // Filter out exact match "SU PAGO EN PESOS" etc if AI missed instruction
+        if (desc.includes('su pago en')) return false;
+
+        // Filter out if amount is unreasonably high (likely a limit or total)
+        if (amount > 10000000) { // Increased limit but still sanity check
+            console.log('[GEMINI] Filtered out (amount too high):', amount);
+            return false;
+        }
+
+        return true;
+    });
+
+    console.log('[GEMINI] Filtered transactions:', parsed.transactions.length, '→', validTransactions.length);
+
+    // Normalize and validate
+    return validTransactions.map((tx: any) => ({
+        date: tx.date,
+        amount: Math.abs(parseFloat(tx.amount)),
+        description: tx.description || 'Sin descripción',
+        currency: tx.currency || 'ARS', // Use currency from Gemini (ARS or USD)
+        type: tx.type === 'INCOME' ? 'INCOME' : 'EXPENSE',
+        categoryId: tx.categoryId || '',
+        subCategoryId: tx.subCategoryId || null,
+        comprobante: tx.comprobante || '' // Add comprobante for duplicate detection
+    }));
+}
 
 // ============================================================================
-// REGEX-BASED PARSER (HARDENED)
+// REGEX-BASED PARSER (FALLBACK)
 // ============================================================================
 
 function parseTextToTransactions(text: string, rules: any[]) {
