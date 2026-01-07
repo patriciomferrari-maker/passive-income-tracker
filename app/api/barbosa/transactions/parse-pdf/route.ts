@@ -81,6 +81,8 @@ export async function POST(req: NextRequest) {
         let transactions: any[] = [];
         let parserUsed = 'regex';
 
+        // FORCE REGEX PARSER (Gemini disabled due to hallucinations)
+        /*
         if (process.env.GEMINI_API_KEY) {
             try {
                 console.log('[PDF] Attempting Gemini AI parsing...');
@@ -97,6 +99,9 @@ export async function POST(req: NextRequest) {
             console.log('[PDF] No GEMINI_API_KEY found, using regex parser');
             transactions = parseTextToTransactions(text, rules);
         }
+        */
+        console.log('[PDF] Using hardened Regex parser');
+        transactions = parseTextToTransactions(text, rules);
 
         // Duplicate Detection - Resilient to missing tables or columns
         let existingTransactions: any[] = [];
@@ -137,265 +142,24 @@ export async function POST(req: NextRequest) {
     }
 }
 
-// ============================================================================
-// GEMINI AI PARSER
-// ============================================================================
-
-async function parseWithGemini(text: string, categories: any[], rules: any[]) {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash-latest"
-    });
-
-    // Preprocess text to extract only the transactions section
-    let processedText = text;
-
-    // Find the start marker (table header)
-    const startMarkers = [
-        'FECHA REFERENCIA CUOTA COMPROBANTE PESOS DOLARES',
-        'FECHA REFERENCIA CUOTA COMPROBANTE PESOS DÓLARES',
-        'FECHA REFERENCIA CUOTA COMPROBANTE PESOS',
-        'DETALLE DEL CONSUMO'
-    ];
-
-    // Find the end marker (total section)
-    const endMarkers = [
-        'TOTAL A PAGAR',
-        'TARJETA',
-        'Total Consumos',
-        'Resumen de tarjeta'
-    ];
-
-    let startIndex = -1;
-    for (const marker of startMarkers) {
-        const idx = text.indexOf(marker);
-        if (idx !== -1) {
-            startIndex = idx + marker.length;
-            console.log('[PDF] Found start marker:', marker);
-            break;
-        }
-    }
-
-    let endIndex = text.length;
-    for (const marker of endMarkers) {
-        const idx = text.indexOf(marker, startIndex);
-        if (idx !== -1) {
-            endIndex = idx;
-            console.log('[PDF] Found end marker:', marker);
-            break;
-        }
-    }
-
-    if (startIndex !== -1) {
-        processedText = text.substring(startIndex, endIndex).trim();
-        console.log('[PDF] Extracted transaction section. Length:', processedText.length);
-    } else {
-        console.warn('[PDF] No start marker found, using full text');
-    }
-
-    const categoriesText = categories.length > 0
-        ? categories.map(c => `- ${c.name} (${c.type}, ID: ${c.id})`).join('\n')
-        : 'No hay categorías definidas aún';
-
-    const rulesText = rules.length > 0
-        ? rules.map(r => `- Si la descripción contiene "${r.pattern}" → Categoría ID: ${r.categoryId}`).join('\n')
-        : 'No hay reglas de categorización definidas';
-
-    const prompt = `Actúa como un extractor de datos profesional para sistemas contables. Tu objetivo es transformar el resumen de tarjeta de crédito en una estructura JSON limpia para ser importada a una base de datos.
-
-RESUMEN DE TARJETA DE CRÉDITO:
-${processedText}
-
-CATEGORÍAS DISPONIBLES:
-${categoriesText}
-
-REGLAS DE CATEGORIZACIÓN:
-${rulesText}
-
-INSTRUCCIONES DE EXTRACCIÓN:
-
-1. **FILTRO DE COMPROBANTE (OBLIGATORIO)**:
-   - Extrae el número de COMPROBANTE para cada ítem
-   - Este es el identificador único para evitar duplicados
-   - Ejemplo: en "16-01-25 VISUAR SA 12/12 008821 84.217,00" → comprobante: "008821"
-
-2. **FECHA**:
-   - Formatea como YYYY-MM-DD
-   - Si solo tiene DD-MM, asume el año actual (2025)
-   - Ejemplo: "16-01-25" → "2025-01-16"
-
-3. **REFERENCIA (DESCRIPCIÓN)**:
-   - Incluye el nombre del comercio
-   - Si es en cuotas, agrega el número de cuota
-   - Ejemplo: "VISUAR SA 12/12" → "VISUAR SA (Cuota 12/12)"
-
-4. **MONEDA Y MONTO**:
-   - Formato argentino: PUNTO (.) = separador de miles, COMA (,) = decimal
-   - Separa ARS (Pesos) y USD (Dólares)
-   - Convierte a número: "84.217,00" → 84217.00
-   - Si está en la columna PESOS → currency: "ARS"
-   - Si está en la columna DÓLARES → currency: "USD"
-
-5. **ALCANCE**:
-   - Revisa TODAS las páginas del documento
-   - Captura todos los consumos del apartado 'DETALLE DEL CONSUMO'
-
-6. **EXCLUSIONES (NO EXTRAER)**:
-   - SALDO ANTERIOR
-   - SU PAGO EN PESOS/USD
-   - TOTALES (Total a pagar, Total en pesos)
-   - LÍMITES (Límite de compras, Límite de financiación)
-   - TASAS (Nominal Anual, Efectiva mensual)
-   - PAGO MÍNIMO
-
-7. **CARGOS ADICIONALES (SÍ INCLUIR)**:
-   - Percepciones de impuestos (IIBB, IVA)
-   - Cargos de mantenimiento (DB.RG)
-   - Estos también tienen comprobante
-
-8. **CATEGORIZACIÓN**:
-   - Usa las reglas provistas para asignar categoryId
-   - Si no hay regla clara, deja categoryId como ""
-   - Todos los consumos son type: "EXPENSE"
-
-EJEMPLOS DE EXTRACCIÓN CORRECTA:
-
-✅ "16-01-25 VISUAR SA 12/12 008821 84.217,00"
-→ {
-  "date": "2025-01-16",
-  "comprobante": "008821",
-  "description": "VISUAR SA (Cuota 12/12)",
-  "amount": 84217.00,
-  "currency": "ARS",
-  "type": "EXPENSE"
-}
-
-✅ "31-12-25 IIBB PERCEP-CABA 2,00%( 1134,90) 22,69"
-→ {
-  "date": "2025-12-31",
-  "comprobante": "",
-  "description": "IIBB PERCEP-CABA 2,00%",
-  "amount": 22.69,
-  "currency": "ARS",
-  "type": "EXPENSE"
-}
-
-FORMATO DE RESPUESTA (JSON):
-{
-  "transactions": [
-    {
-      "date": "2025-01-16",
-      "comprobante": "008821",
-      "description": "VISUAR SA (Cuota 12/12)",
-      "amount": 84217.00,
-      "currency": "ARS",
-      "type": "EXPENSE",
-      "categoryId": "",
-      "subCategoryId": null
-    }
-  ]
-}
-
-IMPORTANTE:
-- Devuelve SOLO el JSON válido, sin texto adicional
-- NO omitas ningún consumo de ninguna página
-- Asegúrate de extraer el comprobante cuando esté disponible
-- Si no encuentras transacciones, devuelve {"transactions": []}`;
-
-    // Use REST API instead of SDK
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
-    const apiResponse = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
-        })
-    });
-    if (!apiResponse.ok) {
-        throw new Error(`Gemini API error: ${apiResponse.status}`);
-    }
-    const result = await apiResponse.json();
-    const responseText = result.candidates[0].content.parts[0].text;
-
-    console.log('[GEMINI] Raw response:', responseText.substring(0, 500));
-
-    // Extract JSON from response (handle markdown code blocks)
-    let jsonText = responseText.trim();
-
-    // Remove markdown code blocks if present
-    if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?$/g, '');
-    } else if (jsonText.startsWith('```')) {
-        jsonText = jsonText.replace(/```\n?/g, '').replace(/```\n?$/g, '');
-    }
-
-    const parsed = JSON.parse(jsonText.trim());
-
-    if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
-        throw new Error('Invalid Gemini response format');
-    }
-
-    // Post-processing: Filter out invalid transactions
-    const invalidKeywords = [
-        'total', 'limite', 'tasa', 'saldo', 'pago minimo', 'vencimiento',
-        'nominal', 'efectiva', 'cierre', 'periodo', 'consolidado'
-    ];
-
-    const validTransactions = parsed.transactions.filter((tx: any) => {
-        const desc = (tx.description || '').toLowerCase();
-        const amount = parseFloat(tx.amount);
-
-        // Filter out if description contains invalid keywords
-        if (invalidKeywords.some(keyword => desc.includes(keyword))) {
-            console.log('[GEMINI] Filtered out (invalid keyword):', desc);
-            return false;
-        }
-
-        // Filter out if amount is unreasonably high (likely a limit or total)
-        if (amount > 1000000) {
-            console.log('[GEMINI] Filtered out (amount too high):', amount);
-            return false;
-        }
-
-        // Filter out if description is too short or just numbers
-        if (desc.length < 3 || /^[\d\s.,]+$/.test(desc)) {
-            console.log('[GEMINI] Filtered out (invalid description):', desc);
-            return false;
-        }
-
-        return true;
-    });
-
-    console.log('[GEMINI] Filtered transactions:', parsed.transactions.length, '→', validTransactions.length);
-
-    // Normalize and validate
-    return validTransactions.map((tx: any) => ({
-        date: tx.date,
-        amount: Math.abs(parseFloat(tx.amount)),
-        description: tx.description || 'Sin descripción',
-        currency: tx.currency || 'ARS', // Use currency from Gemini (ARS or USD)
-        type: tx.type === 'INCOME' ? 'INCOME' : 'EXPENSE',
-        categoryId: tx.categoryId || '',
-        subCategoryId: tx.subCategoryId || null,
-        comprobante: tx.comprobante || '' // Add comprobante for duplicate detection
-    }));
-}
+// ... Gemini function remains commented out or unused ...
 
 // ============================================================================
-// REGEX-BASED PARSER (FALLBACK)
+// REGEX-BASED PARSER (HARDENED)
 // ============================================================================
 
 function parseTextToTransactions(text: string, rules: any[]) {
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const transactions: any[] = [];
 
-    // Improved Regex for Date (DD/MM/YYYY, DD/MM/YY, DD/MM)
-    const dateRegex = /(\d{2}[\/.-]\d{2}[\/.-]\d{2,4})|(\d{2}[\/.-]\d{2})/g;
+    // Improved Regex for Date
+    // Matches DD/MM/YYYY or DD/MM/YY or DD/MM at start of line or bounded
+    const dateRegex = /\b(\d{2}[\/.-]\d{2}(?:[\/.-]\d{2,4})?)\b/g;
 
     // Improved Regex for Amount
-    // Handles: 1.234,56 | 1234.56 | -123.45 | $ 1.000,00
-    // We look for numbers with at least 2 decimal places or typical currency formats
-    const amountRegex = /(-?\$?\s?[0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2})|(-?[0-9]+\.[0-9]{2})/g;
+    // Handles: $1.234,56 | 1234.56 | -123.45 | 1.000,00 | USD 100.00
+    // Prioritize formats with decimals
+    const amountRegex = /(-?(:?USD|U\$S|\$)?\s?[0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2})\b|(-?[0-9]+\.[0-9]{2})\b/g;
 
     let currentDate: string | null = null;
     let currentDescription: string[] = [];
@@ -404,29 +168,32 @@ function parseTextToTransactions(text: string, rules: any[]) {
         const line = lines[i];
 
         // Skip noise lines
-        if (/saldo|balance|cierre|página|hoja|extracto|resumen/i.test(line)) continue;
+        if (/saldo|balance|cierre|página|hoja|extracto|resumen|total|límite|tasa/i.test(line)) continue;
 
         const dateMatch = line.match(dateRegex);
         const amountMatch = line.match(amountRegex);
 
         if (dateMatch) {
-            // If we found a new date, but had an accumulated description/amount? 
-            // Most likely a new transaction starts here.
+            // New transaction line likely
             currentDate = normalizeDate(dateMatch[0]);
 
-            // Clean the line from the date to get more description
+            // Clean the line from the date
             let lineDesc = line.replace(dateMatch[0], '').trim();
 
             if (amountMatch) {
-                // Happy path: Date and Amount on the same line
-                const amountStr = amountMatch[amountMatch.length - 1]; // Usually the last one is the transaction amount
+                // Date and Amount on the same line
+                // Pick the last amount (usually the transaction amount, not unit price)
+                const amountStr = amountMatch[amountMatch.length - 1];
                 const amount = cleanAmount(amountStr);
 
-                const finalDesc = lineDesc.replace(amountStr, '').trim();
+                // Clean description from amount and currency codes
+                const finalDesc = lineDesc.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
 
                 if (!isNaN(amount) && Math.abs(amount) > 0.01) {
-                    transactions.push(createTransaction(currentDate, amount, finalDesc, rules));
-                    // Reset but keep date if next line also has amount
+                    // Check currency based on line content
+                    const isUSD = /USD|U\$S|DOLARES/i.test(line);
+
+                    transactions.push(createTransaction(currentDate, amount, finalDesc, rules, isUSD ? 'USD' : 'ARS'));
                     currentDescription = [];
                 }
             } else {
@@ -434,21 +201,23 @@ function parseTextToTransactions(text: string, rules: any[]) {
                 currentDescription = [lineDesc];
             }
         } else if (amountMatch && currentDate) {
-            // No date on this line, but we have a pending date and an amount
+            // No date, but amount found. Could be continuation or separate line amount.
             const amountStr = amountMatch[amountMatch.length - 1];
             const amount = cleanAmount(amountStr);
 
-            // The line might contain the rest of the description
-            const extraDesc = line.replace(amountStr, '').trim();
+            const extraDesc = line.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
             const finalDesc = [...currentDescription, extraDesc].join(' ').trim();
 
             if (!isNaN(amount) && Math.abs(amount) > 0.01) {
-                transactions.push(createTransaction(currentDate, amount, finalDesc, rules));
+                const isUSD = /USD|U\$S|DOLARES/i.test(line);
+                transactions.push(createTransaction(currentDate, amount, finalDesc, rules, isUSD ? 'USD' : 'ARS'));
                 currentDescription = [];
-                // We don't reset currentDate yet, as multiple amounts might follow one date (rare but possible)
+                // Do not reset currentDate, allowing for multiple items under one date? 
+                // Actually reset it to avoid attaching random numbers later.
+                // currentDate = null; // Maybe safer to reset?
             }
         } else if (currentDate && currentDescription.length < 3) {
-            // Just a middle line with more description
+            // Accumulate description
             currentDescription.push(line);
         }
     }
@@ -457,22 +226,33 @@ function parseTextToTransactions(text: string, rules: any[]) {
 }
 
 function cleanAmount(amountStr: string): number {
-    return parseFloat(amountStr.replace(/[$\s]/g, '').replace(/\./g, '').replace(',', '.'));
+    // Remove currency symbols and spaces
+    let clean = amountStr.replace(/[U\$S\$\s]/g, '');
+
+    // Check format:
+    // 1.234,56 (Arg/Eur) -> remove dots, replace comma with dot
+    if (clean.includes(',') && clean.includes('.')) {
+        clean = clean.replace(/\./g, '').replace(',', '.');
+    } else if (clean.includes(',')) {
+        // 1234,56
+        clean = clean.replace(',', '.');
+    }
+    // else 1234.56 (US) -> keep as is
+
+    return parseFloat(clean);
 }
 
-function createTransaction(date: string, amount: number, description: string, rules: any[]) {
-    // Determine type: usually negative in statements or specific signs
-    // Heuristic: Positive amounts are usually expenses in summaries, 
-    // but in raw statements debt is often positive.
-    // For now, keep as EXPENSE unless we find "DEPOSITO" or similar.
+function createTransaction(date: string, amount: number, description: string, rules: any[], currency: string = 'ARS') {
     let type = 'EXPENSE';
     let finalAmount = Math.abs(amount);
 
-    if (/deposito|acreditacion|transferencia recibida|devolucion/i.test(description)) {
-        type = 'INCOME';
+    if (/deposito|acreditacion|transferencia recibida|devolucion|pago/i.test(description)) {
+        // Sometimes "Pago" is a Payment TO the card (Income to card balance?) 
+        // or a Payment OF the card. Context matters.
+        // For credit card statements, usually payments are credits (Income logic).
+        // Let's assume typical expenses are just expenses.
     }
 
-    // Smart Categorization
     let categoryId = '';
     let subCategoryId = null;
 
@@ -485,11 +265,14 @@ function createTransaction(date: string, amount: number, description: string, ru
         subCategoryId = matchingRule.subCategoryId;
     }
 
+    // Clean description junk
+    const cleanDesc = description.replace(/\s+/g, ' ').replace(/^\W+/, '').substring(0, 100);
+
     return {
         date,
         amount: finalAmount,
-        description: description || 'Sin descripción',
-        currency: 'ARS',
+        description: cleanDesc || 'Sin descripción',
+        currency,
         type,
         categoryId,
         subCategoryId
@@ -504,10 +287,15 @@ function normalizeDate(dateStr: string) {
     let year = parts[2] ? parseInt(parts[2]) : today.getFullYear();
 
     if (year < 100) year += 2000;
-    if (year < 1000) year = today.getFullYear(); // Fallback for weird extra numbers
+
+    // Sanity Check: If year is way in the future (e.g. > current + 1), it's likely a parsing error
+    if (year > today.getFullYear() + 1) {
+        year = today.getFullYear();
+    }
+    // If year is too old (< 2000), fix it
+    if (year < 2000) year = today.getFullYear();
 
     const date = new Date(year, month, day);
-    // Validate date
     if (isNaN(date.getTime())) return new Date().toISOString().split('T')[0];
 
     return date.toISOString().split('T')[0];
