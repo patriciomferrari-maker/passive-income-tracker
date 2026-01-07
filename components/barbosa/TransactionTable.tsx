@@ -99,6 +99,7 @@ export function TransactionTable({ transactions, categories, selectedIds, onSele
                         </th>
                         <th className="px-4 py-3">Fecha</th>
                         <th className="px-4 py-3">Categoría</th>
+                        <th className="px-4 py-3">Subcategoría</th>
                         <th className="px-4 py-3">Descripción</th>
                         <th className="px-4 py-3 text-right">Monto</th>
                         <th className="px-4 py-3 text-right">Acciones</th>
@@ -117,16 +118,18 @@ export function TransactionTable({ transactions, categories, selectedIds, onSele
                                 {formatDateUTC(tx.date)}
                             </td>
                             <td className="px-4 py-3">
-                                <div className="flex flex-col items-start gap-1">
-                                    <Badge variant="outline" className={`text-[10px] h-5 px-2 font-medium border ${getCategoryColor(getCategoryName(tx.categoryId))}`}>
-                                        {getCategoryName(tx.categoryId)}
+                                <Badge variant="outline" className={`text-[10px] h-5 px-2 font-medium border ${getCategoryColor(getCategoryName(tx.categoryId))}`}>
+                                    {getCategoryName(tx.categoryId)}
+                                </Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                                {tx.subCategoryId ? (
+                                    <Badge variant="outline" className="text-[10px] h-5 px-2 bg-slate-800/40 text-slate-400 border-slate-700">
+                                        {getSubCategoryName(tx.categoryId, tx.subCategoryId)}
                                     </Badge>
-                                    {tx.subCategoryId && (
-                                        <Badge variant="outline" className="text-[9px] h-4 px-1.5 ml-2 bg-slate-800/40 text-slate-400 border-slate-700">
-                                            ↳ {getSubCategoryName(tx.categoryId, tx.subCategoryId)}
-                                        </Badge>
-                                    )}
-                                </div>
+                                ) : (
+                                    <span className="text-xs text-slate-600">-</span>
+                                )}
                             </td>
                             <td className="px-4 py-3">
                                 <div className="font-medium text-white">{tx.description}</div>
