@@ -1,42 +1,66 @@
-# Currency Conversion Rules
+# Currency Conversion Rules - FINAL VERSION
 
 ## Core Principles
 
-### 1. ON Cashflows Are ALWAYS in USD
+### 1. ON Cashflows Are ALWAYS in USD (Database)
 
 > [!IMPORTANT]
 > **CRITICAL RULE FOR ONs (Obligaciones Negociables)**:
-> - **Cashflows (intereses y amortizaciones)**: SIEMPRE en USD, independiente de la moneda de compra
-> - **Transacciones (compras)**: Pueden ser en ARS o USD según cómo se compraron
-> - **Vista**: Si está en USD y la compra fue en ARS, convertir la transacción para homogeneidad
+> - **Database**: Cashflows (intereses y amortizaciones) SIEMPRE se guardan como `currency: 'USD'`
+> - **Transacciones**: Se guardan con la moneda en que se compraron (`ARS` o `USD`)
+> - **Display**: AMBAS monedas se convierten según la vista seleccionada
 
-**Ejemplos:**
-- DNC3D comprada en ARS:
-  - `transaction.currency = 'ARS'` → Convertir a USD cuando viewCurrency = USD
-  - `cashflow.currency = 'USD'` → NO convertir, ya está en USD
-  
 **Por qué:** Las ONs argentinas pagan intereses y amortizaciones en USD por contrato, sin importar la moneda de compra.
+
+### 2. Conversión Bidireccional (Display)
+
+**Escenario A: Vista en USD (default)**
+- ✅ Cashflows USD → Mostrar USD (sin conversión)
+- ✅ Transacciones ARS → Convertir a USD (÷ TC)
+- ✅ Transacciones USD → Mostrar USD (sin conversión)
+
+**Escenario B: Vista en ARS**
+- ✅ Cashflows USD → Convertir a ARS (× TC)
+- ✅ Transacciones ARS → Mostrar ARS (sin conversión)
+- ✅ Transacciones USD → Convertir a ARS (× TC)
 
 **Implementación correcta:**
 ```typescript
-// Cashflows - NUNCA convertir si ya son USD
-if (cashflow.currency === 'USD' && viewCurrency === 'USD') {
-    // NO CONVERTIR - ya está correcto
-}
+// SIEMPRE cargar exchange rates (no importa investment.currency)
+const resRates = await fetch('/api/economic-data/tc');
+const exchangeRates = processRates(resRates);
 
-// Transacciones - convertir según viewCurrency
-if (transaction.currency === 'ARS' && viewCurrency === 'USD') {
-    amount = amount / exchangeRate; // SÍ convertir
-}
+// Conversión de cashflows
+const convertedCf = dataCf.map(cf => {
+    let amount = cf.amount;
+    const cfCurrency = cf.currency; // USD para ONs
+    
+    if (cfCurrency !== viewCurrency) {
+        const rate = getRate(cf.date);
+        if (cfCurrency === 'ARS' && viewCurrency === 'USD') {
+            amount = amount / rate;
+        } else if (cfCurrency === 'USD' && viewCurrency === 'ARS') {
+            amount = amount * rate; // ← CRÍTICO para vista ARS
+        }
+    }
+    return { ...cf, amount, currency: viewCurrency };
+});
+
+// Igual lógica para transacciones
 ```
 
-### 2. ON Cashflows Are ALWAYS in USD
-> [!IMPORTANT]
-> **CRITICAL RULE**: All ON (Obligaciones Negociables) and Corporate Bond cashflows (interest and amortization) are **ALWAYS** denominated in USD, regardless of the currency used to purchase the investment.
+### 3. Generación de Cashflows
 
-**Examples:**
-- DNC3D: `investment.currency = 'ARS'` but `cashflow.currency = 'USD'`
-- PN36D: `investment.currency = 'ARS'` but `cashflow.currency = 'USD'`
+**Código en `lib/investments.ts`:**
+```typescript
+// CRITICAL: ONs ALWAYS pay in USD, regardless of purchase currency
+const cashflowCurrency = (investment.type === 'ON' || investment.type === 'CORPORATE_BOND') 
+    ? 'USD' 
+    : investment.currency;
+
+// Usar cashflowCurrency para todos los cashflows generados
+cashflow.currency = cashflowCurrency; // USD para ONs
+```
 
 **Why:** ONs in Argentina pay interest and amortization in USD by contract, even if purchased with ARS.
 
@@ -118,10 +142,22 @@ Returns:
       "actual": 12345.67,
       "diff": 0.00,
       "passed": true
+    },
+    {
+      "name": "ON Cashflows in USD",
+      "expected": "All ON/CORPORATE_BOND cashflows should have currency=USD",
+      "actual": "All valid",
+      "passed": true
     }
   ],
   "warnings": []
 }
+```
+
+**If validation fails for ON cashflows:**
+Run the fix script:
+```bash
+npx ts-node scripts/fix-on-currencies.ts
 ```
 
 ### Manual Testing Checklist

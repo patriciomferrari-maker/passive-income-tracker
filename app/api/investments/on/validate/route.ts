@@ -47,7 +47,25 @@ export async function GET(request: Request) {
         const inversionDiff = Math.abs(expectedInversion - actualInversion);
         const valorActualDiff = Math.abs(expectedValorActual - actualValorActual);
 
-        const isValid = inversionDiff < 0.01 && valorActualDiff < 0.01;
+        // CHECK: All ON cashflows must be in USD
+        const { prisma } = await import('@/lib/prisma');
+        const onInvestments = await prisma.investment.findMany({
+            where: {
+                userId,
+                type: { in: ['ON', 'CORPORATE_BOND'] }
+            },
+            include: {
+                cashflows: {
+                    where: { currency: { not: 'USD' } },
+                    select: { id: true, currency: true }
+                }
+            }
+        });
+
+        const invalidCashflows = onInvestments.filter(inv => inv.cashflows.length > 0);
+        const cashflowsValid = invalidCashflows.length === 0;
+
+        const isValid = inversionDiff < 0.01 && valorActualDiff < 0.01 && cashflowsValid;
 
         const validation = {
             isValid,
@@ -66,6 +84,12 @@ export async function GET(request: Request) {
                     actual: actualValorActual,
                     diff: valorActualDiff,
                     passed: valorActualDiff < 0.01
+                },
+                {
+                    name: 'ON Cashflows in USD',
+                    expected: 'All ON/CORPORATE_BOND cashflows should have currency=USD',
+                    actual: cashflowsValid ? 'All valid' : `${invalidCashflows.length} investments with non-USD cashflows`,
+                    passed: cashflowsValid
                 }
             ],
             warnings: []
@@ -77,6 +101,11 @@ export async function GET(request: Request) {
         }
         if (valorActualDiff >= 0.01) {
             validation.warnings.push(`Dashboard Valor Actual ($${actualValorActual.toFixed(2)}) differs from Tenencia ($${expectedValorActual.toFixed(2)}) by $${valorActualDiff.toFixed(2)}`);
+        }
+        if (!cashflowsValid) {
+            invalidCashflows.forEach(inv => {
+                validation.warnings.push(`${inv.ticker} has ${inv.cashflows.length} cashflows not in USD - run fix-all-on-currency script`);
+            });
         }
 
         return NextResponse.json(validation);
