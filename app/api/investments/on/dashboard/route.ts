@@ -220,12 +220,26 @@ export async function GET(request: Request) {
 
     console.log('🧮 TIR CONSOLIDADA DEBUG:');
     console.log(`  Total flows: ${allAmounts.length}`);
-    console.log(`  Sample amounts (first 5): ${allAmounts.slice(0, 5).map(a => a.toFixed(2)).join(', ')}`);
+    console.log(`  Date range: ${allDates.length > 0 ? new Date(Math.min(...allDates.map(d => d.getTime()))).toISOString().split('T')[0] : 'N/A'} to ${allDates.length > 0 ? new Date(Math.max(...allDates.map(d => d.getTime()))).toISOString().split('T')[0] : 'N/A'}`);
+    console.log(`  First 10 amounts: ${allAmounts.slice(0, 10).map(a => a.toFixed(2)).join(', ')}`);
+    console.log(`  First 10 dates: ${allDates.slice(0, 10).map(d => d.toISOString().split('T')[0]).join(', ')}`);
     console.log(`  Sum of outflows (negative): $${allAmounts.filter(a => a < 0).reduce((s, a) => s + a, 0).toFixed(2)}`);
     console.log(`  Sum of inflows (positive): $${allAmounts.filter(a => a > 0).reduce((s, a) => s + a, 0).toFixed(2)}`);
+    console.log(`  Has both signs? Negative: ${allAmounts.some(a => a < 0)}, Positive: ${allAmounts.some(a => a > 0)}`);
+
+    if (allAmounts.length === 0) {
+      console.log('  ⚠️ ERROR: No cashflows found for TIR calculation!');
+    }
 
     const tirConsolidada = calculateXIRR(allAmounts, allDates);
     console.log(`  Calculated TIR: ${tirConsolidada ? (tirConsolidada * 100).toFixed(2) : 'NULL'}%`);
+
+    if (!tirConsolidada && allAmounts.length > 0) {
+      console.log('  ⚠️ XIRR returned NULL despite having data. Possible reasons:');
+      console.log('     - All flows same sign (need both + and -)');
+      console.log('     - Dates not properly ordered');
+      console.log('     - Numerical convergence issue');
+    }
 
     // Calculate total a cobrar (capital + interés)
     const totalACobrar = capitalACobrar + interesACobrar;
