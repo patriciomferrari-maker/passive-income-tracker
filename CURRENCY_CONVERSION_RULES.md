@@ -8,6 +8,10 @@
 > For Dashboard implementation rules (CRITICAL), see [`DASHBOARD_RULES.md`](file:///c:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/DASHBOARD_RULES.md)
 > which contains patterns that have broken multiple times.
 
+> [!IMPORTANT]
+> For Dashboard tab complete specification, see [`DASHBOARD_SPECIFICATION.md`](file:///c:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/DASHBOARD_SPECIFICATION.md)
+> which documents all metrics, charts, and current behavior.
+
 ## Core Principles
 
 ### 1. ON Cashflows Are ALWAYS in USD (Database)
