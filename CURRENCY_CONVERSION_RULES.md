@@ -4,6 +4,10 @@
 > For specific tab behavior, see [`TABS_SPECIFICATION.md`](file:///c:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/TABS_SPECIFICATION.md)
 > which documents the exact implementation of "Operaciones" and "Flujo por ON" tabs.
 
+> [!CAUTION]
+> For Dashboard implementation rules (CRITICAL), see [`DASHBOARD_RULES.md`](file:///c:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/DASHBOARD_RULES.md)
+> which contains patterns that have broken multiple times.
+
 ## Core Principles
 
 ### 1. ON Cashflows Are ALWAYS in USD (Database)
@@ -65,6 +69,51 @@ const cashflowCurrency = (investment.type === 'ON' || investment.type === 'CORPO
 // Usar cashflowCurrency para todos los cashflows generados
 cashflow.currency = cashflowCurrency; // USD para ONs
 ```
+
+### 4. Dashboard Portfolio Breakdown - MUST Normalize to USD
+
+> [!CAUTION]
+> **CRITICAL RULE - HAS BROKEN MULTIPLE TIMES**
+> 
+> All Dashboard calculations MUST normalize transactions to USD BEFORE summing.
+> **DO NOT** sum `tx.totalAmount` directly without checking `tx.currency`.
+
+**Common Bug Pattern (WRONG):**
+```typescript
+// ❌ WRONG - Mixes ARS and USD values
+const invested = inv.transactions.reduce((sum, tx) => 
+    sum + Math.abs(tx.totalAmount), 0
+);
+```
+
+**Correct Implementation:**
+```typescript
+// ✅ CORRECT - Normalizes to USD first
+const invested = inv.transactions.reduce((sum, tx) => {
+    let txAmount = Math.abs(tx.totalAmount);
+    const txCurrency = tx.currency || inv.currency;
+    
+    // MUST convert ARS to USD
+    if (txCurrency === 'ARS') {
+        const rate = getExchangeRate(new Date(tx.date));
+        txAmount = txAmount / rate;
+    }
+    
+    return sum + txAmount; // Now all in USD
+}, 0);
+```
+
+**Where This Applies:**
+- `app/api/investments/on/dashboard/route.ts`:
+  - `portfolioBreakdown` calculation (line ~150)
+  - TIR calculation cashflows (line ~157)
+  - Any aggregation of transaction amounts
+
+**Why This Breaks:**
+- DNC3D transaction: `totalAmount: 9,050,029.58` with `currency: 'ARS'`
+- Without conversion: Chart shows "$9,050,029.58" (wrong)
+- With conversion: Chart shows "~$6,000" (correct)
+
 
 **Why:** ONs in Argentina pay interest and amortization in USD by contract, even if purchased with ARS.
 
