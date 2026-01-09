@@ -49,25 +49,7 @@ export function IndividualCashflowTab({ showValues = true }: { showValues?: bool
     const [cashflows, setCashflows] = useState<Cashflow[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingCashflows, setLoadingCashflows] = useState(false);
-    const [regenerating, setRegenerating] = useState(false);
 
-    const handleRegenerate = async () => {
-        if (!confirm('¿Estás seguro de que querés recalcular todos los flujos? Esto actualizará los valores con los últimos datos de IPC y Dólar.')) return;
-
-        setRegenerating(true);
-        try {
-            await fetch('/api/rentals/cashflows/regenerate-all', { method: 'POST' });
-            if (selectedContractId) {
-                await loadCashflows(selectedContractId);
-            }
-            alert('Cálculos actualizados correctamente.');
-        } catch (error) {
-            console.error('Error regenerating:', error);
-            alert('Error al recalcular flujos.');
-        } finally {
-            setRegenerating(false);
-        }
-    };
 
     useEffect(() => {
         loadContracts();
@@ -200,14 +182,6 @@ export function IndividualCashflowTab({ showValues = true }: { showValues?: bool
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-white">Flujo Individual por Contrato</h2>
-                <button
-                    onClick={handleRegenerate}
-                    disabled={regenerating}
-                    className="flex items-center px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition-colors text-sm"
-                >
-                    <RefreshCw className={`mr-2 h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
-                    {regenerating ? 'Recalculando...' : 'Recalcular'}
-                </button>
             </div>
 
             {/* Contract Selector */}
