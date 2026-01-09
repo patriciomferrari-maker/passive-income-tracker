@@ -569,8 +569,10 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
             {/* Individual Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
                 {activeContracts.map((contract) => {
-                    const lastInf = [...contract.chartData].reverse().find(d => d.inflationAccum !== 0)?.inflationAccum ?? 0;
-                    const lastDev = [...contract.chartData].reverse().find(d => d.devaluationAccum !== 0)?.devaluationAccum ?? 0;
+                    // Use last VALID (non-null) data point, not just non-zero
+                    // If current month doesn't have inflation data yet, use last month's
+                    const lastInf = [...contract.chartData].reverse().find(d => d.inflationAccum !== null && d.inflationAccum !== undefined)?.inflationAccum ?? 0;
+                    const lastDev = [...contract.chartData].reverse().find(d => d.devaluationAccum !== null && d.devaluationAccum !== undefined)?.devaluationAccum ?? 0;
 
                     const lastRent = contract.chartData[contract.chartData.length - 1]?.amountUSD || 0;
                     const avgRent = contract.chartData.reduce((sum, d) => sum + d.amountUSD, 0) / (contract.chartData.length || 1);
