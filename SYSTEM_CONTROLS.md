@@ -27,6 +27,11 @@
 - **Economic Indicators:** [`ECONOMIC_DATA_SPECIFICATION.md`](file:///c:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/ECONOMIC_DATA_SPECIFICATION.md)
   - Defines sources for Dólar Blue, IPC, UVA, and update frequency.
 
+### D. Hogar (Gastos)
+- **General Spec:** [`HOGAR_SPECIFICATION.md`](file:///c:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/HOGAR_SPECIFICATION.md)
+  - Defines **Timezone/Date handling rules (UTC vs Local)** for grouping.
+  - Defines Import and Categorization Logic.
+
 ---
 
 ## 2. Emergency Procedures
