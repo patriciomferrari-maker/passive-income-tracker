@@ -136,18 +136,33 @@ export function IndividualCashflowTab() {
             const resCf = await fetch(`/api/investments/on/${id}/cashflows`);
             const dataCf = await resCf.json();
 
+            console.log('🔍 CASHFLOW DEBUG:');
+            console.log(`Total cashflows: ${dataCf.length}`);
+            if (dataCf.length > 0) {
+                console.log('First 3 cashflows:', dataCf.slice(0, 3).map((cf: any) => ({
+                    date: cf.date,
+                    amount: cf.amount,
+                    currency: cf.currency,
+                    type: cf.type
+                })));
+            }
+
             // Convert cashflows if needed - USE cashflow.currency, not investment currency
             const convertedCf = dataCf.map((cf: any) => {
                 let amount = cf.amount;
                 const cfCurrency = cf.currency || investmentCurrency; // Fallback to investment currency if not set
 
+                console.log(`CF: ${cf.type} | DB: ${cf.currency} | Resolved: ${cfCurrency} | View: ${viewCurrency} | Will convert: ${cfCurrency !== viewCurrency}`);
+
                 if (cfCurrency !== viewCurrency && amount !== 0) {
                     const rate = getRate(cf.date);
+                    const originalAmount = amount;
                     if (cfCurrency === 'ARS' && viewCurrency === 'USD') {
                         amount = amount / rate;
                     } else if (cfCurrency === 'USD' && viewCurrency === 'ARS') {
                         amount = amount * rate;
                     }
+                    console.log(`  Converted: ${originalAmount} ${cfCurrency} → ${amount} ${viewCurrency} (rate: ${rate})`);
                 }
                 return { ...cf, amount, currency: viewCurrency };
             });
