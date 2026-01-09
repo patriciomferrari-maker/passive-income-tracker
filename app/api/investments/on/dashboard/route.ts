@@ -203,7 +203,11 @@ export async function GET() {
           const rateNow = getExchangeRate(new Date());
 
           // 1. Open Positions (Unrealized)
+          // 1. Open Positions (Unrealized)
           fifoResult.openPositions.forEach(p => {
+            // Ignore dust
+            if (p.quantity < 0.0001) return;
+
             let costUSD = p.quantity * p.buyPrice; // Base cost
             let valUSD = p.quantity * currentPrice;
 
@@ -212,15 +216,16 @@ export async function GET() {
               const r = getExchangeRate(p.date) || rateNow;
               costUSD /= r;
             }
-            // Normalize Value (currentPrice is already normalized? No, see lines 151-153)
-            // Logic at 151-153 handles % format but not currency.
-            // If asset is ARS, we must divide by rateNow.
+            // Normalize Value
             if (inv.currency === 'ARS') {
               valUSD /= rateNow;
             }
 
-            totalCostUnrealized += costUSD;
-            totalUnrealized += (valUSD - costUSD);
+            // Only accumulate if valid price to avoid -100% ghost loss
+            if (currentPrice > 0) {
+              totalCostUnrealized += costUSD;
+              totalUnrealized += (valUSD - costUSD);
+            }
           });
 
           // 2. Closed Positions (Realized)
