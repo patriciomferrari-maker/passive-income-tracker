@@ -6,9 +6,38 @@ import { calculateFIFO } from '@/app/lib/fifo';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const userId = await getUserId();
+
+    // === VALIDATION CONTROL: Fetch Positions (Tenencia) for Source of Truth ===
+    // Instead of duplicating logic, we call the Positions API internally
+    const positionsUrl = new URL('/api/investments/positions', request.url);
+    positionsUrl.searchParams.set('market', 'ARG');
+    positionsUrl.searchParams.set('currency', 'USD');
+
+    const positionsRes = await fetch(positionsUrl.toString(), {
+      headers: { cookie: request.headers.get('cookie') || '' }
+    });
+
+    if (!positionsRes.ok) {
+      throw new Error('Failed to fetch positions for validation');
+    }
+
+    const positions = await positionsRes.json();
+
+    // Calculate Tenencia Totals (Source of Truth)
+    const tenenciaTotalInversion = positions.reduce((sum: number, p: any) =>
+      sum + (p.quantity * p.buyPrice + p.buyCommission), 0
+    );
+    const tenenciaTotalValorActual = positions.reduce((sum: number, p: any) =>
+      sum + (p.quantity * (p.sellPrice || 0) || 0), 0
+    );
+
+    console.log('📊 DASHBOARD VALIDATION CONTROL:');
+    console.log(`  ✓ Tenencia Total Inversión: $${tenenciaTotalInversion.toFixed(2)} USD`);
+    console.log(`  ✓ Tenencia Total Valor Actual: $${tenenciaTotalValorActual.toFixed(2)} USD`);
+
     // Get all ON investments that have at least one transaction (purchase) And belong to user
     const investments = await prisma.investment.findMany({
       where: {
@@ -27,24 +56,9 @@ export async function GET() {
       }
     });
 
-    // --- P&L CALCULATION (Restored) ---
-    let totalRealized = 0;
-    let totalUnrealized = 0; // Absolute gain/loss
-    let totalCostUnrealized = 0; // Cost basis of open positions
-    let hasEquity = false;
-
-    // Fetch Latest Asset Prices
-    const investmentIds = investments.map(i => i.id);
-    const priceMap: Record<string, number> = {};
-    if (investmentIds.length > 0) {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const recentPrices = await prisma.assetPrice.findMany({
-        where: { investmentId: { in: investmentIds }, date: { gte: weekAgo } },
-        orderBy: { date: 'asc' }
-      });
-      recentPrices.forEach(p => priceMap[p.investmentId] = p.price);
-    }
+    // === USE TENENCIA VALUES AS AUTHORITATIVE ===
+    const capitalInvertido = tenenciaTotalInversion;
+    let totalCurrentValue = tenenciaTotalValorActual;
 
     // Fetch Historical Exchange Rates (TC_USD_ARS)
     const rates = await prisma.economicIndicator.findMany({
@@ -52,38 +66,28 @@ export async function GET() {
       orderBy: { date: 'desc' }
     });
 
-    // Helper to find closest rate
+    // Helper to find closest rate (needed for Consolidated TIR calculation)
     const getExchangeRate = (date: Date): number => {
-      // 1. Try to find exact or closest past date
       const rate = rates.find(r => r.date <= date);
       if (rate) return rate.value;
-
-      // 2. If no past date, take the oldest available (if date is before our history)
       if (rates.length > 0) return rates[rates.length - 1].value;
-
-      // 3. Fallback: Current Market Rate (approximate if DB empty)
-      // Ideally we should fetch this, but for sync purposes let's assume a safe default or latest know
-      return 1200; // Warning: Hardcoded fallback if NO data exists
+      return 1200; // Fallback
     };
 
-    // Calculate capital invertido (total invested) NORMALIZED TO USD
-    const capitalInvertido = investments.reduce((sum, inv) => {
-      const invTotal = inv.transactions.reduce((txSum, tx) => {
-        let amount = Math.abs(tx.totalAmount);
+    // Calculate P&L from Positions
+    const totalRealized = positions
+      .filter((p: any) => p.status === 'CLOSED')
+      .reduce((sum: number, p: any) => sum + (p.resultAbs || 0), 0);
 
-        // Convert ARS to USD
-        if (tx.currency === 'ARS') {
-          const rate = getExchangeRate(tx.date);
-          if (rate && rate > 0) {
-            amount = amount / rate;
-          }
-        }
+    const totalUnrealized = positions
+      .filter((p: any) => p.status === 'OPEN')
+      .reduce((sum: number, p: any) => sum + (p.resultAbs || 0), 0);
 
-        return txSum + amount;
-      }, 0);
+    const hasEquity = positions.some((p: any) => {
+      const t = (p.type || '').toUpperCase();
+      return !['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(t);
+    });
 
-      return sum + invTotal;
-    }, 0);
 
     // Split cashflows into Past (Collected) and Future (Projected)
     const today = new Date();
@@ -159,98 +163,11 @@ export async function GET() {
 
       const tir = calculateXIRR(amounts, dates);
 
-      // Calculate Theoretical TIR (market-based)
-      let theoreticalTir: number | null = null;
-      let rawPrice = priceMap[inv.id] || inv.lastPrice || 0;
-      let priceUSD = rawPrice;
-
-      // Convert to USD if needed (Tenencia logic)
-      if (inv.currency === 'ARS') {
-        const rateNow = getExchangeRate(new Date());
-        if (rateNow > 0) priceUSD = rawPrice / rateNow;
-      }
-
-      // Apply Bond Heuristic (Per 100 nominals check) on the USD price
-      if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND') {
-        if (priceUSD > 2.0) {
-          priceUSD = priceUSD / 100;
-        }
-      }
-
-      let currentPrice = priceUSD;
-
-      if (currentPrice > 0) {
-        // Calculate total holding from open positions (using FIFO)
-        const fifoTxs = inv.transactions.map(t => ({
-          id: t.id,
-          date: new Date(t.date),
-          type: t.type as 'BUY' | 'SELL',
-          quantity: t.quantity,
-          price: t.price,
-          commission: t.commission,
-          currency: t.currency
-        }));
-        const fifoResult = calculateFIFO(fifoTxs, inv.ticker);
-        const totalHolding = fifoResult.openPositions.reduce((s, p) => s + p.quantity, 0);
-
-        if (totalHolding > 0) {
-          const marketValue = totalHolding * currentPrice;
-          const flows = [-marketValue];
-          const flowDates = [new Date()];
-
-          const today = new Date();
-          inv.cashflows.forEach(cf => {
-            if (new Date(cf.date) > today) {
-              flows.push(cf.amount);
-              flowDates.push(new Date(cf.date));
-            }
-          });
-
-          const marketTir = calculateXIRR(flows, flowDates);
-          if (marketTir) theoreticalTir = marketTir * 100;
-
-          // --- P&L Accumulation (USD Normalized) ---
-          hasEquity = true;
-          const rateNow = getExchangeRate(new Date());
-
-          // 1. Open Positions (Unrealized)
-          // 1. Open Positions (Unrealized)
-          fifoResult.openPositions.forEach(p => {
-            // Ignore dust
-            if (p.quantity < 0.0001) return;
-
-            // Base cost in defined currency
-            let costUSD = p.quantity * p.buyPrice;
-            // Value in USD (currentPrice is already USD)
-            let valUSD = p.quantity * currentPrice;
-
-            // Normalize Cost to USD
-            if (p.currency === 'ARS') {
-              const r = getExchangeRate(p.date) || rateNow;
-              costUSD /= r;
-            }
-
-            // Value is already in USD, no need to normalize by rateNow again
-            // (Previous code had implicit double conversion removed here)
-
-            // Only accumulate if valid price to avoid -100% ghost loss
-            if (currentPrice > 0) {
-              totalCostUnrealized += costUSD;
-              totalUnrealized += (valUSD - costUSD);
-            }
-          });
-
-          // 2. Closed Positions (Realized)
-          fifoResult.realizedGains.forEach(g => {
-            let gainUSD = g.gainAbs;
-            if (g.currency === 'ARS') {
-              const r = getExchangeRate(g.date) || 1200;
-              gainUSD /= r;
-            }
-            totalRealized += gainUSD;
-          });
-        }
-      }
+      // Theoretical TIR is calculated in Positions API, we use positions data
+      const positionsForTicker = positions.filter((p: any) => p.ticker === inv.ticker && p.status === 'OPEN');
+      const theoreticalTir = positionsForTicker.length > 0 && positionsForTicker[0].theoreticalTir
+        ? positionsForTicker[0].theoreticalTir
+        : null;
 
       return {
         ticker: inv.ticker,
@@ -317,16 +234,16 @@ export async function GET() {
       proximoPago,
       upcomingPayments,
       portfolioBreakdown,
-      totalONs: investments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(i.type || '')).length, // Real bond count
-      totalInvestments: investments.length, // Total count including equities
+      totalONs: investments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(i.type || '')).length,
+      totalInvestments: investments.length,
       totalTransactions: investments.reduce((sum, inv) => sum + inv.transactions.length, 0),
-      // P&L Data for Cards
-      totalCurrentValue: totalCostUnrealized + totalUnrealized,
+      // P&L Data for Cards (using Tenencia values)
+      totalCurrentValue: totalCurrentValue, // Already set from Tenencia
       pnl: hasEquity ? {
         realized: totalRealized,
-        realizedPercent: totalCostUnrealized > 0 ? (totalRealized / totalCostUnrealized) * 100 : 0, // Approx (Base incorrect but safe)
+        realizedPercent: capitalInvertido > 0 ? (totalRealized / capitalInvertido) * 100 : 0,
         unrealized: totalUnrealized,
-        unrealizedPercent: totalCostUnrealized > 0 ? (totalUnrealized / totalCostUnrealized) * 100 : 0,
+        unrealizedPercent: capitalInvertido > 0 ? (totalUnrealized / capitalInvertido) * 100 : 0,
         hasEquity: true
       } : null
     });
