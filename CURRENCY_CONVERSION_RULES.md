@@ -1,5 +1,9 @@
 # Currency Conversion Rules - FINAL VERSION
 
+> [!NOTE]
+> For specific tab behavior, see [`TABS_SPECIFICATION.md`](file:///c:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/TABS_SPECIFICATION.md)
+> which documents the exact implementation of "Operaciones" and "Flujo por ON" tabs.
+
 ## Core Principles
 
 ### 1. ON Cashflows Are ALWAYS in USD (Database)
