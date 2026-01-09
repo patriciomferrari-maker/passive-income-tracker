@@ -12,6 +12,10 @@
 > For Dashboard tab complete specification, see [`DASHBOARD_SPECIFICATION.md`](file:///c:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/DASHBOARD_SPECIFICATION.md)
 > which documents all metrics, charts, and current behavior.
 
+> [!NOTE]
+> For Rentals Dashboard specification, see [`RENTALS_DASHBOARD_SPECIFICATION.md`](file:///c:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/RENTALS_DASHBOARD_SPECIFICATION.md)
+> which defines behavior for rental metrics and economic data handling.
+
 ## Core Principles
 
 ### 1. ON Cashflows Are ALWAYS in USD (Database)
