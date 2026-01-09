@@ -113,7 +113,7 @@ export function IndividualCashflowTab() {
             // Load Exchange Rates if conversion is needed
             let exchangeRates: Record<string, number> = {};
             if (viewCurrency !== investmentCurrency) {
-                const resRates = await fetch('/api/economic-data?type=TC_USD_ARS');
+                const resRates = await fetch('/api/economic-data/tc');
                 const ratesData = await resRates.json();
                 ratesData.forEach((r: any) => {
                     const dateKey = new Date(r.date).toISOString().split('T')[0];
