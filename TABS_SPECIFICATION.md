@@ -193,6 +193,128 @@ const convertedTx = dataTx.map((tx: any) => {
 
 ---
 
+## Tab 3: Tenencia (Holdings Tab)
+
+**Purpose:** Display current positions summary with performance metrics and currency conversion capability.
+
+### Current Implementation
+- **File:** `components/on/HoldingsTab.tsx` (wrapper)
+- **Component:** `components/common/PositionsTable.tsx` (table implementation)
+- **API Dependency:** `/api/investments/positions`
+- **Sync API:** `/api/investments/sync` (auto-syncs prices on load)
+
+### Features
+
+#### 1. Currency Toggle (ARS/USD)
+- **Default:** USD
+- **Location:** Top-right corner of card header
+- **Behavior:**
+  - Changes `currency` param in positions API call
+  - Server-side conversion (not client-side like other tabs)
+  - All calculations done in backend
+
+#### 2. Type Filter (Todos/ON/CEDEAR)
+- **Default:** ALL
+- **Location:** Left of currency toggle
+- **Options:** ALL (Todos), ON, CEDEAR
+- **Behavior:** Filters positions by investment type
+
+#### 3. Auto-Sync Prices on Load
+- **Behavior:** Calls `/api/investments/sync` POST on component mount
+- **Purpose:** Updates latest prices before showing positions
+- **Implementation:** Optimistic, doesn't block render
+
+#### 4. Privacy Mode
+- **Feature:** Can hide/show monetary values
+- **Storage:** `localStorage.getItem('privacy_mode')`
+- **Display:** Shows `****` when privacy enabled
+
+### API Call Structure
+
+```typescript
+// API parameters based on filters
+const params = new URLSearchParams();
+if (types) params.append('type', types); // ON, CEDEAR, etc
+params.append('market', 'ARG'); // Always ARG for this tab
+params.append('currency', viewCurrency); // ARS or USD
+
+const url = `/api/investments/positions?${params.toString()}`;
+```
+
+### Display Columns
+
+| Column | Description | Conversion |
+|--------|-------------|-----------|
+| **Ticker** | Asset ticker symbol | N/A |
+| **Nombre** | Asset name/description | N/A |
+| **Tipo** | Investment type (ON, CEDEAR, etc) | N/A |
+| **Cantidad** | Current quantity held | N/A |
+| **Precio Compra** | Average buy price per unit | Server-side |
+| **Valor Compra** | Total purchase value | Server-side |
+| **Precio Venta** | Current market price | Server-side |
+| **Valor Actual** | Current market value | Server-side |
+| **Resultado** | Absolute P&L | Server-side |
+| **Resultado %** | Percentage return | N/A |
+| **Comisión** | Total commissions paid | Server-side |
+| **TIR** | Theoretical IRR (for ONs) | N/A |
+| **Acciones** | Edit button | N/A |
+
+### Sorting
+- **Default:** By date (descending)
+- **Feature:** Click column headers to sort
+- **Sortable columns:** All columns with numerical values
+
+### Backend Calculation (Source of Truth)
+
+> [!IMPORTANT]
+> **CRITICAL:** Tenencia is the **SOURCE OF TRUTH** for portfolio values.
+> Dashboard values MUST match Tenencia totals.
+
+**Position Calculation Logic** (in `/api/investments/positions`):
+1. Fetches all transactions (BUY/SELL)
+2. Applies FIFO for capital calculation
+3. Fetches current prices (from `AssetPrice` table or `investment.lastPrice`)
+4. Normalizes prices to USD if needed
+5. **Converts final values to requested currency** (server-side)
+
+**Currency Conversion:**
+- Happens in BACKEND, not frontend
+- Uses same exchange rate logic as other tabs
+- Returns all values already converted
+
+### Validation Rules
+- ✅ Currency toggle must be functional
+- ✅ Type filter must update table
+- ✅ Auto-sync prices on mount
+- ✅ Privacy mode toggle works
+- ✅ **Dashboard totals must match Tenencia totals**
+- ✅ Sorting by any column works
+
+### Source of Truth Status
+
+**Tenencia is authoritative for:**
+- `capitalInvertido` (Total Inversión) 
+- `valorActual` (Total Valor Actual)
+- Individual position P&L
+
+**Dashboard must call Tenencia API internally:**
+```typescript
+// In dashboard route.ts
+const positionsUrl = new URL('/api/investments/positions', request.url);
+positionsUrl.searchParams.set('market', 'ARG');
+positionsUrl.searchParams.set('currency', 'USD');
+const positionsRes = await fetch(positionsUrl.toString(), {
+    headers: { cookie: request.headers.get('cookie') || '' }
+});
+const positions = await positionsRes.json();
+
+// Use these values as source of truth
+const capitalInvertido = positions.reduce(...);
+const valorActual = positions.reduce(...);
+```
+
+---
+
 ## Change Management Protocol
 
 > [!WARNING]
