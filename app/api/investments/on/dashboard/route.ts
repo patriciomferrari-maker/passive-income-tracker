@@ -148,17 +148,39 @@ export async function GET(request: Request) {
 
     // Calculate portfolio breakdown and TIR
     const portfolioBreakdown = investments.map(inv => {
-      const invested = inv.transactions.reduce((sum, tx) => sum + Math.abs(tx.totalAmount), 0);
+      // Calculate invested - NORMALIZE ALL TO USD
+      const invested = inv.transactions.reduce((sum, tx) => {
+        let txAmount = Math.abs(tx.totalAmount);
+        const txCurrency = tx.currency || inv.currency;
 
-      // Calculate TIR
+        // Convert to USD if needed
+        if (txCurrency === 'ARS') {
+          const rate = getExchangeRate(new Date(tx.date));
+          txAmount = txAmount / rate;
+        }
+
+        return sum + txAmount;
+      }, 0);
+
+      // Calculate TIR - already normalized to USD
       const amounts: number[] = [];
       const dates: Date[] = [];
 
       inv.transactions.forEach(tx => {
-        amounts.push(-Math.abs(tx.totalAmount));
+        let txAmount = Math.abs(tx.totalAmount);
+        const txCurrency = tx.currency || inv.currency;
+
+        // Convert to USD for TIR calculation
+        if (txCurrency === 'ARS') {
+          const rate = getExchangeRate(new Date(tx.date));
+          txAmount = txAmount / rate;
+        }
+
+        amounts.push(-txAmount);
         dates.push(new Date(tx.date));
       });
 
+      // Cashflows are already in USD (for ONs)
       inv.cashflows.forEach(cf => {
         amounts.push(cf.amount);
         dates.push(new Date(cf.date));
@@ -175,7 +197,7 @@ export async function GET(request: Request) {
       return {
         ticker: inv.ticker,
         name: inv.name,
-        invested,
+        invested, // Now in USD
         percentage: capitalInvertido > 0 ? (invested / capitalInvertido) * 100 : 0,
         tir: tir ? tir * 100 : 0,
         theoreticalTir: theoreticalTir,
