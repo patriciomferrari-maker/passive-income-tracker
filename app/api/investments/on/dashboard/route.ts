@@ -225,16 +225,20 @@ export async function GET(request: Request) {
       });
 
       // Add ALL cashflows (not just projected) - both past and future
-      // These are typically in USD for Hard Dollar bonds
+      // Cashflows for ONs are already in USD, check cf.currency
       inv.cashflows.forEach(cf => {
         let amount = cf.amount;
-        // Only convert if the bond itself is ARS denominated
-        if (inv.currency === 'ARS') {
+        const cfCurrency = cf.currency || inv.currency;
+
+        // Only convert if cashflow is in ARS
+        if (cfCurrency === 'ARS') {
           // For past cashflows, use historical rate; for future, use current rate
           const cfDate = new Date(cf.date);
           const rate = cfDate <= new Date() ? getExchangeRate(cfDate) : getExchangeRate(new Date());
           if (rate > 0) amount = amount / rate;
         }
+        // If cfCurrency is USD, don't convert (already in USD)
+
         allAmounts.push(amount);
         allDates.push(new Date(cf.date));
       });
