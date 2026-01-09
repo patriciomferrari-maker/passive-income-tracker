@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { InvestmentsDashboardView, DashboardData } from './InvestmentsDashboardView';
 
 interface DashboardTabProps {
@@ -9,6 +10,7 @@ interface DashboardTabProps {
 }
 
 export function DashboardTab({ showValues, onTogglePrivacy }: DashboardTabProps) {
+    const router = useRouter();
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [errorType, setErrorType] = useState<'401' | 'generic' | null>(null);
@@ -65,8 +67,10 @@ export function DashboardTab({ showValues, onTogglePrivacy }: DashboardTabProps)
         );
     }
 
+    // Redirect if it failed to load (and wasn't 401)
     if (!dashboardData) {
-        return <div className="p-8 text-center text-slate-400">No se pudo cargar la información.</div>;
+        router.push('/');
+        return null;
     }
 
     return (
