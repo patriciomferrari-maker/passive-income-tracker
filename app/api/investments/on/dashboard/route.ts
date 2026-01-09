@@ -199,25 +199,30 @@ export async function GET(request: Request) {
         }
       });
 
-      // Add all projected cashflows as positive cashflows (Already in USD mostly, but check)
-      // Assumption: Cashflows are projected in the asset's currency (USD usually for Hard Dollar ONs)
-      // If asset is ARS, we should convert projected too?
-      // Most ONs tracked are Hard Dollar (USD).
+      // Add ALL cashflows (not just projected) - both past and future
+      // These are typically in USD for Hard Dollar bonds
       inv.cashflows.forEach(cf => {
-        // If cashflow is ARS (unlikely for ONs in this tracker context, but possible)
-        // We assume USD for now unless explicitly marked.
-        // Actually, let's treat them as USD since `investment.currency` usually defines the asset base.
         let amount = cf.amount;
-        if (inv.currency === 'ARS') { // If the BOND ITSELF is ARS denominated
-          const rate = getExchangeRate(new Date()); // Use current rate for future?
-          amount = amount / rate;
+        // Only convert if the bond itself is ARS denominated
+        if (inv.currency === 'ARS') {
+          // For past cashflows, use historical rate; for future, use current rate
+          const cfDate = new Date(cf.date);
+          const rate = cfDate <= new Date() ? getExchangeRate(cfDate) : getExchangeRate(new Date());
+          if (rate > 0) amount = amount / rate;
         }
         allAmounts.push(amount);
         allDates.push(new Date(cf.date));
       });
     });
 
+    console.log('🧮 TIR CONSOLIDADA DEBUG:');
+    console.log(`  Total flows: ${allAmounts.length}`);
+    console.log(`  Sample amounts (first 5): ${allAmounts.slice(0, 5).map(a => a.toFixed(2)).join(', ')}`);
+    console.log(`  Sum of outflows (negative): $${allAmounts.filter(a => a < 0).reduce((s, a) => s + a, 0).toFixed(2)}`);
+    console.log(`  Sum of inflows (positive): $${allAmounts.filter(a => a > 0).reduce((s, a) => s + a, 0).toFixed(2)}`);
+
     const tirConsolidada = calculateXIRR(allAmounts, allDates);
+    console.log(`  Calculated TIR: ${tirConsolidada ? (tirConsolidada * 100).toFixed(2) : 'NULL'}%`);
 
     // Calculate total a cobrar (capital + interés)
     const totalACobrar = capitalACobrar + interesACobrar;
