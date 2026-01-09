@@ -9,8 +9,7 @@ import {
     AlertCircle,
     Percent,
     Clock,
-    DollarSign,
-    RefreshCw
+    DollarSign
 } from 'lucide-react';
 
 interface Contract {
