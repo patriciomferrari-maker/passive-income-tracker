@@ -97,11 +97,54 @@ export function PurchasesTab() {
             const res = await fetch(`/api/investments/transactions?${params.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch transactions');
             const data = await res.json();
-            setTransactions(data);
+
+            // Load exchange rates for currency conversion
+            const resRates = await fetch('/api/economic-data/tc');
+            const ratesData = await resRates.json();
+            const exchangeRates: Record<string, number> = {};
+            ratesData.forEach((r: any) => {
+                const dateKey = new Date(r.date).toISOString().split('T')[0];
+                exchangeRates[dateKey] = r.value;
+            });
+
+            // Helper to get exchange rate for a date
+            const getRate = (date: string) => {
+                if (Object.keys(exchangeRates).length === 0) return 1;
+                const dateKey = new Date(date).toISOString().split('T')[0];
+                if (exchangeRates[dateKey]) return exchangeRates[dateKey];
+                const sortedDates = Object.keys(exchangeRates).sort();
+                const closestDate = sortedDates.reverse().find(d => d <= dateKey);
+                return closestDate ? exchangeRates[closestDate] : 1200;
+            };
+
+            // Convert transactions based on viewCurrency
+            const convertedData = data.map((tx: Transaction) => {
+                const txCurrency = tx.currency || 'USD';
+                let totalAmount = tx.totalAmount;
+                let price = tx.price;
+                let commission = tx.commission;
+
+                if (txCurrency !== viewCurrency) {
+                    const rate = getRate(tx.date);
+                    if (txCurrency === 'ARS' && viewCurrency === 'USD') {
+                        totalAmount = totalAmount / rate;
+                        price = price / rate;
+                        commission = commission / rate;
+                    } else if (txCurrency === 'USD' && viewCurrency === 'ARS') {
+                        totalAmount = totalAmount * rate;
+                        price = price * rate;
+                        commission = commission * rate;
+                    }
+                }
+
+                return { ...tx, totalAmount, price, commission, currency: viewCurrency };
+            });
+
+            setTransactions(convertedData);
             setSelectedIds(new Set());
 
             // Auto-expand all tickers (show operations always expanded)
-            const uniqueTickers = new Set(data.map((tx: Transaction) => tx.investment.ticker));
+            const uniqueTickers = new Set(convertedData.map((tx: Transaction) => tx.investment.ticker));
             setExpandedTickers(uniqueTickers);
         } catch (error) {
             console.error('Error fetching transactions:', error);
@@ -112,7 +155,7 @@ export function PurchasesTab() {
 
     useEffect(() => {
         fetchTransactions();
-    }, [refreshTrigger, viewType]);
+    }, [refreshTrigger, viewType, viewCurrency]); // Added viewCurrency dependency
 
     const handleEditTransaction = (tx: Transaction) => {
         setEditingTxId(tx.id);
