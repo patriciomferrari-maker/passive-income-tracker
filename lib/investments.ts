@@ -173,6 +173,11 @@ export async function generateInvestmentCashflow(investmentId: string): Promise<
         const dateKey = formatDateKey(payDate);
         const residualForInterest = interestResiduals.get(payDate.toISOString()) || 0;
 
+        // CRITICAL: ONs ALWAYS pay in USD, regardless of purchase currency
+        const cashflowCurrency = (investment.type === 'ON' || investment.type === 'CORPORATE_BOND')
+            ? 'USD'
+            : investment.currency;
+
         // Calculate Interest
         // Interest = Holdings * ResidualFactor * Rate * (Days / 365)
         // Determine days since last payment (or emission)
@@ -191,7 +196,7 @@ export async function generateInvestmentCashflow(investmentId: string): Promise<
                 investmentId,
                 date: payDate,
                 amount: interestAmount,
-                currency: investment.currency,
+                currency: cashflowCurrency, // USD for ONs
                 type: 'INTEREST',
                 description: `Interés (${(residualForInterest * 100).toFixed(0)}% VR)`,
                 capitalResidual: userHoldings * (residualForInterest - period.amortizationFactor) // Residual AFTER this payment
@@ -206,7 +211,7 @@ export async function generateInvestmentCashflow(investmentId: string): Promise<
                 investmentId,
                 date: payDate,
                 amount: amortAmount,
-                currency: investment.currency,
+                currency: cashflowCurrency, // USD for ONs
                 type: 'AMORTIZATION',
                 description: `Amortización (${(period.amortizationFactor * 100).toFixed(2)}%)`,
                 capitalResidual: userHoldings * (residualForInterest - period.amortizationFactor)

@@ -2,7 +2,53 @@
 
 ## Core Principles
 
-### 1. ALWAYS Use Actual Currency Fields
+### 1. ON Cashflows Are ALWAYS in USD
+
+> [!IMPORTANT]
+> **CRITICAL RULE FOR ONs (Obligaciones Negociables)**:
+> - **Cashflows (intereses y amortizaciones)**: SIEMPRE en USD, independiente de la moneda de compra
+> - **Transacciones (compras)**: Pueden ser en ARS o USD según cómo se compraron
+> - **Vista**: Si está en USD y la compra fue en ARS, convertir la transacción para homogeneidad
+
+**Ejemplos:**
+- DNC3D comprada en ARS:
+  - `transaction.currency = 'ARS'` → Convertir a USD cuando viewCurrency = USD
+  - `cashflow.currency = 'USD'` → NO convertir, ya está en USD
+  
+**Por qué:** Las ONs argentinas pagan intereses y amortizaciones en USD por contrato, sin importar la moneda de compra.
+
+**Implementación correcta:**
+```typescript
+// Cashflows - NUNCA convertir si ya son USD
+if (cashflow.currency === 'USD' && viewCurrency === 'USD') {
+    // NO CONVERTIR - ya está correcto
+}
+
+// Transacciones - convertir según viewCurrency
+if (transaction.currency === 'ARS' && viewCurrency === 'USD') {
+    amount = amount / exchangeRate; // SÍ convertir
+}
+```
+
+### 2. ON Cashflows Are ALWAYS in USD
+> [!IMPORTANT]
+> **CRITICAL RULE**: All ON (Obligaciones Negociables) and Corporate Bond cashflows (interest and amortization) are **ALWAYS** denominated in USD, regardless of the currency used to purchase the investment.
+
+**Examples:**
+- DNC3D: `investment.currency = 'ARS'` but `cashflow.currency = 'USD'`
+- PN36D: `investment.currency = 'ARS'` but `cashflow.currency = 'USD'`
+
+**Why:** ONs in Argentina pay interest and amortization in USD by contract, even if purchased with ARS.
+
+**Implementation:**
+```typescript
+// When generating cashflows for ON/CORPORATE_BOND
+if (investment.type === 'ON' || investment.type === 'CORPORATE_BOND') {
+    cashflow.currency = 'USD'; // ALWAYS USD, ignore investment.currency
+}
+```
+
+### 2. ALWAYS Use Actual Currency Fields
 - **Cashflows**: Use `cashflow.currency` (NOT `investment.currency`)
 - **Transactions**: Use `transaction.currency` (NOT `investment.currency`)
 - **Investments**: Use `investment.currency` only when specific field is missing
