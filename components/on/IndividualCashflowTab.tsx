@@ -110,20 +110,18 @@ export function IndividualCashflowTab() {
 
             console.log(`Loading data for ${investment.ticker}, Investment Currency: ${investmentCurrency}, View Currency: ${viewCurrency}`);
 
-            // Load Exchange Rates if conversion is needed
-            let exchangeRates: Record<string, number> = {};
-            if (viewCurrency !== investmentCurrency) {
-                const resRates = await fetch('/api/economic-data/tc');
-                const ratesData = await resRates.json();
-                ratesData.forEach((r: any) => {
-                    const dateKey = new Date(r.date).toISOString().split('T')[0];
-                    exchangeRates[dateKey] = r.value;
-                });
-            }
+            // ALWAYS load Exchange Rates (cashflows may have different currency than investment)
+            const resRates = await fetch('/api/economic-data/tc');
+            const ratesData = await resRates.json();
+            const exchangeRates: Record<string, number> = {};
+            ratesData.forEach((r: any) => {
+                const dateKey = new Date(r.date).toISOString().split('T')[0];
+                exchangeRates[dateKey] = r.value;
+            });
 
             // Helper to get exchange rate for a date
             const getRate = (date: string) => {
-                if (Object.keys(exchangeRates).length === 0) return 1; // No conversion needed
+                if (Object.keys(exchangeRates).length === 0) return 1; // No rates available
                 const dateKey = new Date(date).toISOString().split('T')[0];
                 if (exchangeRates[dateKey]) return exchangeRates[dateKey];
                 // Fallback: find closest past date
