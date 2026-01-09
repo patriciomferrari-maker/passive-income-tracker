@@ -50,7 +50,7 @@ export async function GET(request: Request) {
       include: {
         transactions: true,
         cashflows: {
-          where: { status: 'PROJECTED' },
+          // REMOVED status filter - we need ALL cashflows (past + future) for TIR
           orderBy: { date: 'asc' }
         }
       }
@@ -101,6 +101,9 @@ export async function GET(request: Request) {
       inv.cashflows.forEach(cf => {
         const cfDate = new Date(cf.date);
         const isPast = cfDate <= today;
+        const isProjected = cf.status === 'PROJECTED'; // Only count projected ones for UI
+
+        if (!isProjected) return; // Skip non-projected for UI metrics
 
         if (cf.type === 'AMORTIZATION') {
           if (isPast) capitalCobrado += cf.amount;
@@ -119,10 +122,10 @@ export async function GET(request: Request) {
     const gananciaTotal = totalRetorno - capitalInvertido;
     const roi = capitalInvertido > 0 ? (gananciaTotal / capitalInvertido) * 100 : 0;
 
-    // Get próximo pago (next payment)
+    // Get próximo pago (next payment) - only from PROJECTED cashflows
     const allFutureCashflows = investments.flatMap(inv =>
       inv.cashflows
-        .filter(cf => new Date(cf.date) > today)
+        .filter(cf => cf.status === 'PROJECTED' && new Date(cf.date) > today)
         .map(cf => ({
           date: cf.date,
           amount: cf.amount,
