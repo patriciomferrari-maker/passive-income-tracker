@@ -119,6 +119,22 @@ export function TransactionsTab() {
             });
 
             if (res.ok) {
+                // If we have a category, LEARN it as a rule on manual save/edit too
+                if (formData.categoryId && formData.description) {
+                    const cleanDesc = formData.description.replace(/\s*\(?Cuota\s*\d+\/\d+\)?/i, '').trim();
+                    if (cleanDesc.length > 3) { // Avoid creating rules for very short descriptions
+                        fetch('/api/barbosa/categories/rules', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                pattern: cleanDesc,
+                                categoryId: formData.categoryId,
+                                subCategoryId: formData.subCategoryId || null
+                            })
+                        }).catch(console.error);
+                    }
+                }
+
                 setFormData({
                     ...formData,
                     amount: '',
@@ -287,19 +303,19 @@ export function TransactionsTab() {
                 });
 
                 if (res.ok && tx.categoryId) {
-                    // If the user manually assigned or the system auto-assigned a category,
-                    // we can optionally "learn" it. 
-                    // For now, only learn if the user actively confirms it.
-                    // Actually, let's create a rule automatically if a category was assigned.
+                    // Always "learn" the category assignment for future imports
+                    // We send the clean description to be matched against
+                    const cleanDesc = tx.description.replace(/\s*\(?Cuota\s*\d+\/\d+\)?/i, '').trim();
+
                     await fetch('/api/barbosa/categories/rules', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            pattern: tx.description,
+                            pattern: cleanDesc,
                             categoryId: tx.categoryId,
-                            subCategoryId: tx.subCategoryId
+                            subCategoryId: tx.subCategoryId || null
                         })
-                    });
+                    }).catch(err => console.error("Error saving rule:", err));
                 }
 
                 if (res.ok) successCount++;

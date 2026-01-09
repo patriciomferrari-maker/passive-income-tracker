@@ -27,8 +27,24 @@ export async function GET() {
       }
     });
 
-    // --- P&L CALCULATION (Adapted from Positions API) ---
-    // ... (rest of P&L logic remains same until capitalInvertido) ...
+    // --- P&L CALCULATION (Restored) ---
+    let totalRealized = 0;
+    let totalUnrealized = 0; // Absolute gain/loss
+    let totalCostUnrealized = 0; // Cost basis of open positions
+    let hasEquity = false;
+
+    // Fetch Latest Asset Prices
+    const investmentIds = investments.map(i => i.id);
+    const priceMap: Record<string, number> = {};
+    if (investmentIds.length > 0) {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const recentPrices = await prisma.assetPrice.findMany({
+        where: { investmentId: { in: investmentIds }, date: { gte: weekAgo } },
+        orderBy: { date: 'asc' }
+      });
+      recentPrices.forEach(p => priceMap[p.investmentId] = p.price);
+    }
 
     // Fetch Historical Exchange Rates (TC_USD_ARS)
     const rates = await prisma.economicIndicator.findMany({
@@ -181,6 +197,41 @@ export async function GET() {
 
           const marketTir = calculateXIRR(flows, flowDates);
           if (marketTir) theoreticalTir = marketTir * 100;
+
+          // --- P&L Accumulation (USD Normalized) ---
+          hasEquity = true;
+          const rateNow = getExchangeRate(new Date());
+
+          // 1. Open Positions (Unrealized)
+          fifoResult.openPositions.forEach(p => {
+            let costUSD = p.quantity * p.buyPrice; // Base cost
+            let valUSD = p.quantity * currentPrice;
+
+            // Normalize Cost
+            if (p.currency === 'ARS') {
+              const r = getExchangeRate(p.date) || rateNow;
+              costUSD /= r;
+            }
+            // Normalize Value (currentPrice is already normalized? No, see lines 151-153)
+            // Logic at 151-153 handles % format but not currency.
+            // If asset is ARS, we must divide by rateNow.
+            if (inv.currency === 'ARS') {
+              valUSD /= rateNow;
+            }
+
+            totalCostUnrealized += costUSD;
+            totalUnrealized += (valUSD - costUSD);
+          });
+
+          // 2. Closed Positions (Realized)
+          fifoResult.realizedGains.forEach(g => {
+            let gainUSD = g.gainAbs;
+            if (g.currency === 'ARS') {
+              const r = getExchangeRate(g.date) || 1200;
+              gainUSD /= r;
+            }
+            totalRealized += gainUSD;
+          });
         }
       }
 
@@ -239,9 +290,9 @@ export async function GET() {
       totalCurrentValue: totalCostUnrealized + totalUnrealized,
       pnl: hasEquity ? {
         realized: totalRealized,
-        realizedPercent: roiRealized,
+        realizedPercent: totalCostUnrealized > 0 ? (totalRealized / totalCostUnrealized) * 100 : 0, // Approx (Base incorrect but safe)
         unrealized: totalUnrealized,
-        unrealizedPercent: roiUnrealized,
+        unrealizedPercent: totalCostUnrealized > 0 ? (totalUnrealized / totalCostUnrealized) * 100 : 0,
         hasEquity: true
       } : null
     });
