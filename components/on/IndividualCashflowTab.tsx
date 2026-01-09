@@ -47,7 +47,7 @@ export function IndividualCashflowTab() {
     const [cashflows, setCashflows] = useState<Cashflow[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(false);
-
+    const [viewCurrency, setViewCurrency] = useState<'ARS' | 'USD'>('USD'); // DEFAULT: USD
 
 
     // Privacy Mode
@@ -69,7 +69,7 @@ export function IndividualCashflowTab() {
             setCashflows([]);
             setTransactions([]);
         }
-    }, [selectedON]);
+    }, [selectedON, viewCurrency]); // Reload when currency changes
 
     const togglePrivacy = () => {
         const newValue = !showValues;
@@ -99,15 +99,75 @@ export function IndividualCashflowTab() {
     const loadData = async (id: string) => {
         setLoading(true);
         try {
+            // Load Investment details to get its currency
+            const resInv = await fetch(`/api/investments/on?id=${id}`);
+            const invData = await resInv.json();
+            const investment = Array.isArray(invData) ? invData[0] : invData;
+            const investmentCurrency = investment?.currency || 'USD';
+
+            // Load Exchange Rates if needed
+            let exchangeRates: Record<string, number> = {};
+            if (viewCurrency !== investmentCurrency) {
+                const resRates = await fetch('/api/economic-data?type=TC_USD_ARS');
+                const ratesData = await resRates.json();
+                ratesData.forEach((r: any) => {
+                    const dateKey = new Date(r.date).toISOString().split('T')[0];
+                    exchangeRates[dateKey] = r.value;
+                });
+            }
+
+            // Helper to get exchange rate for a date
+            const getRate = (date: string) => {
+                const dateKey = new Date(date).toISOString().split('T')[0];
+                if (exchangeRates[dateKey]) return exchangeRates[dateKey];
+                // Fallback: find closest past date
+                const sortedDates = Object.keys(exchangeRates).sort();
+                const closestDate = sortedDates.reverse().find(d => d <= dateKey);
+                return closestDate ? exchangeRates[closestDate] : 1200; // Fallback rate
+            };
+
             // Load Cashflows
             const resCf = await fetch(`/api/investments/on/${id}/cashflows`);
             const dataCf = await resCf.json();
-            setCashflows(dataCf);
+
+            // Convert cashflows if needed
+            const convertedCf = dataCf.map((cf: any) => {
+                let amount = cf.amount;
+                if (investmentCurrency !== viewCurrency) {
+                    const rate = getRate(cf.date);
+                    if (investmentCurrency === 'ARS' && viewCurrency === 'USD') {
+                        amount = amount / rate;
+                    } else if (investmentCurrency === 'USD' && viewCurrency === 'ARS') {
+                        amount = amount * rate;
+                    }
+                }
+                return { ...cf, amount };
+            });
+            setCashflows(convertedCf);
 
             // Load Transactions (Purchases)
             const resTx = await fetch(`/api/investments/on/${id}/transactions`);
             const dataTx = await resTx.json();
-            setTransactions(dataTx);
+
+            // Convert transactions if needed
+            const convertedTx = dataTx.map((tx: any) => {
+                let totalAmount = tx.totalAmount;
+                let price = tx.price;
+                const txCurrency = tx.currency || investmentCurrency;
+
+                if (txCurrency !== viewCurrency) {
+                    const rate = getRate(tx.date);
+                    if (txCurrency === 'ARS' && viewCurrency === 'USD') {
+                        totalAmount = totalAmount / rate;
+                        price = price / rate;
+                    } else if (txCurrency === 'USD' && viewCurrency === 'ARS') {
+                        totalAmount = totalAmount * rate;
+                        price = price * rate;
+                    }
+                }
+                return { ...tx, totalAmount, price };
+            });
+            setTransactions(convertedTx);
         } catch (error) {
             console.error('Error loading data:', error);
         } finally {
@@ -116,10 +176,12 @@ export function IndividualCashflowTab() {
     };
 
 
-
     const formatMoney = (amount: number) => {
         if (!showValues) return '****';
-        return `$${amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return Intl.NumberFormat('es-AR', {
+            style: 'currency',
+            currency: viewCurrency
+        }).format(amount);
     };
 
     const formatNumber = (num: number) => {
@@ -303,6 +365,28 @@ export function IndividualCashflowTab() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {/* Currency Toggle */}
+                        <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
+                            <button
+                                onClick={() => setViewCurrency('ARS')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewCurrency === 'ARS'
+                                    ? 'bg-blue-900/50 text-blue-200 border border-blue-800'
+                                    : 'text-slate-400 hover:text-white'
+                                    }`}
+                            >
+                                ARS
+                            </button>
+                            <button
+                                onClick={() => setViewCurrency('USD')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewCurrency === 'USD'
+                                    ? 'bg-green-900/50 text-green-200 border border-green-800'
+                                    : 'text-slate-400 hover:text-white'
+                                    }`}
+                            >
+                                USD
+                            </button>
+                        </div>
+
                         <button
                             onClick={togglePrivacy}
                             className="p-2 bg-slate-700 rounded-md text-slate-300 hover:text-white"

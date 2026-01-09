@@ -90,9 +90,6 @@ export function PurchasesTab() {
         try {
             setLoading(true);
             const params = new URLSearchParams();
-            // We fetch ALL types here to handle client-side grouping better, 
-            // or we could filter server side. Let's filter server side if viewType is specific,
-            // but for "ALL" we get everything.
             if (viewType !== 'ALL') params.append('type', viewType);
             params.append('market', 'ARG');
 
@@ -101,6 +98,10 @@ export function PurchasesTab() {
             const data = await res.json();
             setTransactions(data);
             setSelectedIds(new Set());
+
+            // Auto-expand all tickers (show operations always expanded)
+            const uniqueTickers = new Set(data.map((tx: Transaction) => tx.investment.ticker));
+            setExpandedTickers(uniqueTickers);
         } catch (error) {
             console.error('Error fetching transactions:', error);
         } finally {
