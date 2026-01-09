@@ -945,8 +945,8 @@ export function TransactionsTab() {
                             {Object.entries(
                                 filteredTransactions.reduce((groups: any, tx) => {
                                     const date = new Date(tx.date);
-                                    // Key format: "YYYY-MM" for sorting, but we display nicely
-                                    const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                                    // Use UTC to prevent timezone shifts (e.g. Jan 1 -> Dec 31)
+                                    const key = `${date.getUTCFullYear()}-${(date.getUTCMonth() + 1).toString().padStart(2, '0')}`;
                                     if (!groups[key]) groups[key] = [];
                                     groups[key].push(tx);
                                     return groups;
