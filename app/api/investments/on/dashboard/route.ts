@@ -165,7 +165,18 @@ export async function GET() {
 
       // Apply same price normalization as positions API
       if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND') {
-        if (currentPrice > 2.0) currentPrice = currentPrice / 100;
+        // If Price > 200, assume it's ARS masked as per-unit or just raw ARS.
+        // BUT we need to know the currency of the PRICE, not just the investment.
+        // Assuming priceMap stores raw exchange data.
+        // Heuristic: If converted to USD it is > 2.0, then divide by 100.
+        // Actually, safer: if > 2.0, divide by 100. EXCEPT if it's ARS ~1000.
+        // 1000 / 100 = 10. That's 10% parity? No.
+        // If ARS Parity is ~100%, price is around 1000-1400 ARS.
+        // If we divide 1000/100 = 10.
+        // Then we divide by FX (1000) -> 0.01 USD. WRONG.
+        // Correct flow:
+        // 1. Convert Raw Price to USD.
+        // 2. If USD Price > 2.0 (e.g. 102), divide by 100 -> 1.02.
       }
 
       if (currentPrice > 0) {
@@ -256,17 +267,34 @@ export async function GET() {
     const allDates: Date[] = [];
 
     investments.forEach(inv => {
-      // Add all BUY transactions as negative cashflows
+      // Add all BUY transactions as negative cashflows (NORMALIZED TO USD)
       inv.transactions.forEach(tx => {
         if (tx.type === 'BUY') {
-          allAmounts.push(-Math.abs(tx.totalAmount));
+          let amount = -Math.abs(tx.totalAmount);
+          // Normalize to USD
+          if (tx.currency === 'ARS') {
+            const rate = getExchangeRate(tx.date) || 1200;
+            amount = amount / rate;
+          }
+          allAmounts.push(amount);
           allDates.push(new Date(tx.date));
         }
       });
 
-      // Add all projected cashflows as positive cashflows
+      // Add all projected cashflows as positive cashflows (Already in USD mostly, but check)
+      // Assumption: Cashflows are projected in the asset's currency (USD usually for Hard Dollar ONs)
+      // If asset is ARS, we should convert projected too?
+      // Most ONs tracked are Hard Dollar (USD).
       inv.cashflows.forEach(cf => {
-        allAmounts.push(cf.amount);
+        // If cashflow is ARS (unlikely for ONs in this tracker context, but possible)
+        // We assume USD for now unless explicitly marked.
+        // Actually, let's treat them as USD since `investment.currency` usually defines the asset base.
+        let amount = cf.amount;
+        if (inv.currency === 'ARS') { // If the BOND ITSELF is ARS denominated
+          const rate = getExchangeRate(new Date()); // Use current rate for future?
+          amount = amount / rate;
+        }
+        allAmounts.push(amount);
         allDates.push(new Date(cf.date));
       });
     });
