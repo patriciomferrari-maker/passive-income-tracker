@@ -49,7 +49,8 @@ export function PurchasesTab() {
 
     // View Config
     const [viewType, setViewType] = useState<string>('ALL');
-    const [viewAction, setViewAction] = useState<'ALL' | 'BUY' | 'SELL'>('ALL'); // Added Filter
+    const [viewAction, setViewAction] = useState<'ALL' | 'BUY' | 'SELL'>('ALL');
+    const [viewCurrency, setViewCurrency] = useState<'ARS' | 'USD'>('USD'); // DEFAULT: USD
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -267,6 +268,28 @@ export function PurchasesTab() {
                                     {type === 'ALL' ? 'Todos' : type}
                                 </button>
                             ))}
+                        </div>
+
+                        {/* Currency Toggle */}
+                        <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800 ml-2">
+                            <button
+                                onClick={() => setViewCurrency('ARS')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewCurrency === 'ARS'
+                                    ? 'bg-blue-900/50 text-blue-200 border border-blue-800'
+                                    : 'text-slate-400 hover:text-white'
+                                    }`}
+                            >
+                                ARS
+                            </button>
+                            <button
+                                onClick={() => setViewCurrency('USD')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewCurrency === 'USD'
+                                    ? 'bg-green-900/50 text-green-200 border border-green-800'
+                                    : 'text-slate-400 hover:text-white'
+                                    }`}
+                            >
+                                USD
+                            </button>
                         </div>
                     </div>
                 </CardHeader>

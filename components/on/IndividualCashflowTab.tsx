@@ -99,13 +99,18 @@ export function IndividualCashflowTab() {
     const loadData = async (id: string) => {
         setLoading(true);
         try {
-            // Load Investment details to get its currency
-            const resInv = await fetch(`/api/investments/on?id=${id}`);
-            const invData = await resInv.json();
-            const investment = Array.isArray(invData) ? invData[0] : invData;
+            // Load Investment details
+            const resInv = await fetch(`/api/investments/on/${id}`);
+            if (!resInv.ok) {
+                console.error('Failed to load investment');
+                return;
+            }
+            const investment = await resInv.json();
             const investmentCurrency = investment?.currency || 'USD';
 
-            // Load Exchange Rates if needed
+            console.log(`Loading data for ${investment.ticker}, Investment Currency: ${investmentCurrency}, View Currency: ${viewCurrency}`);
+
+            // Load Exchange Rates if conversion is needed
             let exchangeRates: Record<string, number> = {};
             if (viewCurrency !== investmentCurrency) {
                 const resRates = await fetch('/api/economic-data?type=TC_USD_ARS');
@@ -118,6 +123,7 @@ export function IndividualCashflowTab() {
 
             // Helper to get exchange rate for a date
             const getRate = (date: string) => {
+                if (Object.keys(exchangeRates).length === 0) return 1; // No conversion needed
                 const dateKey = new Date(date).toISOString().split('T')[0];
                 if (exchangeRates[dateKey]) return exchangeRates[dateKey];
                 // Fallback: find closest past date
@@ -126,14 +132,14 @@ export function IndividualCashflowTab() {
                 return closestDate ? exchangeRates[closestDate] : 1200; // Fallback rate
             };
 
-            // Load Cashflows
+            // Load Cashflows  
             const resCf = await fetch(`/api/investments/on/${id}/cashflows`);
             const dataCf = await resCf.json();
 
             // Convert cashflows if needed
             const convertedCf = dataCf.map((cf: any) => {
                 let amount = cf.amount;
-                if (investmentCurrency !== viewCurrency) {
+                if (investmentCurrency !== viewCurrency && amount !== 0) {
                     const rate = getRate(cf.date);
                     if (investmentCurrency === 'ARS' && viewCurrency === 'USD') {
                         amount = amount / rate;
@@ -145,7 +151,7 @@ export function IndividualCashflowTab() {
             });
             setCashflows(convertedCf);
 
-            // Load Transactions (Purchases)
+            // Load Transactions
             const resTx = await fetch(`/api/investments/on/${id}/transactions`);
             const dataTx = await resTx.json();
 
@@ -165,9 +171,11 @@ export function IndividualCashflowTab() {
                         price = price * rate;
                     }
                 }
-                return { ...tx, totalAmount, price };
+                return { ...tx, totalAmount, price, currency: viewCurrency };
             });
             setTransactions(convertedTx);
+
+            console.log(`Loaded ${convertedCf.length} cashflows and ${convertedTx.length} transactions`);
         } catch (error) {
             console.error('Error loading data:', error);
         } finally {
