@@ -367,9 +367,13 @@ function parseTextToTransactions(text: string, rules: any[]) {
     const dateRegex = /\b(\d{2}[\/.-]\d{2}(?:[\/.-]\d{2,4})?)\b/g;
 
     // Improved Regex for Amount
-    // Handles: $1.234,56 | 1234.56 | -123.45 | 1.000,00 | USD 100.00
-    // Prioritize formats with decimals
-    const amountRegex = /(-?(:?USD|U\$S|\$)?\s?[0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2})\b|(-?[0-9]+\.[0-9]{2})\b/g;
+    // Handles:
+    // Arg/Eur: 1.234,56 | 1234,56 | -1.234,56
+    // US: 1,234.56 | 1234.56 | -1,234.56
+    // Matches numbers with exactly 2 decimal places to minimize false positives
+    // Group 1: Arg format (dots as thousands, comma decimal)
+    // Group 2: US format (commas as thousands, dot decimal)
+    const amountRegex = /(-?(?:[0-9]{1,3}(?:\.[0-9]{3})*),[0-9]{2})\b|(-?(?:[0-9]{1,3}(?:,[0-9]{3})*)\.[0-9]{2})\b/g;
 
     let currentDate: string | null = null;
     let currentDescription: string[] = [];
@@ -378,11 +382,12 @@ function parseTextToTransactions(text: string, rules: any[]) {
         const line = lines[i];
 
         // Skip noise lines - HARDENED
-        // Added "su pago", "pago en", "pago de", "saldo anterior"
         if (/saldo|balance|cierre|página|hoja|extracto|resumen|total|límite|tasa|su pago|pago en|pago de|vencimiento|anterior/i.test(line)) continue;
 
         const dateMatch = line.match(dateRegex);
-        const amountMatch = line.match(amountRegex);
+        // Normalize line for amount search (remove symbols that might interfere)
+        const lineForAmount = line.replace(/[U\$S\$]/g, '').trim();
+        const amountMatch = lineForAmount.match(amountRegex);
 
         if (dateMatch) {
             // New transaction line likely
@@ -392,45 +397,36 @@ function parseTextToTransactions(text: string, rules: any[]) {
             let lineDesc = line.replace(dateMatch[0], '').trim();
 
             if (amountMatch) {
-                // Date and Amount on the same line
-                // Pick the last amount (usually the transaction amount, not unit price)
+                // Pick the last amount found
                 const amountStr = amountMatch[amountMatch.length - 1];
                 const amount = cleanAmount(amountStr);
 
                 // Clean description from amount and currency codes
+                // Be careful to replace the original amount string including symbols if they were adjacent
                 let finalDesc = lineDesc.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
 
-                // Extract Comprobante if present (usually 6 digits at end of desc)
-                // e.g. "VISUAR SA 12/12 009821" -> desc="VISUAR SA 12/12", comp="009821"
                 let comprobante = '';
                 const compMatch = finalDesc.match(/\b(\d{6})\b/);
                 if (compMatch) {
                     comprobante = compMatch[1];
-                    // Create pattern to remove comprobante from description
-                    // We only remove it if it's at the end or standalone
                     finalDesc = finalDesc.replace(comprobante, '').trim();
                 }
 
                 if (!isNaN(amount) && Math.abs(amount) > 0.01) {
-                    // Check currency based on line content
                     const isUSD = /USD|U\$S|DOLARES/i.test(line);
-
                     transactions.push(createTransaction(currentDate, amount, finalDesc, rules, isUSD ? 'USD' : 'ARS', comprobante));
                     currentDescription = [];
                 }
             } else {
-                // Date found but no amount. Accumulate description.
                 currentDescription = [lineDesc];
             }
         } else if (amountMatch && currentDate) {
-            // No date, but amount found. Could be continuation or separate line amount.
             const amountStr = amountMatch[amountMatch.length - 1];
             const amount = cleanAmount(amountStr);
 
             const extraDesc = line.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
             const fullDesc = [...currentDescription, extraDesc].join(' ').trim();
 
-            // Extract Comprobante
             let comprobante = '';
             let finalDesc = fullDesc;
             const compMatch = finalDesc.match(/\b(\d{6})\b/);
@@ -443,12 +439,8 @@ function parseTextToTransactions(text: string, rules: any[]) {
                 const isUSD = /USD|U\$S|DOLARES/i.test(line);
                 transactions.push(createTransaction(currentDate, amount, finalDesc, rules, isUSD ? 'USD' : 'ARS', comprobante));
                 currentDescription = [];
-                // Do not reset currentDate, allowing for multiple items under one date? 
-                // Actually reset it to avoid attaching random numbers later.
-                // currentDate = null; // Maybe safer to reset?
             }
         } else if (currentDate && currentDescription.length < 3) {
-            // Accumulate description
             currentDescription.push(line);
         }
     }
@@ -457,18 +449,35 @@ function parseTextToTransactions(text: string, rules: any[]) {
 }
 
 function cleanAmount(amountStr: string): number {
-    // Remove currency symbols and spaces
     let clean = amountStr.replace(/[U\$S\$\s]/g, '');
 
-    // Check format:
-    // 1.234,56 (Arg/Eur) -> remove dots, replace comma with dot
-    if (clean.includes(',') && clean.includes('.')) {
-        clean = clean.replace(/\./g, '').replace(',', '.');
-    } else if (clean.includes(',')) {
-        // 1234,56
+    // Determine format by checking positions of separators
+    const lastDot = clean.lastIndexOf('.');
+    const lastComma = clean.lastIndexOf(',');
+
+    if (lastDot > -1 && lastComma > -1) {
+        if (lastDot > lastComma) {
+            // 1,234.56 (US Format: Comma thousand, Dot decimal)
+            clean = clean.replace(/,/g, '');
+        } else {
+            // 1.234,56 (Arg Format: Dot thousand, Comma decimal)
+            clean = clean.replace(/\./g, '').replace(',', '.');
+        }
+    } else if (lastComma > -1) {
+        // Has comma, no dot. 
+        // If it looks like 1234,56 -> Arg
         clean = clean.replace(',', '.');
+    } else if (lastDot > -1) {
+        // Has dot, no comma.
+        // If it looks like 1234.56 -> US
+        // If it looks like 1.234 (no decimal part matched by regex? regex requires .XX)
+        // Since regex guarantees a decimal part of 2 digits:
+        // Case: 1234.56 -> US.
+        // Case: 1.234 (Thousand) -> Regex wouldn't match this as a full amount usually, unless loose?
+        // Our regex requires `\.[0-9]{2}` for the dot group.
+        // So 1.234 would ONLY match if it was 1.23 (value ~1).
+        // Safest assumption with dot is standard float.
     }
-    // else 1234.56 (US) -> keep as is
 
     return parseFloat(clean);
 }
