@@ -161,14 +161,81 @@ const getExchangeRate = (date: Date): number => {
 
 ---
 
+## Rule 4: TIR Consolidada Must Use Cashflow Currency
+
+### The Problem
+TIR consolidada calculation was using `investment.currency` to decide whether to convert cashflows, but ON cashflows are stored as `currency: 'USD'` regardless of `investment.currency`.
+
+### Example of Breakage
+
+**Bug Instance #3 - TIR Consolidada (2026-01-09)**
+```typescript
+// ❌ WRONG - Uses investment.currency instead of cashflow.currency
+inv.cashflows.forEach(cf => {
+    let amount = cf.amount;
+    if (inv.currency === 'ARS') {  // WRONG! Cashflow might be USD
+        amount = amount / rate;     // Divides USD by 1500 = wrong
+    }
+    allAmounts.push(amount);
+});
+// Result: TIR shows 0% because cashflow amounts are incorrect
+```
+
+### Correct Implementation
+
+```typescript
+// ✅ CORRECT - Check cashflow's actual currency
+inv.cashflows.forEach(cf => {
+    let amount = cf.amount;
+    const cfCurrency = cf.currency || inv.currency;
+    
+    // Only convert if cashflow itself is in ARS
+    if (cfCurrency === 'ARS') {
+        const cfDate = new Date(cf.date);
+        const rate = cfDate <= new Date() 
+            ? getExchangeRate(cfDate) 
+            : getExchangeRate(new Date());
+        if (rate > 0) amount = amount / rate;
+    }
+    // If cfCurrency is USD, don't convert (already in USD)
+    
+    allAmounts.push(amount);
+    allDates.push(new Date(cf.date));
+});
+```
+
+### Where This Applies
+
+In `app/api/investments/on/dashboard/route.ts`:
+
+**TIR Consolidada Calculation** (line ~227):
+- When building `allAmounts` array for XIRR
+- Must check `cf.currency` not `inv.currency`
+- Both transactions AND cashflows must be normalized to USD
+
+### Pattern Summary
+
+**For any TIR or XIRR calculation:**
+1. ✅ Convert transactions using `tx.currency`
+2. ✅ Convert cashflows using `cf.currency`
+3. ❌ NEVER use `inv.currency` to decide conversion
+4. ✅ Ensure all amounts in same currency before XIRR
+
+---
+
 ## Checklist Before Modifying Dashboard
 
 - [ ] Am I aggregating transaction amounts?
 - [ ] Did I check `tx.currency` before using `tx.totalAmount`?
 - [ ] Did I convert ARS to USD using `getExchangeRate(tx.date)`?
+- [ ] Am I calculating TIR/XIRR with cashflows?
+- [ ] Did I check `cf.currency` before using `cf.amount`?
+- [ ] Did I avoid using `inv.currency` to decide conversions?
 - [ ] Did I test with a transaction in ARS (e.g., DNC3D)?
 - [ ] Did I run `/api/investments/on/validate` after changes?
 - [ ] Do Dashboard totals match Tenencia tab?
+- [ ] Is TIR consolidada showing a reasonable value (not 0%, not NULL)?
+
 
 ---
 
@@ -241,6 +308,20 @@ inv.cashflows.forEach(cf => {
 });
 ```
 
+### Mistake 4: Using investment.currency Instead of Actual Currency
+```typescript
+// ❌ WRONG - investment.currency doesn't tell you cashflow currency
+if (inv.currency === 'ARS') {
+    cfAmount = cfAmount / rate; // Might divide USD by rate!
+}
+
+// ✅ CORRECT - Use actual currency field
+const cfCurrency = cf.currency || inv.currency;
+if (cfCurrency === 'ARS') {
+    cfAmount = cfAmount / rate;
+}
+```
+
 ---
 
 ## Emergency Rollback
@@ -272,6 +353,10 @@ If Dashboard shows incorrect values:
 
 ## Last Updated
 - **Date:** 2026-01-09
-- **Reason:** Portfolio breakdown showing mixed ARS/USD values
-- **Fix:** Added normalization to `portfolioBreakdown` and TIR calculations
-- **Changes:** Lines 150-180 in dashboard route.ts
+- **Reason:** Multiple currency conversion bugs fixed
+- **Fixes Applied:**
+  1. Portfolio breakdown showing mixed ARS/USD (line ~150)
+  2. TIR individual calculations mixing currencies (line ~157)
+  3. TIR consolidada using inv.currency instead of cf.currency (line ~227)
+- **Status:** All three instances now use correct currency fields
+
