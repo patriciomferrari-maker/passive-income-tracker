@@ -161,23 +161,23 @@ export async function GET() {
 
       // Calculate Theoretical TIR (market-based)
       let theoreticalTir: number | null = null;
-      let currentPrice = priceMap[inv.id] || inv.lastPrice || 0;
+      let rawPrice = priceMap[inv.id] || inv.lastPrice || 0;
+      let priceUSD = rawPrice;
 
-      // Apply same price normalization as positions API
-      if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND') {
-        // If Price > 200, assume it's ARS masked as per-unit or just raw ARS.
-        // BUT we need to know the currency of the PRICE, not just the investment.
-        // Assuming priceMap stores raw exchange data.
-        // Heuristic: If converted to USD it is > 2.0, then divide by 100.
-        // Actually, safer: if > 2.0, divide by 100. EXCEPT if it's ARS ~1000.
-        // 1000 / 100 = 10. That's 10% parity? No.
-        // If ARS Parity is ~100%, price is around 1000-1400 ARS.
-        // If we divide 1000/100 = 10.
-        // Then we divide by FX (1000) -> 0.01 USD. WRONG.
-        // Correct flow:
-        // 1. Convert Raw Price to USD.
-        // 2. If USD Price > 2.0 (e.g. 102), divide by 100 -> 1.02.
+      // Convert to USD if needed (Tenencia logic)
+      if (inv.currency === 'ARS') {
+        const rateNow = getExchangeRate(new Date());
+        if (rateNow > 0) priceUSD = rawPrice / rateNow;
       }
+
+      // Apply Bond Heuristic (Per 100 nominals check) on the USD price
+      if (inv.type === 'ON' || inv.type === 'CORPORATE_BOND') {
+        if (priceUSD > 2.0) {
+          priceUSD = priceUSD / 100;
+        }
+      }
+
+      let currentPrice = priceUSD;
 
       if (currentPrice > 0) {
         // Calculate total holding from open positions (using FIFO)
@@ -219,18 +219,19 @@ export async function GET() {
             // Ignore dust
             if (p.quantity < 0.0001) return;
 
-            let costUSD = p.quantity * p.buyPrice; // Base cost
+            // Base cost in defined currency
+            let costUSD = p.quantity * p.buyPrice;
+            // Value in USD (currentPrice is already USD)
             let valUSD = p.quantity * currentPrice;
 
-            // Normalize Cost
+            // Normalize Cost to USD
             if (p.currency === 'ARS') {
               const r = getExchangeRate(p.date) || rateNow;
               costUSD /= r;
             }
-            // Normalize Value
-            if (inv.currency === 'ARS') {
-              valUSD /= rateNow;
-            }
+
+            // Value is already in USD, no need to normalize by rateNow again
+            // (Previous code had implicit double conversion removed here)
 
             // Only accumulate if valid price to avoid -100% ghost loss
             if (currentPrice > 0) {
