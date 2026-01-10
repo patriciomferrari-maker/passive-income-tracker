@@ -177,6 +177,12 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     // Extract the transaction lines from the original text
     const lines = originalText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
+    // DEBUG: Show first 10 lines to understand format
+    console.log('[VALIDATOR] First 10 lines of PDF:');
+    lines.slice(0, 10).forEach((line, i) => {
+        console.log(`  [${i}]: ${line.substring(0, 100)}`);
+    });
+
     // User's strict regex: Matches Date + Description + Optional Cuota + 6-digit Voucher + Amount
     // This is anchored to end of line ($) to ensure we capture the rightmost amount
     const strictRegex = /(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s+(.*?)\s+(?:\d{2}\/\d{1,2}|-)?\s*(\d{6})\s+([0-9.,-]+)$/;
@@ -184,22 +190,37 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     // Build a lookup map from original text
     const correctDataMap = new Map<string, { voucher: string; amount: string }>();
 
+    let matchCount = 0;
+    let noMatchCount = 0;
+
     for (const line of lines) {
         const normalized = line.trim().replace(/\s+/g, ' ');
         const match = normalized.match(strictRegex);
 
         if (match) {
+            matchCount++;
             const description = match[2].trim();
             const voucher = match[3];
             const amountStr = match[4];
 
+            // DEBUG: Show first 3 matches
+            if (matchCount <= 3) {
+                console.log(`[VALIDATOR] ✓ Match #${matchCount}: voucher=${voucher}, amount=${amountStr}, desc="${description.substring(0, 30)}"`);
+            }
+
             // Use description as key (normalize it like Gemini does)
             const key = description.toLowerCase().replace(/^[\\s\\W]*(?:\\d{2})?K\\s*/, '').substring(0, 50);
             correctDataMap.set(key, { voucher, amount: amountStr });
+        } else {
+            noMatchCount++;
+            // DEBUG: Show first 3 non-matches that look like they might be transactions
+            if (noMatchCount <= 3 && normalized.length > 20 && /\d/.test(normalized)) {
+                console.log(`[VALIDATOR] ✗ No match: ${normalized.substring(0, 80)}`);
+            }
         }
     }
 
-    console.log('[VALIDATOR] Built correction map with', correctDataMap.size, 'entries');
+    console.log('[VALIDATOR] Built correction map with', correctDataMap.size, 'entries', `(${matchCount} matches, ${noMatchCount} no-matches)`);
 
     // Now validate each Gemini transaction
     let correctedCount = 0;
