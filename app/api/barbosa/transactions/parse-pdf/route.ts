@@ -376,26 +376,68 @@ function parseTextToTransactions(text: string, rules: any[]) {
     // STOP CONDITION: If we see these, we likely reached the footer
     const stopPhrases = ['TOTAL A PAGAR', 'SU PAGO EN PESOS', 'SU PAGO EN DOLARES', 'SALDO ACTUAL'];
 
+    // --- STRATEGY 1: MASTER REGEX (Structure Based) ---
+    // Matches: Date + Spaces + Description + (Optional Cuota) + Voucher(6) + (Optional Space) + Amount
+    // 1. Date: DD/MM/YY or DD-MM-YY
+    // 2. Description: Text (lazy)
+    // 3. Cuota: Optional NN/NN pattern
+    // 4. Voucher: STRICT 6 digits. (Using \s* before and after to handle merged columns)
+    // 5. Amount: Final number
+    const masterRegex = /^(\d{2}[\/.-]\d{2}(?:[\/.-]\d{2,4})?)\s+(.*?)(?:\s+(\d{2}\/\d{2}))?\s+(\d{6})\s*([0-9.,-]+)$/i;
+    // Note on \s+: We enforce at least one space between date and desc, and desc and voucher? 
+    // Actually, merged columns might mean NO space between Desc and Voucher? 
+    // "MERPAGO*KM001234" -> Voucher 001234? No, usually text is separate.
+    // The previous issue was Voucher+Amount merge. "001234" + "100.00" -> "001234100.00"
+    // So \s* between Group 4 (Voucher) and Group 5 (Amount) is the key.
+
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
-        // 1. CHECK STOP CONDITION
-        // CRITICAL FIX: Only stop if we have ALREADY found transactions. 
-        // If we haven't found any, this "Total a Pagar" might be the Header Summary.
+        // 1. SKIP NOISE (& Header summaries if no tx found yet check removed for simplicity, assuming regex is specific enough)
+        if (/saldo|balance|cierre|página|hoja|extracto|resumen|limite|tasa|vencimiento|anterior|TNA|TEA|CFT|IVA RG|DB\.RG|IMPUESTO|PAIS|PERCEPCION/i.test(line)) continue;
+
+        // STOP check (Footer)
         if (stopPhrases.some(phrase => line.toUpperCase().includes(phrase))) {
-            if (transactions.length > 0) {
-                console.log('[PDF-PARSER] Footer Stop phrase found. Stopping parsing at:', line);
-                break;
-            } else {
-                console.log('[PDF-PARSER] Header Stop phrase ignored (no transactions yet):', line);
+            if (transactions.length > 0) break;
+        }
+
+        // 2. TRY MASTER REGEX FIRST
+        const masterMatch = line.trim().match(masterRegex);
+
+        if (masterMatch) {
+            console.log('[PDF-PARSER] Master Regex Match:', line);
+            const rawDate = masterMatch[1];
+            let description = masterMatch[2].trim();
+            const cuota = masterMatch[3]; // undefined if not found
+            const voucher = masterMatch[4];
+            let amountStr = masterMatch[5];
+
+            // Validation: Amount looks like a number?
+            if (/[\d.,]+/.test(amountStr)) {
+                // Formatting
+                const currentDate = normalizeDate(rawDate);
+                const amount = cleanAmount(amountStr);
+
+                // Add Cuota to description if exists
+                if (cuota) {
+                    description += ` (Cuota ${cuota})`;
+                }
+
+                // Clean artifacts from description
+                description = description.replace(/^[\s\W]*(?:\d{2})?K\s*/, '').replace(/USD|U\$S|\$/g, '').trim();
+
+                const isUSD = /USD|U\$S|DOLARES/i.test(line); // Or rely on column position? Regex doesn't know column.
+                // Fallback: If amount string has comma as decimal (ARG), it's likely ARS or USD with ARG formatting.
+                // Usually USD lines say "USD" explicitly. We rely on the generic check.
+
+                transactions.push(createTransaction(currentDate, amount, description, rules, isUSD ? 'USD' : 'ARS', voucher));
+                continue; // Done with this line!
             }
         }
 
-        // 2. SKIP NOISE LINES
-        if (/saldo|balance|cierre|página|hoja|extracto|resumen|limite|tasa|vencimiento|anterior|TNA|TEA|CFT|IVA RG|DB\.RG|IMPUESTO|PAIS|PERCEPCION/i.test(line)) {
-            // console.log('[PDF-PARSER] Skipping noise line:', line);
-            continue;
-        }
+        // 3. FALLBACK: OLD LOGIC (Chunks)
+        // If master regex failed (maybe description has "Numbers" that confused the lazy match? Or Voucher is not 6 digits?)
+        // We keep the old logic as a fallback for robustness.
 
         const dateMatch = line.match(dateRegex);
         const lineForAmount = line.replace(/[U\$S\$]/g, '').trim();
