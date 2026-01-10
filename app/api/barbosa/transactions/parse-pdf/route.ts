@@ -419,8 +419,8 @@ function parseTextToTransactions(text: string, rules: any[]) {
                 const currentDate = normalizeDate(rawDate);
                 const amount = cleanAmount(amountStr);
 
-                // Add Cuota to description if exists
-                if (cuota) {
+                // Add Cuota to description if exists AND is valid (not 01/0 artifact)
+                if (cuota && !cuota.endsWith('/0')) {
                     description += ` (Cuota ${cuota})`;
                 }
 
