@@ -184,6 +184,38 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
         console.log(`  [${i}]: ${line.substring(0, 100)}`);
     });
 
+    // PREPROCESSING: Merge multi-line transactions into single lines
+    // Pattern: Line1=Date+Description, Line2=6-digit voucher, Line3=Amount
+    const mergedLines: string[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+        const line1 = lines[i];
+        const line2 = lines[i + 1] || '';
+        const line3 = lines[i + 2] || '';
+
+        // Check if this is a 3-line transaction:
+        // Line 1: starts with date pattern (dd-mm-yy)
+        // Line 2: 6-digit voucher
+        // Line 3: amount (numbers with dots/commas)
+        const isDateLine = /^\d{2}-\d{2}-\d{2}/.test(line1);
+        const isVoucherLine = /^\d{6}$/.test(line2.trim());
+        const isAmountLine = /^[0-9.,-]+$/.test(line3.trim());
+
+        if (isDateLine && isVoucherLine && isAmountLine) {
+            // Merge into single line: "date description voucher amount"
+            const merged = `${line1} ${line2} ${line3}`;
+            mergedLines.push(merged);
+            i += 3; // Skip next 2 lines
+        } else {
+            // Not a match, keep original line
+            mergedLines.push(line1);
+            i++;
+        }
+    }
+
+    console.log(`[VALIDATOR] Merged ${lines.length} raw lines into ${mergedLines.length} transaction lines`);
+
     // User's strict regex: Matches Date + Description + Optional Cuota + 6-digit Voucher + Amount
     // This is anchored to end of line ($) to ensure we capture the rightmost amount
     const strictRegex = /(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s+(.*?)\s+(?:\d{2}\/\d{1,2}|-)?\s*(\d{6})\s+([0-9.,-]+)$/;
@@ -194,7 +226,7 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     let matchCount = 0;
     let noMatchCount = 0;
 
-    for (const line of lines) {
+    for (const line of mergedLines) {
         const normalized = line.trim().replace(/\s+/g, ' ');
         const match = normalized.match(strictRegex);
 
