@@ -1,4 +1,4 @@
-m           import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/app/lib/auth-helper';
 
