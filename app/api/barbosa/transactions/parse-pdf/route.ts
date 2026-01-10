@@ -239,10 +239,12 @@ Instrucciones de extracción:
 3. **Cuota**: Identifica si el gasto es en cuotas (ej. '02/03'). Si lo encuentras, agrégalo al final de la descripción como " (Cuota 02/03)".
    
 4. **Comprobante**: Extrae el número de operación o comprobante de 6-10 dígitos si existe.
+   - **CRÍTICO**: El número de comprobante es un código Entero (ej: 092931). NO lo confundas con el Importe.
 
 5. **Importe**: Separa los montos en Pesos (ARS) y Dólares (USD). 
    - **IMPORTANTE**: Identifica signos negativos (-). Si es negativo, el monto debe ser negativo en el JSON.
-   - Detecta si el monto es en ARS (columna $) o USD (columna USD).
+   - **FORMATO**: El importe casi siempre tiene decimales (ej: 45.000,00 o 100,00). 
+   - **REGLA DE ORO**: Si ves un número entero de 6 dígitos sin decimales (ej 002345), es un COMPROBANTE, NO un importe.
 
 6. **Impuestos y Tasas**: Si encuentras líneas que corresponden a 'IVA', 'Impuesto PAIS', 'Percepción', 'DB.RG', agrúpalas. (Opcional: puedes ignorarlas si son mero ruido, pero si son cargos reales, expórtalos).
 
