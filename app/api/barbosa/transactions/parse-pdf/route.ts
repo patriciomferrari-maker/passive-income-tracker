@@ -162,10 +162,10 @@ export async function POST(req: NextRequest) {
 // ============================================================================
 
 async function parseWithGemini(text: string, categories: any[], rules: any[]) {
+    // 1. Initialize SDK
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash-latest" // Using flash for speed/cost, pro might be better for complex logic
-    });
+    // Use standard flash model (001 or latest)
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // CRITICAL: Preprocess text to extract only the transactions section.
     // The user specifically requested to start from "DETALLE DEL CONSUMO"
@@ -201,7 +201,6 @@ async function parseWithGemini(text: string, categories: any[], rules: any[]) {
         }
         // Reconstruct text only from the relevant lines
         processedText = lines.slice(startLineIndex, endLineIndex).join('\n');
-        console.log('[PDF] Sliced text length:', processedText.length);
     } else {
         console.warn('[PDF] Header "DETALLE DEL CONSUMO" not found. Using simple text search fallback.');
         const idx = text.toUpperCase().indexOf('DETALLE DEL CONSUMO');
@@ -269,22 +268,13 @@ SALIDA ESPERADA (Strict JSON format inside transactions array):
 
 REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO ANTERIOR", "PAGO EN PESOS"), IGNORA LA FILA. No inventes datos.`;
 
-    // Use REST API instead of SDK
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-    const apiResponse = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
-        })
-    });
-    if (!apiResponse.ok) {
-        throw new Error(`Gemini API error: ${apiResponse.status}`);
-    }
-    const result = await apiResponse.json();
-    const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // USE SDK GENERATE CONTENT
+    console.log('[GEMINI] Sending prompt to SDK...');
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const responseText = response.text();
 
-    console.log('[GEMINI] Raw response:', responseText.substring(0, 500));
+    console.log('[GEMINI] Raw response length:', responseText.length);
 
     // Extract JSON from response (handle markdown code blocks)
     let jsonText = responseText.trim();
@@ -299,10 +289,14 @@ REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO A
     const parsed = JSON.parse(jsonText.trim());
 
     if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
-        throw new Error('Invalid Gemini response format');
+        throw new Error('Invalid Gemini response format (missing transactions array)');
     }
 
-    // Post-processing: Filter out invalid transactions
+    // ... rest of validation logic ...
+    return validateAndFilterTransactions(parsed.transactions);
+}
+
+function validateAndFilterTransactions(rawTransactions: any[]) {
     const invalidKeywords = [
         'total', 'limite', 'tasa', 'saldo', 'pago minimo', 'vencimiento',
         'nominal', 'efectiva', 'cierre', 'periodo', 'consolidado', 'su pago en',
@@ -310,7 +304,7 @@ REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO A
         'pago en pesos', 'pago en dolares', 'pago en usd'
     ];
 
-    const validTransactions = parsed.transactions.filter((tx: any) => {
+    const validTransactions = rawTransactions.filter((tx: any) => {
         const desc = (tx.description || '').toLowerCase();
         const descNormalized = desc.replace(/\s+/g, ' '); // Normalize double spaces
 
@@ -336,18 +330,18 @@ REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO A
         return true;
     });
 
-    console.log('[GEMINI] Filtered transactions:', parsed.transactions.length, '→', validTransactions.length);
+    console.log('[GEMINI] Filtered transactions:', rawTransactions.length, '→', validTransactions.length);
 
     // Normalize and validate
     return validTransactions.map((tx: any) => ({
         date: tx.date,
         amount: Math.abs(parseFloat(tx.amount)),
         description: tx.description || 'Sin descripción',
-        currency: tx.currency || 'ARS', // Use currency from Gemini (ARS or USD)
+        currency: tx.currency || 'ARS',
         type: tx.type === 'INCOME' ? 'INCOME' : 'EXPENSE',
         categoryId: tx.categoryId || '',
         subCategoryId: tx.subCategoryId || null,
-        comprobante: tx.comprobante || '' // Add comprobante for duplicate detection
+        comprobante: tx.comprobante || ''
     }));
 }
 
