@@ -166,18 +166,13 @@ async function parseWithGemini(text: string, categories: any[], rules: any[]) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
 
+    // Log prefix safely
     console.log('[GEMINI] Initializing with Key prefix:', apiKey.substring(0, 5) + '...');
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Use specific version 001 to avoid "Not Found" 404 on alias
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
 
     // CRITICAL: Preprocess text to extract only the transactions section.
-    // The user specifically requested to start from "DETALLE DEL CONSUMO"
     let processedText = text;
-
-    // Find the start marker (table header)
-    // We split by lines to find the header line more reliably
     const lines = text.split('\n');
     let startLineIndex = -1;
 
@@ -191,7 +186,6 @@ async function parseWithGemini(text: string, categories: any[], rules: any[]) {
     }
 
     if (startLineIndex !== -1) {
-        // Find end marker (TOTAL, LIMITES) starting from startLineIndex
         let endLineIndex = lines.length;
         for (let i = startLineIndex + 1; i < lines.length; i++) {
             const line = lines[i].toUpperCase();
@@ -204,20 +198,17 @@ async function parseWithGemini(text: string, categories: any[], rules: any[]) {
                 break;
             }
         }
-        // Reconstruct text only from the relevant lines
         processedText = lines.slice(startLineIndex, endLineIndex).join('\n');
     } else {
         console.warn('[PDF] Header "DETALLE DEL CONSUMO" not found. Using simple text search fallback.');
         const idx = text.toUpperCase().indexOf('DETALLE DEL CONSUMO');
-        if (idx !== -1) {
-            processedText = text.substring(idx);
-        }
-        // Otherwise use full text (fallback)
+        if (idx !== -1) processedText = text.substring(idx);
     }
 
-    // Limit context size if too huge
+    // Limit context size
     if (processedText.length > 20000) processedText = processedText.substring(0, 20000);
 
+    // Build Prompt
     const categoriesText = categories.length > 0
         ? categories.map(c => `- ${c.name} (${c.type}, ID: ${c.id})`).join('\n')
         : 'No hay categorías definidas aún';
@@ -273,11 +264,41 @@ SALIDA ESPERADA (Strict JSON format inside transactions array):
 
 REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO ANTERIOR", "PAGO EN PESOS"), IGNORA LA FILA. No inventes datos.`;
 
-    // USE SDK GENERATE CONTENT
-    console.log('[GEMINI] Sending prompt to SDK...');
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const responseText = response.text();
+    // FALLBACK STRATEGY
+    const modelsToTry = ["gemini-1.5-flash-001", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+    let lastError: any = null;
+    let responseText = "";
+
+    for (const modelName of modelsToTry) {
+        try {
+            console.log(`[GEMINI] Attempting with model: ${modelName}...`);
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            responseText = response.text();
+            console.log(`[GEMINI] Success! Model used: ${modelName}`);
+            break; // Success
+        } catch (e) {
+            console.warn(`[GEMINI] Failed with ${modelName}:`, e instanceof Error ? e.message : String(e));
+            lastError = e;
+        }
+    }
+
+    if (!responseText) {
+        console.error('[GEMINI] All models failed.');
+
+        // DEBUG: List models if possible (REST fallback)
+        try {
+            console.log('[GEMINI] Attempting to LIST available models for debugging...');
+            const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+            const listData = await listRes.json();
+            console.log('[GEMINI] Available Models:', JSON.stringify(listData, null, 2));
+        } catch (listErr) {
+            console.error('[GEMINI] Could not list models:', listErr);
+        }
+
+        throw lastError || new Error("All Gemini models failed to generate content.");
+    }
 
     console.log('[GEMINI] Raw response length:', responseText.length);
 
