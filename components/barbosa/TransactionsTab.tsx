@@ -144,9 +144,15 @@ export function TransactionsTab() {
                 });
                 setEditingId(null);
                 loadData();
+                alert(editingId ? 'Transacción actualizada correctamente.' : 'Transacción guardada correctamente.');
+            } else {
+                const errorData = await res.json();
+                console.error("Save Error", errorData);
+                alert(`Error al guardar: ${errorData.error || res.statusText}`);
             }
         } catch (error) {
             console.error(error);
+            alert(`Error de conexión al guardar: ${error}`);
         }
     };
 
