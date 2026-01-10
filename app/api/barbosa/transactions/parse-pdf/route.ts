@@ -249,9 +249,13 @@ Instrucciones de extracción:
      - **Separador de MILES**: Punto (\`.\`) -> Ej: \`1.000\` es mil.
      - **Separador DECIMAL**: Coma (\`,\`) -> Ej: \`1.000,50\` es mil con 50 centavos.
    - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
-   - **NÚMEROS PARTIDOS (CRÍTICO)**: A veces el PDF separa el primer dígito del resto (ej: \`4 6.962,55\` o \`2 9.400,00\`). SIEMPRE une esos números sueltos al importe final.
-     - \`4 6.962,55\` -> \`46.962,55\`
-     - \`2 9.400,00\` -> \`29.400,00\`
+   - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
+   - **NÚMEROS PEGADOS (CRÍTICO)**: El PDF a menudo **concatena** el comprobante y el importe sin espacios (Ej: \`00789846.962,55\`).
+     - **SOLUCIÓN**: Analiza de **DERECHA A IZQUIERDA**.
+     - Primero encuentra el patrón de moneda (\`XXX.XXX,XX\`).
+     - Separa lo que está a la izquierda como comprobante.
+     - Ej: \`00789846.962,55\` -> NO es \`0078984\` y \`6.962,55\`. ES \`007898\` y \`46.962,55\`.
+     - Ej: \`00560370.340,47\` -> ES \`005603\` y \`70.340,47\` (Gas/Luz suele ser alto).
    - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE\` -> \`IMPORTE\`.
    - Signos negativos (-): Si el importe tiene un guion delante o al final, devuélvelo negativo.
 
