@@ -256,22 +256,22 @@ Instrucciones de extracción:
        1. Separa los primeros 6 dígitos como COMPROBANTE.
        2. Mira el RESTO como IMPORTE.
        3. **CORRECCIÓN**: SOLO si el importe parece truncado Y tiene sentido que el dígito faltante sea el mismo que el final del comprobante.
-       4. **PRECAUCIÓN**: Si hay un espacio claro entre el comprobante y el importe (ej. `663676 54.989, 83`), **NO** agregues dígitos. Usa el importe tal cual.
+       4. **PRECAUCIÓN**: Si hay un espacio claro entre el comprobante y el importe (ej. \`663676 54.989,83\`), **NO** agregues dígitos. Usa el importe tal cual.
 
      - **EJEMPLOS DE COMPORTAMIENTO**:
-       - Caso **PUMA** (Fusión Real): Texto `1605757.777, 72`
-         -> Comprobante: `160575`
-         -> Importe: `57.777, 72` (Se recuperó el '5' porque estaba fusionado).
-       - Caso **BENSIMON** (Fusión Real): Texto `0081686.000,00`
-         -> Comprobante: `008168`
-         -> Importe: `86.000,00` (Se recuperó el '8').
-       - Caso **SHELL** (Falso Positivo - NO TOCAR): Texto `663676 54.989, 83`
-         -> Comprobante: `663676` (Termina en 6)
-         -> Importe: `54.989, 83` (Empieza con 5. Hay espacio. Son distintos.)
-         -> Resultado: `54.989, 83` (NO agregar el 6).
-       - Caso **RACING** (Sin Fusión): Texto `00000129.400,00`
-         -> Comprobante: `000001`
-         -> Importe: `29.400,00`
+       - Caso **PUMA** (Fusión Real): Texto \`1605757.777,72\`
+         -> Comprobante: \`160575\`
+         -> Importe: \`57.777,72\` (Se recuperó el '5' porque estaba fusionado).
+       - Caso **BENSIMON** (Fusión Real): Texto \`0081686.000,00\`
+         -> Comprobante: \`008168\`
+         -> Importe: \`86.000,00\` (Se recuperó el '8').
+       - Caso **SHELL** (Falso Positivo - NO TOCAR): Texto \`663676 54.989,83\`
+         -> Comprobante: \`663676\` (Termina en 6)
+         -> Importe: \`54.989,83\` (Empieza con 5. Hay espacio. Son distintos.)
+         -> Resultado: \`54.989,83\` (NO agregar el 6).
+       - Caso **RACING** (Sin Fusión): Texto \`00000129.400,00\`
+         -> Comprobante: \`000001\`
+         -> Importe: \`29.400,00\`
    - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE (6 dígitos)\` -> \`IMPORTE\`.
    - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE (6 dígitos)\` -> \`IMPORTE\`.
    - Signos negativos (-): Si el importe tiene un guion delante o al final, devuélvelo negativo.
