@@ -548,7 +548,27 @@ REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO A
         jsonText = jsonText.replace(/```\n?/g, '').replace(/```\n?$/g, '');
     }
 
-    const parsed = JSON.parse(jsonText.trim());
+    let parsed;
+    try {
+        parsed = JSON.parse(jsonText.trim());
+    } catch (jsonErr) {
+        console.error('[GEMINI] JSON Parse Error:', jsonErr instanceof Error ? jsonErr.message : String(jsonErr));
+
+        // Log a snippet around the error position if possible
+        const posMatch = (jsonErr instanceof Error ? jsonErr.message : '').match(/at position (\d+)/);
+        if (posMatch) {
+            const pos = parseInt(posMatch[1], 10);
+            const start = Math.max(0, pos - 100);
+            const end = Math.min(jsonText.length, pos + 100);
+            console.error(`[GEMINI] Snippet around error (pos ${pos}):\n...${jsonText.substring(start, end)}...`);
+        } else {
+            // Log first part and last part of failing text
+            console.error(`[GEMINI] Failing JSON Start: ${jsonText.substring(0, 200)}...`);
+            console.error(`[GEMINI] Failing JSON End: ...${jsonText.substring(jsonText.length - 200)}`);
+        }
+
+        throw new Error(`Error de IA (Gemini): ${jsonErr instanceof Error ? jsonErr.message : 'JSON Malformed'}`);
+    }
 
     if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
         throw new Error('Invalid Gemini response format (missing transactions array)');
