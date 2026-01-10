@@ -386,9 +386,13 @@ function parseTextToTransactions(text: string, rules: any[]) {
         const line = lines[i];
 
         // 1. CHECK STOP CONDITION FIRST
+        // Only stop if we have processed some transactions or we are deep in the file
+        // This avoids stopping at the Header if it contains summary lines like "TOTAL A PAGAR"
         if (stopPhrases.some(phrase => line.toUpperCase().includes(phrase))) {
-            console.log('[PDF-PARSER] Stop phrase found. Stopping parsing at:', line);
-            break;
+            if (transactions.length > 0 || i > 20) {
+                console.log('[PDF-PARSER] Stop phrase found. Stopping parsing at:', line);
+                break;
+            }
         }
 
         // 2. SKIP NOISE LINES (Interest rates, taxes, headers)
