@@ -277,18 +277,40 @@ REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO A
     let responseText = "";
 
     for (const modelName of modelsToTry) {
-        try {
-            console.log(`[GEMINI] Attempting with model: ${modelName}...`);
-            const model = genAI.getGenerativeModel({ model: modelName });
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            responseText = response.text();
-            console.log(`[GEMINI] Success! Model used: ${modelName}`);
-            break; // Success
-        } catch (e) {
-            console.warn(`[GEMINI] Failed with ${modelName}:`, e instanceof Error ? e.message : String(e));
-            lastError = e;
+        let attempts = 0;
+        const maxAttempts = 2; // Try twice per model (Initial + 1 Retry on 429)
+
+        while (attempts < maxAttempts) {
+            try {
+                attempts++;
+                console.log(`[GEMINI] Attempting with model: ${modelName} (Attempt ${attempts})...`);
+                const model = genAI.getGenerativeModel({ model: modelName });
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                responseText = response.text();
+                // Success
+                console.log(`[GEMINI] Success! Model used: ${modelName}`);
+                break;
+            } catch (e) {
+                const errorMessage = e instanceof Error ? e.message : String(e);
+                console.warn(`[GEMINI] Failed with ${modelName} (Attempt ${attempts}):`, errorMessage);
+                lastError = e;
+
+                // CHECK FOR 429 RATE LIMIT
+                if (errorMessage.includes("429") || errorMessage.toLowerCase().includes("quota")) {
+                    if (attempts < maxAttempts) {
+                        console.log('[GEMINI] Hit Rate Limit (429). Waiting 10 seconds before retrying...');
+                        await new Promise(resolve => setTimeout(resolve, 10000)); // 10s delay
+                        continue; // Retry same model
+                    }
+                }
+
+                // If not 429, or max attempts reached, move to next model
+                break;
+            }
         }
+
+        if (responseText) break; // If we got a response, exit the main model loop
     }
 
     if (!responseText) {
