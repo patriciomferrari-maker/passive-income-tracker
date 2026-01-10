@@ -246,10 +246,10 @@ Instrucciones de extracción:
 5. **Importe**: El valor monetario final de la transacción.
    - **UBICACIÓN**: Suele ser el **ÚLTIMO** dato numérico a la derecha de la línea.
    - **LOCALE (IMPORTANTE)**: El formato es **es-AR**. 
-     - **Separador de MILES**: Punto (`.`) -> Ej: `1.000` es mil.
-     - **Separador DECIMAL**: Coma (`, `) -> Ej: `1.000, 50` es mil con 50 centavos.
+     - **Separador de MILES**: Punto (\`.\`) -> Ej: \`1.000\` es mil.
+     - **Separador DECIMAL**: Coma (\`,\`) -> Ej: \`1.000,50\` es mil con 50 centavos.
    - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
-   - **ESTRUCTURA TÍPICA**: `FECHA` -> `DESCRIPCIÓN` -> `[CUOTAS]` -> `COMPROBANTE` -> `IMPORTE`.
+   - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE\` -> \`IMPORTE\`.
    - Signos negativos (-): Si el importe tiene un guion delante o al final, devuélvelo negativo.
 
 6. **Impuestos y Tasas**: Si encuentras líneas que corresponden a 'IVA', 'Impuesto PAIS', 'Percepción', 'DB.RG', agrúpalas. (Opcional: puedes ignorarlas si son mero ruido, pero si son cargos reales, expórtalos).
