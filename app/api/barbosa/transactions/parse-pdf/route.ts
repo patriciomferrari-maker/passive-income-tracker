@@ -250,12 +250,13 @@ Instrucciones de extracción:
      - **Separador DECIMAL**: Coma (\`,\`) -> Ej: \`1.000,50\` es mil con 50 centavos.
    - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
    - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
-   - **NÚMEROS PEGADOS (CRÍTICO)**: El PDF concatena comprobante e importe (Ej: \`0081686.000,00\` o \`1605757.777,72\`).
-     - **SOLUCIÓN**: El Comprobante **SIEMPRE tiene 6 DÍGITOS**.
-     - **Corta los primeros 6 dígitos** de la cadena numérica final. Eso es el COMPROBANTE.
-     - **El RESTO** es el IMPORTE.
-     - Ej: \`0081686.000,00\` -> Comprobante: \`008168\` (6 dígitos). Importe: \`6.000,00\`.
-     - Ej: \`1605757.777,72\` -> Comprobante: \`160575\` (6 dígitos). Importe: \`7.777,72\`.
+   - **NÚMEROS PEGADOS (CRÍTICO)**: El PDF concatena comprobante e importe (Ej: \`0081686.000,00\` o \`1605757.777,72\` o \`00000129.400,00\`).
+     - **SOLUCIÓN**: El Comprobante **SIEMPRE tiene 6 DÍGITOS EXACTOS**.
+     - **ALGORITMO**: Toma la cadena numérica final. Corta los **primeros 6 caracteres**. Eso es el comprobante. Lo que queda es el importe.
+     - Ej: \`0081686.000,00\` -> Comprobante: \`008168\` | Importe: \`6.000,00\`.
+     - Ej: \`1605757.777,72\` -> Comprobante: \`160575\` | Importe: \`7.777,72\`.
+     - Ej RACING: \`00000129.400,00\` -> Comprobante: \`000001\` | Importe: \`29.400,00\` (¡NO \`9.400,00\`!).
+   - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE (6 dígitos)\` -> \`IMPORTE\`.
    - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE (6 dígitos)\` -> \`IMPORTE\`.
    - Signos negativos (-): Si el importe tiene un guion delante o al final, devuélvelo negativo.
 
