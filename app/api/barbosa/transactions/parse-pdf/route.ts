@@ -88,6 +88,11 @@ export async function POST(req: NextRequest) {
                 transactions = await parseWithGemini(text, categories, rules);
                 parserUsed = 'gemini';
                 console.log('[PDF] Gemini parsing successful. Detected', transactions.length, 'transactions');
+
+                // POST-PROCESSING: Validate and correct Gemini's voucher/amount splits using strict Regex
+                console.log('[PDF] Applying Regex validation to correct potential hallucinations...');
+                transactions = validateAndCorrectTransactions(transactions, text);
+                console.log('[PDF] Validation complete. Final count:', transactions.length, 'transactions');
             } catch (geminiError) {
                 console.error('[PDF] Gemini parsing failed:', geminiError);
                 const msg = geminiError instanceof Error ? geminiError.message : String(geminiError);
@@ -155,6 +160,109 @@ export async function POST(req: NextRequest) {
             stack: errorStack
         }, { status: 500 });
     }
+}
+
+// ============================================================================
+// VALIDATION & CORRECTION LAYER (Post-Gemini Processing)
+// ============================================================================
+
+/**
+ * Validates and corrects Gemini's voucher/amount splits using strict Regex.
+ * This catches hallucinations where Gemini incorrectly adds the last digit
+ * of the voucher to the beginning of the amount (e.g., 663676 54.989,83 -> 654.989,83).
+ */
+function validateAndCorrectTransactions(geminiTransactions: any[], originalText: string): any[] {
+    console.log('[VALIDATOR] Starting validation of', geminiTransactions.length, 'transactions');
+
+    // Extract the transaction lines from the original text
+    const lines = originalText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    // User's strict regex: Matches Date + Description + Optional Cuota + 6-digit Voucher + Amount
+    // This is anchored to end of line ($) to ensure we capture the rightmost amount
+    const strictRegex = /(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s+(.*?)\s+(?:\d{2}\/\d{1,2}|-)?\s*(\d{6})\s+([0-9.,-]+)$/;
+
+    // Build a lookup map from original text
+    const correctDataMap = new Map<string, { voucher: string; amount: string }>();
+
+    for (const line of lines) {
+        const normalized = line.trim().replace(/\s+/g, ' ');
+        const match = normalized.match(strictRegex);
+
+        if (match) {
+            const description = match[2].trim();
+            const voucher = match[3];
+            const amountStr = match[4];
+
+            // Use description as key (normalize it like Gemini does)
+            const key = description.toLowerCase().replace(/^[\\s\\W]*(?:\\d{2})?K\\s*/, '').substring(0, 50);
+            correctDataMap.set(key, { voucher, amount: amountStr });
+        }
+    }
+
+    console.log('[VALIDATOR] Built correction map with', correctDataMap.size, 'entries');
+
+    // Now validate each Gemini transaction
+    let correctedCount = 0;
+
+    const validatedTransactions = geminiTransactions.map(tx => {
+        const descKey = tx.description.toLowerCase().replace(/\s*\(cuota.*?\)/i, '').substring(0, 50);
+        const correctData = correctDataMap.get(descKey);
+
+        if (correctData) {
+            // Parse the correct amount
+            const correctAmount = parseCorrectAmount(correctData.amount);
+            const geminiAmount = tx.amount;
+
+            // Check if amounts differ significantly (more than 1 ARS difference)
+            if (Math.abs(correctAmount - geminiAmount) > 1) {
+                console.warn(`[VALIDATOR] Correcting "${tx.description}": ${geminiAmount} -> ${correctAmount}`);
+                correctedCount++;
+                return {
+                    ...tx,
+                    amount: correctAmount,
+                    comprobante: correctData.voucher
+                };
+            }
+
+            // Also update voucher if different
+            if (correctData.voucher !== tx.comprobante) {
+                return {
+                    ...tx,
+                    comprobante: correctData.voucher
+                };
+            }
+        }
+
+        return tx;
+    });
+
+    console.log('[VALIDATOR] Corrected', correctedCount, 'transactions');
+    return validatedTransactions;
+}
+
+/**
+ * Parse amount string in es-AR format (1.000,50)
+ */
+function parseCorrectAmount(amountStr: string): number {
+    let clean = amountStr.replace(/[U\\$S\\$\\s]/g, '');
+
+    const lastDot = clean.lastIndexOf('.');
+    const lastComma = clean.lastIndexOf(',');
+
+    if (lastDot > -1 && lastComma > -1) {
+        if (lastDot > lastComma) {
+            // US Format: 1,234.56
+            clean = clean.replace(/,/g, '');
+        } else {
+            // AR Format: 1.234,56
+            clean = clean.replace(/\\./g, '').replace(',', '.');
+        }
+    } else if (lastComma > -1) {
+        // Only comma: 1234,56 -> AR
+        clean = clean.replace(',', '.');
+    }
+
+    return parseFloat(clean);
 }
 
 // ============================================================================
