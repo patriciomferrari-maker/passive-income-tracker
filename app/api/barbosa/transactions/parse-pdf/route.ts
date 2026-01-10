@@ -168,7 +168,21 @@ export async function POST(req: NextRequest) {
 // ============================================================================
 
 /**
- * Validates and corrects Gemini's voucher/amount splits using strict Regex.
+ * Normalizes a transaction description for robust matching between Gemini and PDF text.
+ * It removes spaces, prefixes (K, *), cuota information, and special characters.
+ */
+function normalizeTransactionKey(desc: string): string {
+    if (!desc) return '';
+    return desc.toLowerCase()
+        .replace(/^[*\s\W]*(?:\d{2})?k\s*/, '') // Remove prefix * or K or spaces
+        .replace(/\s*\(cuota.*?\)/gi, '')       // Remove (Cuota 1/2) or (cuota 01/02)
+        .replace(/\d{1,2}\/\d{1,2}$/, '')        // Remove 12/12 at the very end
+        .replace(/[^\w]/gi, '')                  // Remove all special characters and spaces
+        .trim();
+}
+
+/**
+ * Validates and corrects Gemini's transaction parsing using a strict regex
  * This catches hallucinations where Gemini incorrectly adds the last digit
  * of the voucher to the beginning of the amount (e.g., 663676 54.989,83 -> 654.989,83).
  */
@@ -217,8 +231,11 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     console.log(`[VALIDATOR] Merged ${lines.length} raw lines into ${mergedLines.length} transaction lines`);
 
     // User's strict regex: Matches Date + Description + 6-digit Voucher + Amount
-    // Uses GREEDY matching for description, then backtracks to find voucher and amount
-    const strictRegex = /^(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s*(.+)\s+(\d{6})\s+([0-9.,-]+)$/;
+    // 1. Optional spaces/asterisk after date
+    // 2. Greedy description (.+)
+    // 3. Space before the 6-digit voucher
+    // 4. OPTIONAL space between voucher and amount (handles "fused digits")
+    const strictRegex = /^(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s*(.+?)\s+(\d{6})\s*([0-9.,-]+)$/;
 
     // Build a lookup map from original text
     const correctDataMap = new Map<string, { voucher: string; amount: string }>();
@@ -241,8 +258,8 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
                 console.log(`[VALIDATOR] ✓ Match #${matchCount}: voucher=${voucher}, amount=${amountStr}, desc="${description.substring(0, 30)}"`);
             }
 
-            // Use description as key (normalize it like Gemini does)
-            const key = description.toLowerCase().replace(/^[\\s\\W]*(?:\\d{2})?K\\s*/, '').substring(0, 50);
+            // Use description as key (normalize it for robust matching)
+            const key = normalizeTransactionKey(description);
             correctDataMap.set(key, { voucher, amount: amountStr });
         } else {
             noMatchCount++;
@@ -261,12 +278,12 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
 
     console.log('[VALIDATOR] Sample Gemini transactions (first 3):');
     geminiTransactions.slice(0, 3).forEach((tx, i) => {
-        const descKey = tx.description.toLowerCase().replace(/\s*\(cuota.*?\)/i, '').substring(0, 50);
+        const descKey = normalizeTransactionKey(tx.description);
         console.log(`  [${i}]: "${tx.description}" -> normalized key: "${descKey}"`);
     });
 
     const validatedTransactions = geminiTransactions.map(tx => {
-        const descKey = tx.description.toLowerCase().replace(/\s*\(cuota.*?\)/i, '').substring(0, 50);
+        const descKey = normalizeTransactionKey(tx.description);
         const correctData = correctDataMap.get(descKey);
 
         checkedCount++;
