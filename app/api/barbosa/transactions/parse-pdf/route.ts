@@ -250,13 +250,13 @@ Instrucciones de extracción:
      - **Separador DECIMAL**: Coma (\`,\`) -> Ej: \`1.000,50\` es mil con 50 centavos.
    - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
    - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
-   - **NÚMEROS PEGADOS (CRÍTICO)**: El PDF a menudo **concatena** el comprobante y el importe sin espacios (Ej: \`00789846.962,55\`).
-     - **SOLUCIÓN**: Analiza de **DERECHA A IZQUIERDA**.
-     - Primero encuentra el patrón de moneda (\`XXX.XXX,XX\`).
-     - Separa lo que está a la izquierda como comprobante.
-     - Ej: \`00789846.962,55\` -> NO es \`0078984\` y \`6.962,55\`. ES \`007898\` y \`46.962,55\`.
-     - Ej: \`00560370.340,47\` -> ES \`005603\` y \`70.340,47\` (Gas/Luz suele ser alto).
-   - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE\` -> \`IMPORTE\`.
+   - **NÚMEROS PEGADOS (CRÍTICO)**: El PDF concatena comprobante e importe (Ej: \`0081686.000,00\` o \`1605757.777,72\`).
+     - **SOLUCIÓN**: El Comprobante **SIEMPRE tiene 6 DÍGITOS**.
+     - **Corta los primeros 6 dígitos** de la cadena numérica final. Eso es el COMPROBANTE.
+     - **El RESTO** es el IMPORTE.
+     - Ej: \`0081686.000,00\` -> Comprobante: \`008168\` (6 dígitos). Importe: \`6.000,00\`.
+     - Ej: \`1605757.777,72\` -> Comprobante: \`160575\` (6 dígitos). Importe: \`7.777,72\`.
+   - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE (6 dígitos)\` -> \`IMPORTE\`.
    - Signos negativos (-): Si el importe tiene un guion delante o al final, devuélvelo negativo.
 
 6. **Impuestos y Tasas**: Si encuentras líneas que corresponden a 'IVA', 'Impuesto PAIS', 'Percepción', 'DB.RG', agrúpalas. (Opcional: puedes ignorarlas si son mero ruido, pero si son cargos reales, expórtalos).
