@@ -85,13 +85,14 @@ export async function POST(req: NextRequest) {
             try {
                 console.log('[PDF] Attempting Gemini AI parsing...');
                 // Pass text but we will slice it inside the function
-                transactions = await parseWithGemini(text, categories, rules);
+                const geminiResult = await parseWithGemini(text, categories, rules);
+                transactions = geminiResult.transactions;
                 parserUsed = 'gemini';
                 console.log('[PDF] Gemini parsing successful. Detected', transactions.length, 'transactions');
 
                 // POST-PROCESSING: Validate and correct Gemini's voucher/amount splits using strict Regex
                 console.log('[PDF] Applying Regex validation to correct potential hallucinations...');
-                transactions = validateAndCorrectTransactions(transactions, text);
+                transactions = validateAndCorrectTransactions(transactions, geminiResult.processedText);
                 console.log('[PDF] Validation complete. Final count:', transactions.length, 'transactions');
             } catch (geminiError) {
                 console.error('[PDF] Gemini parsing failed:', geminiError);
@@ -509,7 +510,13 @@ REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO A
     }
 
     // ... rest of validation logic ...
-    return validateAndFilterTransactions(parsed.transactions);
+    const validatedTransactions = validateAndFilterTransactions(parsed.transactions);
+
+    // Return both transactions and the processedText for validation
+    return {
+        transactions: validatedTransactions,
+        processedText
+    };
 }
 
 function validateAndFilterTransactions(rawTransactions: any[]) {
