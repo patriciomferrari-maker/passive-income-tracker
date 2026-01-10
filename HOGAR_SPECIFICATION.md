@@ -46,7 +46,13 @@ const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}`; // Uses UTC -> gro
 
 ---
 
-## 3. Data Integrity
+## 3. Data Integrity & UX
+
+### Transaction Management (UI Feedback)
+**CRITICAL:** The "Guardar/Actualizar" (Save/Update) action in `TransactionsTab.tsx` MUST provide visual feedback:
+1.  **Success:** `alert('Transacción guardada correctamente')`.
+2.  **Error:** `alert('Error al guardar: [Detalle]')`.
+3.  **Forbidden:** Silent failure is strictly forbidden. Users must know if their data was not saved.
 
 ### Recurrence & Projections
 - **Status:** `REAL` (Paid) vs `PROJECTED` (Future).
