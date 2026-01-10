@@ -90,12 +90,15 @@ export async function POST(req: NextRequest) {
                 console.log('[PDF] Gemini parsing successful. Detected', transactions.length, 'transactions');
             } catch (geminiError) {
                 console.error('[PDF] Gemini parsing failed:', geminiError);
-                console.error('[PDF] Error details:', geminiError instanceof Error ? geminiError.message : String(geminiError));
-                console.log('[PDF] Falling back to regex parser');
-                transactions = parseTextToTransactions(text, rules);
+                const msg = geminiError instanceof Error ? geminiError.message : String(geminiError);
+                console.error('[PDF] Error details:', msg);
+
+                // DEBUG STRATEGY: Fail loudly if Gemini fails, so user knows 'Why'.
+                // Do NOT fallback to regex if user specifically wants Gemini.
+                return NextResponse.json({ error: `Error de IA (Gemini): ${msg}` }, { status: 500 });
             }
         } else {
-            console.log('[PDF] No GEMINI_API_KEY found, using regex parser');
+            console.warn('[PDF] No GEMINI_API_KEY env var found. Using fallback Regex parser.');
             transactions = parseTextToTransactions(text, rules);
         }
 
