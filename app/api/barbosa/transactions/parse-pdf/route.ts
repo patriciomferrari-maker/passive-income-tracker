@@ -299,8 +299,23 @@ REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO A
                 // CHECK FOR 429 RATE LIMIT
                 if (errorMessage.includes("429") || errorMessage.toLowerCase().includes("quota")) {
                     if (attempts < maxAttempts) {
-                        console.log('[GEMINI] Hit Rate Limit (429). Waiting 10 seconds before retrying...');
-                        await new Promise(resolve => setTimeout(resolve, 10000)); // 10s delay
+                        let waitTime = 60000; // Default 60s
+
+                        // Try to parse "retry in X s" or "retry in Xms"
+                        const timeMatch = errorMessage.match(/retry in ([0-9.]+)(s|ms)/);
+                        if (timeMatch) {
+                            const value = parseFloat(timeMatch[1]);
+                            const unit = timeMatch[2];
+                            if (unit === 's') waitTime = Math.ceil(value * 1000);
+                            else if (unit === 'ms') waitTime = Math.ceil(value);
+
+                            // Add 2 seconds buffer
+                            waitTime += 2000;
+                        }
+
+                        console.log(`[GEMINI] Hit Rate Limit (429). Parsing suggest waiting: ${waitTime}ms`);
+
+                        await new Promise(resolve => setTimeout(resolve, waitTime));
                         continue; // Retry same model
                     }
                 }
