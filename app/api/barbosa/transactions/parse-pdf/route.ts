@@ -416,19 +416,67 @@ function parseTextToTransactions(text: string, rules: any[]) {
 
             if (amountMatch) {
                 // Case A: Date + Amount on same line (Ideal)
-                const amountStr = amountMatch[amountMatch.length - 1]; // Take last match usually the column
+                let amountStr = amountMatch[amountMatch.length - 1]; // Take last match usually the column
+
+                // --- COLUMN MERGE FIX ---
+                // Detect if the Amount has been glued to the Voucher (e.g. "007898" + "46.962,55" -> "846.962,55")
+                // Vouchers are typically 6 digits. If preceding text ends in 5 digits, we likely stole the 6th.
+                const matchIndex = lineForAmount.lastIndexOf(amountStr);
+                let precedingText = lineForAmount.substring(0, matchIndex).trim();
+
+                // Check if preceding ends in at least 5 digits (meaning with the 1 stolen it would be 6+)
+                // And ensure amountStr actually starts with a digit we can steal (don't steal from "-")
+                if (/\d{5}$/.test(precedingText) && /^\d/.test(amountStr)) {
+                    const stolenDigit = amountStr[0];
+                    // Verify that taking this digit leaves a valid amount structure (e.g. "846.962,55" -> "46.962,55")
+                    // We simply trust the pattern for now, but could verify regex again.
+
+                    console.log(`[PDF-PARSER] Detected column merge. Shifting '${stolenDigit}' back to voucher.`);
+
+                    // Shift!
+                    amountStr = amountStr.substring(1);
+                    precedingText = precedingText + stolenDigit;
+
+                    // Re-construct the lineDesc logically to contain the fixed voucher for extraction
+                    // But effectively we just need to fix 'finalDesc' later.
+                }
+
                 const amount = cleanAmount(amountStr);
 
                 // Clean description
+                // If we shifted, 'lineDesc' is still the original dirty line.
+                // We should remove the ORIGINAL amount match from lineDesc, but handling the split is tricky.
+                // Easier: replace the *original* faulty amount string in lineDesc with nothing, 
+                // but then we must manually inject the 'stolen' digit back into the description if needed?
+                // Actually, if we just remove 'amountStr' (the NEW short one), the 'stolenDigit' remains in the text!
+                // Example: Line "...00789846.962,55"
+                // Original Match: "846.962,55"
+                // New Amount: "46.962,55"
+                // If we replace New Amount in Line: "...007898" remains! 
+                // This is EXACTLY what we want. The voucher '007898' stays in description. Great!
+
                 let finalDesc = lineDesc.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
-                finalDesc = finalDesc.replace(/^[\s\W]*K\s+/, ''); // Remove leading "K " artifact
+
+                // Aggressive K removal (handles "K MERPAGO" and "KMERPAGO")
+                finalDesc = finalDesc.replace(/^[\s\W]*K\s*/, '');
 
                 // Detect Comprobante (Code)
                 let comprobante = '';
-                const compMatch = finalDesc.match(/\b(\d{5,10})\b/);
-                if (compMatch) {
-                    comprobante = compMatch[1];
+                const compMatch = finalDesc.match(/\b(\d{6})\b/); // Back to strict 6 digits? Or 5-10?
+                // Let's stick to 5-10 but prioritize the one at the end of description?
+                // Usually voucher is at the end of the text block before amount.
+                const compMatchStrict = finalDesc.match(/(\d{6,10})$/); // Look for code at END of string
+
+                if (compMatchStrict) {
+                    comprobante = compMatchStrict[1];
                     finalDesc = finalDesc.replace(comprobante, '').trim();
+                } else {
+                    // Fallback
+                    const compMatchLoose = finalDesc.match(/\b(\d{5,10})\b/);
+                    if (compMatchLoose) {
+                        comprobante = compMatchLoose[1];
+                        finalDesc = finalDesc.replace(comprobante, '').trim();
+                    }
                 }
 
                 if (!isNaN(amount) && Math.abs(amount) > 0.01) {
