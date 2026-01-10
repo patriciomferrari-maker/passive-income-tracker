@@ -399,7 +399,51 @@ function parseTextToTransactions(text: string, rules: any[]) {
 
         const dateMatch = line.match(dateRegex);
         const lineForAmount = line.replace(/[U\$S\$]/g, '').trim();
-        const amountMatch = lineForAmount.match(amountRegex);
+        // Check for "Glued" Voucher + Amount scenario (User priority: Isolate Voucher First)
+        // Pattern: 6 digits (Voucher) immediately followed by a valid Amount
+        // ARS: 1.234,56
+        // USD: 1,234.56
+        const gluedArsRegex = /(\d{6})(-?(?:[0-9]{1,3}(?:\.[0-9]{3})*),[0-9]{2})(?!\s*%)/;
+        const gluedUsdRegex = /(\d{6})(-?(?:[0-9]{1,3}(?:,[0-9]{3})*)\.[0-9]{2})(?!\s*%)/;
+
+        let gluedMatch = lineForAmount.match(gluedArsRegex) || lineForAmount.match(gluedUsdRegex);
+
+        let amountStr = '';
+        let explicitVoucher = '';
+
+        if (gluedMatch) {
+            // We found a stuck voucher!
+            explicitVoucher = gluedMatch[1];
+            amountStr = gluedMatch[2];
+            console.log(`[PDF-PARSER] Found GLUED Voucher '${explicitVoucher}' + Amount '${amountStr}'`);
+        } else {
+            // Standard Amount Search
+            const amountMatch = lineForAmount.match(amountRegex);
+            if (amountMatch) {
+                amountStr = amountMatch[amountMatch.length - 1];
+
+                // --- FALLBACK SHIFTING LOGIC (just in case) ---
+                // If simple regex found it, we check if it stole prefix digits.
+                // "00789" + "846..."
+                const matchIndex = lineForAmount.lastIndexOf(amountStr);
+                let precedingText = lineForAmount.substring(0, matchIndex).trim();
+                const trailingDigitsMatch = precedingText.match(/(\d+)$/);
+
+                if (trailingDigitsMatch && /^\d/.test(amountStr)) {
+                    const trailingDigits = trailingDigitsMatch[1];
+                    const trailingCount = trailingDigits.length;
+                    if (trailingCount < 6 && trailingCount > 0) {
+                        const needed = 6 - trailingCount;
+                        const potentialStolen = amountStr.substring(0, needed);
+                        if (/^\d+$/.test(potentialStolen)) {
+                            console.log(`[PDF-PARSER] Merge detected (Fallback). Shifting '${potentialStolen}' back.`);
+                            explicitVoucher = trailingDigits + potentialStolen;
+                            amountStr = amountStr.substring(needed);
+                        }
+                    }
+                }
+            }
+        }
 
         if (dateMatch) {
             // Found a Date: Potential New Transaction
@@ -408,89 +452,42 @@ function parseTextToTransactions(text: string, rules: any[]) {
             // Clean the line from the date
             let lineDesc = line.replace(dateMatch[0], '').trim();
 
-            if (amountMatch) {
-                // Case A: Date + Amount on same line (Ideal)
-                let amountStr = amountMatch[amountMatch.length - 1]; // Take last match usually the column
-
-                // --- COLUMN MERGE FIX (STRATEGY: ENFORCE 6-DIGIT VOUCHER) ---
-                // Problem: "007898" (Voucher) + "46.962,55" (Amount) -> Merges to "846.962,55"
-                // The parser sees "00789" as text and "846.962,55" as amount.
-                // Solution: We assume Voucher is ALWAYS 6 digits (standard).
-                // We check how many digits are trailing in the description.
-
-                const matchIndex = lineForAmount.lastIndexOf(amountStr);
-                let precedingText = lineForAmount.substring(0, matchIndex).trim();
-
-                // Find trailing digits in preceding text
-                const trailingDigitsMatch = precedingText.match(/(\d+)$/);
-
-                if (trailingDigitsMatch) {
-                    const trailingDigits = trailingDigitsMatch[1];
-                    const trailingCount = trailingDigits.length;
-
-                    if (trailingCount < 6 && trailingCount > 0) {
-                        // We are missing some digits to form a 6-digit voucher.
-                        // They must have been swallowed by the amount Regex.
-                        const needed = 6 - trailingCount;
-
-                        // Check if amountStr starts with enough digits
-                        // We strip non-digits to check availability, but for shifting we operate on string.
-                        // Actually, amountStr usually starts with digits or minus.
-                        if (/^\d/.test(amountStr)) {
-                            // Clean check: Can we take 'needed' characters and are they digits?
-                            const potentialStolen = amountStr.substring(0, needed);
-                            if (/^\d+$/.test(potentialStolen)) {
-                                console.log(`[PDF-PARSER] Merge detected. Voucher has ${trailingCount} digits ('${trailingDigits}'). Stealing ${needed} ('${potentialStolen}') from Amount ('${amountStr}').`);
-
-                                // Shift logic
-                                // 1. Add stolen to preceding (conceptually, to form voucher)
-                                const fullVoucher = trailingDigits + potentialStolen;
-
-                                // 2. Remove stolen from Amount
-                                amountStr = amountStr.substring(needed);
-
-                                // 3. Update PrecedingText for description cleaning
-                                // We don't really UPDATE precedingText variable for logic, 
-                                // but we will use 'fullVoucher' to clean the description later.
-                            }
-                        }
-                    }
-                }
-
+            if (amountStr) {
+                // Case A: Date + Amount found
                 const amount = cleanAmount(amountStr);
 
                 // Clean description
-                // 1. Remove the Amount Pattern (We must use the ORIGINAL match to cut it out if we didn't shift?)
-                // Actually, replace is risky if duplicated.
-                // Safer: Split by Date, take the Right side. Then Remove Amount from Right Side.
-
-                // Let's rely on replace but be careful.
-                // If we shifted, 'amountStr' is shorter. replacing it leaves the 'stolen' digits in the text.
-                // "00789" + "846..." -> replace "46..." -> "007898" remains.
-                // This is perfect.
+                // If explicitVoucher found, we need to remove it explicitly from description too if it was there
+                // The amountStr replacement handles the amount.
+                // But the MERGED string "007898846..." -> amountStr is "46..."
+                // replacing "46..." leaves "007898".
+                // Good.
 
                 let finalDesc = lineDesc.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
 
+                // If we identified a voucher, remove it from description to keep it clean? 
+                // Usually user wants name only.
+                if (explicitVoucher) {
+                    finalDesc = finalDesc.replace(explicitVoucher, '').trim();
+                }
+
                 // Aggressive Artifact Removal
-                // Remove leading "25K", "K ", etc.
-                // "25KMERPAGO" -> "MERPAGO"
                 finalDesc = finalDesc.replace(/^[\s\W]*(?:\d{2})?K\s*/, '');
 
-                // Detect Comprobante (Code)
-                let comprobante = '';
+                // Detect Comprobante (Code) - Use Explicit if found, else Search
+                let comprobante = explicitVoucher;
 
-                // Strategy: Find the 6-digit code at the END of the description (which we likely just reconstructed)
-                const compMatchStrict = finalDesc.match(/(\d{6})$/);
-
-                if (compMatchStrict) {
-                    comprobante = compMatchStrict[1];
-                    finalDesc = finalDesc.replace(comprobante, '').trim();
-                } else {
-                    // Fallback: 5-10 digits anywhere
-                    const compMatchLoose = finalDesc.match(/\b(\d{5,10})\b/);
-                    if (compMatchLoose) {
-                        comprobante = compMatchLoose[1];
+                if (!comprobante) {
+                    const compMatchStrict = finalDesc.match(/(\d{6})$/);
+                    if (compMatchStrict) {
+                        comprobante = compMatchStrict[1];
                         finalDesc = finalDesc.replace(comprobante, '').trim();
+                    } else {
+                        const compMatchLoose = finalDesc.match(/\b(\d{5,10})\b/);
+                        if (compMatchLoose) {
+                            comprobante = compMatchLoose[1];
+                            finalDesc = finalDesc.replace(comprobante, '').trim();
+                        }
                     }
                 }
 
@@ -500,33 +497,39 @@ function parseTextToTransactions(text: string, rules: any[]) {
                     currentDescription = [];
                 }
             } else {
-                // Case B: Date found, but Amount is probably on next line or this is description start
+                // Case B: Date found, but Amount is probably on next line
                 currentDescription = [lineDesc];
             }
-        } else if (amountMatch && currentDate) {
-            // Case C: No Date, gives continuation of description + Amount?
-            // Usually this happens if description wrapped multiple lines
-            const amountStr = amountMatch[amountMatch.length - 1];
+        } else if (amountStr && currentDate) {
+            // Case C: Continuation amount
             const amount = cleanAmount(amountStr);
-
             const extraDesc = line.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
-            const fullDesc = [...currentDescription, extraDesc].join(' ').trim();
 
-            let comprobante = '';
-            let finalDesc = fullDesc;
-            const compMatch = finalDesc.match(/\b(\d{5,10})\b/);
-            if (compMatch) {
-                comprobante = compMatch[1];
-                finalDesc = finalDesc.replace(comprobante, '').trim();
+            // ... Logic for cleaning description and voucher similar to above ...
+            // For brevity, we assume minimal merge issues in Case C (usually multiline descriptions separate well)
+            // But we should apply the same cleaning.
+
+            let fullDesc = [...currentDescription, extraDesc].join(' ').trim();
+            if (explicitVoucher) { // If glued logic worked here too
+                fullDesc = fullDesc.replace(explicitVoucher, '').trim();
+            }
+
+            let comprobante = explicitVoucher;
+            if (!comprobante) {
+                const compMatch = fullDesc.match(/\b(\d{6})\b/); // Simplified check for C
+                if (compMatch) {
+                    comprobante = compMatch[1];
+                    fullDesc = fullDesc.replace(comprobante, '').trim();
+                }
             }
 
             if (!isNaN(amount) && Math.abs(amount) > 0.01) {
                 const isUSD = /USD|U\$S|DOLARES/i.test(line);
-                transactions.push(createTransaction(currentDate, amount, finalDesc, rules, isUSD ? 'USD' : 'ARS', comprobante));
+                transactions.push(createTransaction(currentDate, amount, fullDesc, rules, isUSD ? 'USD' : 'ARS', comprobante));
                 currentDescription = [];
             }
         } else if (currentDate && currentDescription.length > 0 && currentDescription.length < 3) {
-            // Case D: Just Description continuation text
+            // Case D output...
             if (currentDescription.length > 0) currentDescription.push(line);
         }
     }
