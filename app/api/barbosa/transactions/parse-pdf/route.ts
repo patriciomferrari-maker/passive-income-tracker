@@ -192,12 +192,6 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     // Extract the transaction lines from the original text
     const lines = originalText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-    // DEBUG: Show first 10 lines to understand format
-    console.log('[VALIDATOR] First 10 lines of PDF:');
-    lines.slice(0, 10).forEach((line, i) => {
-        console.log(`  [${i}]: ${line.substring(0, 100)}`);
-    });
-
     // PREPROCESSING: Merge multi-line transactions into single lines
     // Pattern: Line1=Date+Description, Line2=6-digit voucher, Line3=Amount
     const mergedLines: string[] = [];
@@ -261,35 +255,15 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
             // Use description as key (normalize it for robust matching)
             const key = normalizeTransactionKey(description);
             correctDataMap.set(key, { voucher, amount: amountStr });
-        } else {
-            noMatchCount++;
-            // DEBUG: Show first 3 non-matches that look like they might be transactions
-            if (noMatchCount <= 3 && normalized.length > 20 && /\d/.test(normalized)) {
-                console.log(`[VALIDATOR] ✗ No match: ${normalized.substring(0, 80)}`);
-            }
         }
     }
 
-    console.log('[VALIDATOR] Built correction map with', correctDataMap.size, 'entries', `(${matchCount} matches, ${noMatchCount} no-matches)`);
-
     // Now validate each Gemini transaction
     let correctedCount = 0;
-    let checkedCount = 0;
-
-    console.log('[VALIDATOR] Sample Gemini transactions (first 3):');
-    geminiTransactions.slice(0, 3).forEach((tx, i) => {
-        const descKey = normalizeTransactionKey(tx.description);
-        console.log(`  [${i}]: "${tx.description}" -> normalized key: "${descKey}"`);
-    });
 
     const validatedTransactions = geminiTransactions.map(tx => {
         const descKey = normalizeTransactionKey(tx.description);
         const correctData = correctDataMap.get(descKey);
-
-        checkedCount++;
-        if (checkedCount <= 3) {
-            console.log(`[VALIDATOR] Checking tx #${checkedCount}: key="${descKey}", found=${!!correctData}`);
-        }
 
         if (correctData) {
             // Parse the correct amount
