@@ -246,7 +246,7 @@ Instrucciones de extracción:
 5. **Importe**: El valor monetario final de la transacción.
    - **UBICACIÓN**: Suele ser el **ÚLTIMO** dato numérico a la derecha.
    - **FORMATO**: Busca explícitamente los separadores decimales (coma o punto, ej: 6.000,00 o 112.333,34).
-   - **REGLA DE ORO**: Si ves `008168` y `6.000,00`: `008168` es el COMPROBANTE (ID) y `6.000,00` es el IMPORTE ($).
+   - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (ID) y \`6.000,00\` es el IMPORTE ($).
    - Signos negativos (-): Si el importe tiene un guion delante o al final, devuélvelo negativo.
 
 6. **Impuestos y Tasas**: Si encuentras líneas que corresponden a 'IVA', 'Impuesto PAIS', 'Percepción', 'DB.RG', agrúpalas. (Opcional: puedes ignorarlas si son mero ruido, pero si son cargos reales, expórtalos).
