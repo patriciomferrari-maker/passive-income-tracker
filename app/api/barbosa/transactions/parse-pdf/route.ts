@@ -469,7 +469,7 @@ function parseTextToTransactions(text: string, rules: any[]) {
                 // "00789" + "846..." -> replace "46..." -> "007898" remains.
                 // This is perfect.
 
-                finalDesc = lineDesc.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
+                let finalDesc = lineDesc.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
 
                 // Aggressive Artifact Removal
                 // Remove leading "25K", "K ", etc.
