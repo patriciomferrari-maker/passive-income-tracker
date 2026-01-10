@@ -402,7 +402,7 @@ function parseTextToTransactions(text: string, rules: any[]) {
             if (transactions.length > 0) break;
         }
 
-        // 2. TRY MASTER REGEX FIRST
+        // 2. TRY MASTER REGEX FIRST (Specific Structure)
         const masterMatch = line.trim().match(masterRegex);
 
         if (masterMatch) {
@@ -415,7 +415,6 @@ function parseTextToTransactions(text: string, rules: any[]) {
 
             // Validation: Amount looks like a number?
             if (/[\d.,]+/.test(amountStr)) {
-                // Formatting
                 const currentDate = normalizeDate(rawDate);
                 const amount = cleanAmount(amountStr);
 
@@ -425,22 +424,86 @@ function parseTextToTransactions(text: string, rules: any[]) {
                 }
 
                 // Clean artifacts from description
-                description = description.replace(/^[\s\W]*(?:\d{2})?K\s*/, '').replace(/USD|U\$S|\$/g, '').trim();
+                description = description.replace(/^[\s\W]*(?:\d{2})?K\s*/, '').replace(/USD|U\$S|\$/g, '').replace(/\b\d{2}\/0\b/g, '').trim();
 
-                const isUSD = /USD|U\$S|DOLARES/i.test(line); // Or rely on column position? Regex doesn't know column.
-                // Fallback: If amount string has comma as decimal (ARG), it's likely ARS or USD with ARG formatting.
-                // Usually USD lines say "USD" explicitly. We rely on the generic check.
-
+                const isUSD = /USD|U\$S|DOLARES/i.test(line);
                 transactions.push(createTransaction(currentDate, amount, description, rules, isUSD ? 'USD' : 'ARS', voucher));
                 continue; // Done with this line!
             }
         }
 
-        // 3. FALLBACK: OLD LOGIC (Chunks)
-        // If master regex failed (maybe description has "Numbers" that confused the lazy match? Or Voucher is not 6 digits?)
-        // We keep the old logic as a fallback for robustness.
+        // 3. STRATEGY 2: COMPONENT EXTRACTION (Outside-In)
+        // If Master Regex failed, let's try to peel off the known parts from edges.
+        // Format: DATE .......... [Cuota] [Voucher] AMOUNT
 
-        const dateMatch = line.match(dateRegex);
+        const trimmedLine = line.trim();
+        // A. Extract Date (Start)
+        const dateMatch = trimmedLine.match(/^(\d{2}[\/.-]\d{2}(?:[\/.-]\d{2,4})?)/);
+
+        // B. Extract Amount (End)
+        // We look for the last number-like thing.
+        const amountMatch = trimmedLine.match(/([0-9.,-]+)$/);
+
+        if (dateMatch && amountMatch) {
+            const rawDate = dateMatch[1];
+            let amountStr = amountMatch[1];
+            let middleText = trimmedLine.substring(rawDate.length, trimmedLine.length - amountStr.length).trim();
+
+            // C. Extract Voucher (6 Digits at the end of middle text)
+            // We look for 6 digits at the very end of the middle text.
+            let voucher = '';
+            const voucherMatch = middleText.match(/(\d{6})\s*$/);
+
+            if (voucherMatch) {
+                voucher = voucherMatch[1];
+                middleText = middleText.substring(0, middleText.length - voucherMatch[0].length).trim();
+            } else {
+                // Try looking for "Glued" voucher in the amountStr?
+                // "001234100.00" -> Amount "100.00", Voucher "001234"
+                // If the amount regex captured the voucher, 'amountStr' would be long.
+                // But our amount regex `[0-9.,-]+$` is greedy? No, it's specific characters.
+                // If amountStr is "001234100.00", it looks like a number.
+                // Let's check fallback if we didn't find voucher in middle.
+                if (amountStr.length > 8 && /^\d{6}/.test(amountStr)) {
+                    // Likely glued.
+                    voucher = amountStr.substring(0, 6);
+                    amountStr = amountStr.substring(6);
+                    console.log(`[PDF-PARSER] Strategy 2: Split Glued Voucher '${voucher}' from Amount.`);
+                }
+            }
+
+            // D. Extract Cuota (End of remaining middle text)
+            // Look for pattern NN/NN or NN/N
+            let cuota = '';
+            const cuotaMatch = middleText.match(/(\d{2}\/\d{1,2})\s*$/);
+            if (cuotaMatch) {
+                const potentialCuota = cuotaMatch[1];
+                if (!potentialCuota.endsWith('/0')) {
+                    cuota = potentialCuota;
+                    middleText = middleText + ` (Cuota ${cuota})`; // Append cleanly
+                }
+                // Remove from description text regardless of validity (clean artifact)
+                middleText = middleText.substring(0, middleText.length - cuotaMatch[0].length).trim();
+            }
+
+            // E. Finalize
+            const currentDate = normalizeDate(rawDate);
+            const amount = cleanAmount(amountStr);
+            let description = middleText;
+
+            // Clean artifacts
+            description = description.replace(/^[\s\W]*(?:\d{2})?K\s*/, '').replace(/USD|U\$S|\$/g, '').replace(/\b\d{2}\/0\b/g, '').trim();
+
+            const isUSD = /USD|U\$S|DOLARES/i.test(line);
+            transactions.push(createTransaction(currentDate, amount, description, rules, isUSD ? 'USD' : 'ARS', voucher));
+            continue; // Done!
+        }
+
+        // 4. FALLBACK: OLD CHUNK LOGIC (Last Resort)
+        // Only if both strategies failed.
+
+        const chunkDateMatch = line.match(dateRegex);
+        // ... (We can keep or remove the old logic. Let's keep it minimal for very weird lines)
         const lineForAmount = line.replace(/[U\$S\$]/g, '').trim();
         // Check for "Glued" Voucher + Amount scenario (User priority: Isolate Voucher First)
         // Pattern: 6 digits (Voucher) immediately followed by a valid Amount
