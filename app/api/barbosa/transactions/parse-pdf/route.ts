@@ -250,28 +250,16 @@ Instrucciones de extracción:
      - **Separador DECIMAL**: Coma (\`,\`) -> Ej: \`1.000,50\` es mil con 50 centavos.
    - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
    - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
-   - **NÚMEROS PEGADOS Y DÍGITOS FUSIONADOS (MUY CRÍTICO)**:
-     - A veces, si el último dígito del comprobante (dígito 6) es IGUAL al primer dígito del importe, el PDF los fusiona en uno solo.
-     - **ALGORITMO**:
-       1. Separa los primeros 6 dígitos como COMPROBANTE.
-       2. Mira el RESTO como IMPORTE.
-       3. **CORRECCIÓN**: SOLO si el importe parece truncado Y tiene sentido que el dígito faltante sea el mismo que el final del comprobante.
-       4. **PRECAUCIÓN**: Si hay un espacio claro entre el comprobante y el importe (ej. \`663676 54.989,83\`), **NO** agregues dígitos. Usa el importe tal cual.
-
-     - **EJEMPLOS DE COMPORTAMIENTO**:
-       - Caso **PUMA** (Fusión Real): Texto \`1605757.777,72\`
-         -> Comprobante: \`160575\`
-         -> Importe: \`57.777,72\` (Se recuperó el '5' porque estaba fusionado).
-       - Caso **BENSIMON** (Fusión Real): Texto \`0081686.000,00\`
-         -> Comprobante: \`008168\`
-         -> Importe: \`86.000,00\` (Se recuperó el '8').
-       - Caso **SHELL** (Falso Positivo - NO TOCAR): Texto \`663676 54.989,83\`
-         -> Comprobante: \`663676\` (Termina en 6)
-         -> Importe: \`54.989,83\` (Empieza con 5. Hay espacio. Son distintos.)
-         -> Resultado: \`54.989,83\` (NO agregar el 6).
-       - Caso **RACING** (Sin Fusión): Texto \`00000129.400,00\`
-         -> Comprobante: \`000001\`
-         -> Importe: \`29.400,00\`
+   - **NÚMEROS PEGADOS Y DÍGITOS FUSIONADOS (EXTREMADAMENTE ESTRICTO)**:
+     - **REGLA DE ORO**: SOLO aplica corrección si los números están **FÍSICAMENTE PEGADOS** sin ningún espacio (ej: \`12345678.90\`).
+     - **PROHIBICIÓN**: Si hay **CUALQUIER ESPACIO** entre el comprobante y el importe (ej: \`123456 78.90\` o \`123456  78.90\`), **NUNCA** agregues ni repitas dígitos. TOMA EL IMPORTE EXACTAMENTE COMO ESTÁ.
+     - **CASO DE FUSIÓN REAL (Corrige)**:
+       - \`1605757.777,72\` -> Comprobante \`160575\`, Importe \`57.777,72\` (Se separó por superposición).
+       - \`0081686.000,00\` -> Comprobante \`008168\`, Importe \`86.000,00\`.
+     - **CASO DE NO FUSIÓN (NO TOCAR)**:
+       - \`001153 7.969,48\` -> Comprobante \`001153\`, Importe \`7.969,48\` (HAY ESPACIO -> NO AGREGUES EL '3').
+       - \`663676 54.989,83\` -> Comprobante \`663676\`, Importe \`54.989,83\` (HAY ESPACIO -> NO AGREGUES EL '6').
+       - \`508846 467,25\`    -> Comprobante \`508846\`, Importe \`467,25\`.
    - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE (6 dígitos)\` -> \`IMPORTE\`.
    - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE (6 dígitos)\` -> \`IMPORTE\`.
    - Signos negativos (-): Si el importe tiene un guion delante o al final, devuélvelo negativo.
