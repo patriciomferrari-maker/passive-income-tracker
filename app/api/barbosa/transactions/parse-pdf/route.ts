@@ -249,6 +249,9 @@ Instrucciones de extracción:
      - **Separador de MILES**: Punto (\`.\`) -> Ej: \`1.000\` es mil.
      - **Separador DECIMAL**: Coma (\`,\`) -> Ej: \`1.000,50\` es mil con 50 centavos.
    - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
+   - **NÚMEROS PARTIDOS (CRÍTICO)**: A veces el PDF separa el primer dígito del resto (ej: \`4 6.962,55\` o \`2 9.400,00\`). SIEMPRE une esos números sueltos al importe final.
+     - \`4 6.962,55\` -> \`46.962,55\`
+     - \`2 9.400,00\` -> \`29.400,00\`
    - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE\` -> \`IMPORTE\`.
    - Signos negativos (-): Si el importe tiene un guion delante o al final, devuélvelo negativo.
 
