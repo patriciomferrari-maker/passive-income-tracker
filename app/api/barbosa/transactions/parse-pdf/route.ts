@@ -385,46 +385,46 @@ function parseTextToTransactions(text: string, rules: any[]) {
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
-        // 1. CHECK STOP CONDITION FIRST
-        // Only stop if we have processed some transactions or we are deep in the file
-        // This avoids stopping at the Header if it contains summary lines like "TOTAL A PAGAR"
+        // 1. CHECK STOP CONDITION
+        // CRITICAL FIX: Only stop if we have ALREADY found transactions. 
+        // If we haven't found any, this "Total a Pagar" might be the Header Summary.
         if (stopPhrases.some(phrase => line.toUpperCase().includes(phrase))) {
-            if (transactions.length > 0 || i > 20) {
-                console.log('[PDF-PARSER] Stop phrase found. Stopping parsing at:', line);
+            if (transactions.length > 0) {
+                console.log('[PDF-PARSER] Footer Stop phrase found. Stopping parsing at:', line);
                 break;
+            } else {
+                console.log('[PDF-PARSER] Header Stop phrase ignored (no transactions yet):', line);
             }
         }
 
-        // 2. SKIP NOISE LINES (Interest rates, taxes, headers)
-        // Added TNA, TEA, CFT, IVA RG, DB.RG, IMPUESTO
-        if (/saldo|balance|cierre|página|hoja|extracto|resumen|limite|tasa|vencimiento|anterior|TNA|TEA|CFT|IVA RG|DB\.RG|IMPUESTO|PAIS|PERCEPCION/i.test(line)) continue;
+        // 2. SKIP NOISE LINES
+        if (/saldo|balance|cierre|página|hoja|extracto|resumen|limite|tasa|vencimiento|anterior|TNA|TEA|CFT|IVA RG|DB\.RG|IMPUESTO|PAIS|PERCEPCION/i.test(line)) {
+            // console.log('[PDF-PARSER] Skipping noise line:', line);
+            continue;
+        }
 
         const dateMatch = line.match(dateRegex);
-        // Normalize line for amount search (remove symbols that might interfere)
         const lineForAmount = line.replace(/[U\$S\$]/g, '').trim();
         const amountMatch = lineForAmount.match(amountRegex);
 
         if (dateMatch) {
-            // New transaction line likely
+            // Found a Date: Potential New Transaction
             currentDate = normalizeDate(dateMatch[0]);
 
             // Clean the line from the date
             let lineDesc = line.replace(dateMatch[0], '').trim();
 
             if (amountMatch) {
-                // Pick the last amount found
-                const amountStr = amountMatch[amountMatch.length - 1];
+                // Case A: Date + Amount on same line (Ideal)
+                const amountStr = amountMatch[amountMatch.length - 1]; // Take last match usually the column
                 const amount = cleanAmount(amountStr);
 
-                // Clean description from amount and currency codes
-                // Be careful to replace the original amount string including symbols if they were adjacent
+                // Clean description
                 let finalDesc = lineDesc.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
-
-                // Clean common PDF column debris
                 finalDesc = finalDesc.replace(/^[\s\W]*K\s+/, ''); // Remove leading "K " artifact
 
+                // Detect Comprobante (Code)
                 let comprobante = '';
-                // Looser comprobante regex: 5 to 10 digits, standalone
                 const compMatch = finalDesc.match(/\b(\d{5,10})\b/);
                 if (compMatch) {
                     comprobante = compMatch[1];
@@ -437,9 +437,12 @@ function parseTextToTransactions(text: string, rules: any[]) {
                     currentDescription = [];
                 }
             } else {
+                // Case B: Date found, but Amount is probably on next line or this is description start
                 currentDescription = [lineDesc];
             }
         } else if (amountMatch && currentDate) {
+            // Case C: No Date, gives continuation of description + Amount?
+            // Usually this happens if description wrapped multiple lines
             const amountStr = amountMatch[amountMatch.length - 1];
             const amount = cleanAmount(amountStr);
 
@@ -459,11 +462,13 @@ function parseTextToTransactions(text: string, rules: any[]) {
                 transactions.push(createTransaction(currentDate, amount, finalDesc, rules, isUSD ? 'USD' : 'ARS', comprobante));
                 currentDescription = [];
             }
-        } else if (currentDate && currentDescription.length < 3) {
-            currentDescription.push(line);
+        } else if (currentDate && currentDescription.length > 0 && currentDescription.length < 3) {
+            // Case D: Just Description continuation text
+            if (currentDescription.length > 0) currentDescription.push(line);
         }
     }
 
+    console.log(`[PDF-PARSER] Parse complete. Found ${transactions.length} transactions.`);
     return transactions;
 }
 
