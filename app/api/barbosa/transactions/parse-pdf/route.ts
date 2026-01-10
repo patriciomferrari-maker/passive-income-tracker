@@ -257,10 +257,22 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
 
     // Now validate each Gemini transaction
     let correctedCount = 0;
+    let checkedCount = 0;
+
+    console.log('[VALIDATOR] Sample Gemini transactions (first 3):');
+    geminiTransactions.slice(0, 3).forEach((tx, i) => {
+        const descKey = tx.description.toLowerCase().replace(/\s*\(cuota.*?\)/i, '').substring(0, 50);
+        console.log(`  [${i}]: "${tx.description}" -> normalized key: "${descKey}"`);
+    });
 
     const validatedTransactions = geminiTransactions.map(tx => {
         const descKey = tx.description.toLowerCase().replace(/\s*\(cuota.*?\)/i, '').substring(0, 50);
         const correctData = correctDataMap.get(descKey);
+
+        checkedCount++;
+        if (checkedCount <= 3) {
+            console.log(`[VALIDATOR] Checking tx #${checkedCount}: key="${descKey}", found=${!!correctData}`);
+        }
 
         if (correctData) {
             // Parse the correct amount
