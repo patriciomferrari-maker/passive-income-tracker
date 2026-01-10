@@ -250,16 +250,13 @@ Instrucciones de extracción:
      - **Separador DECIMAL**: Coma (\`,\`) -> Ej: \`1.000,50\` es mil con 50 centavos.
    - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
    - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
-   - **NÚMEROS PEGADOS Y DÍGITOS FUSIONADOS (EXTREMADAMENTE ESTRICTO)**:
-     - **REGLA DE ORO**: SOLO aplica corrección si los números están **FÍSICAMENTE PEGADOS** sin ningún espacio (ej: \`12345678.90\`).
-     - **PROHIBICIÓN**: Si hay **CUALQUIER ESPACIO** entre el comprobante y el importe (ej: \`123456 78.90\` o \`123456  78.90\`), **NUNCA** agregues ni repitas dígitos. TOMA EL IMPORTE EXACTAMENTE COMO ESTÁ.
-     - **CASO DE FUSIÓN REAL (Corrige)**:
-       - \`1605757.777,72\` -> Comprobante \`160575\`, Importe \`57.777,72\` (Se separó por superposición).
-       - \`0081686.000,00\` -> Comprobante \`008168\`, Importe \`86.000,00\`.
-     - **CASO DE NO FUSIÓN (NO TOCAR)**:
-       - \`001153 7.969,48\` -> Comprobante \`001153\`, Importe \`7.969,48\` (HAY ESPACIO -> NO AGREGUES EL '3').
-       - \`663676 54.989,83\` -> Comprobante \`663676\`, Importe \`54.989,83\` (HAY ESPACIO -> NO AGREGUES EL '6').
-       - \`508846 467,25\`    -> Comprobante \`508846\`, Importe \`467,25\`.
+   - **ESTRATEGIA DE LECTURA (RIGHT-TO-LEFT) - CRÍTICO PARA EVITAR ERRORES**:
+     1. Ubica primero el **IMPORTE** al final de la línea (tiene decimales, es moneda).
+     2. Ubica el **COMPROBANTE** inmediatamente a la izquierda del importe.
+     3. **REGLA DE LOS 6 DÍGITOS**: El comprobante son SIEMPRE los últimos 6 dígitos numéricos antes del importe.
+        - Si hay espacio: \`001234 500.00\` -> Comprobante \`001234\`, Importe \`500.00\`.
+        - Si están PEGADOS (Sin espacio): \`001234500.00\` -> CORTA los 6 dígitos de la izquierda para el comprobante (\`001234\`) y el resto es el importe (\`500.00\`).
+     4. **NO INVENTES DÍGITOS**: Si ves \`663676 54.989,83\` (hay espacio), el comprobante es \`663676\` y el importe \`54.989,83\`. **NUNCA** repitas el último dígito del comprobante en el importe (Error común: convertirlo en \`654.989,83\` es INCORRECTO).
    - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE (6 dígitos)\` -> \`IMPORTE\`.
    - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE (6 dígitos)\` -> \`IMPORTE\`.
    - Signos negativos (-): Si el importe tiene un guion delante o al final, devuélvelo negativo.
@@ -480,6 +477,7 @@ function parseTextToTransactions(text: string, rules: any[]) {
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
+
         // 1. SKIP NOISE (& Header summaries if no tx found yet check removed for simplicity, assuming regex is specific enough)
         // Added: SU PAGO, PAGO EN, TOTAL CONSUMOS, TARJETA (summary line), SALDO
         if (/saldo|balance|cierre|página|hoja|extracto|resumen|limite|tasa|vencimiento|anterior|TNA|TEA|CFT|IVA RG|DB\.RG|IMPUESTO|PAIS|PERCEPCION|TOTAL CONSUMOS|SU PAGO|PAGO EN|TARJETA/i.test(line)) continue;
@@ -487,6 +485,33 @@ function parseTextToTransactions(text: string, rules: any[]) {
         // STOP check (Footer)
         if (stopPhrases.some(phrase => line.toUpperCase().includes(phrase))) {
             if (transactions.length > 0) break;
+        }
+
+        // --- STRATEGY 0: USER SUGGESTED STRICT REGEX (Right-to-Left) ---
+        // "(\d{2}-\d{2}-\d{2})\s+(.*?)\s+(?:\d{2}\/\d{2}|-)?\s*(\d{6})\s+([\d.,]+)$"
+        // Adapted for JS/TS and flexibility (Support / in date, optional cuota bracket)
+        // This is extremely strict about the 6-digit voucher.
+        const userRegex = /(\d{2}[\/.-]\d{2}(?:[\/.-]\d{2,4})?)\s+(.*?)\s+(?:\d{2}\/\d{1,2}|-)?\s*(\d{6})\s+([0-9.,-]+)$/;
+        const userMatch = line.trim().replace(/\s+/g, ' ').match(userRegex);
+
+        if (userMatch) {
+            console.log('[PDF-PARSER] User Suggested Regex Match:', line);
+            const rawDate = userMatch[1];
+            let description = userMatch[2].trim();
+            const voucher = userMatch[3];
+            const amountStr = userMatch[4];
+
+            if (/[\d.,]+/.test(amountStr)) {
+                const currentDate = normalizeDate(rawDate);
+                const amount = cleanAmount(amountStr);
+
+                // Clean artifacts
+                description = description.replace(/^[\s\W]*(?:\d{2})?K\s*/, '').replace(/USD|U\$S|\$/g, '').replace(/\b\d{2}\/0\b/g, '').trim();
+
+                const isUSD = /USD|U\$S|DOLARES/i.test(line);
+                transactions.push(createTransaction(currentDate, amount, description, rules, isUSD ? 'USD' : 'ARS', voucher));
+                continue; // High confidence match
+            }
         }
 
         // 2. TRY MASTER REGEX FIRST (Specific Structure)
