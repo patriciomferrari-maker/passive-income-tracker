@@ -218,7 +218,7 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
 
     // User's strict regex: Matches Date + Description + 6-digit Voucher + Amount
     // Uses GREEDY matching for description, then backtracks to find voucher and amount
-    const strictRegex = /^(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s+(.+)\s+(\d{6})\s+([0-9.,-]+)$/;
+    const strictRegex = /^(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s*(.+)\s+(\d{6})\s+([0-9.,-]+)$/;
 
     // Build a lookup map from original text
     const correctDataMap = new Map<string, { voucher: string; amount: string }>();
