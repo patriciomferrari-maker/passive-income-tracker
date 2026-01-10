@@ -238,13 +238,16 @@ Instrucciones de extracción:
 
 3. **Cuota**: Identifica si el gasto es en cuotas (ej. '02/03'). Si lo encuentras, agrégalo al final de la descripción como " (Cuota 02/03)".
    
-4. **Comprobante**: Extrae el número de operación o comprobante de 6-10 dígitos si existe.
-   - **CRÍTICO**: El número de comprobante es un código Entero (ej: 092931). NO lo confundas con el Importe.
+4. **Comprobante**: Extrae el número de operación o comprobante (código numérico).
+   - **UBICACIÓN**: Suele aparecer ANTES del importe al final de la línea.
+   - **FORMATO**: Es un número ENTERO de 6-10 dígitos. A menudo **comienza con ceros** (ej: 008168, 002345). 
+   - **NEGATIVO**: NUNCA tiene decimales.
 
-5. **Importe**: Separa los montos en Pesos (ARS) y Dólares (USD). 
-   - **IMPORTANTE**: Identifica signos negativos (-). Si es negativo, el monto debe ser negativo en el JSON.
-   - **FORMATO**: El importe casi siempre tiene decimales (ej: 45.000,00 o 100,00). 
-   - **REGLA DE ORO**: Si ves un número entero de 6 dígitos sin decimales (ej 002345), es un COMPROBANTE, NO un importe.
+5. **Importe**: El valor monetario final de la transacción.
+   - **UBICACIÓN**: Suele ser el **ÚLTIMO** dato numérico a la derecha.
+   - **FORMATO**: Busca explícitamente los separadores decimales (coma o punto, ej: 6.000,00 o 112.333,34).
+   - **REGLA DE ORO**: Si ves `008168` y `6.000,00`: `008168` es el COMPROBANTE (ID) y `6.000,00` es el IMPORTE ($).
+   - Signos negativos (-): Si el importe tiene un guion delante o al final, devuélvelo negativo.
 
 6. **Impuestos y Tasas**: Si encuentras líneas que corresponden a 'IVA', 'Impuesto PAIS', 'Percepción', 'DB.RG', agrúpalas. (Opcional: puedes ignorarlas si son mero ruido, pero si son cargos reales, expórtalos).
 
