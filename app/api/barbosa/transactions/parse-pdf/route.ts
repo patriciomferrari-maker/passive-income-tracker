@@ -265,7 +265,14 @@ SALIDA ESPERADA (Strict JSON format inside transactions array):
 REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO ANTERIOR", "PAGO EN PESOS"), IGNORA LA FILA. No inventes datos.`;
 
     // FALLBACK STRATEGY
-    const modelsToTry = ["gemini-1.5-flash-001", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+    // Update based on verified logs (User has access to 2.0 models)
+    const modelsToTry = [
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-001",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-001",
+        "gemini-pro"
+    ];
     let lastError: any = null;
     let responseText = "";
 
