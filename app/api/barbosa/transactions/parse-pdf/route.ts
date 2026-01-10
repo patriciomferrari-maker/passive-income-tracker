@@ -327,7 +327,8 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
  * Parse amount string in es-AR format (1.000,50)
  */
 function parseCorrectAmount(amountStr: string): number {
-    let clean = amountStr.replace(/[U\\$S\\$\\s]/g, '');
+    // 1. Clean up currency symbols and spaces
+    let clean = amountStr.replace(/[U\$S\$\s]/g, '');
 
     const lastDot = clean.lastIndexOf('.');
     const lastComma = clean.lastIndexOf(',');
@@ -338,14 +339,23 @@ function parseCorrectAmount(amountStr: string): number {
             clean = clean.replace(/,/g, '');
         } else {
             // AR Format: 1.234,56
-            clean = clean.replace(/\\./g, '').replace(',', '.');
+            clean = clean.replace(/\./g, '').replace(',', '.');
         }
     } else if (lastComma > -1) {
-        // Only comma: 1234,56 -> AR
+        // Only comma: 1234,56 -> AR decimal
         clean = clean.replace(',', '.');
+    } else if (lastDot > -1) {
+        // Only dot: 11.000 (AR thousands) vs 11.50 (US decimals)
+        const parts = clean.split('.');
+        const lastPart = parts[parts.length - 1];
+        if (lastPart.length === 3) {
+            // High probability of being a thousands separator in AR context
+            clean = clean.replace(/\./g, '');
+        }
     }
 
-    return parseFloat(clean);
+    const val = parseFloat(clean);
+    return isNaN(val) ? 0 : val;
 }
 
 // ============================================================================
