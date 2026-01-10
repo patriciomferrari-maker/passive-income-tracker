@@ -380,10 +380,10 @@ function parseTextToTransactions(text: string, rules: any[]) {
     // Matches: Date + Spaces + Description + (Optional Cuota) + Voucher(6) + (Optional Space) + Amount
     // 1. Date: DD/MM/YY or DD-MM-YY
     // 2. Description: Text (lazy)
-    // 3. Cuota: Optional NN/NN pattern
+    // 3. Cuota: Optional NN/NN or NN/N pattern (e.g. 01/06 or 01/6)
     // 4. Voucher: STRICT 6 digits. (Using \s* before and after to handle merged columns)
     // 5. Amount: Final number
-    const masterRegex = /^(\d{2}[\/.-]\d{2}(?:[\/.-]\d{2,4})?)\s+(.*?)(?:\s+(\d{2}\/\d{2}))?\s+(\d{6})\s*([0-9.,-]+)$/i;
+    const masterRegex = /^(\d{2}[\/.-]\d{2}(?:[\/.-]\d{2,4})?)\s+(.*?)(?:\s+(\d{2}\/\d{1,2}))?\s+(\d{6})\s*([0-9.,-]+)$/i;
     // Note on \s+: We enforce at least one space between date and desc, and desc and voucher? 
     // Actually, merged columns might mean NO space between Desc and Voucher? 
     // "MERPAGO*KM001234" -> Voucher 001234? No, usually text is separate.
@@ -394,7 +394,8 @@ function parseTextToTransactions(text: string, rules: any[]) {
         const line = lines[i];
 
         // 1. SKIP NOISE (& Header summaries if no tx found yet check removed for simplicity, assuming regex is specific enough)
-        if (/saldo|balance|cierre|página|hoja|extracto|resumen|limite|tasa|vencimiento|anterior|TNA|TEA|CFT|IVA RG|DB\.RG|IMPUESTO|PAIS|PERCEPCION/i.test(line)) continue;
+        // Added: SU PAGO, PAGO EN, TOTAL CONSUMOS, TARJETA (summary line), SALDO
+        if (/saldo|balance|cierre|página|hoja|extracto|resumen|limite|tasa|vencimiento|anterior|TNA|TEA|CFT|IVA RG|DB\.RG|IMPUESTO|PAIS|PERCEPCION|TOTAL CONSUMOS|SU PAGO|PAGO EN|TARJETA/i.test(line)) continue;
 
         // STOP check (Footer)
         if (stopPhrases.some(phrase => line.toUpperCase().includes(phrase))) {
@@ -603,9 +604,6 @@ function cleanAmount(amountStr: string): number {
         // Has dot, no comma.
         // If it looks like 1234.56 -> US
         // If it looks like 1.234 (no decimal part matched by regex? regex requires .XX)
-        // Since regex guarantees a decimal part of 2 digits:
-        // Case: 1234.56 -> US.
-        // Case: 1.234 (Thousand) -> Regex wouldn't match this as a full amount usually, unless loose?
         // Our regex requires `\.[0-9]{2}` for the dot group.
         // So 1.234 would ONLY match if it was 1.23 (value ~1).
         // Safest assumption with dot is standard float.
