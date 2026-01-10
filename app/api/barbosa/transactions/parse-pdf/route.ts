@@ -373,16 +373,27 @@ function parseTextToTransactions(text: string, rules: any[]) {
     // Matches numbers with exactly 2 decimal places to minimize false positives
     // Group 1: Arg format (dots as thousands, comma decimal)
     // Group 2: US format (commas as thousands, dot decimal)
-    const amountRegex = /(-?(?:[0-9]{1,3}(?:\.[0-9]{3})*),[0-9]{2})\b|(-?(?:[0-9]{1,3}(?:,[0-9]{3})*)\.[0-9]{2})\b/g;
+    // Negative lookahead (?!\s*%) prevents matching percentages like "94,59%"
+    const amountRegex = /(-?(?:[0-9]{1,3}(?:\.[0-9]{3})*),[0-9]{2})(?!\s*%)|(-?(?:[0-9]{1,3}(?:,[0-9]{3})*)\.[0-9]{2})(?!\s*%)/g;
 
     let currentDate: string | null = null;
     let currentDescription: string[] = [];
 
+    // STOP CONDITION: If we see these, we likely reached the footer
+    const stopPhrases = ['TOTAL A PAGAR', 'SU PAGO EN PESOS', 'SU PAGO EN DOLARES', 'SALDO ACTUAL'];
+
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
-        // Skip noise lines - HARDENED
-        if (/saldo|balance|cierre|página|hoja|extracto|resumen|total|límite|tasa|su pago|pago en|pago de|vencimiento|anterior/i.test(line)) continue;
+        // 1. CHECK STOP CONDITION FIRST
+        if (stopPhrases.some(phrase => line.toUpperCase().includes(phrase))) {
+            console.log('[PDF-PARSER] Stop phrase found. Stopping parsing at:', line);
+            break;
+        }
+
+        // 2. SKIP NOISE LINES (Interest rates, taxes, headers)
+        // Added TNA, TEA, CFT, IVA RG, DB.RG, IMPUESTO
+        if (/saldo|balance|cierre|página|hoja|extracto|resumen|limite|tasa|vencimiento|anterior|TNA|TEA|CFT|IVA RG|DB\.RG|IMPUESTO|PAIS|PERCEPCION/i.test(line)) continue;
 
         const dateMatch = line.match(dateRegex);
         // Normalize line for amount search (remove symbols that might interfere)
@@ -405,8 +416,12 @@ function parseTextToTransactions(text: string, rules: any[]) {
                 // Be careful to replace the original amount string including symbols if they were adjacent
                 let finalDesc = lineDesc.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
 
+                // Clean common PDF column debris
+                finalDesc = finalDesc.replace(/^[\s\W]*K\s+/, ''); // Remove leading "K " artifact
+
                 let comprobante = '';
-                const compMatch = finalDesc.match(/\b(\d{6})\b/);
+                // Looser comprobante regex: 5 to 10 digits, standalone
+                const compMatch = finalDesc.match(/\b(\d{5,10})\b/);
                 if (compMatch) {
                     comprobante = compMatch[1];
                     finalDesc = finalDesc.replace(comprobante, '').trim();
@@ -429,7 +444,7 @@ function parseTextToTransactions(text: string, rules: any[]) {
 
             let comprobante = '';
             let finalDesc = fullDesc;
-            const compMatch = finalDesc.match(/\b(\d{6})\b/);
+            const compMatch = finalDesc.match(/\b(\d{5,10})\b/);
             if (compMatch) {
                 comprobante = compMatch[1];
                 finalDesc = finalDesc.replace(comprobante, '').trim();
