@@ -163,9 +163,14 @@ export async function POST(req: NextRequest) {
 
 async function parseWithGemini(text: string, categories: any[], rules: any[]) {
     // 1. Initialize SDK
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    // Use standard flash model (001 or latest)
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
+
+    console.log('[GEMINI] Initializing with Key prefix:', apiKey.substring(0, 5) + '...');
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    // Use specific version 001 to avoid "Not Found" 404 on alias
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
 
     // CRITICAL: Preprocess text to extract only the transactions section.
     // The user specifically requested to start from "DETALLE DEL CONSUMO"
