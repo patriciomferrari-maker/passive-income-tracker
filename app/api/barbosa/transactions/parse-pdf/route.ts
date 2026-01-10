@@ -219,58 +219,52 @@ async function parseWithGemini(text: string, categories: any[], rules: any[]) {
         ? rules.map(r => `- Si la descripción contiene "${r.pattern}" → Categoría ID: ${r.categoryId}`).join('\n')
         : 'No hay reglas de categorización definidas';
 
-    const prompt = `Actúa como un extractor de datos contables experto. Tu tarea es analizar el texto de un resumen de tarjeta de crédito (sección 'DETALLE DEL CONSUMO') y extraer transacciones individuales.
-
+    const prompt = `Actúa como un experto en análisis de datos contables. Tu tarea es extraer los movimientos del resumen de tarjeta de crédito adjunto y organizarlos en una tabla estructurada (JSON).
+    
 TEXTO A ANALIZAR:
 """
 ${processedText}
 """
 
-CATEGORÍAS DISPONIBLES:
+CATEGORÍAS DISPONIBLES (Para pre-clasificación):
 ${categoriesText}
 
-REGLAS DE CATEGORIZACIÓN:
+REGLAS DE CATEGORIZACIÓN (Prioridad Alta):
 ${rulesText}
 
-INSTRUCCIONES CRÍTICAS DE EXTRACCIÓN:
-1. **EXCLUSIÓN ABSOLUTA DE PAGOS**:
-   - ELIMINA CUALQUIER LÍNEA QUE DIGA "SU PAGO EN PESOS", "SU PAGO EN DOLARES", "SU PAGO EN USD".
-   - ELIMINA "SALDO ANTERIOR".
-   - ESTO ES CRÍTICO. NO QUIERO VER PAGOS EN LA LISTA.
+Instrucciones de extracción:
 
-2. **DETECTAR CUOTAS**:
-   - Busca patrones como "01/12", "12/12", "05/06" en la columna 'CUOTA' o en la descripción.
-   - Si encuentras cuotas, agrégalo al texto de descripción como "(Cuota X/Y)".
-   - Ejemplo: "VISUAR SA 12/12" -> "VISUAR SA (Cuota 12/12)" (Elimina el 12/12 original si queda redundante).
+1. **Fecha**: Extrae la fecha en formato YYYY-MM-DD. Infiere el año correctamente (si el resumen es de enero, los consumos de diciembre son del año anterior).
+   
+2. **Referencia/Establecimiento**: Limpia el nombre eliminando códigos internos innecesarios (ej. si dice 'K MERPAGO', dejar 'Mercado Pago' o el nombre del comercio). Elimina prefijos 'K ' solitos.
 
-3. **FECHA**:
-   - Formato de salida: YYYY-MM-DD.
-   - Infiere el año correctamente. Si es consumo de Diciembre y estamos en Enero, es año anterior.
-   - JAMÁS inventes años futuros como 2032.
+3. **Cuota**: Identifica si el gasto es en cuotas (ej. '02/03'). Si lo encuentras, agrégalo al final de la descripción como " (Cuota 02/03)".
+   
+4. **Comprobante**: Extrae el número de operación o comprobante de 6-10 dígitos si existe.
 
-4. **MONTO Y MONEDA**:
-   - Detecta si es ARS o USD (columna PESOS vs DOLARES).
-   - Formato Argentina: 1.000,00 (punto miles, coma decimal).
+5. **Importe**: Separa los montos en Pesos (ARS) y Dólares (USD). 
+   - **IMPORTANTE**: Identifica signos negativos (-). Si es negativo, el monto debe ser negativo en el JSON.
+   - Detecta si el monto es en ARS (columna $) o USD (columna USD).
 
-5. **LIMPIEZA DE DESCRIPCIÓN**:
-   - Elimina números de referencia largos que no aportan valor (ej: "009821" si es comprobante, sacalo de la descripción y ponlo en el campo comprobante).
+6. **Impuestos y Tasas**: Si encuentras líneas que corresponden a 'IVA', 'Impuesto PAIS', 'Percepción', 'DB.RG', agrúpalas. (Opcional: puedes ignorarlas si son mero ruido, pero si son cargos reales, expórtalos).
 
-SALIDA ESPERADA (Solo JSON Array):
+SALIDA ESPERADA (Strict JSON format inside transactions array):
 {
   "transactions": [
     {
-      "date": "2025-12-05",
-      "description": "MERPAGO*SOLODEPYURB (Cuota 05/06)",
-      "amount": 10833.16,
+      "date": "2025-11-08",
+      "description": "PORTSAID (Cuota 02/03)",
+      "amount": 19933.33,
       "currency": "ARS",
       "type": "EXPENSE",
-      "categoryId": "",
+      "categoryId": "ID_SI_APLICA",
       "subCategoryId": null,
-      "comprobante": "077569"
+      "comprobante": "002750"
     }
   ]
 }
-`;
+
+REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO ANTERIOR", "PAGO EN PESOS"), IGNORA LA FILA. No inventes datos.`;
 
     // Use REST API instead of SDK
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
