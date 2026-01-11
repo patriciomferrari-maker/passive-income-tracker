@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
+    console.log(`[API] POST /api/barbosa/transactions - Received:`, JSON.stringify(body, null, 2));
     const {
         date,
         amount,
@@ -122,6 +123,8 @@ export async function POST(req: NextRequest) {
         // Calculate THE REAL Start Date of the plan (Month 1)
         const trueStartDate = new Date(date);
         trueStartDate.setMonth(trueStartDate.getMonth() - (currentQuota - 1));
+
+        console.log(`[API] Installment Plan: Main Date=${date}, Quota=${currentQuota}/${installments.total}, Calculated StartDate=${trueStartDate.toISOString()}`);
 
         // Clean description for matching (remove numbers, "Cuota", etc to match the "Plan Parent")
         // e.g. "DLO*INPRO | Health Off 05/09" -> "DLO*INPRO | Health Off"
@@ -270,7 +273,6 @@ export async function POST(req: NextRequest) {
             subCategoryId: validSubCategoryId,
             status: body.status || 'REAL',
             isStatistical: body.isStatistical || false,
-            isInstallmentPlan: body.isInstallmentPlan || false,
             installmentPlanId: installmentPlanId, // Use the resolved ID (new or existing)
             importSource: body.importSource,
             attachmentUrl: body.attachmentUrl,
@@ -281,6 +283,8 @@ export async function POST(req: NextRequest) {
             subCategory: true
         }
     });
+
+    console.log(`[API] Transaction created: ID=${tx.id}, Date=${tx.date.toISOString()}, Desc=${tx.description}`);
 
     // --- COSTA SYNC LOGIC ---
     if (category.name.toLowerCase().includes('costa')) {

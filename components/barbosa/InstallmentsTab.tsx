@@ -14,7 +14,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { format } from 'date-fns';
-import { Loader2, Edit } from 'lucide-react';
+import { Loader2, Edit, Trash2 } from 'lucide-react';
 import { InstallmentsEvolutionTable } from './InstallmentsEvolutionTable';
 // import { EditInstallmentDialog } from './EditInstallmentDialog';
 import { InstallmentsDialog } from './InstallmentsDialog';
@@ -30,6 +30,7 @@ export function InstallmentsTab() {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editPlanId, setEditPlanId] = useState<string | null>(null);
     const [editPlanData, setEditPlanData] = useState<any | null>(null);
+    const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([]);
 
     useEffect(() => {
         loadData();
@@ -75,14 +76,38 @@ export function InstallmentsTab() {
         setDialogOpen(true);
     };
 
-    const handleDelete = async (id: string, description: string) => {
-        if (!confirm(`¿Eliminar plan "${description}" y todas sus cuotas?`)) return;
+    const handleBatchDelete = async () => {
+        if (selectedPlanIds.length === 0) return;
+        if (!confirm(`¿Eliminar ${selectedPlanIds.length} planes seleccionados y todas sus cuotas?`)) return;
+
+        setLoading(true);
         try {
-            await fetch(`/api/barbosa/transactions/installments/${id}`, { method: 'DELETE' });
+            await Promise.all(selectedPlanIds.map(id =>
+                fetch(`/api/barbosa/transactions/installments/${id}`, { method: 'DELETE' })
+            ));
+            setSelectedPlanIds([]);
             loadData();
         } catch (error) {
             console.error(error);
-            alert("Error al eliminar");
+            alert("Error al eliminar los planes seleccionados");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedPlanIds(filteredPlans.map(p => p.id));
+        } else {
+            setSelectedPlanIds([]);
+        }
+    };
+
+    const toggleSelectPlan = (id: string, checked: boolean) => {
+        if (checked) {
+            setSelectedPlanIds(prev => [...prev, id]);
+        } else {
+            setSelectedPlanIds(prev => prev.filter(pid => pid !== id));
         }
     };
 
@@ -104,19 +129,34 @@ export function InstallmentsTab() {
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold text-white">Cuotas Cargadas</h2>
 
-                    <div className="flex items-center space-x-2 bg-slate-900/50 p-2 rounded-lg border border-slate-800">
-                        <Checkbox
-                            id="showFinished"
-                            checked={showFinished}
-                            onCheckedChange={(checked) => setShowFinished(checked === true)}
-                            className="data-[state=checked]:bg-blue-600 border-slate-600"
-                        />
-                        <label
-                            htmlFor="showFinished"
-                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-300 cursor-pointer"
-                        >
-                            Mostrar Finalizadas
-                        </label>
+                    <div className="flex items-center gap-3">
+                        {selectedPlanIds.length > 0 && (
+                            <button
+                                onClick={handleBatchDelete}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-red-950/30 border border-red-900/50 text-red-400 hover:bg-red-900/40 rounded-lg text-xs font-bold transition-all animate-in fade-in zoom-in"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Borrar ({selectedPlanIds.length})
+                            </button>
+                        )}
+
+                        <div className="flex items-center space-x-2 bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+                            <Checkbox
+                                id="showFinished"
+                                checked={showFinished}
+                                onCheckedChange={(checked) => {
+                                    setShowFinished(checked === true);
+                                    setSelectedPlanIds([]); // Clear selection when filter changes
+                                }}
+                                className="data-[state=checked]:bg-blue-600 border-slate-600"
+                            />
+                            <label
+                                htmlFor="showFinished"
+                                className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-300 cursor-pointer"
+                            >
+                                Mostrar Finalizadas
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -124,6 +164,13 @@ export function InstallmentsTab() {
                     <Table>
                         <TableHeader className="bg-slate-900">
                             <TableRow className="hover:bg-slate-900 border-slate-800">
+                                <TableHead className="w-[40px] text-center">
+                                    <Checkbox
+                                        checked={filteredPlans.length > 0 && selectedPlanIds.length === filteredPlans.length}
+                                        onCheckedChange={toggleSelectAll}
+                                        className="border-slate-600 data-[state=checked]:bg-blue-600"
+                                    />
+                                </TableHead>
                                 <TableHead className="text-slate-400 font-bold min-w-[200px]">Concepto</TableHead>
                                 <TableHead className="text-slate-400 font-bold">Categoría</TableHead>
                                 <TableHead className="text-slate-400 font-bold text-center">Progreso</TableHead>
@@ -147,6 +194,13 @@ export function InstallmentsTab() {
                                         key={plan.id}
                                         className={`border-slate-800 hover:bg-slate-900/40 transition-colors ${plan.isFinished ? 'opacity-50 hover:opacity-100 bg-slate-900/20' : ''}`}
                                     >
+                                        <TableCell className="text-center">
+                                            <Checkbox
+                                                checked={selectedPlanIds.includes(plan.id)}
+                                                onCheckedChange={(checked) => toggleSelectPlan(plan.id, checked === true)}
+                                                className="border-slate-700 data-[state=checked]:bg-blue-600"
+                                            />
+                                        </TableCell>
                                         <TableCell className="font-medium text-white">
                                             {plan.description}
                                         </TableCell>

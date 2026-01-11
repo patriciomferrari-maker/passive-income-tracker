@@ -11,6 +11,7 @@ import { InstallmentsDialog } from './InstallmentsDialog';
 import { TransactionTable } from './TransactionTable';
 import { TransactionForm } from './TransactionForm';
 import { Plus, Save, Search, Calendar, DollarSign, FileText, Loader2, Check, X, AlertTriangle, Paperclip, Receipt, Upload, Copy, Edit, Trash2 } from 'lucide-react';
+import { upload } from '@vercel/blob/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -198,6 +199,7 @@ export function TransactionsTab() {
         setIsParsing(true);
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('currentYear', new Date().getFullYear().toString()); // Add current year
 
         try {
             console.log('[FRONTEND] Sending PDF to server...');
@@ -267,18 +269,13 @@ export function TransactionsTab() {
             // Step 1: Upload to Vercel Blob if we have a pending file
             if (pendingFile) {
                 try {
-                    const uploadRes = await fetch(`/api/upload?filename=${encodeURIComponent(pendingFile.name)}`, {
-                        method: 'POST',
-                        body: pendingFile,
+                    console.log(`[FRONTEND] Uploading ${pendingFile.name}...`);
+                    const blob = await upload(pendingFile.name, pendingFile, {
+                        access: 'public',
+                        handleUploadUrl: '/api/upload',
                     });
-
-                    if (uploadRes.ok) {
-                        const blob = await uploadRes.json();
-                        attachmentUrl = blob.url;
-                    } else {
-                        console.warn('[FRONTEND] Upload failed, status:', uploadRes.status);
-                        // Optional: notify user but continue
-                    }
+                    attachmentUrl = blob.url;
+                    console.log(`[FRONTEND] Upload successful: ${attachmentUrl}`);
                 } catch (uploadError) {
                     console.error('[FRONTEND] Upload error (soft fail):', uploadError);
                     // Continue without attachment
@@ -291,6 +288,7 @@ export function TransactionsTab() {
             const validResults = parsedResults.filter(tx => !tx.skip);
 
             for (const tx of validResults) {
+                console.log(`[FRONTEND] Sending transaction: ${tx.description}, Date: ${tx.date}`);
                 const res = await fetch('/api/barbosa/transactions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

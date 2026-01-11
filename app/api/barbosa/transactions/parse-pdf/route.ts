@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
         }
 
         console.log('[PDF] Processing file:', file.name, 'size:', file.size);
+        const currentYear = formData.get('currentYear') as string || new Date().getFullYear().toString();
         const buffer = Buffer.from(await file.arrayBuffer());
 
         console.log('[PDF] Calling pdf-parse...');
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
             try {
                 console.log('[PDF] Attempting Gemini AI parsing...');
                 // Pass text but we will slice it inside the function
-                const geminiResult = await parseWithGemini(text, categories, rules);
+                const geminiResult = await parseWithGemini(text, categories, rules, currentYear, file.name);
                 transactions = geminiResult.transactions;
                 parserUsed = 'gemini';
                 console.log('[PDF] Gemini parsing successful. Detected', transactions.length, 'transactions');
@@ -333,7 +334,7 @@ function parseCorrectAmount(amountStr: string): number {
 // GEMINI AI PARSER
 // ============================================================================
 
-async function parseWithGemini(text: string, categories: any[], rules: any[]) {
+async function parseWithGemini(text: string, categories: any[], rules: any[], currentYear: string, fileName: string) {
     // 1. Initialize SDK
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
@@ -395,6 +396,14 @@ TEXTO A ANALIZAR:
 """
 ${processedText}
 """
+
+CONTEXTO TEMPORAL:
+- Estamos en el año: ${currentYear} (Fecha actual: ${new Date().toLocaleDateString('es-AR')})
+- Archivo procesado: ${fileName}
+- REGLA DE INFERENCIA: Si el archivo se llama "Diciembre 2025" y una fecha dice "12-01", es del año 2026? NO, usualmente los consumos son del periodo actual. 
+  Usa el nombre del archivo y el año actual para deducir el año correcto de cada fila. Si la fecha es "10-08-25", el año es 2025.
+  Si el resumen es de ENERO 2026, los consumos de DICIEMBRE son de 2025.
+  SIEMPRE devuelve el año en formato 4 dígitos (YYYY).
 
 CATEGORÍAS DISPONIBLES (Para pre-clasificación):
 ${categoriesText}

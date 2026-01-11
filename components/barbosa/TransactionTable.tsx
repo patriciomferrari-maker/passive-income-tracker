@@ -98,10 +98,10 @@ export function TransactionTable({ transactions, categories, selectedIds, onSele
                             />
                         </th>
                         <th className="px-4 py-3">Fecha</th>
-                        <th className="px-4 py-3">Comp.</th>
                         <th className="px-4 py-3">Categoría</th>
                         <th className="px-4 py-3">Subcategoría</th>
                         <th className="px-4 py-3">Descripción</th>
+                        <th className="px-4 py-3">Comp.</th>
                         <th className="px-4 py-3 text-right">Monto</th>
                         <th className="px-4 py-3 text-right">Acciones</th>
                     </tr>
@@ -117,9 +117,6 @@ export function TransactionTable({ transactions, categories, selectedIds, onSele
                             </td>
                             <td className="px-4 py-3 font-mono text-slate-300 whitespace-nowrap">
                                 {formatDateUTC(tx.date)}
-                            </td>
-                            <td className="px-4 py-3 font-mono text-[10px] text-slate-500">
-                                {tx.comprobante || '-'}
                             </td>
                             <td className="px-4 py-3">
                                 <Badge variant="outline" className={`text-[10px] h-5 px-2 font-medium border ${getCategoryColor(getCategoryName(tx.categoryId))}`}>
