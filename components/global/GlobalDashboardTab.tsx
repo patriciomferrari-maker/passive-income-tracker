@@ -585,10 +585,11 @@ export function GlobalDashboardTab() {
                                         {!showBankHistory && <LabelList dataKey="total" content={renderTotalLabel} />}
                                     </Bar>
                                     {showBankHistory && (
-                                        <Bar dataKey="Bank" stackId="a" fill="#f59e0b" name="Plazo Fijo / Banco">
-                                            <LabelList dataKey="total" content={renderTotalLabel} />
-                                        </Bar>
+                                        <Bar dataKey="Bank" stackId="a" fill="#f59e0b" name="Plazo Fijo / Banco" />
                                     )}
+                                    <Bar dataKey="Installments" stackId="a" fill="#ef4444" name="Cuotas">
+                                        <LabelList dataKey="total" content={renderTotalLabel} />
+                                    </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
                         </CardContent>
@@ -629,7 +630,8 @@ export function GlobalDashboardTab() {
                                 <Bar dataKey="ON" stackId="a" fill="#3b82f6" name="ONs" />
                                 <Bar dataKey="Treasury" stackId="a" fill="#8b5cf6" name="Treasuries" />
                                 <Bar dataKey="Rentals" stackId="a" fill="#10b981" name="Alquileres" />
-                                <Bar dataKey="PF" stackId="a" fill="#f59e0b" name="Plazo Fijo">
+                                <Bar dataKey="PF" stackId="a" fill="#f59e0b" name="Plazo Fijo" />
+                                <Bar dataKey="Installments" stackId="a" fill="#ef4444" name="Cuotas">
                                     <LabelList dataKey="total" content={renderTotalLabel} />
                                 </Bar>
                             </BarChart>

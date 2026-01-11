@@ -164,12 +164,12 @@ export async function GET() {
 
         // --- HISTORY CHART DATA (Strictly bounded by IPC) ---
         // UPDATE: Bounded by nominalHistoryEnd (Today)
-        const monthlyData = new Map<string, { ON: number; Treasury: number; Rentals: number; Bank: number }>();
+        const monthlyData = new Map<string, { ON: number; Treasury: number; Rentals: number; Bank: number; Installments: number }>();
         // Fill Map from historyStart to historyEnd
         let iterDate = startOfMonth(nominalHistoryStart);
         while (isBefore(iterDate, nominalHistoryEnd) || iterDate.getTime() === startOfMonth(nominalHistoryEnd).getTime()) {
             const key = format(iterDate, 'yyyy-MM');
-            monthlyData.set(key, { ON: 0, Treasury: 0, Rentals: 0, Bank: 0 });
+            monthlyData.set(key, { ON: 0, Treasury: 0, Rentals: 0, Bank: 0, Installments: 0 });
             iterDate = addMonths(iterDate, 1);
         }
 
@@ -202,6 +202,19 @@ export async function GET() {
             }
         });
 
+        // Integrate Barbosa Installments into History
+        installmentPlans.forEach(plan => {
+            plan.transactions.forEach(tx => {
+                if (tx.isStatistical || tx.status !== 'REAL') return;
+                const key = format(tx.date, 'yyyy-MM');
+                if (monthlyData.has(key)) {
+                    let amountUSD = Math.abs(tx.amount);
+                    if (plan.currency === 'ARS') amountUSD /= exchangeRate;
+                    monthlyData.get(key)!.Installments += amountUSD;
+                }
+            });
+        });
+
         const history = Array.from(monthlyData.entries())
             .sort((a, b) => a[0].localeCompare(b[0]))
             .map(([key, values]) => {
@@ -209,7 +222,7 @@ export async function GET() {
                 return {
                     month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
                     fullDate: key,
-                    total: values.ON + values.Treasury + values.Rentals + values.Bank,
+                    total: values.ON + values.Treasury + values.Rentals + values.Bank + values.Installments,
                     ...values
                 };
             });
@@ -229,7 +242,8 @@ export async function GET() {
                 { name: 'Obligaciones Negociables', value: lastMonth.ON, fill: '#3b82f6' },
                 { name: 'Treasuries', value: lastMonth.Treasury, fill: '#8b5cf6' },
                 { name: 'Alquileres', value: lastMonth.Rentals, fill: '#10b981' },
-                { name: 'Intereses Banco', value: lastMonth.Bank, fill: '#f59e0b' }
+                { name: 'Plazo Fijo', value: lastMonth.Bank, fill: '#f59e0b' },
+                { name: 'Cuotas', value: lastMonth.Installments, fill: '#ef4444' }
             ].filter(item => item.value > 0);
         }
 
@@ -357,12 +371,12 @@ export async function GET() {
             select: { date: true, amountUSD: true }
         });
 
-        const projectedMap = new Map<string, { ON: number, Treasury: number, Rentals: number, PF: number }>();
+        const projectedMap = new Map<string, { ON: number, Treasury: number, Rentals: number, PF: number, Installments: number }>();
 
         iterDate = startOfMonth(projectionStart);
         while (isBefore(iterDate, projectionEnd) || iterDate.getTime() === startOfMonth(projectionEnd).getTime()) {
             const key = format(iterDate, 'yyyy-MM');
-            projectedMap.set(key, { ON: 0, Treasury: 0, Rentals: 0, PF: 0 });
+            projectedMap.set(key, { ON: 0, Treasury: 0, Rentals: 0, PF: 0, Installments: 0 });
             iterDate = addMonths(iterDate, 1);
         }
 
@@ -398,7 +412,21 @@ export async function GET() {
                 // Let's assume user wants to see Liquidity Flow? 
                 // "El grafico esta vacio ahora" -> implicitly wants to see non-zero bars.
                 // Let's inclue PF Interest only for now as it's the "Gain". including capital makes the bar huge.
+                // Actually, for PF, let's include interest as it's the "income".
             }
+        });
+
+        // Integrate Barbosa Installments into Projection
+        installmentPlans.forEach(plan => {
+            plan.transactions.forEach(tx => {
+                if (tx.isStatistical || tx.status !== 'PROJECTED') return;
+                const key = format(tx.date, 'yyyy-MM');
+                if (projectedMap.has(key)) {
+                    let amountUSD = Math.abs(tx.amount);
+                    if (plan.currency === 'ARS') amountUSD /= exchangeRate;
+                    projectedMap.get(key)!.Installments += amountUSD;
+                }
+            });
         });
 
         const projected = Array.from(projectedMap.entries())
@@ -407,7 +435,7 @@ export async function GET() {
                 const [year, month] = key.split('-');
                 return {
                     month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
-                    total: values.ON + values.Treasury + values.Rentals + values.PF,
+                    total: values.ON + values.Treasury + values.Rentals + values.PF + values.Installments,
                     ...values
                 };
             });
@@ -455,7 +483,9 @@ export async function GET() {
 
         installmentPlans.forEach(plan => {
             const totalAmount = plan.totalAmount || 0;
-            const paid = plan.transactions.reduce((sum, p) => sum + Math.abs(p.amount), 0);
+            const paid = plan.transactions
+                .filter(p => !p.isStatistical && p.status === 'REAL')
+                .reduce((sum, p) => sum + Math.abs(p.amount), 0);
             const remaining = Math.max(0, totalAmount - paid);
 
             if (remaining > 1) { // 1 unit threshold
