@@ -80,7 +80,7 @@ export function InstallmentsChart() {
                                 cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                                 contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '8px' }}
                                 itemStyle={{ color: '#60a5fa' }}
-                                formatter={(val: number) => [`$${val.toLocaleString()}`, 'Total Cuotas']}
+                                formatter={(val: number) => [`$${val.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Total Cuotas']}
                             />
                             <Bar dataKey="amount" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40}>
                                 <LabelList

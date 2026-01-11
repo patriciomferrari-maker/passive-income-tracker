@@ -122,7 +122,7 @@ export function InstallmentsEvolutionTable() {
                                         </td>
                                         {months.map((m: string) => (
                                             <td key={m} className={`px-2 py-3 text-right ${catData.total[m] ? 'text-white font-bold' : 'text-slate-600'}`}>
-                                                {catData.total[m] ? `$${catData.total[m].toLocaleString()}` : '-'}
+                                                {catData.total[m] ? `$${catData.total[m].toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                                             </td>
                                         ))}
                                     </tr>
@@ -149,7 +149,7 @@ export function InstallmentsEvolutionTable() {
                                                     </td>
                                                     {months.map((m: string) => (
                                                         <td key={m} className="px-2 py-2 text-right text-slate-400">
-                                                            {subData.total[m] ? `$${subData.total[m].toLocaleString()}` : '-'}
+                                                            {subData.total[m] ? `$${subData.total[m].toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                                                         </td>
                                                     ))}
                                                 </tr>
@@ -162,7 +162,7 @@ export function InstallmentsEvolutionTable() {
                                                         </td>
                                                         {months.map((m: string) => (
                                                             <td key={m} className="px-2 py-1 text-right text-slate-600 text-[10px]">
-                                                                {subData.concepts[concept].total[m] ? `$${subData.concepts[concept].total[m].toLocaleString()}` : '-'}
+                                                                {subData.concepts[concept].total[m] ? `$${subData.concepts[concept].total[m].toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                                                             </td>
                                                         ))}
                                                     </tr>
@@ -181,7 +181,7 @@ export function InstallmentsEvolutionTable() {
                                 const total = categories.reduce((sum, cat) => sum + (hierarchy[cat].total[m] || 0), 0);
                                 return (
                                     <td key={m} className="px-2 py-3 text-right">
-                                        {total > 0 ? `$${total.toLocaleString()}` : '-'}
+                                        {total > 0 ? `$${total.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                                     </td>
                                 );
                             })}

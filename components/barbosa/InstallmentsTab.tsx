@@ -20,6 +20,11 @@ import { InstallmentsEvolutionTable } from './InstallmentsEvolutionTable';
 // import { EditInstallmentDialog } from './EditInstallmentDialog';
 import { InstallmentsDialog } from './InstallmentsDialog';
 
+const formatCurrency = (amount: number, currency: string = 'ARS') => {
+    const symbol = currency === 'USD' ? 'US$' : '$';
+    return `${symbol}${amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
 export function InstallmentsTab() {
     const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -290,10 +295,10 @@ export function InstallmentsTab() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right font-mono text-slate-300">
-                                            {plan.currency === 'USD' ? 'US$' : '$'}{plan.totalAmount.toLocaleString()}
+                                            {formatCurrency(plan.totalAmount, plan.currency)}
                                         </TableCell>
                                         <TableCell className="text-right font-mono font-bold text-red-400">
-                                            {plan.isFinished ? '-' : `$${(plan.totalAmount - plan.paidAmount).toLocaleString()}`}
+                                            {plan.isFinished ? '-' : formatCurrency(Math.max(0, plan.totalAmount - Math.abs(plan.paidAmount)), plan.currency)}
                                         </TableCell>
                                         <TableCell className="text-center text-slate-400 text-xs">
                                             {plan.nextDueDate && !plan.isFinished ? format(new Date(plan.nextDueDate), 'dd/MM/yy') : '-'}
