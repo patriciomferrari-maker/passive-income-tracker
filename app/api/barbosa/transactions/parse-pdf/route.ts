@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
 
                 // POST-PROCESSING: Validate and correct Gemini's voucher/amount splits using strict Regex
                 console.log('[PDF] Applying Regex validation to correct potential hallucinations...');
-                transactions = validateAndCorrectTransactions(transactions, geminiResult.processedText);
+                transactions = validateAndCorrectTransactions(transactions, geminiResult.processedText, currentYear, file.name);
                 console.log('[PDF] Validation complete. Final count:', transactions.length, 'transactions');
             } catch (geminiError) {
                 console.error('[PDF] Gemini parsing failed:', geminiError);
@@ -185,114 +185,99 @@ function normalizeTransactionKey(desc: string): string {
 /**
  * Validates and corrects Gemini's transaction parsing using a strict regex
  * This catches hallucinations where Gemini incorrectly adds the last digit
- * of the voucher to the beginning of the amount (e.g., 663676 54.989,83 -> 654.989,83).
+ * of the voucher to the beginning of the amount, AND fixes date year-boundary errors.
  */
-function validateAndCorrectTransactions(geminiTransactions: any[], originalText: string): any[] {
-    console.log('[VALIDATOR] Starting validation of', geminiTransactions.length, 'transactions');
+function validateAndCorrectTransactions(geminiTransactions: any[], originalText: string, contextYear?: string, fileName?: string): any[] {
+    console.log('[VALIDATOR] Starting validation with context:', contextYear, fileName);
 
-    // Extract the transaction lines from the original text
+    const yearContext = contextYear ? parseInt(contextYear) : new Date().getFullYear();
+    const isJanuaryStatement = fileName?.toLowerCase().includes('enero') || new Date().getMonth() === 0;
+
     const lines = originalText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-
     const mergedLines: string[] = [];
     let currentBlock: string = "";
     const summaryKeywords = ['TOTAL', 'SALDO', 'RESUMEN', 'PAGO EN', 'VENCIMIENTO', 'LIMITE', 'TASA', 'NOMINAL'];
 
     for (const line of lines) {
-        const isDateLine = /^\d{2}[\\/.-]\d{2}/.test(line);
+        // More flexible date detection
+        const isDateLine = /^\s*(\d{1,2}\s*[\\/.-]\s*\d{1,2})/.test(line);
         const isSummary = summaryKeywords.some(kw => line.toUpperCase().startsWith(kw));
 
         if (isDateLine) {
             if (currentBlock) mergedLines.push(currentBlock);
             currentBlock = line;
         } else if (currentBlock && !isSummary) {
-            // Join lines that look like they belong to the same transaction block
             currentBlock += " " + line;
         } else if (currentBlock && isSummary) {
-            // Summary line detected, end current block and don't merge the summary
             mergedLines.push(currentBlock);
             currentBlock = "";
         }
     }
     if (currentBlock) mergedLines.push(currentBlock);
 
-    console.log(`[VALIDATOR] Merged ${lines.length} lines into ${mergedLines.length} transaction blocks`);
-
-    // STRETEGY: Extremes-First Anchoring
-    // Group 1: Date + Everything until last 6-digit number + Amount
-    // Group 2: Voucher (exactly 6 digits)
-    // Group 3: Amount
-    // We use a positive lookahead for the voucher to ensure it's right before the amount part
-    const robustRegex = /^(\d{2}[\\/.-]\d{2}.+?)\s*(\d{6})\s*([0-9.,-]+)\s*$/;
-
-    const voucherMap = new Map<string, { amountStr: string; voucher: string }>();
-    const descMap = new Map<string, { amountStr: string; voucher: string }[]>();
+    // Robust regex that accounts for spaces and optional * mark after date
+    const robustRegex = /^\s*(\d{1,2}\s*[\\/.-]\s*\d{1,2}(?:\s*[\\/.-]\s*\d{2,4})?)\s*(?:\*)?\s*(.*?)\s*(\d{6})\s*([0-9.,-]+)\s*$/;
+    const voucherMap = new Map<string, { amountStr: string; voucher: string; date: string }>();
+    const descMap = new Map<string, { amountStr: string; voucher: string; date: string }[]>();
 
     for (let line of mergedLines) {
         line = line.trim().replace(/\s+/g, ' ');
         const match = line.match(robustRegex);
 
         if (match) {
-            // Group 1 contains Date + Description
-            const dateDesc = match[1].trim();
-            const voucher = match[2];
-            const amountStr = match[3];
+            const rawDate = match[1];
+            const description = match[2].trim();
+            const voucher = match[3];
+            const amountStr = match[4];
 
-            // Extract date and actual description from dateDesc
-            const dateMatch = dateDesc.match(/^(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s*(.*)$/);
-            const description = dateMatch ? dateMatch[2].trim() : dateDesc;
+
+            const parsedDate = normalizeDate(rawDate, yearContext, isJanuaryStatement);
             const descKey = normalizeTransactionKey(description);
 
-            // DEBUG: Log first 10 processed lines to see if they look correct
-            if (voucherMap.size < 10) {
-                console.log(`[VALIDATOR] Block: "${line}"`);
-                console.log(`[VALIDATOR] Extracted -> Desc: "${description}", Voucher: ${voucher}, Amount: ${amountStr}, Key: ${descKey}`);
-            }
+            console.log(`[VALIDATOR] Text Match: ${rawDate} -> ${parsedDate} | Desc: ${description} | Voucher: ${voucher}`);
 
-            // Save by Desc + Voucher for exact matching
-            voucherMap.set(`${descKey}_${voucher}`, { amountStr, voucher });
-
-            // Save by Description for ambiguity fallback
+            voucherMap.set(`${descKey}_${voucher}`, { amountStr, voucher, date: parsedDate });
             const existing = descMap.get(descKey) || [];
-            existing.push({ amountStr, voucher });
+            existing.push({ amountStr, voucher, date: parsedDate });
             descMap.set(descKey, existing);
         }
     }
 
-    const validatedTransactions = geminiTransactions.map(tx => {
+    return geminiTransactions.map(tx => {
         const descKey = normalizeTransactionKey(tx.description);
         const geminiVoucher = String(tx.comprobante || '').padStart(6, '0');
 
-        // Priority 1: Exact Match (Description + Voucher)
         const exactMatch = voucherMap.get(`${descKey}_${geminiVoucher}`);
         if (exactMatch) {
             const correctAmount = parseCorrectAmount(exactMatch.amountStr);
-            if (tx.amount !== correctAmount) {
-                console.warn(`[VALIDATOR] Corrected "${tx.description}" by voucher ${geminiVoucher}: ${tx.amount} -> ${correctAmount}`);
-                return { ...tx, amount: correctAmount, comprobante: exactMatch.voucher };
+            if (tx.date !== exactMatch.date || tx.amount !== correctAmount) {
+                console.log(`[VALIDATOR] Corrected "${tx.description}": Date ${tx.date} -> ${exactMatch.date}, Amount ${tx.amount} -> ${correctAmount}`);
             }
-            return tx;
+            return {
+                ...tx,
+                amount: correctAmount,
+                comprobante: exactMatch.voucher,
+                date: exactMatch.date // Anchor date to text
+            };
         }
 
-        // Priority 2: Fuzzy Match (Only if description is unique in the entire PDF)
         const matches = descMap.get(descKey);
         if (matches && matches.length === 1) {
             const match = matches[0];
             const correctAmount = parseCorrectAmount(match.amountStr);
-            if (tx.amount !== correctAmount || tx.comprobante !== match.voucher) {
-                console.warn(`[VALIDATOR] Corrected "${tx.description}" by unique name: ${tx.amount} -> ${correctAmount}`);
-                return { ...tx, amount: correctAmount, comprobante: match.voucher };
+            if (tx.date !== match.date || tx.amount !== correctAmount) {
+                console.log(`[VALIDATOR] Corrected (Fuzzy) "${tx.description}": Date ${tx.date} -> ${match.date}`);
             }
+            return {
+                ...tx,
+                amount: correctAmount,
+                comprobante: match.voucher,
+                date: match.date // Anchor date to text
+            };
         }
 
         return tx;
     });
-
-    const correctionCount = validatedTransactions.filter((tx, idx) => {
-        return tx.amount !== geminiTransactions[idx].amount || tx.comprobante !== geminiTransactions[idx].comprobante;
-    }).length;
-
-    console.log(`[VALIDATOR] Validation complete. Corrected ${correctionCount} hallucinations.`);
-    return validatedTransactions;
 }
 
 /**
@@ -1043,20 +1028,26 @@ function createTransaction(date: string, amount: number, description: string, ru
     };
 }
 
-function normalizeDate(dateStr: string) {
-    const parts = dateStr.split(/[\/.-]/);
+function normalizeDate(dateStr: string, contextYear?: number, isJanuaryStatement?: boolean) {
+    // Clean spaces and double separators
+    const cleanDateStr = dateStr.replace(/\s+/g, '').replace(/([\/.-])\1+/g, '$1');
+    const parts = cleanDateStr.split(/[\/.-]/);
     const today = new Date();
     let day = parseInt(parts[0]);
-    let month = parseInt(parts[1]) - 1;
-    let year = parts[2] ? parseInt(parts[2]) : today.getFullYear();
+    let month = parseInt(parts[1]) - 1; // 0-indexed
+    let year = parts[2] ? parseInt(parts[2]) : (contextYear || today.getFullYear());
 
     if (year < 100) year += 2000;
 
-    // Sanity Check: If year is way in the future (e.g. > current + 1), it's likely a parsing error
-    if (year > today.getFullYear() + 1) {
-        year = today.getFullYear();
+    // Smart Year Boundary Logic:
+    // If we're in a January statement and see a consumption from December (11),
+    // it belongs to the previous year.
+    if (isJanuaryStatement && month === 11 && contextYear) {
+        year = contextYear - 1;
     }
-    // If year is too old (< 2000), fix it
+
+    // Sanity Checks
+    if (year > today.getFullYear() + 1) year = today.getFullYear();
     if (year < 2000) year = today.getFullYear();
 
     const date = new Date(year, month, day);
