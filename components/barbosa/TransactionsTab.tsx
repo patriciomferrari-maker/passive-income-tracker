@@ -409,7 +409,8 @@ export function TransactionsTab() {
                     amountMode: 'TOTAL', // Default to showing TOTAL for editing
                     amountValue: plan.totalAmount.toString(),
                     status: 'PROJECTED', // Default, though we might want to fetch stats
-                    isStatistical: plan.isStatistical
+                    isStatistical: plan.isStatistical,
+                    comprobante: plan.comprobante || ''
                 });
                 setPlanEditId(planId);
                 setInstallmentsDialogOpen(true);

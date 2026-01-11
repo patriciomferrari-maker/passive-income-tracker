@@ -72,7 +72,8 @@ export function InstallmentsTab() {
             amountMode: 'TOTAL', // Default to TOTAL when editing existing, logic can be smarter but this is safe
             amountValue: plan.totalAmount.toString(),
             status: 'REAL', // Default
-            isStatistical: plan.isStatistical
+            isStatistical: plan.isStatistical,
+            comprobante: plan.comprobante || ''
         });
         setDialogOpen(true);
     };

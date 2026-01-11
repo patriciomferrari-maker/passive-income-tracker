@@ -19,7 +19,9 @@ export async function GET(req: NextRequest) {
                         id: true,
                         date: true,
                         amount: true,
-                        status: true
+                        status: true,
+                        isStatistical: true,
+                        comprobante: true
                     },
                     orderBy: { date: 'asc' }
                 }
@@ -43,7 +45,10 @@ export async function GET(req: NextRequest) {
                 paidCount,
                 progress,
                 nextDueDate: nextDue ? nextDue.date : null,
-                isFinished: paidCount >= p.installmentsCount
+                isFinished: paidCount >= p.installmentsCount,
+                // These are common to all transactions in the plan
+                isStatistical: p.transactions[0]?.isStatistical || false,
+                comprobante: p.transactions[0]?.comprobante || null
             };
         });
 

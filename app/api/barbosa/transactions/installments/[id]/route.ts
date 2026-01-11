@@ -13,14 +13,27 @@ export async function GET(
     try {
         const plan = await prisma.barbosaInstallmentPlan.findUnique({
             where: { id: params.id },
-            include: { user: true }
+            include: {
+                user: true,
+                transactions: {
+                    select: { isStatistical: true, comprobante: true },
+                    take: 1
+                }
+            }
         });
 
         if (!plan || plan.user.email !== session.user?.email) {
             return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
         }
 
-        return NextResponse.json(plan);
+        // Add computed fields from transactions
+        const enhancedPlan = {
+            ...plan,
+            isStatistical: plan.transactions[0]?.isStatistical || false,
+            comprobante: plan.transactions[0]?.comprobante || null
+        };
+
+        return NextResponse.json(enhancedPlan);
     } catch (error) {
         console.error("Error fetching plan:", error);
         return NextResponse.json({ error: 'Internal Error' }, { status: 500 });
