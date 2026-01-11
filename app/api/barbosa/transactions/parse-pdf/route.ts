@@ -192,6 +192,8 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     // Extract the transaction lines from the original text
     const lines = originalText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
+    const mergedLines: string[] = [];
+    let currentBlock: string = "";
     const summaryKeywords = ['TOTAL', 'SALDO', 'RESUMEN', 'PAGO EN', 'VENCIMIENTO', 'LIMITE', 'TASA', 'NOMINAL'];
 
     for (const line of lines) {
