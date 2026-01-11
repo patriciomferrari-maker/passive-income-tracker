@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, TrendingUp, DollarSign, Wallet } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet } from 'lucide-react';
 import { CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie, Legend, XAxis, YAxis } from 'recharts';
+import { InstallmentsChart } from './InstallmentsChart';
 
 export function DashboardTab() {
     const [data, setData] = useState<any>(null);
@@ -189,6 +190,17 @@ export function DashboardTab() {
                 </div>
             </div>
 
+            {/* Installments Chart Section - Bottom */}
+            <div className="space-y-6 pt-6 border-t border-slate-900">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <TrendingDown className="h-6 w-6 text-blue-500" />
+                    Análisis de Cuotas
+                </h2>
+
+                <div className="w-full h-[400px]">
+                    <InstallmentsChart />
+                </div>
+            </div>
         </div>
     );
 }
