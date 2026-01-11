@@ -192,17 +192,22 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     // Extract the transaction lines from the original text
     const lines = originalText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-    const mergedLines: string[] = [];
-    let currentBlock: string = "";
+    const summaryKeywords = ['TOTAL', 'SALDO', 'RESUMEN', 'PAGO EN', 'VENCIMIENTO', 'LIMITE', 'TASA', 'NOMINAL'];
 
     for (const line of lines) {
-        // A new transaction ALWAYS starts with a date pattern (DD-MM-YY or similar)
-        if (/^\d{2}[\\/.-]\d{2}/.test(line)) {
+        const isDateLine = /^\d{2}[\\/.-]\d{2}/.test(line);
+        const isSummary = summaryKeywords.some(kw => line.toUpperCase().startsWith(kw));
+
+        if (isDateLine) {
             if (currentBlock) mergedLines.push(currentBlock);
             currentBlock = line;
-        } else if (currentBlock) {
+        } else if (currentBlock && !isSummary) {
             // Join lines that look like they belong to the same transaction block
             currentBlock += " " + line;
+        } else if (currentBlock && isSummary) {
+            // Summary line detected, end current block and don't merge the summary
+            mergedLines.push(currentBlock);
+            currentBlock = "";
         }
     }
     if (currentBlock) mergedLines.push(currentBlock);
@@ -210,12 +215,11 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     console.log(`[VALIDATOR] Merged ${lines.length} lines into ${mergedLines.length} transaction blocks`);
 
     // STRETEGY: Extremes-First Anchoring
-    // Group 1: Date (Start)
-    // Group 2: Description (Greedy, absorbs everything in middle)
-    // Group 3: Voucher (6 digits) - Backtracks to find exactly 6 digits before amount
-    // Group 4: Amount (End) - Handles dots/commas and optional sign
-    // The "\s*" before Group 4 handles FUSED digits (e.g. 0081686000,00)
-    const robustRegex = /^(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s+(.+)\s+(\d{6})\s*([0-9.,-]+)$/;
+    // Group 1: Date + Everything until last 6-digit number + Amount
+    // Group 2: Voucher (exactly 6 digits)
+    // Group 3: Amount
+    // We use a positive lookahead for the voucher to ensure it's right before the amount part
+    const robustRegex = /^(\d{2}[\\/.-]\d{2}.+?)\s*(\d{6})\s*([0-9.,-]+)\s*$/;
 
     const voucherMap = new Map<string, { amountStr: string; voucher: string }>();
     const descMap = new Map<string, { amountStr: string; voucher: string }[]>();
@@ -225,10 +229,21 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
         const match = line.match(robustRegex);
 
         if (match) {
-            const description = match[2].trim();
-            const voucher = match[3];
-            const amountStr = match[4];
+            // Group 1 contains Date + Description
+            const dateDesc = match[1].trim();
+            const voucher = match[2];
+            const amountStr = match[3];
+
+            // Extract date and actual description from dateDesc
+            const dateMatch = dateDesc.match(/^(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s*(.*)$/);
+            const description = dateMatch ? dateMatch[2].trim() : dateDesc;
             const descKey = normalizeTransactionKey(description);
+
+            // DEBUG: Log first 10 processed lines to see if they look correct
+            if (voucherMap.size < 10) {
+                console.log(`[VALIDATOR] Block: "${line}"`);
+                console.log(`[VALIDATOR] Extracted -> Desc: "${description}", Voucher: ${voucher}, Amount: ${amountStr}, Key: ${descKey}`);
+            }
 
             // Save by Desc + Voucher for exact matching
             voucherMap.set(`${descKey}_${voucher}`, { amountStr, voucher });
