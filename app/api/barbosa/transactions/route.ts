@@ -57,16 +57,25 @@ export async function POST(req: NextRequest) {
         comprobante       // Receipt/Voucher number
     } = body;
 
-    // 0. Duplicate Detection (by Comprobante)
-    if (comprobante) {
+    // 0. Duplicate Detection
+    // We check for duplicates based on Voucher (if provided and long enough) OR (Date + Amount + Voucher)
+    const isVoucherValid = comprobante && comprobante.length > 2 && !comprobante.includes('$');
+
+    if (isVoucherValid || (date && amount)) {
         const existing = await prisma.barbosaTransaction.findFirst({
-            where: { userId, comprobante }
+            where: {
+                userId,
+                date: new Date(date),
+                amount: parseFloat(amount),
+                comprobante: comprobante || null
+            }
         });
+
         if (existing) {
-            console.log(`[API] Duplicate transaction skipped: Voucher ${comprobante}`);
+            console.log(`[API] Duplicate transaction skipped: ${description} (${date}, ${amount})`);
             return NextResponse.json({
                 error: 'DUPLICATE',
-                message: `La transacción con comprobante ${comprobante} ya existe.`,
+                message: `La transacción "${description}" del ${date} por ${amount} ya existe.`,
                 transaction: existing
             }, { status: 409 });
         }

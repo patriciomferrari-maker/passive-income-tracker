@@ -1237,6 +1237,18 @@ export function TransactionsTab() {
                                                     </div>
                                                 </div>
                                             </td>
+                                            <td className="px-4 py-3 align-top font-mono text-slate-500">
+                                                {isEditing ? (
+                                                    <Input
+                                                        type="text"
+                                                        value={rowEditData.comprobante || ''}
+                                                        onChange={e => setRowEditData({ ...rowEditData, comprobante: e.target.value })}
+                                                        className="h-8 text-xs bg-slate-950 border-slate-800"
+                                                    />
+                                                ) : (
+                                                    <span className="opacity-60 text-[10px]">{tx.comprobante || '-'}</span>
+                                                )}
+                                            </td>
                                             <td className="px-4 py-3 align-top text-right">
                                                 {isEditing ? (
                                                     <Input

@@ -422,6 +422,7 @@ Instrucciones de extracción:
 4. **Comprobante**: Extrae el número de operación o comprobante (código numérico).
    - **UBICACIÓN**: Suele aparecer ANTES del importe al final de la línea.
    - **FORMATO**: Es un número ENTERO de 6-10 dígitos. A menudo **comienza con ceros** (ej: 008168, 002345). 
+   - **REGLA CRÍTICA**: Si no encuentras un código numérico claro, deja el campo como \`null\`. **NO** uses símbolos como \`$\`, letras, ni fragmentos de la descripción.
    - **NEGATIVO**: NUNCA tiene decimales.
 
 5. **Importe**: El valor monetario final de la transacción.
@@ -482,7 +483,18 @@ REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO A
             try {
                 attempts++;
                 console.log(`[GEMINI] Attempting with model: ${modelName} (Attempt ${attempts})...`);
-                const model = genAI.getGenerativeModel({ model: modelName });
+
+                // Enforce JSON Mode for newer models
+                const config: any = {};
+                if (modelName.includes('1.5') || modelName.includes('2.0')) {
+                    config.responseMimeType = "application/json";
+                }
+
+                const model = genAI.getGenerativeModel({
+                    model: modelName,
+                    generationConfig: config
+                });
+
                 const result = await model.generateContent(prompt);
                 const response = await result.response;
                 responseText = response.text();
@@ -527,49 +539,64 @@ REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO A
 
     if (!responseText) {
         console.error('[GEMINI] All models failed.');
-
-        // DEBUG: List models if possible (REST fallback)
-        try {
-            console.log('[GEMINI] Attempting to LIST available models for debugging...');
-            const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-            const listData = await listRes.json();
-            console.log('[GEMINI] Available Models:', JSON.stringify(listData, null, 2));
-        } catch (listErr) {
-            console.error('[GEMINI] Could not list models:', listErr);
-        }
-
         throw lastError || new Error("All Gemini models failed to generate content.");
     }
 
     console.log('[GEMINI] Raw response length:', responseText.length);
 
-    // Extract JSON from response (handle markdown code blocks)
+    // Extract JSON from response (handle markdown code blocks and garbage)
     let jsonText = responseText.trim();
 
-    // Remove markdown code blocks if present
-    if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?$/g, '');
-    } else if (jsonText.startsWith('```')) {
-        jsonText = jsonText.replace(/```\n?/g, '').replace(/```\n?$/g, '');
+    // 1. More robust markdown extraction
+    if (jsonText.includes('```')) {
+        const matches = jsonText.match(/```(?:json)?([\s\S]*?)```/);
+        if (matches && matches[1]) {
+            jsonText = matches[1].trim();
+        }
     }
+
+    // 2. Surgical extraction: find first '{' or '[' and last matching brace/bracket
+    const firstBrace = jsonText.indexOf('{');
+    const firstBracket = jsonText.indexOf('[');
+    let startIdx = -1;
+    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) startIdx = firstBrace;
+    else if (firstBracket !== -1) startIdx = firstBracket;
+
+    if (startIdx !== -1) {
+        const lastBrace = jsonText.lastIndexOf('}');
+        const lastBracket = jsonText.lastIndexOf(']');
+        const endIdx = Math.max(lastBrace, lastBracket);
+        if (endIdx > startIdx) {
+            jsonText = jsonText.substring(startIdx, endIdx + 1);
+        }
+    }
+
+    // 3. Cleanup common AI glitches
+    // - Remove trailing commas: [1, 2,] -> [1, 2]
+    jsonText = jsonText.replace(/,\s*([\]\}])/g, '$1');
+    // - Remove potential comments
+    jsonText = jsonText.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, "");
 
     let parsed;
     try {
-        parsed = JSON.parse(jsonText.trim());
+        parsed = JSON.parse(jsonText);
     } catch (jsonErr) {
+        console.error('[GEMINI] JSON Parse failed after cleanup. Raw snippet:', jsonText.substring(0, 500));
         throw new Error(`Error de IA (Gemini): ${jsonErr instanceof Error ? jsonErr.message : 'JSON Malformed'}`);
     }
 
     if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
-        throw new Error('Invalid Gemini response format (missing transactions array)');
+        // If it returns an array directly instead of an object with transactions
+        if (Array.isArray(parsed)) {
+            parsed = { transactions: parsed };
+        } else {
+            throw new Error('Invalid Gemini response format (missing transactions array)');
+        }
     }
-
-    // ... rest of validation logic ...
-    const validatedTransactions = validateAndFilterTransactions(parsed.transactions);
 
     // Return both transactions and the processedText for validation
     return {
-        transactions: validatedTransactions,
+        transactions: validateAndFilterTransactions(parsed.transactions),
         processedText
     };
 }
