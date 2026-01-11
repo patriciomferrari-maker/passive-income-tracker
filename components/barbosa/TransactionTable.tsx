@@ -152,6 +152,9 @@ export function TransactionTable({ transactions, categories, selectedIds, onSele
                                     )}
                                 </div>
                             </td>
+                            <td className="px-4 py-3 font-mono text-[10px] text-slate-500">
+                                {tx.comprobante || '-'}
+                            </td>
                             <td className="px-4 py-3 text-right">
                                 <span className={`font-mono font-bold ${tx.type === 'INCOME' ? 'text-emerald-400' : 'text-red-400'}`}>
                                     {tx.type === 'INCOME' ? '+' : '-'}

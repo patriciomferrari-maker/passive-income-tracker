@@ -915,12 +915,28 @@ export function TransactionsTab() {
                                 {(filterMonth !== 'ALL' || filterYear !== 'ALL') && `(${filterMonth !== 'ALL' ? format(new Date(2024, parseInt(filterMonth), 1), 'MMMM') : ''} ${filterYear !== 'ALL' ? filterYear : ''})`}
                             </span>
                         </div>
-                        {selectedIds.size > 0 && (
-                            <Button variant="destructive" size="sm" onClick={handleBatchDelete} className="animate-in fade-in zoom-in">
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Eliminar ({selectedIds.size})
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    if (selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0) {
+                                        setSelectedIds(new Set());
+                                    } else {
+                                        setSelectedIds(new Set(filteredTransactions.map(t => t.id)));
+                                    }
+                                }}
+                                className="h-8 text-[10px] uppercase font-bold text-slate-400 border-slate-800 hover:bg-slate-800"
+                            >
+                                {selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0 ? 'Deseleccionar' : 'Seleccionar Todo'}
                             </Button>
-                        )}
+                            {selectedIds.size > 0 && (
+                                <Button variant="destructive" size="sm" onClick={handleBatchDelete} className="h-8 animate-in fade-in zoom-in">
+                                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                    Eliminar ({selectedIds.size})
+                                </Button>
+                            )}
+                        </div>
                     </h3>
 
                     {isLoading ? (
@@ -1066,7 +1082,6 @@ export function TransactionsTab() {
                             <thead className="bg-slate-900/50 sticky top-0 z-10 backdrop-blur-sm">
                                 <tr>
                                     <th className="px-4 py-3 text-left font-medium text-slate-400 w-[120px]">FECHA</th>
-                                    <th className="px-4 py-3 text-left font-medium text-slate-400 w-[110px]">COMP.</th>
                                     <th className="px-4 py-3 text-left font-medium text-slate-400">
                                         <div className="flex items-center gap-2">
                                             DESCRIPCIÓN / OPCIONES
@@ -1085,6 +1100,7 @@ export function TransactionsTab() {
                                             </Button>
                                         </div>
                                     </th>
+                                    <th className="px-4 py-3 text-left font-medium text-slate-400 w-[110px]">COMP.</th>
                                     <th className="px-4 py-3 text-right font-medium text-slate-400 w-[150px]">MONTO</th>
                                     <th className="px-4 py-3 text-right font-medium text-slate-400 w-[100px]"></th>
                                 </tr>
@@ -1105,18 +1121,6 @@ export function TransactionsTab() {
                                                     />
                                                 ) : (
                                                     tx.date
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 align-top font-mono text-slate-500">
-                                                {isEditing ? (
-                                                    <Input
-                                                        type="text"
-                                                        value={rowEditData.comprobante || ''}
-                                                        onChange={e => setRowEditData({ ...rowEditData, comprobante: e.target.value })}
-                                                        className="h-8 text-xs bg-slate-950 border-slate-800"
-                                                    />
-                                                ) : (
-                                                    <span className="opacity-60 text-[10px]">{tx.comprobante || '-'}</span>
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 align-top">

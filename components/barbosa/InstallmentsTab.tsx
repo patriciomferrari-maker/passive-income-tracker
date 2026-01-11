@@ -130,10 +130,25 @@ export function InstallmentsTab() {
                     <h2 className="text-xl font-bold text-white">Cuotas Cargadas</h2>
 
                     <div className="flex items-center gap-3">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                if (filteredPlans.length > 0 && selectedPlanIds.length === filteredPlans.length) {
+                                    setSelectedPlanIds([]);
+                                } else {
+                                    setSelectedPlanIds(filteredPlans.map(p => p.id));
+                                }
+                            }}
+                            className="h-8 text-[10px] uppercase font-bold text-slate-400 border-slate-800 hover:bg-slate-800"
+                        >
+                            {filteredPlans.length > 0 && selectedPlanIds.length === filteredPlans.length ? 'Deseleccionar' : 'Seleccionar Todo'}
+                        </Button>
+
                         {selectedPlanIds.length > 0 && (
                             <button
                                 onClick={handleBatchDelete}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-red-950/30 border border-red-900/50 text-red-400 hover:bg-red-900/40 rounded-lg text-xs font-bold transition-all animate-in fade-in zoom-in"
+                                className="flex items-center gap-2 px-3 py-1.5 bg-red-950/30 border border-red-900/50 text-red-400 hover:bg-red-900/40 rounded-lg text-xs font-bold transition-all animate-in fade-in zoom-in h-8"
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
                                 Borrar ({selectedPlanIds.length})
