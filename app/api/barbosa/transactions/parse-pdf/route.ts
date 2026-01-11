@@ -173,11 +173,12 @@ export async function POST(req: NextRequest) {
  */
 function normalizeTransactionKey(desc: string): string {
     if (!desc) return '';
+    // We want to keep installment info (e.g. 01/09) because it helps differentiate transactions
+    // but remove the " (Cuota ...)" wrapper that Gemini might add
     return desc.toLowerCase()
         .replace(/^[*\s\W]*(?:\d{2})?k\s*/, '') // Remove prefix * or K or spaces
-        .replace(/\s*\(cuota.*?\)/gi, '')       // Remove (Cuota 1/2) or (cuota 01/02)
-        .replace(/\d{1,2}\/\d{1,2}$/, '')        // Remove 12/12 at the very end
-        .replace(/[^\w]/gi, '')                  // Remove all special characters and spaces
+        .replace(/\s*\(cuota\s*(\d{1,2}\/\d{1,2})\)/gi, ' $1') // Canonicalize (Cuota 01/09) -> 01/09
+        .replace(/[^\w/]/gi, '')                 // Keep letters, numbers and slashes (for 01/09)
         .trim();
 }
 
@@ -192,8 +193,6 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     // Extract the transaction lines from the original text
     const lines = originalText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-    // PREPROCESSING: Merge multi-line transactions into single lines
-    // Pattern: Line1=Date+Description, Line2=6-digit voucher, Line3=Amount
     const mergedLines: string[] = [];
     let i = 0;
 
@@ -202,21 +201,19 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
         const line2 = lines[i + 1] || '';
         const line3 = lines[i + 2] || '';
 
-        // Check if this is a 3-line transaction:
-        // Line 1: starts with date pattern (dd-mm-yy)
-        // Line 2: 6-digit voucher
-        // Line 3: amount (numbers with dots/commas)
         const isDateLine = /^\d{2}-\d{2}-\d{2}/.test(line1);
         const isVoucherLine = /^\d{6}$/.test(line2.trim());
         const isAmountLine = /^[0-9.,-]+$/.test(line3.trim());
 
-        if (isDateLine && isVoucherLine && isAmountLine) {
-            // Merge into single line: "date description voucher amount"
+        // Only merge if it looks like a fragmented 3-line transaction
+        // AND line1 doesn't already contain a voucher/amount pattern at the end
+        const line1IsComplete = /\d{6}\s+[0-9.,-]+$/.test(line1);
+
+        if (isDateLine && isVoucherLine && isAmountLine && !line1IsComplete) {
             const merged = `${line1} ${line2} ${line3}`;
             mergedLines.push(merged);
-            i += 3; // Skip next 2 lines
+            i += 3;
         } else {
-            // Not a match, keep original line
             mergedLines.push(line1);
             i++;
         }
@@ -231,62 +228,54 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     // 4. OPTIONAL space between voucher and amount (handles "fused digits")
     const strictRegex = /^(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s*(.+?)\s+(\d{6})\s*([0-9.,-]+)$/;
 
-    // Build a lookup map from original text
-    const correctDataMap = new Map<string, { voucher: string; amount: string }>();
-
-    let matchCount = 0;
-    let noMatchCount = 0;
+    // Build robust lookups
+    const voucherMap = new Map<string, { amountStr: string; voucher: string }>();
+    const descMap = new Map<string, { amountStr: string; voucher: string }[]>();
 
     for (const line of mergedLines) {
         const normalized = line.trim().replace(/\s+/g, ' ');
         const match = normalized.match(strictRegex);
 
         if (match) {
-            matchCount++;
             const description = match[2].trim();
             const voucher = match[3];
             const amountStr = match[4];
+            const descKey = normalizeTransactionKey(description);
 
-            // DEBUG: Show first 3 matches
-            if (matchCount <= 3) {
-                console.log(`[VALIDATOR] ✓ Match #${matchCount}: voucher=${voucher}, amount=${amountStr}, desc="${description.substring(0, 30)}"`);
-            }
+            // 1. Map by Voucher (best for unique identification)
+            voucherMap.set(`${descKey}_${voucher}`, { amountStr, voucher });
 
-            // Use description as key (normalize it for robust matching)
-            const key = normalizeTransactionKey(description);
-            correctDataMap.set(key, { voucher, amount: amountStr });
+            // 2. Map by Description (for ambiguity detection)
+            const existing = descMap.get(descKey) || [];
+            existing.push({ amountStr, voucher });
+            descMap.set(descKey, existing);
         }
     }
 
-    // Now validate each Gemini transaction
-    let correctedCount = 0;
-
     const validatedTransactions = geminiTransactions.map(tx => {
         const descKey = normalizeTransactionKey(tx.description);
-        const correctData = correctDataMap.get(descKey);
+        const geminiVoucher = String(tx.comprobante || '').padStart(6, '0');
 
-        if (correctData) {
-            // Parse the correct amount
-            const correctAmount = parseCorrectAmount(correctData.amount);
-            const geminiAmount = tx.amount;
+        // Priority 1: Match by Desc + Voucher
+        const voucherMatch = voucherMap.get(`${descKey}_${geminiVoucher}`);
 
-            // Check if amounts differ significantly (more than 1 ARS difference)
-            if (Math.abs(correctAmount - geminiAmount) > 1) {
-                console.warn(`[VALIDATOR] Correcting "${tx.description}": ${geminiAmount} -> ${correctAmount}`);
-                correctedCount++;
-                return {
-                    ...tx,
-                    amount: correctAmount,
-                    comprobante: correctData.voucher
-                };
+        if (voucherMatch) {
+            const correctAmount = parseCorrectAmount(voucherMatch.amountStr);
+            if (tx.amount !== correctAmount) {
+                console.warn(`[VALIDATOR] Correcting "${tx.description}" by voucher: ${tx.amount} -> ${correctAmount}`);
+                return { ...tx, amount: correctAmount, comprobante: voucherMatch.voucher };
             }
+            return tx;
+        }
 
-            // Also update voucher if different
-            if (correctData.voucher !== tx.comprobante) {
-                return {
-                    ...tx,
-                    comprobante: correctData.voucher
-                };
+        // Priority 2: Match by Description ONLY if it's unique in the PDF
+        const descMatches = descMap.get(descKey);
+        if (descMatches && descMatches.length === 1) {
+            const match = descMatches[0];
+            const correctAmount = parseCorrectAmount(match.amountStr);
+            if (tx.amount !== correctAmount || tx.comprobante !== match.voucher) {
+                console.warn(`[VALIDATOR] Correcting "${tx.description}" by unique name: ${tx.amount} -> ${correctAmount}`);
+                return { ...tx, amount: correctAmount, comprobante: match.voucher };
             }
         }
 
