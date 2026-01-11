@@ -173,12 +173,11 @@ export async function POST(req: NextRequest) {
  */
 function normalizeTransactionKey(desc: string): string {
     if (!desc) return '';
-    // We want to keep installment info (e.g. 01/09) because it helps differentiate transactions
-    // but remove the " (Cuota ...)" wrapper that Gemini might add
     return desc.toLowerCase()
-        .replace(/^[*\s\W]*(?:\d{2})?k\s*/, '') // Remove prefix * or K or spaces
+        .replace(/^[*\s\W]*(?:\d{2})?k\s*/, '') // Remove prefixes like * or K
         .replace(/\s*\(cuota\s*(\d{1,2}\/\d{1,2})\)/gi, ' $1') // Canonicalize (Cuota 01/09) -> 01/09
-        .replace(/[^\w/]/gi, '')                 // Keep letters, numbers and slashes (for 01/09)
+        .replace(/\s+/g, '') // Remove ALL spaces for maximum matching robustness
+        .replace(/[^\w/]/gi, '') // Keep letters, numbers and slashes
         .trim();
 }
 
@@ -194,47 +193,36 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     const lines = originalText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
     const mergedLines: string[] = [];
-    let i = 0;
+    let currentBlock: string = "";
 
-    while (i < lines.length) {
-        const line1 = lines[i];
-        const line2 = lines[i + 1] || '';
-        const line3 = lines[i + 2] || '';
-
-        const isDateLine = /^\d{2}-\d{2}-\d{2}/.test(line1);
-        const isVoucherLine = /^\d{6}$/.test(line2.trim());
-        const isAmountLine = /^[0-9.,-]+$/.test(line3.trim());
-
-        // Only merge if it looks like a fragmented 3-line transaction
-        // AND line1 doesn't already contain a voucher/amount pattern at the end
-        const line1IsComplete = /\d{6}\s+[0-9.,-]+$/.test(line1);
-
-        if (isDateLine && isVoucherLine && isAmountLine && !line1IsComplete) {
-            const merged = `${line1} ${line2} ${line3}`;
-            mergedLines.push(merged);
-            i += 3;
-        } else {
-            mergedLines.push(line1);
-            i++;
+    for (const line of lines) {
+        // A new transaction ALWAYS starts with a date pattern (DD-MM-YY or similar)
+        if (/^\d{2}[\\/.-]\d{2}/.test(line)) {
+            if (currentBlock) mergedLines.push(currentBlock);
+            currentBlock = line;
+        } else if (currentBlock) {
+            // Join lines that look like they belong to the same transaction block
+            currentBlock += " " + line;
         }
     }
+    if (currentBlock) mergedLines.push(currentBlock);
 
-    console.log(`[VALIDATOR] Merged ${lines.length} raw lines into ${mergedLines.length} transaction lines`);
+    console.log(`[VALIDATOR] Merged ${lines.length} lines into ${mergedLines.length} transaction blocks`);
 
-    // User's strict regex: Matches Date + Description + 6-digit Voucher + Amount
-    // 1. Optional spaces/asterisk after date
-    // 2. Greedy description (.+)
-    // 3. Space before the 6-digit voucher
-    // 4. OPTIONAL space between voucher and amount (handles "fused digits")
-    const strictRegex = /^(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s*(.+?)\s+(\d{6})\s*([0-9.,-]+)$/;
+    // STRETEGY: Extremes-First Anchoring
+    // Group 1: Date (Start)
+    // Group 2: Description (Greedy, absorbs everything in middle)
+    // Group 3: Voucher (6 digits) - Backtracks to find exactly 6 digits before amount
+    // Group 4: Amount (End) - Handles dots/commas and optional sign
+    // The "\s*" before Group 4 handles FUSED digits (e.g. 0081686000,00)
+    const robustRegex = /^(\d{2}[\\/.-]\d{2}(?:[\\/.-]\d{2,4})?)\s+(.+)\s+(\d{6})\s*([0-9.,-]+)$/;
 
-    // Build robust lookups
     const voucherMap = new Map<string, { amountStr: string; voucher: string }>();
     const descMap = new Map<string, { amountStr: string; voucher: string }[]>();
 
-    for (const line of mergedLines) {
-        const normalized = line.trim().replace(/\s+/g, ' ');
-        const match = normalized.match(strictRegex);
+    for (let line of mergedLines) {
+        line = line.trim().replace(/\s+/g, ' ');
+        const match = line.match(robustRegex);
 
         if (match) {
             const description = match[2].trim();
@@ -242,10 +230,10 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
             const amountStr = match[4];
             const descKey = normalizeTransactionKey(description);
 
-            // 1. Map by Voucher (best for unique identification)
+            // Save by Desc + Voucher for exact matching
             voucherMap.set(`${descKey}_${voucher}`, { amountStr, voucher });
 
-            // 2. Map by Description (for ambiguity detection)
+            // Save by Description for ambiguity fallback
             const existing = descMap.get(descKey) || [];
             existing.push({ amountStr, voucher });
             descMap.set(descKey, existing);
@@ -256,25 +244,24 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
         const descKey = normalizeTransactionKey(tx.description);
         const geminiVoucher = String(tx.comprobante || '').padStart(6, '0');
 
-        // Priority 1: Match by Desc + Voucher
-        const voucherMatch = voucherMap.get(`${descKey}_${geminiVoucher}`);
-
-        if (voucherMatch) {
-            const correctAmount = parseCorrectAmount(voucherMatch.amountStr);
+        // Priority 1: Exact Match (Description + Voucher)
+        const exactMatch = voucherMap.get(`${descKey}_${geminiVoucher}`);
+        if (exactMatch) {
+            const correctAmount = parseCorrectAmount(exactMatch.amountStr);
             if (tx.amount !== correctAmount) {
-                console.warn(`[VALIDATOR] Correcting "${tx.description}" by voucher: ${tx.amount} -> ${correctAmount}`);
-                return { ...tx, amount: correctAmount, comprobante: voucherMatch.voucher };
+                console.warn(`[VALIDATOR] Corrected "${tx.description}" by voucher ${geminiVoucher}: ${tx.amount} -> ${correctAmount}`);
+                return { ...tx, amount: correctAmount, comprobante: exactMatch.voucher };
             }
             return tx;
         }
 
-        // Priority 2: Match by Description ONLY if it's unique in the PDF
-        const descMatches = descMap.get(descKey);
-        if (descMatches && descMatches.length === 1) {
-            const match = descMatches[0];
+        // Priority 2: Fuzzy Match (Only if description is unique in the entire PDF)
+        const matches = descMap.get(descKey);
+        if (matches && matches.length === 1) {
+            const match = matches[0];
             const correctAmount = parseCorrectAmount(match.amountStr);
             if (tx.amount !== correctAmount || tx.comprobante !== match.voucher) {
-                console.warn(`[VALIDATOR] Correcting "${tx.description}" by unique name: ${tx.amount} -> ${correctAmount}`);
+                console.warn(`[VALIDATOR] Corrected "${tx.description}" by unique name: ${tx.amount} -> ${correctAmount}`);
                 return { ...tx, amount: correctAmount, comprobante: match.voucher };
             }
         }
@@ -282,7 +269,11 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
         return tx;
     });
 
-    console.log('[VALIDATOR] Corrected', correctedCount, 'transactions');
+    const correctionCount = validatedTransactions.filter((tx, idx) => {
+        return tx.amount !== geminiTransactions[idx].amount || tx.comprobante !== geminiTransactions[idx].comprobante;
+    }).length;
+
+    console.log(`[VALIDATOR] Validation complete. Corrected ${correctionCount} hallucinations.`);
     return validatedTransactions;
 }
 
