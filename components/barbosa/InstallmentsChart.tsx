@@ -29,7 +29,7 @@ export function InstallmentsChart() {
         plans.forEach(plan => {
             // Include ALL plans (Active + Finished) to show full history/evolution
             plan.transactions.forEach((tx: any) => {
-                if (tx.isStatistical) return; // Skip statistical data in chart
+                // We show all transactions that belong to an installment plan here
 
                 const date = new Date(tx.date);
                 const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;

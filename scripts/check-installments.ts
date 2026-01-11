@@ -10,15 +10,15 @@ async function main() {
 
     console.log(`Found ${plans.length} plans.`);
     plans.forEach(plan => {
-        const realTx = plan.transactions.filter(t => t.status === 'REAL');
-        const projectedTx = plan.transactions.filter(t => t.status === 'PROJECTED');
-        const futureReal = realTx.filter(t => t.date > new Date());
+        const isStatisticalCount = plan.transactions.filter(t => t.isStatistical).length;
+        const nonStatisticalCount = plan.transactions.filter(t => !t.isStatistical).length;
 
-        console.log(`Plan: ${plan.description} (totalAmount: ${plan.totalAmount})`);
-        console.log(`  Total installments: ${plan.installmentsCount}`);
-        console.log(`  REAL count: ${realTx.length}`);
-        console.log(`  PROJECTED count: ${projectedTx.length}`);
-        console.log(`  Future REAL: ${futureReal.length}`);
+        console.log(`Plan: ${plan.description}`);
+        console.log(`  isStatistical Count: ${isStatisticalCount}`);
+        console.log(`  Non-Statistical Count: ${nonStatisticalCount}`);
+        if (nonStatisticalCount > 0) {
+            console.log(`  Example non-statistical date: ${plan.transactions.find(t => !t.isStatistical)?.date}`);
+        }
     });
 }
 
