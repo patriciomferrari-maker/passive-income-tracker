@@ -44,6 +44,21 @@ export async function POST(req: NextRequest) {
         }
 
         // Duplicate Prevention: Check for recent identical plan (last 5 mins)
+        // OR if a transaction with the same COMPROBANTE already exists
+        const isVoucherValid = comprobante && String(comprobante).length > 2 && !String(comprobante).includes('$');
+
+        if (isVoucherValid) {
+            const existingTx = await prisma.barbosaTransaction.findFirst({
+                where: { userId, comprobante: String(comprobante) }
+            });
+            if (existingTx) {
+                return NextResponse.json({
+                    error: 'DUPLICATE',
+                    message: `Ya existe una transacción con el comprobante ${comprobante}.`
+                }, { status: 409 });
+            }
+        }
+
         const recentPlan = await prisma.barbosaInstallmentPlan.findFirst({
             where: {
                 userId,

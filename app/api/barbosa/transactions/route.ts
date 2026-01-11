@@ -58,27 +58,38 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // 0. Duplicate Detection
-    // We check for duplicates based on Voucher (if provided and long enough) OR (Date + Amount + Voucher)
-    const isVoucherValid = comprobante && comprobante.length > 2 && !comprobante.includes('$');
+    // We check for duplicates based on Voucher (High confidence) OR (Date + Amount + Desc)
+    const isVoucherValid = comprobante && String(comprobante).length > 2 && !String(comprobante).includes('$');
 
-    if (isVoucherValid || (date && amount)) {
-        const existing = await prisma.barbosaTransaction.findFirst({
+    let existing = null;
+    if (isVoucherValid) {
+        // PRIORITY: If we have a voucher, it's the unique ID for this user.
+        existing = await prisma.barbosaTransaction.findFirst({
+            where: {
+                userId,
+                comprobante: String(comprobante)
+            }
+        });
+        if (existing) console.log(`[API] Duplicate detected by VOUCHER: ${comprobante}`);
+    } else if (date && amount) {
+        // FALLBACK: If no voucher, use composite key (Date + Amount + Description)
+        existing = await prisma.barbosaTransaction.findFirst({
             where: {
                 userId,
                 date: new Date(date),
                 amount: parseFloat(amount),
-                comprobante: comprobante || null
+                description: description // Use name as tie-breaker for non-voucher transactions
             }
         });
+        if (existing) console.log(`[API] Duplicate detected by DATE/AMOUNT/DESC: ${description}`);
+    }
 
-        if (existing) {
-            console.log(`[API] Duplicate transaction skipped: ${description} (${date}, ${amount})`);
-            return NextResponse.json({
-                error: 'DUPLICATE',
-                message: `La transacción "${description}" del ${date} por ${amount} ya existe.`,
-                transaction: existing
-            }, { status: 409 });
-        }
+    if (existing) {
+        return NextResponse.json({
+            error: 'DUPLICATE',
+            message: `La transacción "${description}" ya existe (ID: ${existing.id}).`,
+            transaction: existing
+        }, { status: 409 });
     }
 
     // 1. Validate Category
