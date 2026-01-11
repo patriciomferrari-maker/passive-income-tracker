@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { InstallmentsDialog } from './InstallmentsDialog';
 import { TransactionTable } from './TransactionTable';
 import { TransactionForm } from './TransactionForm';
-import { Plus, Save, Search, Calendar, DollarSign, FileText, Loader2, Check, X, AlertTriangle, Paperclip, Receipt, Upload, Copy } from 'lucide-react';
+import { Plus, Save, Search, Calendar, DollarSign, FileText, Loader2, Check, X, AlertTriangle, Paperclip, Receipt, Upload, Copy, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -823,45 +823,6 @@ export function TransactionsTab() {
                             <DialogTitle>Editar Transacción</DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-                            {/* ... Reusing form fields structure or extracting component ... */}
-                            {/* For simplicity/speed, I'm duplicating or rendering a sub-component. 
-                                 Since standard refactor is risky without seeing full file, I will extract fields to a helper if I could, 
-                                 but here I will just render the form inside safely. 
-                                 
-                                 Actually, `formData` is shared. If I edit `formData` it updates the "New" form too if I'm not careful.
-                                 But current logic uses `formData` for both.
-                                 If I open modal, the "New" form will also show the values?
-                                 Yes, `formData` is state.
-                                 
-                                 Wait, if `editingId` is set, the "New Transaction" card shows "Editar Transaccion" title (line 276).
-                                 I should CHANGE the "New Transaction" card to ALWAYS act as "New", and use a separate state/modal for Editing.
-                                 
-                                 BUT, `handleEdit` sets `formData`.
-                                 To avoid massive refactor of state, I will keep `formData` strictly for the active operation.
-                                 If `editingId` is active, the "New" card might look weird if it mirrors the state?
-                                 Actually, I should hide the "New" card or reset it?
-                                 
-                                 BETTER APPROACH:
-                                 Keep `formData` for the Modal if `editingId` is present.
-                                 Use a SEPARATE `newFormData` for the inline form?
-                                 
-                                 OR, just use the Modal for Editing, and clear `formData` when closing.
-                                 The "New Transaction" card will display the current `formData` (which is being edited).
-                                 That's fine, effectively the user is working on that data.
-                                 
-                                 User said: "que te aparezca el cuadro... en la mitad de la pantalla".
-                                 So I will wrap the form in a Dialog ONLY if editingId is set.
-                                 And the "Inline" card will be "New Transaction" and maybe Disabled or Clear?
-                                 
-                                 Actually, if I render the Dialog, I can just render the inputs there.
-                                 The user won't see the inline form if the modal is covering it.
-                                 
-                                 Let's duplicate the inputs into the Dialog for now to control layout better, 
-                                 or render a standard <TransactionForm /> component?
-                                 I'll duplicate for reliability in this context, or Extract.
-                                 
-                                 Duplicating is safest to ensure exact layout requested (centered modal).
-                             */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Fecha</Label>
@@ -1111,7 +1072,19 @@ export function TransactionsTab() {
                                     <th className="px-4 py-3 text-left font-medium text-slate-400">
                                         <div className="flex items-center gap-2">
                                             DESCRIPCIÓN / OPCIONES
-                                            {/* ... */}
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 text-[10px] px-2 text-blue-400 hover:text-blue-300 hover:bg-blue-950/30 ml-4 border border-blue-900/50"
+                                                onClick={() => {
+                                                    if (!parsedResults) return;
+                                                    const allStat = parsedResults.every(tx => tx.isStatistical);
+                                                    const newResults = parsedResults.map(tx => ({ ...tx, isStatistical: !allStat }));
+                                                    setParsedResults(newResults);
+                                                }}
+                                            >
+                                                {parsedResults?.every(tx => tx.isStatistical) ? 'Desmarcar Todos' : 'Marcar Todos Estad.'}
+                                            </Button>
                                         </div>
                                     </th>
                                     <th className="px-4 py-3 text-right font-medium text-slate-400 w-[150px]">MONTO</th>
@@ -1185,15 +1158,15 @@ export function TransactionsTab() {
                                                                         <Input
                                                                             type="number"
                                                                             className="h-6 w-12 text-[10px] bg-slate-950 px-1"
-                                                                            value={rowEditData.installments.current}
-                                                                            onChange={e => setRowEditData({ ...rowEditData, installments: { ...rowEditData.installments, current: parseInt(e.target.value) } })}
+                                                                            value={rowEditData.installments?.current || 1}
+                                                                            onChange={e => setRowEditData({ ...rowEditData, installments: { ...(rowEditData.installments || {}), current: parseInt(e.target.value) } })}
                                                                         />
                                                                         <span className="text-[10px]">/</span>
                                                                         <Input
                                                                             type="number"
                                                                             className="h-6 w-12 text-[10px] bg-slate-950 px-1"
-                                                                            value={rowEditData.installments.total}
-                                                                            onChange={e => setRowEditData({ ...rowEditData, installments: { ...rowEditData.installments, total: parseInt(e.target.value) } })}
+                                                                            value={rowEditData.installments?.total || 12}
+                                                                            onChange={e => setRowEditData({ ...rowEditData, installments: { ...(rowEditData.installments || {}), total: parseInt(e.target.value) } })}
                                                                         />
                                                                     </div>
                                                                 ) : (

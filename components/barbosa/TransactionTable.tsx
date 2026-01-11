@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-// ... existing imports
 
 interface Transaction {
     id: string;
