@@ -129,5 +129,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         where: { id }
     });
 
+    // Cleanup: Delete plans with no transactions left
+    await prisma.barbosaInstallmentPlan.deleteMany({
+        where: {
+            userId,
+            transactions: {
+                none: {}
+            }
+        }
+    });
+
     return NextResponse.json({ success: true });
 }

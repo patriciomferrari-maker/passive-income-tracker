@@ -21,6 +21,16 @@ export async function POST(req: Request) {
             }
         });
 
+        // Cleanup: Delete plans with no transactions left
+        await prisma.barbosaInstallmentPlan.deleteMany({
+            where: {
+                userId,
+                transactions: {
+                    none: {}
+                }
+            }
+        });
+
         return NextResponse.json({ count: result.count });
     } catch (error) {
         console.error('Error batch deleting transactions:', error);
