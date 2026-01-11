@@ -24,7 +24,7 @@ export function InstallmentsDialog({ open, onOpenChange, onSuccess, categories, 
         installmentsCount: '12',
         amountMode: 'TOTAL', // TOTAL | INSTALLMENT
         amountValue: '',
-        status: 'REAL',
+        status: 'PROJECTED',
         isStatistical: false,
         comprobante: ''
     };
@@ -151,9 +151,9 @@ export function InstallmentsDialog({ open, onOpenChange, onSuccess, categories, 
 
                         <div className="text-xs text-center pt-1 text-slate-300">
                             {data.amountMode === 'TOTAL' ? (
-                                <span>~ ${amountPerQuota.toLocaleString()} / cuota</span>
+                                <span>~ ${amountPerQuota.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / cuota</span>
                             ) : (
-                                <span>Total: ${totalAmount.toLocaleString()}</span>
+                                <span>Total: ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             )}
                         </div>
                     </div>

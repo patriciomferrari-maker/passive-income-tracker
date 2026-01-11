@@ -33,6 +33,17 @@ export function InstallmentsTab() {
     const [editPlanData, setEditPlanData] = useState<any | null>(null);
     const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([]);
 
+    // Sorting State
+    const [sortConfig, setSortConfig] = useState<{ field: string, direction: 'asc' | 'desc' } | null>(null);
+
+    const requestSort = (field: string) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.field === field && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ field, direction });
+    };
+
     useEffect(() => {
         loadData();
         fetchCategories();
@@ -70,7 +81,7 @@ export function InstallmentsTab() {
             startDate: new Date(plan.startDate).toISOString().split('T')[0],
             installmentsCount: plan.installmentsCount.toString(),
             amountMode: 'TOTAL', // Default to TOTAL when editing existing, logic can be smarter but this is safe
-            amountValue: plan.totalAmount.toString(),
+            amountValue: parseFloat(plan.totalAmount.toString()).toFixed(2),
             status: 'REAL', // Default
             isStatistical: plan.isStatistical,
             comprobante: plan.comprobante || ''
@@ -115,7 +126,28 @@ export function InstallmentsTab() {
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-500" /></div>;
 
-    const filteredPlans = plans.filter(p => showFinished ? true : !p.isFinished);
+    let filteredPlans = plans.filter(p => showFinished ? true : !p.isFinished);
+
+    // Apply Sorting
+    if (sortConfig) {
+        filteredPlans = [...filteredPlans].sort((a, b) => {
+            let aVal, bVal;
+            switch (sortConfig.field) {
+                case 'description': aVal = a.description; bVal = b.description; break;
+                case 'category': aVal = a.category.name; bVal = b.category.name; break;
+                case 'progress': aVal = a.progress; bVal = b.progress; break;
+                case 'total': aVal = a.totalAmount; bVal = b.totalAmount; break;
+                case 'restante': aVal = (a.totalAmount - a.paidAmount); bVal = (b.totalAmount - b.paidAmount); break;
+                case 'venc': aVal = a.nextDueDate || '9999'; bVal = b.nextDueDate || '9999'; break;
+                case 'status': aVal = a.isFinished ? 1 : 0; bVal = b.isFinished ? 1 : 0; break;
+                default: return 0;
+            }
+
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -188,13 +220,27 @@ export function InstallmentsTab() {
                                         className="border-slate-600 data-[state=checked]:bg-blue-600"
                                     />
                                 </TableHead>
-                                <TableHead className="text-slate-400 font-bold min-w-[200px]">Concepto</TableHead>
-                                <TableHead className="text-slate-400 font-bold">Categoría</TableHead>
-                                <TableHead className="text-slate-400 font-bold text-center">Progreso</TableHead>
-                                <TableHead className="text-slate-400 font-bold text-right">Monto Total</TableHead>
-                                <TableHead className="text-slate-400 font-bold text-right">Restante</TableHead>
-                                <TableHead className="text-slate-400 font-bold text-center">Próx. Venc.</TableHead>
-                                <TableHead className="text-slate-400 font-bold text-center">Estado</TableHead>
+                                <TableHead onClick={() => requestSort('description')} className="text-slate-400 font-bold min-w-[200px] cursor-pointer hover:text-white transition-colors">
+                                    Concepto {sortConfig?.field === 'description' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </TableHead>
+                                <TableHead onClick={() => requestSort('category')} className="text-slate-400 font-bold cursor-pointer hover:text-white transition-colors">
+                                    Categoría {sortConfig?.field === 'category' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </TableHead>
+                                <TableHead onClick={() => requestSort('progress')} className="text-slate-400 font-bold text-center cursor-pointer hover:text-white transition-colors">
+                                    Progreso {sortConfig?.field === 'progress' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </TableHead>
+                                <TableHead onClick={() => requestSort('total')} className="text-slate-400 font-bold text-right cursor-pointer hover:text-white transition-colors">
+                                    Monto Total {sortConfig?.field === 'total' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </TableHead>
+                                <TableHead onClick={() => requestSort('restante')} className="text-slate-400 font-bold text-right cursor-pointer hover:text-white transition-colors">
+                                    Restante {sortConfig?.field === 'restante' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </TableHead>
+                                <TableHead onClick={() => requestSort('venc')} className="text-slate-400 font-bold text-center cursor-pointer hover:text-white transition-colors">
+                                    Próx. Venc. {sortConfig?.field === 'venc' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </TableHead>
+                                <TableHead onClick={() => requestSort('status')} className="text-slate-400 font-bold text-center cursor-pointer hover:text-white transition-colors">
+                                    Estado {sortConfig?.field === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </TableHead>
                                 <TableHead className="text-slate-400 font-bold text-center">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>

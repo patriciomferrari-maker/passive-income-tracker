@@ -49,6 +49,8 @@ export function InstallmentsEvolutionTable() {
             }
 
             plan.transactions.forEach((tx: any) => {
+                if (tx.isStatistical) return; // Skip statistical data in evolution table
+
                 const date = new Date(tx.date);
                 const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
                 monthsSet.add(key);

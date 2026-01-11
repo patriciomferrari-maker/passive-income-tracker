@@ -29,6 +29,8 @@ export function InstallmentsChart() {
         plans.forEach(plan => {
             // Include ALL plans (Active + Finished) to show full history/evolution
             plan.transactions.forEach((tx: any) => {
+                if (tx.isStatistical) return; // Skip statistical data in chart
+
                 const date = new Date(tx.date);
                 const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
                 monthlySum[key] = (monthlySum[key] || 0) + tx.amount;

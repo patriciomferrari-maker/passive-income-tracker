@@ -407,7 +407,7 @@ export function TransactionsTab() {
                     startDate: new Date(plan.startDate).toISOString().split('T')[0],
                     installmentsCount: plan.installmentsCount.toString(),
                     amountMode: 'TOTAL', // Default to showing TOTAL for editing
-                    amountValue: plan.totalAmount.toString(),
+                    amountValue: parseFloat(plan.totalAmount.toString()).toFixed(2),
                     status: 'PROJECTED', // Default, though we might want to fetch stats
                     isStatistical: plan.isStatistical,
                     comprobante: plan.comprobante || ''
