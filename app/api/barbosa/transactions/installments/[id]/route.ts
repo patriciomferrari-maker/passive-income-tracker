@@ -49,7 +49,8 @@ export async function PUT(
             amountMode, // 'TOTAL' | 'INSTALLMENT'
             amountValue, // The raw input value
             status, // 'PROJECTED' | 'REAL'
-            isStatistical
+            isStatistical,
+            comprobante
         } = body;
 
         // Ensure numeric values
@@ -159,7 +160,8 @@ export async function PUT(
                                 amount: amountPerInstallment,
                                 status: 'PROJECTED', // Only generating future ones
                                 isStatistical: isStatistical || false,
-                                installmentPlanId: id // CORRECT FIELD NAME
+                                installmentPlanId: id,
+                                comprobante: comprobante ? String(comprobante) : null
                             }
                         });
                     }
@@ -171,7 +173,8 @@ export async function PUT(
                     data: {
                         categoryId,
                         subCategoryId: subCategoryId || null,
-                        isStatistical: isStatistical || false
+                        isStatistical: isStatistical || false,
+                        comprobante: comprobante ? String(comprobante) : null
                     }
                 });
 

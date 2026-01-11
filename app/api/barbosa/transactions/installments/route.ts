@@ -21,7 +21,8 @@ export async function POST(req: NextRequest) {
             amountMode, // 'TOTAL' | 'INSTALLMENT'
             amountValue,
             status = 'PROJECTED',
-            isStatistical = false
+            isStatistical = false,
+            comprobante = null
         } = body;
 
         const count = parseInt(installmentsCount);
@@ -104,7 +105,8 @@ export async function POST(req: NextRequest) {
                         description: `${description} (${i + 1}/${count})`,
                         status: status,
                         isStatistical: isStatistical,
-                        installmentPlanId: plan.id
+                        installmentPlanId: plan.id,
+                        comprobante: comprobante ? String(comprobante) : null
                     }
                 });
             }

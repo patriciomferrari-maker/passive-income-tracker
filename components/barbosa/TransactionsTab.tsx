@@ -1354,10 +1354,10 @@ export function TransactionsTab() {
             <InstallmentsDialog
                 open={installmentsDialogOpen}
                 onOpenChange={setInstallmentsDialogOpen}
-                transactionId={planEditId}
+                editId={planEditId}
                 initialData={planInitialData}
                 categories={categories}
-                onSaved={() => {
+                onSuccess={() => {
                     setInstallmentsDialogOpen(false);
                     setPlanEditId(null);
                     setPlanInitialData(null);

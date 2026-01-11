@@ -25,7 +25,8 @@ export function InstallmentsDialog({ open, onOpenChange, onSuccess, categories, 
         amountMode: 'TOTAL', // TOTAL | INSTALLMENT
         amountValue: '',
         status: 'REAL',
-        isStatistical: false
+        isStatistical: false,
+        comprobante: ''
     };
 
     const [data, setData] = useState(defaultData);
@@ -155,6 +156,19 @@ export function InstallmentsDialog({ open, onOpenChange, onSuccess, categories, 
                                 <span>Total: ${totalAmount.toLocaleString()}</span>
                             )}
                         </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label className="flex justify-between">
+                            Comprobante / Voucher
+                            <span className="text-[10px] text-slate-500 font-normal">(Opcional para detectar duplicados)</span>
+                        </Label>
+                        <Input
+                            value={data.comprobante}
+                            onChange={e => setData({ ...data, comprobante: e.target.value })}
+                            className="bg-slate-950 border-slate-700 h-8 text-xs font-mono"
+                            placeholder="Ej: 001234"
+                        />
                     </div>
 
                     <div className="flex items-center justify-between hidden">
