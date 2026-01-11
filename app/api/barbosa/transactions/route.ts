@@ -51,9 +51,25 @@ export async function POST(req: NextRequest) {
         exchangeRate,
         status,
         isStatistical,
-        isInstallmentPlan, // boolean
-        installments       // { current: number, total: number }
+        isInstallmentPlan,
+        installments,
+        comprobante       // Receipt/Voucher number
     } = body;
+
+    // 0. Duplicate Detection (by Comprobante)
+    if (comprobante) {
+        const existing = await prisma.barbosaTransaction.findFirst({
+            where: { userId, comprobante }
+        });
+        if (existing) {
+            console.log(`[API] Duplicate transaction skipped: Voucher ${comprobante}`);
+            return NextResponse.json({
+                error: 'DUPLICATE',
+                message: `La transacción con comprobante ${comprobante} ya existe.`,
+                transaction: existing
+            }, { status: 409 });
+        }
+    }
 
     // 1. Validate Category
     let validCategoryId = categoryId;

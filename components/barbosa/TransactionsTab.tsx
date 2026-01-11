@@ -40,6 +40,8 @@ export function TransactionsTab() {
     const [pendingFile, setPendingFile] = useState<File | null>(null); // NEW: Track file to upload after review
     const [currentImportSource, setCurrentImportSource] = useState<string | null>(null);
     const [showParsedDialog, setShowParsedDialog] = useState(false);
+    const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null);
+    const [rowEditData, setRowEditData] = useState<any>(null);
 
     const [filterStatistical, setFilterStatistical] = useState(false);
     const [filterMonth, setFilterMonth] = useState('ALL'); // 'ALL' or '0'-'11'
@@ -57,6 +59,7 @@ export function TransactionsTab() {
         exchangeRate: '',
         status: 'REAL', // REAL, PROJECTED
         isStatistical: false,
+        comprobante: '',
     });
 
     useEffect(() => {
@@ -284,6 +287,7 @@ export function TransactionsTab() {
 
             // Step 2: Create transactions
             let successCount = 0;
+            let duplicateCount = 0;
             const validResults = parsedResults.filter(tx => !tx.skip);
 
             for (const tx of validResults) {
@@ -298,7 +302,6 @@ export function TransactionsTab() {
                         attachmentUrl: attachmentUrl, // Link the PDF
                         status: 'REAL',
                         isStatistical: tx.isStatistical,
-                        isStatistical: tx.isStatistical,
                         isInstallmentPlan: tx.isInstallmentPlan,
                         // If it's a plan, strip the ' (Cuota X/Y)' part from description to keep it clean
                         description: tx.isInstallmentPlan
@@ -308,9 +311,13 @@ export function TransactionsTab() {
                     })
                 });
 
+                if (res.status === 409) {
+                    duplicateCount++;
+                    continue; // Skip without error alert
+                }
+
                 if (res.ok && tx.categoryId) {
                     // Always "learn" the category assignment for future imports
-                    // We send the clean description to be matched against
                     const cleanDesc = tx.description.replace(/\s*\(?Cuota\s*\d+\/\d+\)?/i, '').trim();
 
                     await fetch('/api/barbosa/categories/rules', {
@@ -327,7 +334,10 @@ export function TransactionsTab() {
                 if (res.ok) successCount++;
             }
 
-            alert(`Se importaron ${successCount} transacciones correctamente.`);
+            let msg = `Se importaron ${successCount} transacciones correctamente.`;
+            if (duplicateCount > 0) msg += `\n(${duplicateCount} ya existían y fueron omitidas)`;
+
+            alert(msg);
             setShowParsedDialog(false);
             setParsedResults(null);
             setCurrentImportSource(null);
@@ -364,12 +374,13 @@ export function TransactionsTab() {
                 type: tx.type,
                 amount: tx.amount.toString(),
                 currency: tx.currency,
-                categoryId: tx.categoryId || '',
+                categoryId: tx.categoryId,
                 subCategoryId: tx.subCategoryId || '',
                 description: tx.description || '',
                 exchangeRate: tx.exchangeRate ? tx.exchangeRate.toString() : '',
-                status: tx.status || 'REAL',
-                isStatistical: tx.isStatistical || false
+                status: tx.status,
+                isStatistical: tx.isStatistical || false,
+                comprobante: tx.comprobante || '',
             });
         } catch (e) {
             console.error("Error setting up edit form", e);
@@ -771,13 +782,24 @@ export function TransactionsTab() {
                                 </Select>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="text-slate-300">Descripción</Label>
-                                <Input
-                                    value={formData.description}
-                                    onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                    className="bg-slate-950 border-slate-700 text-white"
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label className="text-slate-300">Descripción</Label>
+                                    <Input
+                                        value={formData.description}
+                                        onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                        className="bg-slate-950 border-slate-700 text-white"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-slate-300">Comprobante</Label>
+                                    <Input
+                                        value={formData.comprobante}
+                                        onChange={e => setFormData({ ...formData, comprobante: e.target.value })}
+                                        className="bg-slate-950 border-slate-700 text-white"
+                                        placeholder="Opcional"
+                                    />
+                                </div>
                             </div>
 
                             <div className="flex gap-2">
@@ -906,9 +928,15 @@ export function TransactionsTab() {
                                 </Select>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>Descripción</Label>
-                                <Input value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="bg-slate-950 border-slate-700" />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Descripción</Label>
+                                    <Input value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="bg-slate-950 border-slate-700" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Comprobante</Label>
+                                    <Input value={formData.comprobante} onChange={e => setFormData({ ...formData, comprobante: e.target.value })} className="bg-slate-950 border-slate-700" placeholder="Opcional" />
+                                </div>
                             </div>
 
                             <div className="flex gap-2 pt-2">
@@ -1079,159 +1107,242 @@ export function TransactionsTab() {
                             <thead className="bg-slate-900/50 sticky top-0 z-10 backdrop-blur-sm">
                                 <tr>
                                     <th className="px-4 py-3 text-left font-medium text-slate-400 w-[120px]">FECHA</th>
+                                    <th className="px-4 py-3 text-left font-medium text-slate-400 w-[110px]">COMP.</th>
                                     <th className="px-4 py-3 text-left font-medium text-slate-400">
                                         <div className="flex items-center gap-2">
                                             DESCRIPCIÓN / OPCIONES
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 text-[10px] px-2 text-blue-400 hover:text-blue-300 hover:bg-blue-950/30 ml-4 border border-blue-900/50"
-                                                onClick={() => {
-                                                    if (!parsedResults) return;
-                                                    const allStat = parsedResults.every(tx => tx.isStatistical);
-                                                    const newResults = parsedResults.map(tx => ({ ...tx, isStatistical: !allStat }));
-                                                    setParsedResults(newResults);
-                                                }}
-                                            >
-                                                {parsedResults?.every(tx => tx.isStatistical) ? 'Desmarcar Todos' : 'Marcar Todos Estad.'}
-                                            </Button>
+                                            {/* ... */}
                                         </div>
                                     </th>
                                     <th className="px-4 py-3 text-right font-medium text-slate-400 w-[150px]">MONTO</th>
-                                    <th className="px-4 py-3 text-right font-medium text-slate-400 w-[80px]"></th>
+                                    <th className="px-4 py-3 text-right font-medium text-slate-400 w-[100px]"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/50">
-                                {parsedResults?.map((tx, idx) => (
-                                    <tr key={idx} className={`group transition-colors ${tx.skip ? 'opacity-30 bg-slate-900/20' : 'hover:bg-slate-900/30'}`}>
-                                        <td className="px-4 py-3 align-top font-mono text-slate-400">
-                                            {tx.date}
-                                        </td>
-                                        <td className="px-4 py-3 align-top">
-                                            <div className="space-y-2">
-                                                <div className="font-medium text-slate-200 mb-1">{tx.description}</div>
+                                {parsedResults?.map((tx, idx) => {
+                                    const isEditing = editingRowIndex === idx;
 
-                                                <div className="flex flex-col gap-1 mb-2">
-                                                    <label className="text-xs flex items-center gap-1.5 text-slate-400 cursor-pointer hover:text-indigo-300 transition-colors w-fit">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={tx.isInstallmentPlan}
-                                                            onChange={(e) => {
-                                                                const newResults = [...parsedResults];
-                                                                newResults[idx].isInstallmentPlan = e.target.checked;
-                                                                if (e.target.checked && !newResults[idx].installments) {
-                                                                    newResults[idx].installments = { current: 1, total: 12 };
-                                                                }
-                                                                setParsedResults(newResults);
-                                                            }}
-                                                            className="rounded border-slate-700 bg-slate-900 text-indigo-500 focus:ring-offset-0 focus:ring-1 focus:ring-indigo-500"
+                                    return (
+                                        <tr key={idx} className={`group transition-colors ${tx.skip ? 'opacity-30 bg-slate-900/20' : 'hover:bg-slate-900/30'}`}>
+                                            <td className="px-4 py-3 align-top font-mono text-slate-400">
+                                                {isEditing ? (
+                                                    <Input
+                                                        type="text"
+                                                        value={rowEditData.date}
+                                                        onChange={e => setRowEditData({ ...rowEditData, date: e.target.value })}
+                                                        className="h-8 text-xs bg-slate-950 border-slate-800"
+                                                    />
+                                                ) : (
+                                                    tx.date
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 align-top font-mono text-slate-500">
+                                                {isEditing ? (
+                                                    <Input
+                                                        type="text"
+                                                        value={rowEditData.comprobante || ''}
+                                                        onChange={e => setRowEditData({ ...rowEditData, comprobante: e.target.value })}
+                                                        className="h-8 text-xs bg-slate-950 border-slate-800"
+                                                    />
+                                                ) : (
+                                                    <span className="opacity-60 text-[10px]">{tx.comprobante || '-'}</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 align-top">
+                                                <div className="space-y-2">
+                                                    {isEditing ? (
+                                                        <Input
+                                                            type="text"
+                                                            value={rowEditData.description}
+                                                            onChange={e => setRowEditData({ ...rowEditData, description: e.target.value })}
+                                                            className="h-8 text-xs bg-slate-950 border-slate-800"
                                                         />
-                                                        {tx.isInstallmentPlan ? <span className="text-indigo-300 font-medium">Es Plan de Cuotas</span> : <span>Marcar como cuotas</span>}
-                                                    </label>
-
-                                                    {tx.isInstallmentPlan && tx.installments && (
-                                                        <div className="flex items-center gap-2 pl-[1.3rem]">
-                                                            <span className="text-xs text-slate-500">Plan:</span>
-                                                            <span className="text-xs font-mono font-bold text-indigo-300 bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-900/50">
-                                                                {tx.installments.current} / {tx.installments.total}
-                                                            </span>
-                                                        </div>
+                                                    ) : (
+                                                        <div className="font-medium text-slate-200 mb-1">{tx.description}</div>
                                                     )}
-                                                </div>
 
-                                                <div className="flex gap-2 items-center flex-wrap">
-                                                    <Select
-                                                        value={tx.categoryId || ''}
-                                                        onValueChange={(val) => {
-                                                            const newResults = [...parsedResults];
-                                                            newResults[idx].categoryId = val;
-                                                            newResults[idx].subCategoryId = null;
-                                                            setParsedResults(newResults);
-                                                        }}
-                                                    >
-                                                        <SelectTrigger className="h-8 text-xs w-[180px] bg-slate-900 border-slate-700">
-                                                            <SelectValue placeholder="Categoría" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {categories.map((cat: any) => (
-                                                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <div className="flex flex-col gap-1 mb-2">
+                                                        <label className="text-xs flex items-center gap-1.5 text-slate-400 cursor-pointer hover:text-indigo-300 transition-colors w-fit">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={tx.isInstallmentPlan}
+                                                                onChange={(e) => {
+                                                                    const newResults = [...parsedResults];
+                                                                    newResults[idx].isInstallmentPlan = e.target.checked;
+                                                                    if (e.target.checked && !newResults[idx].installments) {
+                                                                        newResults[idx].installments = { current: 1, total: 12 };
+                                                                    }
+                                                                    setParsedResults(newResults);
+                                                                }}
+                                                                className="rounded border-slate-700 bg-slate-900 text-indigo-500 focus:ring-offset-0 focus:ring-1 focus:ring-indigo-500"
+                                                            />
+                                                            {tx.isInstallmentPlan ? <span className="text-indigo-300 font-medium">Es Plan de Cuotas</span> : <span>Marcar como cuotas</span>}
+                                                        </label>
+                                                        {tx.isInstallmentPlan && tx.installments && (
+                                                            <div className="flex items-center gap-2 pl-[1.3rem]">
+                                                                {isEditing ? (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Input
+                                                                            type="number"
+                                                                            className="h-6 w-12 text-[10px] bg-slate-950 px-1"
+                                                                            value={rowEditData.installments.current}
+                                                                            onChange={e => setRowEditData({ ...rowEditData, installments: { ...rowEditData.installments, current: parseInt(e.target.value) } })}
+                                                                        />
+                                                                        <span className="text-[10px]">/</span>
+                                                                        <Input
+                                                                            type="number"
+                                                                            className="h-6 w-12 text-[10px] bg-slate-950 px-1"
+                                                                            value={rowEditData.installments.total}
+                                                                            onChange={e => setRowEditData({ ...rowEditData, installments: { ...rowEditData.installments, total: parseInt(e.target.value) } })}
+                                                                        />
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-xs font-mono font-bold text-indigo-300 bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-900/50">
+                                                                        {tx.installments.current} / {tx.installments.total}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
 
-                                                    {tx.categoryId && (
+                                                    <div className="flex gap-2 items-center flex-wrap">
                                                         <Select
-                                                            value={tx.subCategoryId || 'none'}
+                                                            value={tx.categoryId || ''}
                                                             onValueChange={(val) => {
                                                                 const newResults = [...parsedResults];
-                                                                newResults[idx].subCategoryId = val === 'none' ? null : val;
+                                                                newResults[idx].categoryId = val;
+                                                                newResults[idx].subCategoryId = null;
                                                                 setParsedResults(newResults);
                                                             }}
                                                         >
                                                             <SelectTrigger className="h-8 text-xs w-[180px] bg-slate-900 border-slate-700">
-                                                                <SelectValue placeholder="Subcategoría (Opcional)" />
+                                                                <SelectValue placeholder="Categoría" />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                <SelectItem value="none">-- Ninguna --</SelectItem>
-                                                                {categories.find((c: any) => c.id === tx.categoryId)?.subCategories?.map((sub: any) => (
-                                                                    <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                                                                {categories.map((cat: any) => (
+                                                                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                                                                 ))}
                                                             </SelectContent>
                                                         </Select>
-                                                    )}
 
-                                                    <label className="text-xs flex items-center gap-1.5 text-slate-500 cursor-pointer hover:text-slate-300 transition-colors ml-2" title="No cuenta para los totales mensuales">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={tx.isStatistical}
-                                                            onChange={(e) => {
-                                                                const newResults = [...parsedResults];
-                                                                newResults[idx].isStatistical = e.target.checked;
-                                                                setParsedResults(newResults);
-                                                            }}
-                                                            className="rounded border-slate-700 bg-slate-900 text-slate-500 focus:ring-offset-0 focus:ring-1 focus:ring-slate-500"
-                                                        />
-                                                        Estadístico
-                                                    </label>
+                                                        {tx.categoryId && (
+                                                            <Select
+                                                                value={tx.subCategoryId || 'none'}
+                                                                onValueChange={(val) => {
+                                                                    const newResults = [...parsedResults];
+                                                                    newResults[idx].subCategoryId = val === 'none' ? null : val;
+                                                                    setParsedResults(newResults);
+                                                                }}
+                                                            >
+                                                                <SelectTrigger className="h-8 text-xs w-[180px] bg-slate-900 border-slate-700">
+                                                                    <SelectValue placeholder="Subcategoría (Opcional)" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="none">-- Ninguna --</SelectItem>
+                                                                    {categories.find((c: any) => c.id === tx.categoryId)?.subCategories?.map((sub: any) => (
+                                                                        <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+
+                                                        <label className="text-xs flex items-center gap-1.5 text-slate-500 cursor-pointer hover:text-slate-300 transition-colors ml-2" title="No cuenta para los totales mensuales">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={tx.isStatistical}
+                                                                onChange={(e) => {
+                                                                    const newResults = [...parsedResults];
+                                                                    newResults[idx].isStatistical = e.target.checked;
+                                                                    setParsedResults(newResults);
+                                                                }}
+                                                                className="rounded border-slate-700 bg-slate-900 text-slate-500 focus:ring-offset-0 focus:ring-1 focus:ring-slate-500"
+                                                            />
+                                                            Estadístico
+                                                        </label>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 align-top text-right">
-                                            <div className="font-mono font-medium text-slate-200">
-                                                $ {tx.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                                            </div>
-                                            <div className="text-xs text-slate-500 mt-1">{tx.currency}</div>
-                                        </td>
-                                        <td className="px-4 py-3 align-top text-right">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    className={`h-8 w-8 ${tx.skip ? 'text-slate-600' : 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20'}`}
-                                                    onClick={() => {
-                                                        const newResults = [...parsedResults];
-                                                        newResults[idx].skip = !newResults[idx].skip;
-                                                        setParsedResults(newResults);
-                                                    }}
-                                                >
-                                                    <Check className={`w-4 h-4 ${tx.skip ? 'opacity-0' : 'opacity-100'}`} />
-                                                </Button>
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-900/20"
-                                                    onClick={() => {
-                                                        const newResults = [...parsedResults];
-                                                        newResults[idx].skip = true;
-                                                        setParsedResults(newResults);
-                                                    }}
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                            <td className="px-4 py-3 align-top text-right">
+                                                {isEditing ? (
+                                                    <Input
+                                                        type="number"
+                                                        value={rowEditData.amount}
+                                                        onChange={e => setRowEditData({ ...rowEditData, amount: parseFloat(e.target.value) })}
+                                                        className="h-8 text-xs bg-slate-950 border-slate-800 text-right"
+                                                    />
+                                                ) : (
+                                                    <>
+                                                        <div className="font-mono font-medium text-slate-200">
+                                                            $ {tx.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                        </div>
+                                                        <div className="text-xs text-slate-500 mt-1">{tx.currency}</div>
+                                                    </>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 align-top text-right">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    {isEditing ? (
+                                                        <>
+                                                            <Button
+                                                                size="icon" variant="ghost" className="h-8 w-8 text-green-400 hover:text-green-300 hover:bg-green-950/30"
+                                                                onClick={() => {
+                                                                    const newResults = [...parsedResults];
+                                                                    newResults[idx] = { ...newResults[idx], ...rowEditData };
+                                                                    setParsedResults(newResults);
+                                                                    setEditingRowIndex(null);
+                                                                }}
+                                                            >
+                                                                <Check className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button
+                                                                size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-white"
+                                                                onClick={() => setEditingRowIndex(null)}
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </Button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Button
+                                                                size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-blue-300"
+                                                                onClick={() => {
+                                                                    setEditingRowIndex(idx);
+                                                                    setRowEditData({ ...tx });
+                                                                }}
+                                                            >
+                                                                <Edit className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className={`h-8 w-8 ${tx.skip ? 'text-slate-600' : 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20'}`}
+                                                                onClick={() => {
+                                                                    const newResults = [...parsedResults];
+                                                                    newResults[idx].skip = !newResults[idx].skip;
+                                                                    setParsedResults(newResults);
+                                                                }}
+                                                            >
+                                                                <Check className={`w-4 h-4 ${tx.skip ? 'opacity-0' : 'opacity-100'}`} />
+                                                            </Button>
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-900/20"
+                                                                onClick={() => {
+                                                                    const newResults = [...parsedResults];
+                                                                    newResults[idx].skip = true;
+                                                                    setParsedResults(newResults);
+                                                                }}
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
