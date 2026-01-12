@@ -39,6 +39,13 @@ export function DashboardTab() {
         return itemDate >= cutoffDate;
     });
 
+    // Filter category trend for Nov 2025+
+    const filteredCategoryTrend = categoryTrend ? categoryTrend.filter((d: any) => {
+        const itemDate = new Date(d.date);
+        const cutoffDate = new Date('2025-11-01');
+        return itemDate >= cutoffDate;
+    }) : [];
+
     console.log('🟢 ALL TREND DATA:', trend);
     console.log('🟢 FILTERED SAVINGS TREND (Nov 25+):', savingsTrend);
     console.log('🟢 Sample incomeUSD values:', savingsTrend.map(d => ({ period: d.period, incomeUSD: d.incomeUSD })));
@@ -270,9 +277,9 @@ export function DashboardTab() {
                             Evolución de Gastos por Categoría (Top 4)
                         </h3>
                         <div className="h-[300px] w-full">
-                            {categoryTrend && topCategories ? (
+                            {filteredCategoryTrend && filteredCategoryTrend.length > 0 && topCategories ? (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={categoryTrend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                                    <LineChart data={filteredCategoryTrend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                                         <XAxis
                                             dataKey="shortDate"
