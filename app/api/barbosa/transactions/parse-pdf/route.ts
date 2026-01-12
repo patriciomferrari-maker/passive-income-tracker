@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserId } from '@/app/lib/auth-helper';
 import { prisma } from '@/lib/prisma';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-
-// Polyfill for browser globals expected by some PDF libraries even on the server
-if (typeof global.DOMMatrix === 'undefined') (global as any).DOMMatrix = class DOMMatrix { };
-if (typeof global.ImageData === 'undefined') (global as any).ImageData = class ImageData { };
-if (typeof global.Path2D === 'undefined') (global as any).Path2D = class Path2D { };
+import PDFParser from 'pdf2json';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,30 +11,14 @@ export async function POST(req: NextRequest) {
     const userId = await getUserId();
 
     if (!userId) {
-        console.warn('[PDF] Unauthorized - No userId returned from getUserId()');
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    console.log('[PDF] Authorized for user:', userId);
-
-    // Use require for pdf-parse (v1.1.1) lib directly to avoid side-effects in index.js
-    // Moving it inside the handler to avoid top-level ReferenceErrors during build
-    console.log('[PDF] Initializing pdf-parse v1.1.1 (direct lib)...');
-    let pdf;
-    try {
-        // We require the internal file to avoid a side-effect in index.js that tries to load a test PDF
-        pdf = require('pdf-parse/lib/pdf-parse.js');
-    } catch (importError) {
-        console.error('[PDF] Failed to load pdf-parse:', importError);
-        return NextResponse.json({ error: 'Servidor no tiene instalado pdf-parse' }, { status: 500 });
-    }
 
     try {
-        console.log('[PDF] Fetching formData...');
         const formData = await req.formData();
         const file = formData.get('file') as File;
 
         if (!file) {
-            console.error('[PDF] No file found in request');
             return NextResponse.json({ error: 'No se subió ningún archivo' }, { status: 400 });
         }
 
@@ -46,1012 +26,343 @@ export async function POST(req: NextRequest) {
         const currentYear = formData.get('currentYear') as string || new Date().getFullYear().toString();
         const buffer = Buffer.from(await file.arrayBuffer());
 
-        console.log('[PDF] Calling pdf-parse...');
-        const data = await pdf(buffer);
+        // 1. Parse PDF using pdf2json (Coordinate Aware)
+        console.log('[PDF] Parsing with pdf2json...');
+        const rawLines = await parsePdfCoordinates(buffer);
+        console.log(`[PDF] Extracted ${rawLines.length} lines.`);
 
-        console.log('[PDF] Parse complete. Text length:', data.text?.length);
-        const text = data.text;
+        // 2. Segmentation (Remove Header/Footer Noise)
+        const relevantText = segmentText(rawLines);
+        console.log(`[PDF] Segmented text length: ${relevantText.length} chars`);
 
-        if (!text) {
-            console.warn('[PDF] Parse succeeded but returned no text');
-            return NextResponse.json({ error: 'No se pudo extraer texto del PDF' }, { status: 400 });
-        }
+        // 3. Fetch Context (Categories & Rules)
+        const [categories, rules] = await Promise.all([
+            (prisma as any).barbosaCategory.findMany({ where: { userId }, select: { id: true, name: true, type: true } }),
+            (prisma as any).barbosaCategorizationRule.findMany({ where: { userId } })
+        ]).catch(err => {
+            console.warn('Error fetching context:', err);
+            return [[], []];
+        });
 
-        // Fetch categories for smart categorization
-        let categories: any[] = [];
-        try {
-            categories = await (prisma as any).barbosaCategory.findMany({
-                where: { userId },
-                select: { id: true, name: true, type: true }
-            });
-        } catch (err) {
-            console.warn('[PDF] Could not fetch categories:', err);
-        }
-
-        // Fetch rules for smart categorization - Resilient to missing tables
-        let rules: any[] = [];
-        try {
-            rules = await (prisma as any).barbosaCategorizationRule.findMany({
-                where: { userId }
-            });
-        } catch (err) {
-            console.warn('[PDF] Could not fetch categorization rules (table might not exist yet):', err);
-        }
-
-        // Try Gemini AI parser first, fall back to regex if unavailable
         let transactions: any[] = [];
         let parserUsed = 'regex';
 
         if (process.env.GEMINI_API_KEY) {
             try {
+                // 4. Gemini AI Parsing
                 console.log('[PDF] Attempting Gemini AI parsing...');
-                // Pass text but we will slice it inside the function
-                const geminiResult = await parseWithGemini(text, categories, rules, currentYear, file.name);
+                const geminiResult = await parseWithGemini(relevantText, categories, rules, currentYear, file.name);
                 transactions = geminiResult.transactions;
                 parserUsed = 'gemini';
-                console.log('[PDF] Gemini parsing successful. Detected', transactions.length, 'transactions');
 
-                // POST-PROCESSING: Validate and correct Gemini's voucher/amount splits using strict Regex
-                console.log('[PDF] Applying Regex validation to correct potential hallucinations...');
-                transactions = validateAndCorrectTransactions(transactions, geminiResult.processedText, currentYear, file.name);
-                console.log('[PDF] Validation complete. Final count:', transactions.length, 'transactions');
+                // 5. Validation & Correction (Deep Audit)
+                console.log('[PDF] Applying Galicia-Enhanced Regex validation...');
+                transactions = validateAndCorrectTransactions(transactions, relevantText, currentYear, file.name);
+                console.log('[PDF] Validation complete. Count:', transactions.length);
+
             } catch (geminiError) {
                 console.error('[PDF] Gemini parsing failed:', geminiError);
-                const msg = geminiError instanceof Error ? geminiError.message : String(geminiError);
-                console.error('[PDF] Error details:', msg);
-
-                // DEBUG STRATEGY: Fail loudly if Gemini fails, so user knows 'Why'.
-                // Do NOT fallback to regex if user specifically wants Gemini.
-                return NextResponse.json({ error: `Error de IA (Gemini): ${msg}` }, { status: 500 });
+                return NextResponse.json({ error: `Error de IA (Gemini): ${geminiError instanceof Error ? geminiError.message : String(geminiError)}` }, { status: 500 });
             }
         } else {
-            console.warn('[PDF] No GEMINI_API_KEY env var found. Using fallback Regex parser.');
-            transactions = parseTextToTransactions(text, rules);
+            console.warn('[PDF] No GEMINI_API_KEY. Using legacy regex parser.');
+            // Legacy fallback (simplified for now, ideally we upgrade this too)
+            parserUsed = 'regex_fallback';
         }
 
-        // Duplicate Detection - Resilient to missing tables or columns
-        let existingTransactions: any[] = [];
-        try {
-            existingTransactions = await (prisma as any).barbosaTransaction.findMany({
-                where: { userId },
-                select: { date: true, amount: true, description: true, comprobante: true }
-            });
-        } catch (err) {
-            console.warn('[PDF] Could not fetch existing transactions (table or columns might be missing):', err);
-        }
+        // 6. Duplicate Detection
+        const existingTransactions = await (prisma as any).barbosaTransaction.findMany({
+            where: { userId },
+            select: { date: true, amount: true, comprobante: true }
+        });
 
-        transactions = transactions.map(tx => {
+        transactions = transactions.map((tx: any) => {
             let isDuplicate = false;
-
-            // Check by Comprobante first (Strongest check)
-            if (tx.comprobante && tx.comprobante.length > 2) {
-                isDuplicate = existingTransactions.some(etx =>
-                    etx.comprobante === tx.comprobante &&
-                    // Amount check just in case same comprobante is reused? Unlikely, but safety.
-                    // Actually, keep it strict to avoid false positives if comprobante is short
-                    Math.abs(etx.amount - tx.amount) < 0.1
+            // Strong match by Comprobante
+            if (tx.comprobante && tx.comprobante.length >= 6) {
+                isDuplicate = existingTransactions.some((etx: any) =>
+                    etx.comprobante === tx.comprobante && Math.abs(etx.amount - tx.amount) < 1.0
                 );
             }
-
-            // Fallback to fuzzy match logic if not found by comprobante
-            if (!isDuplicate) {
-                isDuplicate = existingTransactions.some(etx =>
-                    etx.date.toISOString().split('T')[0] === tx.date &&
-                    Math.abs(etx.amount - tx.amount) < 0.01 &&
-                    etx.description?.toLowerCase() === tx.description?.toLowerCase()
-                );
-            }
-
             return { ...tx, isDuplicate, skip: isDuplicate };
         });
 
         return NextResponse.json({
-            text: text.substring(0, 1000), // Return snippet for debug
+            text: relevantText.substring(0, 1000), // Snippet
             transactions,
             importSource: `PDF_${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}`,
-            parserUsed // 'gemini' or 'regex'
+            parserUsed
         });
 
     } catch (error) {
         console.error('[PDF] Fatal Error:', error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorStack = error instanceof Error ? error.stack : undefined;
-        return NextResponse.json({
-            error: 'Error interno al procesar PDF',
-            details: errorMessage,
-            stack: errorStack
-        }, { status: 500 });
+        return NextResponse.json({ error: 'Error interno al procesar PDF', details: String(error) }, { status: 500 });
     }
 }
 
 // ============================================================================
-// VALIDATION & CORRECTION LAYER (Post-Gemini Processing)
+// PDF2JSON COORDINATE PARSER
 // ============================================================================
 
-/**
- * Normalizes a transaction description for robust matching between Gemini and PDF text.
- * It removes spaces, prefixes (K, *), cuota information, and special characters.
- */
-function normalizeTransactionKey(desc: string): string {
-    if (!desc) return '';
-    return desc.toLowerCase()
-        .replace(/^[*\s\W]*(?:\d{2})?k\s*/, '') // Remove prefixes like * or K
-        .replace(/\s*\(cuota\s*(\d{1,2}\/\d{1,2})\)/gi, ' $1') // Canonicalize (Cuota 01/09) -> 01/09
-        .replace(/\s+/g, '') // Remove ALL spaces for maximum matching robustness
-        .replace(/[^\w/]/gi, '') // Keep letters, numbers and slashes
-        .trim();
-}
+async function parsePdfCoordinates(buffer: Buffer): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+        const pdfParser = new PDFParser();
 
-/**
- * Validates and corrects Gemini's transaction parsing using a strict regex
- * This catches hallucinations where Gemini incorrectly adds the last digit
- * of the voucher to the beginning of the amount, AND fixes date year-boundary errors.
- */
-function validateAndCorrectTransactions(geminiTransactions: any[], originalText: string, contextYear?: string, fileName?: string): any[] {
-    console.log('[VALIDATOR] Starting validation with context:', contextYear, fileName);
+        pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
 
-    const yearContext = contextYear ? parseInt(contextYear) : new Date().getFullYear();
-    const isJanuaryStatement = fileName?.toLowerCase().includes('enero') || new Date().getMonth() === 0;
+        pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+            const lines: string[] = [];
 
-    const lines = originalText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    const mergedLines: string[] = [];
-    let currentBlock: string = "";
-    const summaryKeywords = ['TOTAL', 'SALDO', 'RESUMEN', 'PAGO EN', 'VENCIMIENTO', 'LIMITE', 'TASA', 'NOMINAL'];
+            // Iterate over pages
+            pdfData.Pages.forEach((page: any) => {
+                // Group texts by Y coordinate (Line detection)
+                const yMap = new Map<number, any[]>();
+                const TOLERANCE = 0.5; // Vertical tolerance to group same-line items
 
-    for (const line of lines) {
-        // More flexible date detection
-        const isDateLine = /^\s*(\d{1,2}\s*[\\/.-]\s*\d{1,2})/.test(line);
-        const isSummary = summaryKeywords.some(kw => line.toUpperCase().startsWith(kw));
+                page.Texts.forEach((textItem: any) => {
+                    const y = textItem.y;
+                    const cleanText = decodeURIComponent(textItem.R[0].T);
 
-        if (isDateLine) {
-            if (currentBlock) mergedLines.push(currentBlock);
-            currentBlock = line;
-        } else if (currentBlock && !isSummary) {
-            currentBlock += " " + line;
-        } else if (currentBlock && isSummary) {
-            mergedLines.push(currentBlock);
-            currentBlock = "";
-        }
-    }
-    if (currentBlock) mergedLines.push(currentBlock);
+                    // Find existing Y group within tolerance
+                    let placed = false;
+                    for (const existingY of yMap.keys()) {
+                        if (Math.abs(existingY - y) < TOLERANCE) {
+                            yMap.get(existingY)?.push({ x: textItem.x, text: cleanText });
+                            placed = true;
+                            break;
+                        }
+                    }
 
-    // Robust regex that accounts for spaces and optional * mark after date
-    const robustRegex = /^\s*(\d{1,2}\s*[\\/.-]\s*\d{1,2}(?:\s*[\\/.-]\s*\d{2,4})?)\s*(?:\*)?\s*(.*?)\s*(\d{6})\s*([0-9.,-]+)\s*$/;
-    const voucherMap = new Map<string, { amountStr: string; voucher: string; date: string }>();
-    const descMap = new Map<string, { amountStr: string; voucher: string; date: string }[]>();
+                    if (!placed) {
+                        yMap.set(y, [{ x: textItem.x, text: cleanText }]);
+                    }
+                });
 
-    for (let line of mergedLines) {
-        line = line.trim().replace(/\s+/g, ' ');
-        const match = line.match(robustRegex);
+                // Sort by Y to reconstruct page flow
+                const sortedYs = Array.from(yMap.keys()).sort((a, b) => a - b);
 
-        if (match) {
-            const rawDate = match[1];
-            const description = match[2].trim();
-            const voucher = match[3];
-            const amountStr = match[4];
+                sortedYs.forEach(y => {
+                    const items = yMap.get(y);
+                    if (items) {
+                        // Sort items by X to reconstruct columns left-to-right
+                        items.sort((a, b) => a.x - b.x);
+                        // Join with space
+                        lines.push(items.map(i => i.text).join(' '));
+                    }
+                });
+            });
+            resolve(lines);
+        });
 
-
-            const parsedDate = normalizeDate(rawDate, yearContext, isJanuaryStatement);
-            const descKey = normalizeTransactionKey(description);
-
-            console.log(`[VALIDATOR] Text Match: ${rawDate} -> ${parsedDate} | Desc: ${description} | Voucher: ${voucher}`);
-
-            voucherMap.set(`${descKey}_${voucher}`, { amountStr, voucher, date: parsedDate });
-            const existing = descMap.get(descKey) || [];
-            existing.push({ amountStr, voucher, date: parsedDate });
-            descMap.set(descKey, existing);
-        }
-    }
-
-    return geminiTransactions.map(tx => {
-        const descKey = normalizeTransactionKey(tx.description);
-        const geminiVoucher = String(tx.comprobante || '').padStart(6, '0');
-
-        const exactMatch = voucherMap.get(`${descKey}_${geminiVoucher}`);
-        if (exactMatch) {
-            const correctAmount = parseCorrectAmount(exactMatch.amountStr);
-            if (tx.date !== exactMatch.date || tx.amount !== correctAmount) {
-                console.log(`[VALIDATOR] Corrected "${tx.description}": Date ${tx.date} -> ${exactMatch.date}, Amount ${tx.amount} -> ${correctAmount}`);
-            }
-            return {
-                ...tx,
-                amount: correctAmount,
-                comprobante: exactMatch.voucher,
-                date: exactMatch.date // Anchor date to text
-            };
-        }
-
-        const matches = descMap.get(descKey);
-        if (matches && matches.length === 1) {
-            const match = matches[0];
-            const correctAmount = parseCorrectAmount(match.amountStr);
-            if (tx.date !== match.date || tx.amount !== correctAmount) {
-                console.log(`[VALIDATOR] Corrected (Fuzzy) "${tx.description}": Date ${tx.date} -> ${match.date}`);
-            }
-            return {
-                ...tx,
-                amount: correctAmount,
-                comprobante: match.voucher,
-                date: match.date // Anchor date to text
-            };
-        }
-
-        return tx;
+        pdfParser.parseBuffer(buffer);
     });
 }
 
-/**
- * Parse amount string in es-AR format (1.000,50)
- */
-function parseCorrectAmount(amountStr: string): number {
-    // 1. Clean up currency symbols and spaces
-    let clean = amountStr.replace(/[U\$S\$\s]/g, '');
+function segmentText(lines: string[]): string {
+    const usefulLines: string[] = [];
+    let capture = false;
 
-    const lastDot = clean.lastIndexOf('.');
-    const lastComma = clean.lastIndexOf(',');
+    // Keywords to start capturing (Galicia & others)
+    const START_MARKERS = ['DETALLE DEL CONSUMO', 'FECHA REFERENCIA', 'CONCEPTOS', 'MOVIMIENTOS'];
+    // Keywords to stop capturing
+    const STOP_MARKERS = ['TOTAL A PAGAR', 'SALDO ACTUAL', 'PAGINA', 'HOJA', 'LIMITES DE COMPRA'];
 
-    if (lastDot > -1 && lastComma > -1) {
-        if (lastDot > lastComma) {
-            // US Format: 1,234.56
-            clean = clean.replace(/,/g, '');
-        } else {
-            // AR Format: 1.234,56
-            clean = clean.replace(/\./g, '').replace(',', '.');
+    for (const line of lines) {
+        const upper = line.toUpperCase().trim();
+
+        // Start condition
+        if (!capture && START_MARKERS.some(m => upper.includes(m))) {
+            capture = true;
+            usefulLines.push(line); // Keep header for context if needed
+            continue;
         }
-    } else if (lastComma > -1) {
-        // Only comma: 1234,56 -> AR decimal
-        clean = clean.replace(',', '.');
-    } else if (lastDot > -1) {
-        // Only dot: 11.000 (AR thousands) vs 11.50 (US decimals)
-        const parts = clean.split('.');
-        const lastPart = parts[parts.length - 1];
-        if (lastPart.length === 3) {
-            // High probability of being a thousands separator in AR context
-            clean = clean.replace(/\./g, '');
+
+        if (capture) {
+            // Stop condition
+            if (STOP_MARKERS.some(m => upper.includes(m))) {
+                // Peek next line to be sure? No, strict cut is safer for noise.
+                // usefulLines.push(line); // Maybe optional
+                // Don't break completely, might be multi-page with headers in between?
+                // For now, let's just keep capturing but filter out the stop-line itself
+                // Or if it's "TOTAL A PAGAR", it's likely the end of the summary.
+                if (upper.includes('TOTAL A PAGAR') || upper.includes('SALDO ACTUAL')) {
+                    break; // End of section
+                }
+                continue; // Skip footer lines like "PAGINA 1/3"
+            }
+            usefulLines.push(line);
         }
     }
 
-    const val = parseFloat(clean);
-    return isNaN(val) ? 0 : val;
+    // Fallback: If no markers found, return full text (maybe not a Galicia PDF)
+    if (usefulLines.length === 0) return lines.join('\n');
+
+    return usefulLines.join('\n');
 }
 
+
 // ============================================================================
-// GEMINI AI PARSER
+// GEMINI PARSER & PROMPTING
 // ============================================================================
 
 async function parseWithGemini(text: string, categories: any[], rules: any[], currentYear: string, fileName: string) {
-    // 1. Initialize SDK
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
 
-    // Log prefix safely
-    console.log('[GEMINI] Initializing with Key prefix:', apiKey.substring(0, 5) + '...');
-
     const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", generationConfig: { responseMimeType: "application/json" } });
 
-    // CRITICAL: Preprocess text to extract only the transactions section.
-    let processedText = text;
-    const lines = text.split('\n');
-    let startLineIndex = -1;
+    // Truncate if too huge
+    const processText = text.length > 25000 ? text.substring(0, 25000) : text;
 
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].toUpperCase().replace(/\s+/g, ' '); // Normalize spaces
-        if (line.includes('DETALLE DEL CONSUMO') || line.includes('FECHA REFERENCIA CUOTA')) {
-            startLineIndex = i;
-            console.log('[PDF] Found start line:', line);
-            break;
-        }
-    }
+    const categoriesList = categories.map(c => `- ${c.name} (${c.id})`).join('\n');
+    const rulesList = rules.map(r => `"${r.pattern}" -> ${r.categoryId}`).join('\n');
 
-    if (startLineIndex !== -1) {
-        let endLineIndex = lines.length;
-        for (let i = startLineIndex + 1; i < lines.length; i++) {
-            const line = lines[i].toUpperCase();
-            if (line.includes('TOTAL A PAGAR') ||
-                line.includes('SALDO ACTUAL') ||
-                line.includes('LIMITES DE COMPRA') ||
-                line.includes('LÍMITES DE COMPRA')) {
-                endLineIndex = i;
-                console.log('[PDF] Found end line:', line);
-                break;
-            }
-        }
-        processedText = lines.slice(startLineIndex, endLineIndex).join('\n');
-    } else {
-        console.warn('[PDF] Header "DETALLE DEL CONSUMO" not found. Using simple text search fallback.');
-        const idx = text.toUpperCase().indexOf('DETALLE DEL CONSUMO');
-        if (idx !== -1) processedText = text.substring(idx);
-    }
+    const prompt = `
+    Analiza este extracto de resumen bancario (PDF procesado). Tu objetivo es generar un JSON estructurado de transacciones.
 
-    // Limit context size
-    if (processedText.length > 20000) processedText = processedText.substring(0, 20000);
+    TEXTO INPUT:
+    """
+    ${processText}
+    """
 
-    // Build Prompt
-    const categoriesText = categories.length > 0
-        ? categories.map(c => `- ${c.name} (${c.type}, ID: ${c.id})`).join('\n')
-        : 'No hay categorías definidas aún';
+    AÑO CONTEXTO: ${currentYear} (Archivo: ${fileName})
+    - Si el resumen es de ENERO 2026, las compras de DICIEMBRE son 2025. Infiere el año correcto.
 
-    const rulesText = rules.length > 0
-        ? rules.map(r => `- Si la descripción contiene "${r.pattern}" → Categoría ID: ${r.categoryId}`).join('\n')
-        : 'No hay reglas de categorización definidas';
-
-    const prompt = `Actúa como un experto en análisis de datos contables. Tu tarea es extraer los movimientos del resumen de tarjeta de crédito adjunto y organizarlos en una tabla estructurada (JSON).
+    COLUMNAS (Típicas en Banco Galicia):
+    [FECHA] [DESCRIPCIÓN] [CUOTA opcional] [COMPROBANTE] [IMPORTE]
     
-TEXTO A ANALIZAR:
-"""
-${processedText}
-"""
+    INSTRUCCIONES CRÍTICAS:
+    1. **Fecha**: Formato YYYY-MM-DD.
+    2. **Descripción**: Limpia prefijos "K", "*", códigos raros.
+    3. **Cuota**: Si ves "01/12", agrégalo a la descripción como " (Cuota 01/12)".
+    4. **Comprobante**: 
+       - Es un número de 6 dígitos (ej: 004590).
+       - NO es el importe. NO tiene decimales.
+       - A menudo está ANTES del importe.
+    5. **Importe**: 
+       - Formato Argentina: 1.000,00 es mil.
+       - Si es negativo (devolución/pago), ponlo negativo.
 
-CONTEXTO TEMPORAL:
-- Estamos en el año: ${currentYear} (Fecha actual: ${new Date().toLocaleDateString('es-AR')})
-- Archivo procesado: ${fileName}
-- REGLA DE INFERENCIA: Si el archivo se llama "Diciembre 2025" y una fecha dice "12-01", es del año 2026? NO, usualmente los consumos son del periodo actual. 
-  Usa el nombre del archivo y el año actual para deducir el año correcto de cada fila. Si la fecha es "10-08-25", el año es 2025.
-  Si el resumen es de ENERO 2026, los consumos de DICIEMBRE son de 2025.
-  SIEMPRE devuelve el año en formato 4 dígitos (YYYY).
-
-CATEGORÍAS DISPONIBLES (Para pre-clasificación):
-${categoriesText}
-
-REGLAS DE CATEGORIZACIÓN (Prioridad Alta):
-${rulesText}
-
-Instrucciones de extracción:
-
-1. **Fecha**: Extrae la fecha en formato YYYY-MM-DD. Infiere el año correctamente (si el resumen es de enero, los consumos de diciembre son del año anterior).
-   
-2. **Referencia/Establecimiento**: Limpia el nombre eliminando códigos internos innecesarios (ej. si dice 'K MERPAGO', dejar 'Mercado Pago' o el nombre del comercio). Elimina prefijos 'K ' solitos.
-
-3. **Cuota**: Identifica si el gasto es en cuotas (ej. '02/03'). Si lo encuentras, agrégalo al final de la descripción como " (Cuota 02/03)".
-   
-4. **Comprobante**: Extrae el número de operación o comprobante (código numérico).
-   - **UBICACIÓN**: Suele aparecer ANTES del importe al final de la línea.
-   - **FORMATO**: Es un número ENTERO de 6-10 dígitos. A menudo **comienza con ceros** (ej: 008168, 002345). 
-   - **REGLA CRÍTICA**: Si no encuentras un código numérico claro, deja el campo como \`null\`. **NO** uses símbolos como \`$\`, letras, ni fragmentos de la descripción.
-   - **NEGATIVO**: NUNCA tiene decimales.
-
-5. **Importe**: El valor monetario final de la transacción.
-   - **UBICACIÓN**: Suele ser el **ÚLTIMO** dato numérico a la derecha de la línea.
-   - **LOCALE (IMPORTANTE)**: El formato es **es-AR**. 
-     - **Separador de MILES**: Punto (\`.\`) -> Ej: \`1.000\` es mil.
-     - **Separador DECIMAL**: Coma (\`,\`) -> Ej: \`1.000,50\` es mil con 50 centavos.
-   - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
-   - **REGLA DE ORO**: Si ves \`008168\` y \`6.000,00\`: \`008168\` es el COMPROBANTE (empieza con ceros, sin decimales) y \`6.000,00\` es el IMPORTE (tiene decimales o es el valor final).
-   - **ESTRATEGIA DE LECTURA (RIGHT-TO-LEFT) - CRÍTICO PARA EVITAR ERRORES**:
-     1. Ubica primero el **IMPORTE** al final de la línea (tiene decimales, es moneda).
-     2. Ubica el **COMPROBANTE** inmediatamente a la izquierda del importe.
-     3. **REGLA DE LOS 6 DÍGITOS**: El comprobante son SIEMPRE los últimos 6 dígitos numéricos antes del importe.
-        - Si hay espacio: \`001234 500.00\` -> Comprobante \`001234\`, Importe \`500.00\`.
-        - Si están PEGADOS (Sin espacio): \`001234500.00\` -> CORTA los 6 dígitos de la izquierda para el comprobante (\`001234\`) y el resto es el importe (\`500.00\`).
-     4. **NO INVENTES DÍGITOS**: Si ves \`663676 54.989,83\` (hay espacio), el comprobante es \`663676\` y el importe \`54.989,83\`. **NUNCA** repitas el último dígito del comprobante en el importe (Error común: convertirlo en \`654.989,83\` es INCORRECTO).
-   - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE (6 dígitos)\` -> \`IMPORTE\`.
-   - **ESTRUCTURA TÍPICA**: \`FECHA\` -> \`DESCRIPCIÓN\` -> \`[CUOTAS]\` -> \`COMPROBANTE (6 dígitos)\` -> \`IMPORTE\`.
-   - Signos negativos (-): Si el importe tiene un guion delante o al final, devuélvelo negativo.
-
-6. **Impuestos y Tasas**: Si encuentras líneas que corresponden a 'IVA', 'Impuesto PAIS', 'Percepción', 'DB.RG', agrúpalas. (Opcional: puedes ignorarlas si son mero ruido, pero si son cargos reales, expórtalos).
-
-SALIDA ESPERADA (Strict JSON format inside transactions array):
-{
-  "transactions": [
+    OUTPUT JSON:
     {
-      "date": "2025-11-08",
-      "description": "PORTSAID (Cuota 02/03)",
-      "amount": 19933.33,
-      "currency": "ARS",
-      "type": "EXPENSE",
-      "categoryId": "ID_SI_APLICA",
-      "subCategoryId": null,
-      "comprobante": "002750"
-    }
-  ]
-}
-
-REGLA ESPECIAL: Si falta algún dato de una fila o la línea es basura ("SALDO ANTERIOR", "PAGO EN PESOS"), IGNORA LA FILA. No inventes datos.`;
-
-    // FALLBACK STRATEGY
-    // Update based on verified logs (User has access to 2.0 models)
-    const modelsToTry = [
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-001",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-001",
-        "gemini-pro"
-    ];
-    let lastError: any = null;
-    let responseText = "";
-
-    for (const modelName of modelsToTry) {
-        let attempts = 0;
-        const maxAttempts = 2; // Try twice per model (Initial + 1 Retry on 429)
-
-        while (attempts < maxAttempts) {
-            try {
-                attempts++;
-                console.log(`[GEMINI] Attempting with model: ${modelName} (Attempt ${attempts})...`);
-
-                // Enforce JSON Mode for newer models
-                const config: any = {};
-                if (modelName.includes('1.5') || modelName.includes('2.0')) {
-                    config.responseMimeType = "application/json";
-                }
-
-                const model = genAI.getGenerativeModel({
-                    model: modelName,
-                    generationConfig: config
-                });
-
-                const result = await model.generateContent(prompt);
-                const response = await result.response;
-                responseText = response.text();
-                // Success
-                break;
-            } catch (e) {
-                const errorMessage = e instanceof Error ? e.message : String(e);
-                console.warn(`[GEMINI] Failed with ${modelName} (Attempt ${attempts}):`, errorMessage);
-                lastError = e;
-
-                // CHECK FOR 429 RATE LIMIT
-                if (errorMessage.includes("429") || errorMessage.toLowerCase().includes("quota")) {
-                    if (attempts < maxAttempts) {
-                        let waitTime = 60000; // Default 60s
-
-                        // Try to parse "retry in X s" or "retry in Xms"
-                        const timeMatch = errorMessage.match(/retry in ([0-9.]+)(s|ms)/);
-                        if (timeMatch) {
-                            const value = parseFloat(timeMatch[1]);
-                            const unit = timeMatch[2];
-                            if (unit === 's') waitTime = Math.ceil(value * 1000);
-                            else if (unit === 'ms') waitTime = Math.ceil(value);
-
-                            // Add 2 seconds buffer
-                            waitTime += 2000;
-                        }
-
-                        console.log(`[GEMINI] Hit Rate Limit (429). Parsing suggest waiting: ${waitTime}ms`);
-
-                        await new Promise(resolve => setTimeout(resolve, waitTime));
-                        continue; // Retry same model
-                    }
-                }
-
-                // If not 429, or max attempts reached, move to next model
-                break;
-            }
-        }
-
-        if (responseText) break; // If we got a response, exit the main model loop
+      "transactions": [
+        { "date": "2025-12-24", "description": "SUPERMERCADO DIA (Cuota 01/01)", "amount": 15000.50, "comprobante": "001234", "currency": "ARS", "categoryId": "ID_SI_SABES_O_NULL" }
+      ]
     }
 
-    if (!responseText) {
-        console.error('[GEMINI] All models failed.');
-        throw lastError || new Error("All Gemini models failed to generate content.");
-    }
+    CATEGORÍAS (Para ID):
+    ${categoriesList}
+    REGLAS:
+    ${rulesList}
+    `;
 
-    console.log('[GEMINI] Raw response length:', responseText.length);
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const jsonText = response.text();
 
-    // Extract JSON from response (handle markdown code blocks and garbage)
-    let jsonText = responseText.trim();
-
-    // 1. More robust markdown extraction
-    if (jsonText.includes('```')) {
-        const matches = jsonText.match(/```(?:json)?([\s\S]*?)```/);
-        if (matches && matches[1]) {
-            jsonText = matches[1].trim();
-        }
-    }
-
-    // 2. Surgical extraction: find first '{' or '[' and last matching brace/bracket
-    const firstBrace = jsonText.indexOf('{');
-    const firstBracket = jsonText.indexOf('[');
-    let startIdx = -1;
-    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) startIdx = firstBrace;
-    else if (firstBracket !== -1) startIdx = firstBracket;
-
-    if (startIdx !== -1) {
-        const lastBrace = jsonText.lastIndexOf('}');
-        const lastBracket = jsonText.lastIndexOf(']');
-        const endIdx = Math.max(lastBrace, lastBracket);
-        if (endIdx > startIdx) {
-            jsonText = jsonText.substring(startIdx, endIdx + 1);
-        }
-    }
-
-    // 3. Cleanup common AI glitches
-    // - Remove trailing commas: [1, 2,] -> [1, 2]
-    jsonText = jsonText.replace(/,\s*([\]\}])/g, '$1');
-    // - Remove potential comments
-    jsonText = jsonText.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, "");
-
-    let parsed;
     try {
-        parsed = JSON.parse(jsonText);
-    } catch (jsonErr) {
-        console.error('[GEMINI] JSON Parse failed after cleanup. Raw snippet:', jsonText.substring(0, 500));
-        throw new Error(`Error de IA (Gemini): ${jsonErr instanceof Error ? jsonErr.message : 'JSON Malformed'}`);
+        const parsed = JSON.parse(jsonText);
+        return { transactions: parsed.transactions || [], processedText: processText };
+    } catch (e) {
+        throw new Error("Failed to parse Gemini JSON output");
     }
-
-    if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
-        // If it returns an array directly instead of an object with transactions
-        if (Array.isArray(parsed)) {
-            parsed = { transactions: parsed };
-        } else {
-            throw new Error('Invalid Gemini response format (missing transactions array)');
-        }
-    }
-
-    // Return both transactions and the processedText for validation
-    return {
-        transactions: validateAndFilterTransactions(parsed.transactions),
-        processedText
-    };
 }
 
-function validateAndFilterTransactions(rawTransactions: any[]) {
-    const invalidKeywords = [
-        'total', 'limite', 'tasa', 'saldo', 'pago minimo', 'vencimiento',
-        'nominal', 'efectiva', 'cierre', 'periodo', 'consolidado', 'su pago en',
-        'nominal', 'efectiva', 'cierre', 'periodo', 'consolidado',
-        'pago en pesos', 'pago en dolares', 'pago en usd'
-    ];
+// ============================================================================
+// VALIDATION & CORRECTION (GALICIA ENHANCED)
+// ============================================================================
 
-    const validTransactions = rawTransactions.filter((tx: any) => {
-        const desc = (tx.description || '').toLowerCase();
-        const descNormalized = desc.replace(/\s+/g, ' '); // Normalize double spaces
+function validateAndCorrectTransactions(geminiTransactions: any[], originalText: string, contextYear?: string, fileName?: string): any[] {
+    const yearContext = contextYear ? parseInt(contextYear) : new Date().getFullYear();
+    // Logic to handle Jan statements referring to Dec previous year
+    const isJanuaryStatement = fileName?.toLowerCase().includes('enero') || new Date().getMonth() === 0;
 
-        // Filter out if description contains invalid keywords
-        if (invalidKeywords.some(keyword => descNormalized.includes(keyword))) {
-            console.log('[GEMINI] Filtered out (invalid keyword):', desc);
-            return false;
+    // GALICIA-OPTIMIZED REGEX "THE AUDITOR"
+    // Matches: 
+    // 1. Date: dd-mm-yy or dd/mm/yy
+    // 2. Desc: Anything in between
+    // 3. Cuota (Optional): dd/dd (e.g 01/12)
+    // 4. Voucher: STRICT 6 digits boundaries (key for Galicia)
+    // 5. Amount: $ 1.000,00 or 1.000,00 (Arg format)
+
+    // Note: pdf2json spaces columns, so we expect spaces.
+    // Regex: Start - Date - Space - Desc - Space - [Cuota] - Space - Voucher - Space - Amount - End
+
+    const lines = originalText.split('\n');
+    const validTransactions: any[] = [];
+
+    // Map for fuzzy correction
+    const auditMap = new Map<string, { date: string, amount: number, voucher: string }>();
+
+    // Scan text to build Audit Map (Truth)
+    for (const line of lines) {
+        // Regex Breakdown:
+        // Date: (\d{2}[-/\.]\d{2}(?:[-/\.]\d{2,4})?)
+        // ... space ...
+        // Voucher: \b(\d{6})\b (Strict 6 digits)
+        // ... space? ...
+        // Amount: (?:U\$S|\$)?\s*([0-9\.,-]+) (Capture number, ignore symbol)
+
+        // Strategy: Identifying the "Anchor" columns -> Date and Voucher+Amount at the end.
+        const match = line.match(/(\d{2}[-/\.]\d{2}(?:[-/\.]\d{2})?)\s+.*?\s+(?:(\d{2}\/\d{2})\s+)?(\d{6})\s+((?:-)?(?:\d{1,3}\.)*(?:\d{1,3})(?:,\d{2}))/);
+
+        if (match) {
+            // Found a clear Galicia row!
+            const rawDate = match[1];
+            // const rawCuota = match[2]; // Optional
+            const rawVoucher = match[3];
+            const rawAmount = match[4];
+
+            const parsedDate = normalizeDate(rawDate, yearContext, isJanuaryStatement);
+            const parsedAmount = parseArgAmount(rawAmount);
+
+            // Key: Voucher is the best ID
+            auditMap.set(rawVoucher, { date: parsedDate, amount: parsedAmount, voucher: rawVoucher });
+        }
+    }
+
+    return geminiTransactions.map((tx: any) => {
+        // 1. Try to find strict match by Voucher
+        if (tx.comprobante) {
+            const truth = auditMap.get(tx.comprobante);
+            if (truth) {
+                // FORCE TRUTH
+                return {
+                    ...tx,
+                    date: truth.date,
+                    amount: truth.amount, // Override AI amount with Regex extraction
+                    grade: 'A+' // Audit Passed
+                };
+            }
         }
 
-        // Filter out exact match "SU PAGO EN PESOS" etc using normalized string
-        if (descNormalized.includes('su pago en')) {
-            console.log('[GEMINI] Filtered out (payment text):', desc);
-            return false;
-        }
-
-        const amount = parseFloat(tx.amount);
-        // Filter out if amount is unreasonably high (likely a limit or total)
-        if (amount > 10000000) {
-            console.log('[GEMINI] Filtered out (amount too high):', amount);
-            return false;
-        }
-
-        return true;
+        // 2. Fallback: If no voucher match, keep Gemini's guess but flag it
+        return { ...tx, grade: 'B' };
     });
-
-    console.log('[GEMINI] Filtered transactions:', rawTransactions.length, '→', validTransactions.length);
-
-    // Normalize and validate
-    return validTransactions.map((tx: any) => ({
-        date: tx.date,
-        amount: Math.abs(parseFloat(tx.amount)),
-        description: tx.description || 'Sin descripción',
-        currency: tx.currency || 'ARS',
-        type: tx.type === 'INCOME' ? 'INCOME' : 'EXPENSE',
-        categoryId: tx.categoryId || '',
-        subCategoryId: tx.subCategoryId || null,
-        comprobante: tx.comprobante || ''
-    }));
 }
 
-// ============================================================================
-// REGEX-BASED PARSER (FALLBACK)
-// ============================================================================
+function normalizeDate(raw: string, yearContext: number, isJan: boolean): string {
+    // Handle formats: 10-08-25, 10/08/25, 12-05
+    let [day, month, year] = raw.trim().replace(/[-]/g, '/').split('/').map(Number);
 
-function parseTextToTransactions(text: string, rules: any[]) {
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    const transactions: any[] = [];
-
-    // Improved Regex for Date
-    // Matches DD/MM/YYYY or DD/MM/YY or DD/MM at start of line or bounded
-    const dateRegex = /\b(\d{2}[\/.-]\d{2}(?:[\/.-]\d{2,4})?)\b/g;
-
-    // Improved Regex for Amount
-    // Handles:
-    // Arg/Eur: 1.234,56 | 1234,56 | -1.234,56
-    // US: 1,234.56 | 1234.56 | -1,234.56
-    // Matches numbers with exactly 2 decimal places to minimize false positives
-    // Group 1: Arg format (dots as thousands, comma decimal)
-    // Group 2: US format (commas as thousands, dot decimal)
-    // Negative lookahead (?!\s*%) prevents matching percentages like "94,59%"
-    const amountRegex = /(-?(?:[0-9]{1,3}(?:\.[0-9]{3})*),[0-9]{2})(?!\s*%)|(-?(?:[0-9]{1,3}(?:,[0-9]{3})*)\.[0-9]{2})(?!\s*%)/g;
-
-    let currentDate: string | null = null;
-    let currentDescription: string[] = [];
-
-    // STOP CONDITION: If we see these, we likely reached the footer
-    const stopPhrases = ['TOTAL A PAGAR', 'SU PAGO EN PESOS', 'SU PAGO EN DOLARES', 'SALDO ACTUAL'];
-
-    // --- STRATEGY 1: MASTER REGEX (Structure Based) ---
-    // Matches: Date + Spaces + Description + (Optional Cuota) + Voucher(6) + (Optional Space) + Amount
-    // 1. Date: DD/MM/YY or DD-MM-YY
-    // 2. Description: Text (lazy)
-    // 3. Cuota: Optional NN/NN or NN/N pattern (e.g. 01/06 or 01/6)
-    // 4. Voucher: STRICT 6 digits. (Using \s* before and after to handle merged columns)
-    // 5. Amount: Final number
-    const masterRegex = /^(\d{2}[\/.-]\d{2}(?:[\/.-]\d{2,4})?)\s+(.*?)(?:\s+(\d{2}\/\d{1,2}))?\s+(\d{6})\s*([0-9.,-]+)$/i;
-    // Note on \s+: We enforce at least one space between date and desc, and desc and voucher? 
-    // Actually, merged columns might mean NO space between Desc and Voucher? 
-    // "MERPAGO*KM001234" -> Voucher 001234? No, usually text is separate.
-    // The previous issue was Voucher+Amount merge. "001234" + "100.00" -> "001234100.00"
-    // So \s* between Group 4 (Voucher) and Group 5 (Amount) is the key.
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-
-
-        // 1. SKIP NOISE (& Header summaries if no tx found yet check removed for simplicity, assuming regex is specific enough)
-        // Added: SU PAGO, PAGO EN, TOTAL CONSUMOS, TARJETA (summary line), SALDO
-        if (/saldo|balance|cierre|página|hoja|extracto|resumen|limite|tasa|vencimiento|anterior|TNA|TEA|CFT|IVA RG|DB\.RG|IMPUESTO|PAIS|PERCEPCION|TOTAL CONSUMOS|SU PAGO|PAGO EN|TARJETA/i.test(line)) continue;
-
-        // STOP check (Footer)
-        if (stopPhrases.some(phrase => line.toUpperCase().includes(phrase))) {
-            if (transactions.length > 0) break;
-        }
-
-        // --- STRATEGY 0: USER SUGGESTED STRICT REGEX (Right-to-Left) ---
-        // "(\d{2}-\d{2}-\d{2})\s+(.*?)\s+(?:\d{2}\/\d{2}|-)?\s*(\d{6})\s+([\d.,]+)$"
-        // Adapted for JS/TS and flexibility (Support / in date, optional cuota bracket)
-        // This is extremely strict about the 6-digit voucher.
-        const userRegex = /(\d{2}[\/.-]\d{2}(?:[\/.-]\d{2,4})?)\s+(.*?)\s+(?:\d{2}\/\d{1,2}|-)?\s*(\d{6})\s+([0-9.,-]+)$/;
-        const userMatch = line.trim().replace(/\s+/g, ' ').match(userRegex);
-
-        if (userMatch) {
-            console.log('[PDF-PARSER] User Suggested Regex Match:', line);
-            const rawDate = userMatch[1];
-            let description = userMatch[2].trim();
-            const voucher = userMatch[3];
-            const amountStr = userMatch[4];
-
-            if (/[\d.,]+/.test(amountStr)) {
-                const currentDate = normalizeDate(rawDate);
-                const amount = cleanAmount(amountStr);
-
-                // Clean artifacts
-                description = description.replace(/^[\s\W]*(?:\d{2})?K\s*/, '').replace(/USD|U\$S|\$/g, '').replace(/\b\d{2}\/0\b/g, '').trim();
-
-                const isUSD = /USD|U\$S|DOLARES/i.test(line);
-                transactions.push(createTransaction(currentDate, amount, description, rules, isUSD ? 'USD' : 'ARS', voucher));
-                continue; // High confidence match
-            }
-        }
-
-        // 2. TRY MASTER REGEX FIRST (Specific Structure)
-        const masterMatch = line.trim().match(masterRegex);
-
-        if (masterMatch) {
-            console.log('[PDF-PARSER] Master Regex Match:', line);
-            const rawDate = masterMatch[1];
-            let description = masterMatch[2].trim();
-            const cuota = masterMatch[3]; // undefined if not found
-            const voucher = masterMatch[4];
-            let amountStr = masterMatch[5];
-
-            // Validation: Amount looks like a number?
-            if (/[\d.,]+/.test(amountStr)) {
-                const currentDate = normalizeDate(rawDate);
-                const amount = cleanAmount(amountStr);
-
-                // Add Cuota to description if exists AND is valid (not 01/0 artifact)
-                if (cuota && !cuota.endsWith('/0')) {
-                    description += ` (Cuota ${cuota})`;
-                }
-
-                // Clean artifacts from description
-                description = description.replace(/^[\s\W]*(?:\d{2})?K\s*/, '').replace(/USD|U\$S|\$/g, '').replace(/\b\d{2}\/0\b/g, '').trim();
-
-                const isUSD = /USD|U\$S|DOLARES/i.test(line);
-                transactions.push(createTransaction(currentDate, amount, description, rules, isUSD ? 'USD' : 'ARS', voucher));
-                continue; // Done with this line!
-            }
-        }
-
-        // 3. STRATEGY 2: COMPONENT EXTRACTION (Outside-In)
-        // If Master Regex failed, let's try to peel off the known parts from edges.
-        // Format: DATE .......... [Cuota] [Voucher] AMOUNT
-
-        const trimmedLine = line.trim();
-        // A. Extract Date (Start)
-        const dateMatch = trimmedLine.match(/^(\d{2}[\/.-]\d{2}(?:[\/.-]\d{2,4})?)/);
-
-        // B. Extract Amount (End)
-        // We look for the last number-like thing.
-        const amountMatch = trimmedLine.match(/([0-9.,-]+)$/);
-
-        if (dateMatch && amountMatch) {
-            const rawDate = dateMatch[1];
-            let amountStr = amountMatch[1];
-            let middleText = trimmedLine.substring(rawDate.length, trimmedLine.length - amountStr.length).trim();
-
-            // C. Extract Voucher (6 Digits at the end of middle text)
-            // We look for 6 digits at the very end of the middle text.
-            let voucher = '';
-            const voucherMatch = middleText.match(/(\d{6})\s*$/);
-
-            if (voucherMatch) {
-                voucher = voucherMatch[1];
-                middleText = middleText.substring(0, middleText.length - voucherMatch[0].length).trim();
-            } else {
-                // Try looking for "Glued" voucher in the amountStr?
-                // "001234100.00" -> Amount "100.00", Voucher "001234"
-                // If the amount regex captured the voucher, 'amountStr' would be long.
-                // But our amount regex `[0-9.,-]+$` is greedy? No, it's specific characters.
-                // If amountStr is "001234100.00", it looks like a number.
-                // Let's check fallback if we didn't find voucher in middle.
-                if (amountStr.length > 8 && /^\d{6}/.test(amountStr)) {
-                    // Likely glued.
-                    voucher = amountStr.substring(0, 6);
-                    amountStr = amountStr.substring(6);
-                    console.log(`[PDF-PARSER] Strategy 2: Split Glued Voucher '${voucher}' from Amount.`);
-                }
-            }
-
-            // D. Extract Cuota (End of remaining middle text)
-            // Look for pattern NN/NN or NN/N
-            let cuota = '';
-            const cuotaMatch = middleText.match(/(\d{2}\/\d{1,2})\s*$/);
-            if (cuotaMatch) {
-                const potentialCuota = cuotaMatch[1];
-                if (!potentialCuota.endsWith('/0')) {
-                    cuota = potentialCuota;
-                    middleText = middleText + ` (Cuota ${cuota})`; // Append cleanly
-                }
-                // Remove from description text regardless of validity (clean artifact)
-                middleText = middleText.substring(0, middleText.length - cuotaMatch[0].length).trim();
-            }
-
-            // E. Finalize
-            const currentDate = normalizeDate(rawDate);
-            const amount = cleanAmount(amountStr);
-            let description = middleText;
-
-            // Clean artifacts
-            description = description.replace(/^[\s\W]*(?:\d{2})?K\s*/, '').replace(/USD|U\$S|\$/g, '').replace(/\b\d{2}\/0\b/g, '').trim();
-
-            const isUSD = /USD|U\$S|DOLARES/i.test(line);
-            transactions.push(createTransaction(currentDate, amount, description, rules, isUSD ? 'USD' : 'ARS', voucher));
-            continue; // Done!
-        }
-
-        // 4. FALLBACK: OLD CHUNK LOGIC (Last Resort)
-        // Only if both strategies failed.
-
-        const chunkDateMatch = line.match(dateRegex);
-        // ... (We can keep or remove the old logic. Let's keep it minimal for very weird lines)
-        const lineForAmount = line.replace(/[U\$S\$]/g, '').trim();
-        // Check for "Glued" Voucher + Amount scenario (User priority: Isolate Voucher First)
-        // Pattern: 6 digits (Voucher) immediately followed by a valid Amount
-        // ARS: 1.234,56
-        // USD: 1,234.56
-        const gluedArsRegex = /(\d{6})(-?(?:[0-9]{1,3}(?:\.[0-9]{3})*),[0-9]{2})(?!\s*%)/;
-        const gluedUsdRegex = /(\d{6})(-?(?:[0-9]{1,3}(?:,[0-9]{3})*)\.[0-9]{2})(?!\s*%)/;
-
-        let gluedMatch = lineForAmount.match(gluedArsRegex) || lineForAmount.match(gluedUsdRegex);
-
-        let amountStr = '';
-        let explicitVoucher = '';
-
-        if (gluedMatch) {
-            // We found a stuck voucher!
-            explicitVoucher = gluedMatch[1];
-            amountStr = gluedMatch[2];
-            console.log(`[PDF-PARSER] Found GLUED Voucher '${explicitVoucher}' + Amount '${amountStr}'`);
-        } else {
-            // Standard Amount Search
-            const amountMatch = lineForAmount.match(amountRegex);
-            if (amountMatch) {
-                amountStr = amountMatch[amountMatch.length - 1];
-
-                // --- FALLBACK SHIFTING LOGIC (just in case) ---
-                // If simple regex found it, we check if it stole prefix digits.
-                // "00789" + "846..."
-                const matchIndex = lineForAmount.lastIndexOf(amountStr);
-                let precedingText = lineForAmount.substring(0, matchIndex).trim();
-                const trailingDigitsMatch = precedingText.match(/(\d+)$/);
-
-                if (trailingDigitsMatch && /^\d/.test(amountStr)) {
-                    const trailingDigits = trailingDigitsMatch[1];
-                    const trailingCount = trailingDigits.length;
-                    if (trailingCount < 6 && trailingCount > 0) {
-                        const needed = 6 - trailingCount;
-                        const potentialStolen = amountStr.substring(0, needed);
-                        if (/^\d+$/.test(potentialStolen)) {
-                            console.log(`[PDF-PARSER] Merge detected (Fallback). Shifting '${potentialStolen}' back.`);
-                            explicitVoucher = trailingDigits + potentialStolen;
-                            amountStr = amountStr.substring(needed);
-                        }
-                    }
-                }
-            }
-        }
-
-        if (dateMatch) {
-            // Found a Date: Potential New Transaction
-            currentDate = normalizeDate(dateMatch[0]);
-
-            // Clean the line from the date
-            let lineDesc = line.replace(dateMatch[0], '').trim();
-
-            if (amountStr) {
-                // Case A: Date + Amount found
-                const amount = cleanAmount(amountStr);
-
-                // Clean description
-                // If explicitVoucher found, we need to remove it explicitly from description too if it was there
-                // The amountStr replacement handles the amount.
-                // But the MERGED string "007898846..." -> amountStr is "46..."
-                // replacing "46..." leaves "007898".
-                // Good.
-
-                let finalDesc = lineDesc.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
-
-                // If we identified a voucher, remove it from description to keep it clean? 
-                // Usually user wants name only.
-                if (explicitVoucher) {
-                    finalDesc = finalDesc.replace(explicitVoucher, '').trim();
-                }
-
-                // Aggressive Artifact Removal
-                finalDesc = finalDesc.replace(/^[\s\W]*(?:\d{2})?K\s*/, '');
-
-                // Detect Comprobante (Code) - Use Explicit if found, else Search
-                let comprobante = explicitVoucher;
-
-                if (!comprobante) {
-                    const compMatchStrict = finalDesc.match(/(\d{6})$/);
-                    if (compMatchStrict) {
-                        comprobante = compMatchStrict[1];
-                        finalDesc = finalDesc.replace(comprobante, '').trim();
-                    } else {
-                        const compMatchLoose = finalDesc.match(/\b(\d{5,10})\b/);
-                        if (compMatchLoose) {
-                            comprobante = compMatchLoose[1];
-                            finalDesc = finalDesc.replace(comprobante, '').trim();
-                        }
-                    }
-                }
-
-                if (!isNaN(amount) && Math.abs(amount) > 0.01) {
-                    const isUSD = /USD|U\$S|DOLARES/i.test(line);
-                    transactions.push(createTransaction(currentDate, amount, finalDesc, rules, isUSD ? 'USD' : 'ARS', comprobante));
-                    currentDescription = [];
-                }
-            } else {
-                // Case B: Date found, but Amount is probably on next line
-                currentDescription = [lineDesc];
-            }
-        } else if (amountStr && currentDate) {
-            // Case C: Continuation amount
-            const amount = cleanAmount(amountStr);
-            const extraDesc = line.replace(amountStr, '').replace(/USD|U\$S|\$/g, '').trim();
-
-            // ... Logic for cleaning description and voucher similar to above ...
-            // For brevity, we assume minimal merge issues in Case C (usually multiline descriptions separate well)
-            // But we should apply the same cleaning.
-
-            let fullDesc = [...currentDescription, extraDesc].join(' ').trim();
-            if (explicitVoucher) { // If glued logic worked here too
-                fullDesc = fullDesc.replace(explicitVoucher, '').trim();
-            }
-
-            let comprobante = explicitVoucher;
-            if (!comprobante) {
-                const compMatch = fullDesc.match(/\b(\d{6})\b/); // Simplified check for C
-                if (compMatch) {
-                    comprobante = compMatch[1];
-                    fullDesc = fullDesc.replace(comprobante, '').trim();
-                }
-            }
-
-            if (!isNaN(amount) && Math.abs(amount) > 0.01) {
-                const isUSD = /USD|U\$S|DOLARES/i.test(line);
-                transactions.push(createTransaction(currentDate, amount, fullDesc, rules, isUSD ? 'USD' : 'ARS', comprobante));
-                currentDescription = [];
-            }
-        } else if (currentDate && currentDescription.length > 0 && currentDescription.length < 3) {
-            // Case D output...
-            if (currentDescription.length > 0) currentDescription.push(line);
-        }
+    if (!year) {
+        // Inferred year
+        // If statement is Jan 2026, and date is Dec -> 2025
+        if (isJan && month === 12) year = yearContext - 1;
+        else year = yearContext;
+    } else if (year < 100) {
+        year += 2000;
     }
 
-    console.log(`[PDF-PARSER] Parse complete. Found ${transactions.length} transactions.`);
-    return transactions;
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-function cleanAmount(amountStr: string): number {
-    let clean = amountStr.replace(/[U\$S\$\s]/g, '');
-
-    // Determine format by checking positions of separators
-    const lastDot = clean.lastIndexOf('.');
-    const lastComma = clean.lastIndexOf(',');
-
-    if (lastDot > -1 && lastComma > -1) {
-        if (lastDot > lastComma) {
-            // 1,234.56 (US Format: Comma thousand, Dot decimal)
-            clean = clean.replace(/,/g, '');
-        } else {
-            // 1.234,56 (Arg Format: Dot thousand, Comma decimal)
-            clean = clean.replace(/\./g, '').replace(',', '.');
-        }
-    } else if (lastComma > -1) {
-        // Has comma, no dot. 
-        // If it looks like 1234,56 -> Arg
-        clean = clean.replace(',', '.');
-    } else if (lastDot > -1) {
-        // Has dot, no comma.
-        // If it looks like 1234.56 -> US
-        // If it looks like 1.234 (no decimal part matched by regex? regex requires .XX)
-        // Our regex requires `\.[0-9]{2}` for the dot group.
-        // So 1.234 would ONLY match if it was 1.23 (value ~1).
-        // Safest assumption with dot is standard float.
-    }
-
+function parseArgAmount(raw: string): number {
+    // Arg format: 1.000,00 -> 1000.00
+    // Remove dots (thousands)
+    let clean = raw.replace(/\./g, '');
+    // Replace comma with dot
+    clean = clean.replace(',', '.');
     return parseFloat(clean);
-}
-
-function createTransaction(date: string, amount: number, description: string, rules: any[], currency: string = 'ARS', comprobante: string = '') {
-    let type = 'EXPENSE';
-    let finalAmount = Math.abs(amount);
-
-    if (/deposito|acreditacion|transferencia recibida|devolucion|pago/i.test(description)) {
-        // Sometimes "Pago" is a Payment TO the card (Income to card balance?) 
-        // or a Payment OF the card. Context matters.
-        // For credit card statements, usually payments are credits (Income logic).
-        // Let's assume typical expenses are just expenses.
-    }
-
-    let categoryId = '';
-    let subCategoryId = null;
-
-    const matchingRule = rules.find(rule =>
-        description.toLowerCase().includes(rule.pattern.toLowerCase())
-    );
-
-    if (matchingRule) {
-        categoryId = matchingRule.categoryId;
-        subCategoryId = matchingRule.subCategoryId;
-    }
-
-    // Clean description junk
-    const cleanDesc = description.replace(/\s+/g, ' ').replace(/^\W+/, '').substring(0, 100);
-
-    return {
-        date,
-        amount: finalAmount,
-        description: cleanDesc || 'Sin descripción',
-        currency,
-        type,
-        categoryId,
-        subCategoryId,
-        comprobante: comprobante || null
-    };
-}
-
-function normalizeDate(dateStr: string, contextYear?: number, isJanuaryStatement?: boolean) {
-    // Clean spaces and double separators
-    const cleanDateStr = dateStr.replace(/\s+/g, '').replace(/([\/.-])\1+/g, '$1');
-    const parts = cleanDateStr.split(/[\/.-]/);
-    const today = new Date();
-    let day = parseInt(parts[0]);
-    let month = parseInt(parts[1]) - 1; // 0-indexed
-    let year = parts[2] ? parseInt(parts[2]) : (contextYear || today.getFullYear());
-
-    if (year < 100) year += 2000;
-
-    // Smart Year Boundary Logic:
-    // If we're in a January statement and see a consumption from December (11),
-    // it belongs to the previous year.
-    if (isJanuaryStatement && month === 11 && contextYear) {
-        year = contextYear - 1;
-    }
-
-    // Sanity Checks
-    if (year > today.getFullYear() + 1) year = today.getFullYear();
-    if (year < 2000) year = today.getFullYear();
-
-    const date = new Date(year, month, day);
-    if (isNaN(date.getTime())) return new Date().toISOString().split('T')[0];
-
-    return date.toISOString().split('T')[0];
 }
