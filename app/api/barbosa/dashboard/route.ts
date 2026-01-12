@@ -208,9 +208,10 @@ export async function GET(req: NextRequest) {
             Object.keys(val.categoryBreakdown).forEach(cat => allCategories.add(cat));
         });
 
-        // Calculate total for each category to find top 4
+        // Calculate total for each category to find top 5 (excluding 'Gastos cash')
         const categoryTotals: Record<string, number> = {};
         allCategories.forEach(cat => {
+            if (cat === 'Gastos cash') return; // Exclude this category
             categoryTotals[cat] = Object.values(monthlyData)
                 .reduce((sum, val) => sum + (val.categoryBreakdown[cat] || 0), 0);
         });
