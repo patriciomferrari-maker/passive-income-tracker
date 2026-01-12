@@ -195,7 +195,7 @@ export function DashboardTab() {
                                         tickLine={false}
                                         axisLine={false}
                                         domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.6)]}
-                                        tickFormatter={(value) => `$${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`}
+                                        tickFormatter={(value) => `$${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k`}
                                     />
                                     {/* Right Axis: Percentage */}
                                     <YAxis
@@ -223,7 +223,7 @@ export function DashboardTab() {
                                         <LabelList
                                             dataKey={currency === 'USD' ? 'incomeUSD' : 'income'}
                                             position="top"
-                                            formatter={(v: number) => v > 0 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k` : ''}
+                                            formatter={(v: number) => v > 0 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : ''}
                                             style={{ fill: '#10b981', fontSize: '9px', fontWeight: 'bold' }}
                                         />
                                     </Bar>
@@ -241,7 +241,7 @@ export function DashboardTab() {
                                         <LabelList
                                             dataKey={currency === 'USD' ? 'expenseUSD' : 'expense'}
                                             position="top"
-                                            formatter={(v: number) => v > 0 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k` : ''}
+                                            formatter={(v: number) => v > 0 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : ''}
                                             style={{ fill: '#ef4444', fontSize: '9px', fontWeight: 'bold' }}
                                         />
                                     </Bar>
@@ -295,7 +295,7 @@ export function DashboardTab() {
                                             tick={{ fontSize: 12 }}
                                             tickLine={false}
                                             axisLine={false}
-                                            tickFormatter={(value) => `$${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`}
+                                            tickFormatter={(value) => `$${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k`}
                                         />
                                         <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#475569', strokeWidth: 1 }} />
                                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
