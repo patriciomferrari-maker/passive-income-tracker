@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, PiggyBank } from 'lucide-react';
-import { CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie, Legend, XAxis, YAxis, ComposedChart, Line, AreaChart, Area, LabelList } from 'recharts';
+import { CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie, Legend, XAxis, YAxis, ComposedChart, Line, AreaChart, Area, LabelList, LineChart } from 'recharts';
 import { InstallmentsChart } from './InstallmentsChart';
 
 export function DashboardTab() {
@@ -279,19 +279,7 @@ export function DashboardTab() {
                         <div className="h-[300px] w-full">
                             {filteredCategoryTrend && filteredCategoryTrend.length > 0 && topCategories ? (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart
-                                        data={filteredCategoryTrend}
-                                        margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
-                                        stackOffset="wiggle"
-                                    >
-                                        <defs>
-                                            {topCategories.map((cat: string, idx: number) => (
-                                                <linearGradient key={`gradient-${cat}`} id={`gradient-${cat}`} x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.8} />
-                                                    <stop offset="95%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.3} />
-                                                </linearGradient>
-                                            ))}
-                                        </defs>
+                                    <LineChart data={filteredCategoryTrend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                                         <XAxis
                                             dataKey="shortDate"
@@ -310,19 +298,25 @@ export function DashboardTab() {
                                         <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#475569', strokeWidth: 1 }} />
                                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
                                         {topCategories.map((cat: string, idx: number) => (
-                                            <Area
+                                            <Line
                                                 key={cat}
-                                                type="monotone"
+                                                type="step"
                                                 dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
                                                 name={cat}
-                                                stackId="1"
                                                 stroke={COLORS[idx % COLORS.length]}
                                                 strokeWidth={2}
-                                                fill={`url(#gradient-${cat})`}
-                                                fillOpacity={1}
-                                            />
+                                                dot={{ r: 3 }}
+                                                activeDot={{ r: 5 }}
+                                            >
+                                                <LabelList
+                                                    dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
+                                                    position="top"
+                                                    formatter={(v: number) => v > 0 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : ''}
+                                                    style={{ fill: COLORS[idx % COLORS.length], fontSize: '9px', fontWeight: 'bold' }}
+                                                />
+                                            </Line>
                                         ))}
-                                    </AreaChart>
+                                    </LineChart>
                                 </ResponsiveContainer>
                             ) : (
                                 <div className="flex items-center justify-center h-full text-slate-500">No hay datos de categorías</div>
