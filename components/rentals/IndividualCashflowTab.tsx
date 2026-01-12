@@ -9,7 +9,8 @@ import {
     AlertCircle,
     Percent,
     Clock,
-    DollarSign
+    DollarSign,
+    RefreshCw
 } from 'lucide-react';
 
 interface Contract {
@@ -48,6 +49,8 @@ export function IndividualCashflowTab({ showValues = true }: { showValues?: bool
     const [cashflows, setCashflows] = useState<Cashflow[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingCashflows, setLoadingCashflows] = useState(false);
+    const [isRegenerating, setIsRegenerating] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
 
     useEffect(() => {
@@ -79,20 +82,41 @@ export function IndividualCashflowTab({ showValues = true }: { showValues?: bool
 
     const loadCashflows = async (contractId: string) => {
         setLoadingCashflows(true);
+        setError(null);
         try {
             const contractRes = await fetch(`/api/rentals/contracts/${contractId}`);
+            if (!contractRes.ok) throw new Error('Error al cargar detalles del contrato');
             const contractData = await contractRes.json();
             setSelectedContract(contractData);
 
             const cashflowsRes = await fetch(`/api/rentals/contracts/${contractId}/cashflows`);
+            if (!cashflowsRes.ok) throw new Error('Error al cargar flujos de fondos');
             const cashflowsData = await cashflowsRes.json();
             if (Array.isArray(cashflowsData)) {
                 setCashflows(cashflowsData);
             }
         } catch (error) {
             console.error('Error loading cashflows:', error);
+            setError('Error cargando los flujos. Intenta regenerar.');
         } finally {
             setLoadingCashflows(false);
+        }
+    };
+
+    const handleRegenerate = async () => {
+        if (!selectedContractId) return;
+        setIsRegenerating(true);
+        try {
+            const res = await fetch(`/api/rentals/contracts/${selectedContractId}/cashflows`, {
+                method: 'POST'
+            });
+            if (!res.ok) throw new Error('Error regenerando flujos');
+            await loadCashflows(selectedContractId);
+        } catch (err) {
+            console.error(err);
+            setError('Falló la regeneración. Revisa la consola.');
+        } finally {
+            setIsRegenerating(false);
         }
     };
 
@@ -181,7 +205,24 @@ export function IndividualCashflowTab({ showValues = true }: { showValues?: bool
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-white">Flujo Individual por Contrato</h2>
+                {selectedContractId && (
+                    <button
+                        onClick={handleRegenerate}
+                        disabled={isRegenerating || loadingCashflows}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <RefreshCw size={16} className={isRegenerating ? 'animate-spin' : ''} />
+                        {isRegenerating ? 'Regenerando...' : 'Regenerar Flujo'}
+                    </button>
+                )}
             </div>
+
+            {error && (
+                <div className="bg-red-900/50 border border-red-800 text-red-200 px-4 py-3 rounded-md flex items-center gap-2">
+                    <AlertCircle size={18} />
+                    {error}
+                </div>
+            )}
 
             {/* Contract Selector */}
             <Card className="bg-slate-950 border-slate-800">
