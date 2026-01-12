@@ -31,6 +31,17 @@ export function DashboardTab() {
 
     const { kpis, trend, distribution } = data;
 
+    // Filter for Nov 2025+ (for Savings Evolution Chart)
+    const savingsTrend = trend.filter((d: any) => {
+        const itemDate = new Date(d.date);
+        const cutoffDate = new Date('2025-11-01');
+        return itemDate >= cutoffDate;
+    });
+
+    console.log('🟢 ALL TREND DATA:', trend);
+    console.log('🟢 FILTERED SAVINGS TREND (Nov 25+):', savingsTrend);
+    console.log('🟢 Sample incomeUSD values:', savingsTrend.map(d => ({ period: d.period, incomeUSD: d.incomeUSD })));
+
     // Custom Tooltip for Charts
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
@@ -138,11 +149,7 @@ export function DashboardTab() {
                         <div className="h-[300px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <ComposedChart
-                                    data={(() => {
-                                        const filtered = trend.filter((d: any) => new Date(d.date) >= new Date('2025-11-01'));
-                                        console.log('FILTERED CHART DATA:', filtered);
-                                        return filtered;
-                                    })()}
+                                    data={savingsTrend}
                                     margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
