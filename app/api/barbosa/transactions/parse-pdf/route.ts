@@ -121,7 +121,14 @@ async function parsePdfCoordinates(buffer: Buffer): Promise<string[]> {
 
                 page.Texts.forEach((textItem: any) => {
                     const y = textItem.y;
-                    const cleanText = decodeURIComponent(textItem.R[0].T);
+                    let cleanText = textItem.R[0].T;
+                    try {
+                        cleanText = decodeURIComponent(textItem.R[0].T);
+                    } catch (e) {
+                        // Fallback: If decode fails (e.g. malformed %), try to treat it as raw or minimally clean it
+                        // console.warn('URI Malformed:', textItem.R[0].T);
+                        cleanText = textItem.R[0].T;
+                    }
 
                     // Find existing Y group within tolerance
                     let placed = false;
