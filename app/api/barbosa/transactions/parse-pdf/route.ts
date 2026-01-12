@@ -247,7 +247,7 @@ async function parseWithGemini(text: string, categories: any[], rules: any[], cu
             const prompt = `
             Analiza este extracto de resumen bancario (PDF procesado). Tu objetivo es generar un JSON estructurado de transacciones.
 
-            TEXTO INPUT:
+            TEXTO INPUT A ANALIZAR:
             """
             ${processText}
             """
@@ -255,9 +255,10 @@ async function parseWithGemini(text: string, categories: any[], rules: any[], cu
             AÑO CONTEXTO: ${currentYear} (Archivo: ${fileName})
             - Si el resumen es de ENERO 2026, las compras de DICIEMBRE son 2025. Infiere el año correcto.
 
-            COLUMNAS (Típicas en Banco Galicia):
-            [FECHA] [DESCRIPCIÓN] [CUOTA opcional] [COMPROBANTE] [IMPORTE]
-            
+            NOTA SOBRE EL FORMATO:
+            - El texto puede tener separadores "|" indicando columnas visuales. Usalos como referencia.
+            - COLUMNAS: [FECHA] | [DESCRIPCIÓN] | [COMPROBANTE] | [IMPORTE]
+
             INSTRUCCIONES CRÍTICAS:
             1. **Fecha**: Formato YYYY-MM-DD.
             2. **Descripción**: Limpia prefijos "K", "*", códigos raros.
@@ -329,10 +330,12 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     // Regex: Start - Date - Space - Desc - Space - [Cuota] - Space - Voucher - Space - Amount - End
 
     const lines = originalText.split('\n');
-    const validTransactions: any[] = [];
 
-    // Map for fuzzy correction
-    const auditMap = new Map<string, { date: string, amount: number, voucher: string }>();
+    // QUEUE-BASED AUDIT MAP
+    // Key: Voucher
+    // Value: QUEUE of found transactions in the raw text (Ordered top-to-bottom)
+    // This solves duplicated vouchers with different descriptions/amounts
+    const auditMap = new Map<string, { date: string, amount: number, voucher: string }[]>();
 
     // Scan text to build Audit Map (Truth)
     for (const line of lines) {
@@ -356,23 +359,34 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
             const parsedDate = normalizeDate(rawDate, yearContext, isJanuaryStatement);
             const parsedAmount = parseArgAmount(rawAmount);
 
-            // Key: Voucher is the best ID
-            auditMap.set(rawVoucher, { date: parsedDate, amount: parsedAmount, voucher: rawVoucher });
+            const record = { date: parsedDate, amount: parsedAmount, voucher: rawVoucher };
+
+            if (!auditMap.has(rawVoucher)) {
+                auditMap.set(rawVoucher, [record]);
+            } else {
+                auditMap.get(rawVoucher)?.push(record);
+            }
         }
     }
 
     return geminiTransactions.map((tx: any) => {
         // 1. Try to find strict match by Voucher
         if (tx.comprobante) {
-            const truth = auditMap.get(tx.comprobante);
-            if (truth) {
-                // FORCE TRUTH
-                return {
-                    ...tx,
-                    date: truth.date,
-                    amount: truth.amount, // Override AI amount with Regex extraction
-                    grade: 'A+' // Audit Passed
-                };
+            const queue = auditMap.get(tx.comprobante);
+            if (queue && queue.length > 0) {
+                // CONSUME the first match from the queue (FIFO)
+                // This assumes Gemini output order roughly matches PDF reading order (usually true)
+                const truth = queue.shift(); // Removes first element and returns it
+
+                if (truth) {
+                    // FORCE TRUTH
+                    return {
+                        ...tx,
+                        date: truth.date,
+                        amount: truth.amount, // Override AI amount with Regex extraction
+                        grade: 'A+' // Audit Passed
+                    };
+                }
             }
         }
 
