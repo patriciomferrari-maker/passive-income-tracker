@@ -216,6 +216,9 @@ async function parseWithGemini(text: string, categories: any[], rules: any[], cu
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
 
+    // Truncate if too huge (re-introducing processText variable)
+    const processText = text.length > 25000 ? text.substring(0, 25000) : text;
+
     // FALLBACK STRATEGY: Try multiple models if one fails (404, 429, etc.)
     const genAI = new GoogleGenerativeAI(apiKey);
     const modelsToTry = [
