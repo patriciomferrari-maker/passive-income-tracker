@@ -216,57 +216,81 @@ async function parseWithGemini(text: string, categories: any[], rules: any[], cu
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", generationConfig: { responseMimeType: "application/json" } });
+    // FALLBACK STRATEGY: Try multiple models if one fails (404, 429, etc.)
+    const modelsToTry = [
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-001",
+        "gemini-2.0-flash-exp", // Experimental, if available
+        "gemini-pro"
+    ];
 
-    // Truncate if too huge
-    const processText = text.length > 25000 ? text.substring(0, 25000) : text;
+    let lastError: any = null;
+    let jsonText = "";
 
-    const categoriesList = categories.map(c => `- ${c.name} (${c.id})`).join('\n');
-    const rulesList = rules.map(r => `"${r.pattern}" -> ${r.categoryId}`).join('\n');
+    for (const modelName of modelsToTry) {
+        try {
+            console.log(`[GEMINI] Attempting with model: ${modelName}...`);
+            const model = genAI.getGenerativeModel({
+                model: modelName,
+                generationConfig: { responseMimeType: "application/json" }
+            });
 
-    const prompt = `
-    Analiza este extracto de resumen bancario (PDF procesado). Tu objetivo es generar un JSON estructurado de transacciones.
+            // Prompt definition (reused)
+            const prompt = `
+            Analiza este extracto de resumen bancario (PDF procesado). Tu objetivo es generar un JSON estructurado de transacciones.
 
-    TEXTO INPUT:
-    """
-    ${processText}
-    """
+            TEXTO INPUT:
+            """
+            ${processText}
+            """
 
-    AÑO CONTEXTO: ${currentYear} (Archivo: ${fileName})
-    - Si el resumen es de ENERO 2026, las compras de DICIEMBRE son 2025. Infiere el año correcto.
+            AÑO CONTEXTO: ${currentYear} (Archivo: ${fileName})
+            - Si el resumen es de ENERO 2026, las compras de DICIEMBRE son 2025. Infiere el año correcto.
 
-    COLUMNAS (Típicas en Banco Galicia):
-    [FECHA] [DESCRIPCIÓN] [CUOTA opcional] [COMPROBANTE] [IMPORTE]
-    
-    INSTRUCCIONES CRÍTICAS:
-    1. **Fecha**: Formato YYYY-MM-DD.
-    2. **Descripción**: Limpia prefijos "K", "*", códigos raros.
-    3. **Cuota**: Si ves "01/12", agrégalo a la descripción como " (Cuota 01/12)".
-    4. **Comprobante**: 
-       - Es un número de 6 dígitos (ej: 004590).
-       - NO es el importe. NO tiene decimales.
-       - A menudo está ANTES del importe.
-    5. **Importe**: 
-       - Formato Argentina: 1.000,00 es mil.
-       - Si es negativo (devolución/pago), ponlo negativo.
+            COLUMNAS (Típicas en Banco Galicia):
+            [FECHA] [DESCRIPCIÓN] [CUOTA opcional] [COMPROBANTE] [IMPORTE]
+            
+            INSTRUCCIONES CRÍTICAS:
+            1. **Fecha**: Formato YYYY-MM-DD.
+            2. **Descripción**: Limpia prefijos "K", "*", códigos raros.
+            3. **Cuota**: Si ves "01/12", agrégalo a la descripción como " (Cuota 01/12)".
+            4. **Comprobante**: 
+            - Es un número de 6 dígitos (ej: 004590).
+            - NO es el importe. NO tiene decimales.
+            - A menudo está ANTES del importe.
+            5. **Importe**: 
+            - Formato Argentina: 1.000,00 es mil.
+            - Si es negativo (devolución/pago), ponlo negativo.
 
-    OUTPUT JSON:
-    {
-      "transactions": [
-        { "date": "2025-12-24", "description": "SUPERMERCADO DIA (Cuota 01/01)", "amount": 15000.50, "comprobante": "001234", "currency": "ARS", "categoryId": "ID_SI_SABES_O_NULL" }
-      ]
+            OUTPUT JSON:
+            {
+            "transactions": [
+                { "date": "2025-12-24", "description": "SUPERMERCADO DIA (Cuota 01/01)", "amount": 15000.50, "comprobante": "001234", "currency": "ARS", "categoryId": "ID_SI_SABES_O_NULL" }
+            ]
+            }
+
+            CATEGORÍAS (Para ID):
+            ${categoriesList}
+            REGLAS:
+            ${rulesList}
+            `;
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            jsonText = response.text();
+
+            if (jsonText) break; // Success!
+
+        } catch (e) {
+            console.warn(`[GEMINI] Failed with ${modelName}:`, e);
+            lastError = e;
+            // Continue to next model
+        }
     }
 
-    CATEGORÍAS (Para ID):
-    ${categoriesList}
-    REGLAS:
-    ${rulesList}
-    `;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const jsonText = response.text();
+    if (!jsonText) {
+        throw lastError || new Error("All Gemini models failed to respond.");
+    }
 
     try {
         const parsed = JSON.parse(jsonText);
