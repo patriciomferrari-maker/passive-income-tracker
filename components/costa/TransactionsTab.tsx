@@ -405,9 +405,9 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
                                                     <TableCell className="text-center text-slate-400 text-xs">
                                                         {t.rentalCheckIn && t.rentalCheckOut
                                                             ? (() => {
-                                                                const nights = Math.ceil((new Date(t.rentalCheckOut).getTime() - new Date(t.rentalCheckIn).getTime()) / (1000 * 60 * 60 * 24));
-                                                                return nights > 0
-                                                                    ? (t.currency + ' ' + new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(t.amount / nights))
+                                                                const days = Math.ceil((new Date(t.rentalCheckOut).getTime() - new Date(t.rentalCheckIn).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                                                                return days > 0
+                                                                    ? (t.currency + ' ' + new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(t.amount / days))
                                                                     : '-';
                                                             })()
                                                             : '-'}
