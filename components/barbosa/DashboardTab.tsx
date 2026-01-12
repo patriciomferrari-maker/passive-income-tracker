@@ -30,7 +30,7 @@ export function DashboardTab() {
     if (!data || data.error) return <div className="text-center text-red-500 p-8">Error cargando datos: {data?.error || 'Unknown Error'}</div>;
     if (!data.kpis) return <div className="text-center text-slate-500">No data structure found</div>;
 
-    const { kpis, trend, distribution } = data;
+    const { kpis, trend, categoryTrend, topCategories, distribution } = data;
 
     // Filter for Nov 2025+ (for Savings Evolution Chart)
     const savingsTrend = trend.filter((d: any) => {
@@ -186,7 +186,7 @@ export function DashboardTab() {
                                         tick={{ fontSize: 12 }}
                                         tickLine={false}
                                         axisLine={false}
-                                        tickFormatter={(value) => `$${value / 1000}k`}
+                                        tickFormatter={(value) => `$${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`}
                                     />
                                     {/* Right Axis: Percentage */}
                                     <YAxis
@@ -208,14 +208,14 @@ export function DashboardTab() {
                                         name="Ingresos"
                                         fill="#10b981"
                                         radius={[4, 4, 0, 0]}
-                                        barSize={28}
+                                        barSize={22}
                                         isAnimationActive={false}
                                     >
                                         <LabelList
                                             dataKey={currency === 'USD' ? 'incomeUSD' : 'income'}
                                             position="top"
-                                            formatter={(v: number) => v > 0 ? (currency === 'USD' ? `$${(v / 1000).toFixed(1)}k` : `$${(v / 1000).toFixed(0)}k`) : ''}
-                                            style={{ fill: '#10b981', fontSize: '10px', fontWeight: 'bold' }}
+                                            formatter={(v: number) => v > 0 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k` : ''}
+                                            style={{ fill: '#10b981', fontSize: '9px', fontWeight: 'bold' }}
                                         />
                                     </Bar>
 
@@ -226,14 +226,14 @@ export function DashboardTab() {
                                         name="Egresos"
                                         fill="#ef4444"
                                         radius={[4, 4, 0, 0]}
-                                        barSize={28}
+                                        barSize={22}
                                         isAnimationActive={false}
                                     >
                                         <LabelList
                                             dataKey={currency === 'USD' ? 'expenseUSD' : 'expense'}
                                             position="top"
-                                            formatter={(v: number) => v > 0 ? (currency === 'USD' ? `$${(v / 1000).toFixed(1)}k` : `$${(v / 1000).toFixed(0)}k`) : ''}
-                                            style={{ fill: '#ef4444', fontSize: '10px', fontWeight: 'bold' }}
+                                            formatter={(v: number) => v > 0 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k` : ''}
+                                            style={{ fill: '#ef4444', fontSize: '9px', fontWeight: 'bold' }}
                                         />
                                     </Bar>
 
@@ -262,86 +262,53 @@ export function DashboardTab() {
                     </div>
                 </div>
 
-                {/* Main Trend Chart - Combined Income/Expense + Savings Rate (Original) */}
+                {/* Category Evolution Chart - NEW */}
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
                         <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                            <DollarSign className="h-5 w-5 text-purple-500" />
-                            Detalle Ingresos y Egresos (USD)
+                            <TrendingDown className="h-5 w-5 text-blue-500" />
+                            Evolución de Gastos por Categoría (Top 4)
                         </h3>
                         <div className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <ComposedChart data={trend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                                    <XAxis
-                                        dataKey="shortDate"
-                                        stroke="#475569"
-                                        tick={{ fontSize: 12 }}
-                                        tickLine={false}
-                                        axisLine={false}
-                                    />
-                                    {/* Left Axis: Amounts */}
-                                    <YAxis
-                                        yAxisId="left"
-                                        stroke="#475569"
-                                        tick={{ fontSize: 12 }}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickFormatter={(value) => `$${value / 1000}k`}
-                                    />
-                                    {/* Right Axis: Percentage */}
-                                    <YAxis
-                                        yAxisId="right"
-                                        orientation="right"
-                                        stroke="#f59e0b"
-                                        tick={{ fontSize: 12 }}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        unit="%"
-                                    />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.5 }} />
-                                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
-
-                                    <Bar
-                                        yAxisId="left"
-                                        dataKey="incomeUSD"
-                                        name="Ingresos"
-                                        fill="#10b981"
-                                        radius={[4, 4, 0, 0]}
-                                        barSize={20}
-                                        isAnimationActive={false}
-                                    >
-                                        <LabelList dataKey="incomeUSD" position="top" formatter={(v: number) => v > 0 ? `$${(v / 1000).toFixed(1)}k` : ''} style={{ fill: '#10b981', fontSize: '10px', fontWeight: 'bold' }} />
-                                    </Bar>
-
-                                    <Bar
-                                        yAxisId="left"
-                                        dataKey="expenseUSD"
-                                        name="Egresos"
-                                        fill="#ef4444"
-                                        radius={[4, 4, 0, 0]}
-                                        barSize={20}
-                                        isAnimationActive={false}
-                                    >
-                                        <LabelList dataKey="expenseUSD" position="top" formatter={(v: number) => v > 0 ? `$${(v / 1000).toFixed(1)}k` : ''} style={{ fill: '#ef4444', fontSize: '10px', fontWeight: 'bold' }} />
-                                    </Bar>
-
-                                    <Line
-                                        yAxisId="right"
-                                        type="monotone"
-                                        dataKey="savingsRate"
-                                        name="% Ahorro"
-                                        stroke="#f59e0b"
-                                        strokeWidth={2}
-                                        dot={{ fill: '#f59e0b', r: 4 }}
-                                    >
-                                        <LabelList dataKey="savingsRate" position="top" formatter={(val: number) => Math.round(val) + '%'} style={{ fill: '#f59e0b', fontSize: '10px', fontWeight: 'bold' }} />
-                                    </Line>
-                                </ComposedChart>
-                            </ResponsiveContainer>
+                            {categoryTrend && topCategories ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={categoryTrend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                        <XAxis
+                                            dataKey="shortDate"
+                                            stroke="#475569"
+                                            tick={{ fontSize: 12 }}
+                                            tickLine={false}
+                                            axisLine={false}
+                                        />
+                                        <YAxis
+                                            stroke="#475569"
+                                            tick={{ fontSize: 12 }}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            tickFormatter={(value) => `$${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`}
+                                        />
+                                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#475569', strokeWidth: 1 }} />
+                                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                                        {topCategories.map((cat: string, idx: number) => (
+                                            <Line
+                                                key={cat}
+                                                type="monotone"
+                                                dataKey={cat}
+                                                name={cat}
+                                                stroke={COLORS[idx % COLORS.length]}
+                                                strokeWidth={2}
+                                                dot={{ r: 3 }}
+                                                activeDot={{ r: 5 }}
+                                            />
+                                        ))}
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-slate-500">No hay datos de categorías</div>
+                            )}
                         </div>
                     </div>
-
                 </div>
 
                 {/* Distribution Chart */}

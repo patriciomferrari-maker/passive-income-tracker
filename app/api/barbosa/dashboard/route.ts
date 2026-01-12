@@ -63,7 +63,17 @@ export async function GET(req: NextRequest) {
         // --- DATA PROCESSING ---
 
         // 1. Trend Data (Last 12 Months)
-        const monthlyData: Record<string, { income: number; expense: number; expenseCosta: number; incomeUSD: number; expenseUSD: number; expenseCostaUSD: number; savingsUSD: number; date: Date }> = {};
+        const monthlyData: Record<string, {
+            income: number;
+            expense: number;
+            expenseCosta: number;
+            incomeUSD: number;
+            expenseUSD: number;
+            expenseCostaUSD: number;
+            savingsUSD: number;
+            date: Date;
+            categoryBreakdown: Record<string, number>; // Track expenses by category
+        }> = {};
 
         // Init months using UTC
         let current = new Date(startDate);
@@ -80,7 +90,8 @@ export async function GET(req: NextRequest) {
                 expenseCostaUSD: 0,
                 savingsUSD: 0,
                 // Store date as UTC Noon for safe display formatting
-                date: new Date(Date.UTC(y, m, 1, 12, 0, 0))
+                date: new Date(Date.UTC(y, m, 1, 12, 0, 0)),
+                categoryBreakdown: {}
             };
             current.setUTCMonth(current.getUTCMonth() + 1);
         }
@@ -119,6 +130,10 @@ export async function GET(req: NextRequest) {
                             monthlyData[key].expenseCosta += amount;
                             monthlyData[key].expenseCostaUSD += amountUSD;
                         }
+
+                        // Track category breakdown for evolutionary chart
+                        const catName = tx.category.name;
+                        monthlyData[key].categoryBreakdown[catName] = (monthlyData[key].categoryBreakdown[catName] || 0) + amountUSD;
                     }
 
                     // Distribution: ALWAYS include in Last Month Expenses (Pie Chart)
@@ -183,6 +198,38 @@ export async function GET(req: NextRequest) {
             };
         });
 
+        // Build Category Trend for expense evolution chart
+        // Identify top categories across all months
+        const allCategories = new Set<string>();
+        Object.values(monthlyData).forEach(val => {
+            Object.keys(val.categoryBreakdown).forEach(cat => allCategories.add(cat));
+        });
+
+        // Calculate total for each category to find top 4
+        const categoryTotals: Record<string, number> = {};
+        allCategories.forEach(cat => {
+            categoryTotals[cat] = Object.values(monthlyData)
+                .reduce((sum, val) => sum + (val.categoryBreakdown[cat] || 0), 0);
+        });
+
+        const topCategories = Object.entries(categoryTotals)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 4)
+            .map(([cat]) => cat);
+
+        // Build the category trend array
+        const categoryTrend = Object.entries(monthlyData).sort().map(([key, val]) => {
+            const dataPoint: any = {
+                period: key,
+                shortDate: val.date.toLocaleDateString('es-ES', { month: 'short' }).toUpperCase(),
+                date: val.date
+            };
+            topCategories.forEach(cat => {
+                dataPoint[cat] = val.categoryBreakdown[cat] || 0;
+            });
+            return dataPoint;
+        });
+
         // 2. KPIs
         // Last finished month (or current if meaningful?)
         // Let's take the last available month in trend (which is current month usually)
@@ -218,6 +265,8 @@ export async function GET(req: NextRequest) {
                 avgSavingsUSD
             },
             trend,
+            categoryTrend, // NEW: for expense evolution chart
+            topCategories, // NEW: category names for chart
             distribution: categoryDist,
             recentActivity
         });
