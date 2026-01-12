@@ -21,7 +21,7 @@ export async function getUserId() {
 
         if (isDev) {
             console.log('[AUTH] Local/Dev context: using fallback user ID');
-            return 'cmixkx9xi0000o235ll480bf3'; // Use an existing user ID from the database
+            return 'cmixq96ww0000l8pp4w1zu2cy'; // Patricio's user ID
         }
 
         // If no session, return null matching expected behavior in API routes
@@ -32,7 +32,7 @@ export async function getUserId() {
         const isDev = process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development';
         if (isDev) {
             console.log('[AUTH] Local/Dev error (likely MissingSecret): using fallback user ID');
-            return 'cmixkx9xi0000o235ll480bf3';
+            return 'cmixq96ww0000l8pp4w1zu2cy'; // Patricio's user ID
         }
         console.error('[AUTH] Error in getUserId:', error);
         return null;

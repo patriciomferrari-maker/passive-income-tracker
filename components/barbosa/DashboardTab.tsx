@@ -138,7 +138,11 @@ export function DashboardTab() {
                         <div className="h-[300px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <ComposedChart
-                                    data={trend.filter((d: any) => d.date >= '2025-11-01')}
+                                    data={(() => {
+                                        const filtered = trend.filter((d: any) => new Date(d.date) >= new Date('2025-11-01'));
+                                        console.log('FILTERED CHART DATA:', filtered);
+                                        return filtered;
+                                    })()}
                                     margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
