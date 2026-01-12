@@ -314,7 +314,12 @@ export function DashboardTab() {
                                                 <LabelList
                                                     dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
                                                     position="center"
-                                                    formatter={(v: number) => v > 100 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : ''}
+                                                    formatter={(v: number) => {
+                                                        if (currency === 'ARS') {
+                                                            return v > 100000 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : '';
+                                                        }
+                                                        return v > 50 ? `$${Math.round(v).toLocaleString('en-US')}` : '';
+                                                    }}
                                                     style={{ fill: '#ffffff', fontSize: '10px', fontWeight: 'bold', textShadow: '0 0 3px rgba(0,0,0,0.8)' }}
                                                 />
                                             </Area>
