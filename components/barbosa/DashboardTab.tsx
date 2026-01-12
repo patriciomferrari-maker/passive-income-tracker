@@ -128,7 +128,93 @@ export function DashboardTab() {
             {/* Main Section: Trend + Distribution */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                {/* Main Trend Chart - Combined Income/Expense + Savings Rate */}
+                {/* Savings Evolution Chart (Nov 2025+) */}
+                <div className="lg:col-span-3">
+                    <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
+                        <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                            <TrendingUp className="h-5 w-5 text-emerald-500" />
+                            Evolución Ingresos y Ahorro (Desde Nov '25)
+                        </h3>
+                        <div className="h-[300px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <ComposedChart
+                                    data={trend.filter((d: any) => d.date >= '2025-11-01')}
+                                    margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                    <XAxis
+                                        dataKey="shortDate"
+                                        stroke="#475569"
+                                        tick={{ fontSize: 12 }}
+                                        tickLine={false}
+                                        axisLine={false}
+                                    />
+                                    {/* Left Axis: Amounts */}
+                                    <YAxis
+                                        yAxisId="left"
+                                        stroke="#10b981"
+                                        tick={{ fontSize: 12 }}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={(value) => `$${value / 1000}k`}
+                                    />
+                                    {/* Right Axis: Percentage */}
+                                    <YAxis
+                                        yAxisId="right"
+                                        orientation="right"
+                                        stroke="#f59e0b"
+                                        tick={{ fontSize: 12 }}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        unit="%"
+                                    />
+                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.5 }} />
+                                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
+
+                                    {/* Green Bars: Income */}
+                                    <Bar
+                                        yAxisId="left"
+                                        dataKey="incomeUSD"
+                                        name="Ingresos"
+                                        fill="#10b981"
+                                        radius={[4, 4, 0, 0]}
+                                        barSize={40}
+                                        isAnimationActive={false}
+                                    >
+                                        <LabelList
+                                            dataKey="incomeUSD"
+                                            position="top"
+                                            formatter={(v: number) => v > 0 ? `$${(v / 1000).toFixed(1)}k` : ''}
+                                            style={{ fill: '#10b981', fontSize: '11px', fontWeight: 'bold' }}
+                                        />
+                                    </Bar>
+
+                                    {/* Yellow Line: Savings % */}
+                                    <Line
+                                        yAxisId="right"
+                                        type="monotone"
+                                        dataKey="savingsRate"
+                                        name="% Ahorro"
+                                        stroke="#f59e0b"
+                                        strokeWidth={3}
+                                        dot={{ fill: '#f59e0b', r: 5 }}
+                                        activeDot={{ r: 7 }}
+                                    >
+                                        <LabelList
+                                            dataKey="savingsRate"
+                                            position="top"
+                                            offset={10}
+                                            formatter={(val: number) => Math.round(val) + '%'}
+                                            style={{ fill: '#f59e0b', fontSize: '11px', fontWeight: 'bold' }}
+                                        />
+                                    </Line>
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Main Trend Chart - Combined Income/Expense + Savings Rate (Original) */}
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
                         <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
