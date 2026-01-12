@@ -276,66 +276,54 @@ export function DashboardTab() {
                             <TrendingDown className="h-5 w-5 text-blue-500" />
                             Evolución de Gastos por Categoría
                         </h3>
-                        <div className="flex gap-4">
-                            {/* Category Labels on Left */}
-                            <div className="flex flex-col justify-center gap-8 text-sm font-medium pt-4">
-                                {topCategories.map((cat: string, idx: number) => (
-                                    <div key={cat} className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
-                                        <span className="text-slate-300">{cat}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            {/* Chart */}
-                            <div className="flex-1 h-[300px]">
-                                {filteredCategoryTrend && filteredCategoryTrend.length > 0 && topCategories ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={filteredCategoryTrend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
-                                            <defs>
-                                                {topCategories.map((cat: string, idx: number) => (
-                                                    <linearGradient key={`gradient-${cat}`} id={`gradient-${cat}`} x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.8} />
-                                                        <stop offset="95%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.4} />
-                                                    </linearGradient>
-                                                ))}
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                                            <XAxis
-                                                dataKey="shortDate"
-                                                stroke="#475569"
-                                                tick={{ fontSize: 12 }}
-                                                tickLine={false}
-                                                axisLine={false}
-                                            />
-                                            <YAxis hide={true} />
-                                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#475569', strokeWidth: 1 }} />
-                                            <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                        <div className="h-[300px] w-full">
+                            {filteredCategoryTrend && filteredCategoryTrend.length > 0 && topCategories ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={filteredCategoryTrend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                                        <defs>
                                             {topCategories.map((cat: string, idx: number) => (
-                                                <Area
-                                                    key={cat}
-                                                    type="monotone"
-                                                    dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
-                                                    name={cat}
-                                                    stackId="1"
-                                                    stroke={COLORS[idx % COLORS.length]}
-                                                    strokeWidth={2}
-                                                    fill={`url(#gradient-${cat})`}
-                                                    fillOpacity={1}
-                                                >
-                                                    <LabelList
-                                                        dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
-                                                        position="center"
-                                                        formatter={(v: number) => v > 100 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : ''}
-                                                        style={{ fill: '#ffffff', fontSize: '10px', fontWeight: 'bold', textShadow: '0 0 3px rgba(0,0,0,0.8)' }}
-                                                    />
-                                                </Area>
+                                                <linearGradient key={`gradient-${cat}`} id={`gradient-${cat}`} x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.8} />
+                                                    <stop offset="95%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.4} />
+                                                </linearGradient>
                                             ))}
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <div className="flex items-center justify-center h-full text-slate-500">No hay datos de categorías</div>
-                                )}
-                            </div>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                        <XAxis
+                                            dataKey="shortDate"
+                                            stroke="#475569"
+                                            tick={{ fontSize: 12 }}
+                                            tickLine={false}
+                                            axisLine={false}
+                                        />
+                                        <YAxis hide={true} />
+                                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#475569', strokeWidth: 1 }} />
+                                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                                        {topCategories.map((cat: string, idx: number) => (
+                                            <Area
+                                                key={cat}
+                                                type="monotone"
+                                                dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
+                                                name={cat}
+                                                stackId="1"
+                                                stroke={COLORS[idx % COLORS.length]}
+                                                strokeWidth={2}
+                                                fill={`url(#gradient-${cat})`}
+                                                fillOpacity={1}
+                                            >
+                                                <LabelList
+                                                    dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
+                                                    position="center"
+                                                    formatter={(v: number) => v > 100 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : ''}
+                                                    style={{ fill: '#ffffff', fontSize: '10px', fontWeight: 'bold', textShadow: '0 0 3px rgba(0,0,0,0.8)' }}
+                                                />
+                                            </Area>
+                                        ))}
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-slate-500">No hay datos de categorías</div>
+                            )}
                         </div>
                     </div>
 
