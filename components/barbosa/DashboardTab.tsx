@@ -7,11 +7,13 @@ import { CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieCh
 import { InstallmentsChart } from './InstallmentsChart';
 
 export function DashboardTab() {
+    const [viewMode, setViewMode] = useState<'history' | 'projected'>('history');
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('/api/barbosa/dashboard')
+        setLoading(true);
+        fetch(`/api/barbosa/dashboard?view=${viewMode}`)
             .then(res => res.json())
             .then(json => {
                 setData(json);
@@ -21,7 +23,7 @@ export function DashboardTab() {
                 console.error(err);
                 setLoading(false);
             });
-    }, []);
+    }, [viewMode]);
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-500" /></div>;
     if (!data || data.error) return <div className="text-center text-red-500 p-8">Error cargando datos: {data?.error || 'Unknown Error'}</div>;
@@ -58,6 +60,25 @@ export function DashboardTab() {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
+            {/* Header / Toggle */}
+            <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-white">Dashboard</h2>
+                <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-800">
+                    <button
+                        onClick={() => setViewMode('history')}
+                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'history' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                        Histórico
+                    </button>
+                    <button
+                        onClick={() => setViewMode('projected')}
+                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'projected' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                        Proyección (12m)
+                    </button>
+                </div>
+            </div>
+
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="bg-slate-950 border-slate-900 shadow-lg">

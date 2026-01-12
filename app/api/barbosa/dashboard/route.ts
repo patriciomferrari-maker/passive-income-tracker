@@ -9,11 +9,26 @@ export async function GET(req: NextRequest) {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        // Timeframe: Custom Range from Nov 2025 (Data Inception) + 12 Months Projection
-        // User requested: "Graph from Nov-25 onwards"
-        // USE UTC to ensure consistent bucketing regardless of server/local timezone
-        const startDate = new Date(Date.UTC(2025, 10, 1)); // Nov 1 2025 00:00 UTC
-        const endDate = new Date(Date.UTC(2026, 10, 0, 23, 59, 59)); // Oct 31 2026
+        // View Toggle: 'history' (default) vs 'projected'
+        const { searchParams } = new URL(req.url);
+        const view = searchParams.get('view') || 'history';
+
+        const now = new Date();
+        const currentYear = now.getUTCFullYear();
+        const currentMonth = now.getUTCMonth(); // 0-11
+
+        let startDate, endDate;
+
+        if (view === 'projected') {
+            // Future: From current month to 12 months ahead
+            startDate = new Date(Date.UTC(currentYear, currentMonth, 1));
+            endDate = new Date(Date.UTC(currentYear + 1, currentMonth, 0, 23, 59, 59));
+        } else {
+            // History: Last 12 months (inclusive of current)
+            // e.g., if Now is Nov 2025, show Dec 2024 -> Nov 2025
+            startDate = new Date(Date.UTC(currentYear - 1, currentMonth + 1, 1));
+            endDate = new Date(Date.UTC(currentYear, currentMonth + 1, 0, 23, 59, 59));
+        }
 
         // Fetch Transactions
         const txs = await prisma.barbosaTransaction.findMany({
