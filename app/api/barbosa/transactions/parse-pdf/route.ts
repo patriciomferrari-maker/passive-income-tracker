@@ -216,6 +216,10 @@ async function parseWithGemini(text: string, categories: any[], rules: any[], cu
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
 
+    // Prepare context strings
+    const categoriesList = categories.map(c => `- ${c.name} (${c.id})`).join('\n');
+    const rulesList = rules.map(r => `"${r.pattern}" -> ${r.categoryId}`).join('\n');
+
     // Truncate if too huge (re-introducing processText variable)
     const processText = text.length > 25000 ? text.substring(0, 25000) : text;
 
