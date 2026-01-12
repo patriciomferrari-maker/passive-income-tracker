@@ -177,6 +177,7 @@ export function DashboardTab() {
                                 <ComposedChart
                                     data={savingsTrend}
                                     margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
+                                    barCategoryGap={0}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                                     <XAxis
@@ -193,7 +194,7 @@ export function DashboardTab() {
                                         tick={{ fontSize: 12 }}
                                         tickLine={false}
                                         axisLine={false}
-                                        domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.3)]}
+                                        domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.6)]}
                                         tickFormatter={(value) => `$${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`}
                                     />
                                     {/* Right Axis: Percentage */}
@@ -216,7 +217,7 @@ export function DashboardTab() {
                                         name="Ingresos"
                                         fill="#10b981"
                                         radius={[4, 4, 0, 0]}
-                                        barSize={22}
+                                        barSize={32}
                                         isAnimationActive={false}
                                     >
                                         <LabelList
@@ -234,7 +235,7 @@ export function DashboardTab() {
                                         name="Egresos"
                                         fill="#ef4444"
                                         radius={[4, 4, 0, 0]}
-                                        barSize={22}
+                                        barSize={32}
                                         isAnimationActive={false}
                                     >
                                         <LabelList
