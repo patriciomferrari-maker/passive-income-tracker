@@ -120,92 +120,82 @@ export async function PUT(
                     installmentsCount: count,
                     startDate: new Date(startDate),
                     currency,
-                    // Remove isStatistical logic from Plan if it doesn't exist in model, assuming it relies on Transactions
-                    // But if it's not in the model, why was it in previous code?
-                    // Checked Schema => BarbosaInstallmentPlan does NOT have isStatistical. BarbosaTransaction DOES.
-                    // So we remove isStatistical from Plan update.
                 }
             });
 
-            // B. Regenerate Transactions if needed
-            if (shouldRegenerate) {
-                // Delete future/projected ones using CORRECT FIELD NAME
-                await tx.barbosaTransaction.deleteMany({
-                    where: {
-                        installmentPlanId: id,
-                        status: 'PROJECTED'
-                    }
-                });
+            // B. Sync All Transactions (Past + Future)
+            // Fetch existing sorted by date
+            const existingTxs = await tx.barbosaTransaction.findMany({
+                where: { installmentPlanId: id },
+                orderBy: { date: 'asc' }
+            });
 
-                const amountPerInstallment = parseFloat(totalAmount) / count;
+            const amountPerInstallment = parseFloat(totalAmount) / count;
+            const start = new Date(startDate);
 
-                // Simple regeneration logic:
-                // We recreate ALL projected installments that don't overlap with existing REAL ones?
-                // Or just regenerate the REMAINING ones?
+            // Loop through the NEW count
+            for (let i = 0; i < count; i++) {
+                // Calculate Target Date for this quota
+                const targetDate = new Date(start);
+                targetDate.setMonth(start.getMonth() + i);
 
-                // Count existing REAL transactions
-                const existingRealCount = await tx.barbosaTransaction.count({
-                    where: {
-                        installmentPlanId: id,
-                        status: 'REAL'
-                    }
-                });
-
-                const remainingToGenerate = count - existingRealCount;
-
-                if (remainingToGenerate > 0) {
-                    const start = new Date(startDate);
-
-                    for (let i = 0; i < remainingToGenerate; i++) {
-                        const installmentNumber = existingRealCount + i + 1; // e.g. 4, 5, 6
-                        const txDate = new Date(start);
-                        txDate.setMonth(start.getMonth() + (installmentNumber - 1));
-
-                        await tx.barbosaTransaction.create({
-                            data: {
-                                userId: existingPlan.userId,
-                                date: txDate,
-                                type: 'EXPENSE',
-                                categoryId,
-                                subCategoryId: subCategoryId || null,
-                                description: `${description} (${installmentNumber}/${count})`,
-                                currency,
-                                amount: amountPerInstallment,
-                                status: 'PROJECTED', // Only generating future ones
-                                isStatistical: isStatistical || false,
-                                installmentPlanId: id,
-                                comprobante: comprobante ? String(comprobante) : null
-                            }
-                        });
-                    }
+                // Adjust day if month length differs (e.g. Jan 31 -> Feb 28)
+                const originalDay = start.getDate();
+                if (targetDate.getDate() !== originalDay) {
+                    targetDate.setDate(0); // Last day of previous month = correct Month end
                 }
-            } else {
-                // C. Updates WITHOUT regeneration
-                await tx.barbosaTransaction.updateMany({
-                    where: { installmentPlanId: id }, // CORRECT FIELD NAME
-                    data: {
-                        categoryId,
-                        subCategoryId: subCategoryId || null,
-                        isStatistical: isStatistical || false,
-                        comprobante: comprobante ? String(comprobante) : null
-                    }
-                });
 
-                // If Description changed, update numbering
-                if (description !== existingPlan.description) {
-                    const allTx = await tx.barbosaTransaction.findMany({
-                        where: { installmentPlanId: id }, // CORRECT FIELD NAME
-                        select: { id: true, description: true }
+                const desc = `${description} (${i + 1}/${count})`;
+                const commonData = {
+                    date: targetDate,
+                    amount: amountPerInstallment,
+                    amountUSD: currency === 'USD' ? amountPerInstallment : null,
+                    description: desc,
+                    categoryId,
+                    subCategoryId: subCategoryId || null,
+                    currency,
+                    isStatistical: isStatistical || false,
+                    // If comprobante is provided, update it for all. Else keep existing (controlled by separate update below for creates)
+                    // Actually, let's just use the one from payload if present.
+                };
+
+                // If existing transaction at this index, UPDATE it
+                if (i < existingTxs.length) {
+                    const t = existingTxs[i];
+                    await tx.barbosaTransaction.update({
+                        where: { id: t.id },
+                        data: {
+                            ...commonData,
+                            // Preserve STATUS and related fields
+                            // We do NOT update status.
+                            // We do update comprobante if new one provided?
+                            comprobante: comprobante ? String(comprobante) : t.comprobante
+                        }
                     });
+                } else {
+                    // CREATE new projected transaction
+                    await tx.barbosaTransaction.create({
+                        data: {
+                            ...commonData,
+                            userId: existingPlan.userId,
+                            installmentPlanId: id,
+                            type: 'EXPENSE',
+                            status: 'PROJECTED',
+                            comprobante: comprobante ? String(comprobante) : null
+                        }
+                    });
+                }
+            }
 
-                    for (const t of allTx) {
-                        const match = t.description?.match(/\(\d+\/\d+\)/); // description might be null? Schema says String?, so yes.
-                        const numbering = match ? match[0] : '';
-                        await tx.barbosaTransaction.update({
-                            where: { id: t.id },
-                            data: { description: `${description} ${numbering}`.trim() }
-                        });
-                    }
+            // C. Delete Excess Transactions (if count reduced)
+            if (existingTxs.length > count) {
+                const toDelete = existingTxs.slice(count);
+                if (toDelete.length > 0) {
+                    await tx.barbosaTransaction.deleteMany({
+                        where: {
+                            id: { in: toDelete.map(t => t.id) }
+                        }
+                    });
                 }
             }
         });
