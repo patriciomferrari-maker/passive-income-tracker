@@ -316,7 +316,14 @@ export function DashboardTab() {
                                                 strokeWidth={2}
                                                 fill={`url(#gradient-${cat})`}
                                                 fillOpacity={1}
-                                            />
+                                            >
+                                                <LabelList
+                                                    dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
+                                                    position="center"
+                                                    formatter={(v: number) => v > 100 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : ''}
+                                                    style={{ fill: '#ffffff', fontSize: '10px', fontWeight: 'bold', textShadow: '0 0 3px rgba(0,0,0,0.8)' }}
+                                                />
+                                            </Area>
                                         ))}
                                     </AreaChart>
                                 </ResponsiveContainer>
