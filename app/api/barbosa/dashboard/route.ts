@@ -9,10 +9,10 @@ export async function GET(req: NextRequest) {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        // Timeframe: Last 12 Months for Trends
-        const today = new Date();
-        const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
-        const startDate = new Date(today.getFullYear(), today.getMonth() - 11, 1);
+        // Timeframe: Custom Range from Nov 2025 (Data Inception) + 12 Months Projection
+        // User requested: "Graph from Nov-25 onwards"
+        const startDate = new Date('2025-11-01T00:00:00');
+        const endDate = new Date(startDate.getFullYear() + 1, startDate.getMonth(), 0, 23, 59, 59); // ~Oct 31, 2026
 
         // Fetch Transactions
         const txs = await prisma.barbosaTransaction.findMany({
