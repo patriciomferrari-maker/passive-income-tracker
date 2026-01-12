@@ -208,37 +208,6 @@ export function DashboardTab() {
                         </div>
                     </div>
 
-                    <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
-                        <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                            <TrendingUp className="h-5 w-5 text-blue-500" />
-                            Evolución Ingresos vs Egresos
-                        </h3>
-                        <div className="h-[250px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={trend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                                    <XAxis
-                                        dataKey="shortDate"
-                                        stroke="#475569"
-                                        tick={{ fontSize: 12 }}
-                                        tickLine={false}
-                                        axisLine={false}
-                                    />
-                                    <YAxis
-                                        stroke="#475569"
-                                        tick={{ fontSize: 12 }}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickFormatter={(value) => `$${value / 1000}k`}
-                                    />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.5 }} />
-                                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                    <Bar dataKey="incomeUSD" name="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                                    <Bar dataKey="expenseUSD" name="Egresos" fill="#ef4444" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Distribution Chart */}
