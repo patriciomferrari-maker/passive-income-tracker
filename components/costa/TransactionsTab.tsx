@@ -392,22 +392,22 @@ export function TransactionsTab({ type }: TransactionsTabProps) {
                                             {type === 'INCOME' ? (
                                                 <>
                                                     <TableCell className="text-slate-300">
-                                                        {t.rentalCheckIn ? format(new Date(t.rentalCheckIn), 'dd/MM/yyyy') : '-'}
+                                                        {t.rentalCheckIn ? t.rentalCheckIn.toString().split('T')[0].split('-').reverse().join('/') : '-'}
                                                     </TableCell>
                                                     <TableCell className="text-slate-300">
-                                                        {t.rentalCheckOut ? format(new Date(t.rentalCheckOut), 'dd/MM/yyyy') : '-'}
+                                                        {t.rentalCheckOut ? t.rentalCheckOut.toString().split('T')[0].split('-').reverse().join('/') : '-'}
                                                     </TableCell>
                                                     <TableCell className="text-slate-300 text-center">
                                                         {t.rentalCheckIn && t.rentalCheckOut
-                                                            ? Math.ceil((new Date(t.rentalCheckOut).getTime() - new Date(t.rentalCheckIn).getTime()) / (1000 * 60 * 60 * 24))
+                                                            ? Math.ceil((new Date(t.rentalCheckOut).getTime() - new Date(t.rentalCheckIn).getTime()) / (1000 * 60 * 60 * 24)) + 1
                                                             : '-'}
                                                     </TableCell>
                                                     <TableCell className="text-center text-slate-400 text-xs">
                                                         {t.rentalCheckIn && t.rentalCheckOut
                                                             ? (() => {
-                                                                const days = Math.ceil((new Date(t.rentalCheckOut).getTime() - new Date(t.rentalCheckIn).getTime()) / (1000 * 60 * 60 * 24));
-                                                                return days > 0
-                                                                    ? (t.currency + ' ' + new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(t.amount / days))
+                                                                const nights = Math.ceil((new Date(t.rentalCheckOut).getTime() - new Date(t.rentalCheckIn).getTime()) / (1000 * 60 * 60 * 24));
+                                                                return nights > 0
+                                                                    ? (t.currency + ' ' + new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(t.amount / nights))
                                                                     : '-';
                                                             })()
                                                             : '-'}
