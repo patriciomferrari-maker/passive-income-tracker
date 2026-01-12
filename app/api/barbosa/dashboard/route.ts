@@ -172,7 +172,9 @@ export async function GET(req: NextRequest) {
                 shortDate: val.date.toLocaleDateString('es-ES', { month: 'short' }).toUpperCase(),
                 date: val.date,
                 income: val.income,
+                incomeUSD: val.incomeUSD, // ADD this for chart
                 expense: val.expense,
+                expenseUSD: val.expenseUSD, // ADD this for chart
                 expenseCostaUSD: val.expenseCostaUSD,
                 expenseOtherUSD: expenseOtherUSD,
                 savings: savings,
