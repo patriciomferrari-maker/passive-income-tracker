@@ -158,7 +158,8 @@ export async function GET(req: NextRequest) {
                 expenseCostaUSD: val.expenseCostaUSD,
                 expenseOtherUSD: expenseOtherUSD,
                 savings: savings,
-                savingsUSD: savingsUSD
+                savingsUSD: savingsUSD,
+                savingsRate: val.income > 0 ? (savings / val.income) * 100 : 0
             };
         });
 
