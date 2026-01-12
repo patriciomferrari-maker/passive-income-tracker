@@ -132,12 +132,12 @@ export async function GET(req: NextRequest) {
                             monthlyData[key].expenseCosta += amount;
                             monthlyData[key].expenseCostaUSD += amountUSD;
                         }
-
-                        // Track category breakdown for evolutionary chart
-                        const catName = tx.category.name;
-                        monthlyData[key].categoryBreakdown[catName] = (monthlyData[key].categoryBreakdown[catName] || 0) + amountUSD;
-                        monthlyData[key].categoryBreakdownARS[catName] = (monthlyData[key].categoryBreakdownARS[catName] || 0) + amount;
                     }
+
+                    // Always track category breakdown (including all statistical transactions)
+                    const catName = tx.category.name;
+                    monthlyData[key].categoryBreakdown[catName] = (monthlyData[key].categoryBreakdown[catName] || 0) + amountUSD;
+                    monthlyData[key].categoryBreakdownARS[catName] = (monthlyData[key].categoryBreakdownARS[catName] || 0) + amount;
 
                     // Distribution: ALWAYS include in Last Month Expenses (Pie Chart)
                     // Allows analyzing "How much did I spend in Supermarket" regardless of payment method.
