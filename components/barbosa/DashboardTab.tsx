@@ -8,6 +8,7 @@ import { InstallmentsChart } from './InstallmentsChart';
 
 export function DashboardTab() {
     const [viewMode, setViewMode] = useState<'history' | 'projected'>('history');
+    const [currency, setCurrency] = useState<'USD' | 'ARS'>('USD');
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -71,22 +72,40 @@ export function DashboardTab() {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Header / Toggle */}
+            {/* Header / Toggles */}
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold text-white">Dashboard</h2>
-                <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-800">
-                    <button
-                        onClick={() => setViewMode('history')}
-                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'history' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
-                    >
-                        Histórico
-                    </button>
-                    <button
-                        onClick={() => setViewMode('projected')}
-                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'projected' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
-                    >
-                        Proyección (12m)
-                    </button>
+                <div className="flex gap-3">
+                    {/* Currency Toggle */}
+                    <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-800">
+                        <button
+                            onClick={() => setCurrency('USD')}
+                            className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${currency === 'USD' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            USD
+                        </button>
+                        <button
+                            onClick={() => setCurrency('ARS')}
+                            className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${currency === 'ARS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            ARS
+                        </button>
+                    </div>
+                    {/* View Toggle */}
+                    <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-800">
+                        <button
+                            onClick={() => setViewMode('history')}
+                            className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'history' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            Histórico
+                        </button>
+                        <button
+                            onClick={() => setViewMode('projected')}
+                            className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'projected' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            Proyección (12m)
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -185,36 +204,36 @@ export function DashboardTab() {
                                     {/* Green Bars: Income */}
                                     <Bar
                                         yAxisId="left"
-                                        dataKey="incomeUSD"
+                                        dataKey={currency === 'USD' ? 'incomeUSD' : 'income'}
                                         name="Ingresos"
                                         fill="#10b981"
                                         radius={[4, 4, 0, 0]}
-                                        barSize={40}
+                                        barSize={28}
                                         isAnimationActive={false}
                                     >
                                         <LabelList
-                                            dataKey="incomeUSD"
+                                            dataKey={currency === 'USD' ? 'incomeUSD' : 'income'}
                                             position="top"
-                                            formatter={(v: number) => v > 0 ? `$${(v / 1000).toFixed(1)}k` : ''}
-                                            style={{ fill: '#10b981', fontSize: '11px', fontWeight: 'bold' }}
+                                            formatter={(v: number) => v > 0 ? (currency === 'USD' ? `$${(v / 1000).toFixed(1)}k` : `$${(v / 1000).toFixed(0)}k`) : ''}
+                                            style={{ fill: '#10b981', fontSize: '10px', fontWeight: 'bold' }}
                                         />
                                     </Bar>
 
                                     {/* Red Bars: Expenses */}
                                     <Bar
                                         yAxisId="left"
-                                        dataKey="expenseUSD"
+                                        dataKey={currency === 'USD' ? 'expenseUSD' : 'expense'}
                                         name="Egresos"
                                         fill="#ef4444"
                                         radius={[4, 4, 0, 0]}
-                                        barSize={40}
+                                        barSize={28}
                                         isAnimationActive={false}
                                     >
                                         <LabelList
-                                            dataKey="expenseUSD"
+                                            dataKey={currency === 'USD' ? 'expenseUSD' : 'expense'}
                                             position="top"
-                                            formatter={(v: number) => v > 0 ? `$${(v / 1000).toFixed(1)}k` : ''}
-                                            style={{ fill: '#ef4444', fontSize: '11px', fontWeight: 'bold' }}
+                                            formatter={(v: number) => v > 0 ? (currency === 'USD' ? `$${(v / 1000).toFixed(1)}k` : `$${(v / 1000).toFixed(0)}k`) : ''}
+                                            style={{ fill: '#ef4444', fontSize: '10px', fontWeight: 'bold' }}
                                         />
                                     </Bar>
 
