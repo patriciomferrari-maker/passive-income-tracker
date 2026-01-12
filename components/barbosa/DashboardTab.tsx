@@ -175,7 +175,9 @@ export function DashboardTab() {
                                         stroke="#f59e0b"
                                         strokeWidth={2}
                                         dot={{ fill: '#f59e0b', r: 4 }}
-                                    />
+                                    >
+                                        <LabelList dataKey="savingsRate" position="top" formatter={(val: number) => Math.round(val) + '%'} style={{ fill: '#f59e0b', fontSize: '10px', fontWeight: 'bold' }} />
+                                    </Line>
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </div>
@@ -188,7 +190,7 @@ export function DashboardTab() {
                         </h3>
                         <div className="h-[250px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={trend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                <BarChart data={trend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                                     <XAxis
                                         dataKey="shortDate"
@@ -204,11 +206,11 @@ export function DashboardTab() {
                                         axisLine={false}
                                         tickFormatter={(value) => `$${value / 1000}k`}
                                     />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#475569', strokeWidth: 1 }} />
+                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.5 }} />
                                     <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                    <Line type="monotone" dataKey="incomeUSD" name="Ingresos" stroke="#10b981" strokeWidth={3} dot={false} />
-                                    <Line type="monotone" dataKey="expenseUSD" name="Egresos" stroke="#ef4444" strokeWidth={3} dot={false} />
-                                </LineChart>
+                                    <Bar dataKey="incomeUSD" name="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="expenseUSD" name="Egresos" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                </BarChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
