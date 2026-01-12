@@ -326,61 +326,60 @@ export function DashboardTab() {
                             )}
                         </div>
                     </div>
+                </div>
 
-                    {/* Installments Chart Section - Moved here and enlarged */}
-                    <div className="lg:col-span-3">
-                        <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
-                            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                                <TrendingDown className="h-5 w-5 text-blue-500" />
-                                Análisis de Cuotas
-                            </h3>
-                            <div className="w-full h-[500px]">
-                                <InstallmentsChart />
-                            </div>
+                {/* Distribution Chart */}
+                <div className="space-y-6">
+
+                    <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
+                        <h3 className="text-lg font-bold text-white mb-6">Top Gastos (Último Mes)</h3>
+                        <div className="h-[200px] w-full relative">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={distribution}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={45}
+                                        outerRadius={60}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {distribution.map((entry: any, index: number) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip content={<CustomTooltip />} />
+                                </PieChart>
+                            </ResponsiveContainer>
                         </div>
-                    </div>
-
-                    {/* Distribution Chart */}
-                    <div className="space-y-6">
-
-                        <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
-                            <h3 className="text-lg font-bold text-white mb-6">Top Gastos (Último Mes)</h3>
-                            <div className="h-[200px] w-full relative">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={distribution}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={45}
-                                            outerRadius={60}
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                        >
-                                            {distribution.map((entry: any, index: number) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip content={<CustomTooltip />} />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
-                            <div className="mt-2 space-y-2">
-                                {distribution.slice(0, 3).map((item: any, idx: number) => (
-                                    <div key={idx} className="flex justify-between items-center text-xs">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
-                                            <span className="text-slate-400 truncate max-w-[100px]">{item.name}</span>
-                                        </div>
-                                        <span className="text-white font-mono">US${Math.round(item.value).toLocaleString()}</span>
+                        <div className="mt-2 space-y-2">
+                            {distribution.slice(0, 3).map((item: any, idx: number) => (
+                                <div key={idx} className="flex justify-between items-center text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                                        <span className="text-slate-400 truncate max-w-[100px]">{item.name}</span>
                                     </div>
-                                ))}
-                            </div>
+                                    <span className="text-white font-mono">US${Math.round(item.value).toLocaleString()}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+
+            {/* Installments Chart Section - Full Width */ }
+    <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
+        <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+            <TrendingDown className="h-5 w-5 text-blue-500" />
+            Análisis de Cuotas
+        </h3>
+        <div className="w-full h-[500px]">
+            <InstallmentsChart />
+        </div>
+    </div>
+        </div >
     );
 }
 
