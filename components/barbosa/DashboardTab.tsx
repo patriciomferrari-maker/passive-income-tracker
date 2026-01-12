@@ -193,6 +193,7 @@ export function DashboardTab() {
                                         tick={{ fontSize: 12 }}
                                         tickLine={false}
                                         axisLine={false}
+                                        domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.3)]}
                                         tickFormatter={(value) => `$${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`}
                                     />
                                     {/* Right Axis: Percentage */}
