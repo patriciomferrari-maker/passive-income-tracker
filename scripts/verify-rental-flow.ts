@@ -1,3 +1,16 @@
+/**
+ * REGRESSION TEST: Rental Individual Flow
+ * 
+ * This script verifies the integrity of the data pipeline for the "Flujo Individual" tab.
+ * Usage: npx tsx scripts/verify-rental-flow.ts
+ * 
+ * It mimics the frontend behavior:
+ * 1. Fetching user contracts
+ * 2. Fetching details for a specific contract
+ * 3. Fetching cashflows and verifying date integrity
+ * 
+ * If this script fails, the frontend tab is likely broken.
+ */
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
