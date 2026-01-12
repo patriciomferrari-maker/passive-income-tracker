@@ -91,20 +91,29 @@ export async function POST(req: NextRequest) {
 
             // 2. Create Transactions linked to Plan
             for (let i = 0; i < count; i++) {
-                // Determine Date Logic
-                const quotaDate = new Date(start);
-                // We use the same safe logic as before but simpler
-                const targetMonth = start.getMonth() + i;
-                const yearShift = Math.floor(targetMonth / 12);
-                const month = targetMonth % 12; // 0-11
-                // Date constructor with day overflow handling
-                let date = new Date(start.getFullYear() + yearShift, month, start.getDate());
+                // Parse start date parts
+                const [y, m, d] = startDate.split('-').map(Number);
+                // Create Base Date at 12:00 UTC
+                // Month is 0-indexed in JS Date/UTC
+                let date = new Date(Date.UTC(y, m - 1 + i, d, 12, 0, 0));
 
-                // If overflow occurred (e.g. Jan 31 -> Feb 28/29 is desired, but Date goes to March 2/3),
-                // check month mismatch.
-                if (date.getMonth() !== month) {
-                    // Set to last day of previous month = correct Month end
-                    date = new Date(start.getFullYear() + yearShift, month + 1, 0);
+                // Handle Overflow (e.g. Jan 31 + 1 month -> Feb 31 doesn't exist)
+                // If we land on a different month or different day than expected due to overflow
+                // But JS Date auto-corrects Feb 31 to Mar 3/2. We want to clamp to last day of Feb.
+                // Re-check:
+                // We want: Y, M+i.
+                const targetMonthIndex = m - 1 + i;
+                const targetY = y + Math.floor(targetMonthIndex / 12);
+                const targetM = targetMonthIndex % 12; // 0-11
+
+                // If date.getUTCMonth() !== targetM, we overflowed.
+                // date will be in next month. Set to day 0 of date's month -> Last day of previous (target) month.
+                if (date.getUTCMonth() !== targetM && targetM >= 0) {
+                    date = new Date(Date.UTC(targetY, targetM + 1, 0, 12, 0, 0));
+                } else if (date.getUTCMonth() !== (targetM < 0 ? 12 + targetM : targetM)) {
+                    // Handle negative modulo logic if needed, though here i >= 0 so targetMonthIndex >= m-1
+                    // Just simple clamp: set to 12:00 UTC of last day of target month
+                    date = new Date(Date.UTC(targetY, targetM + 1, 0, 12, 0, 0));
                 }
 
                 await tx.barbosaTransaction.create({

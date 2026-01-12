@@ -135,14 +135,20 @@ export async function PUT(
 
             // Loop through the NEW count
             for (let i = 0; i < count; i++) {
-                // Calculate Target Date for this quota
-                const targetDate = new Date(start);
-                targetDate.setMonth(start.getMonth() + i);
+                // Parse start date parts
+                const [y, m, d] = startDate.split('-').map(Number);
+                // Create Target Date at 12:00 UTC
+                let targetDate = new Date(Date.UTC(y, m - 1 + i, d, 12, 0, 0));
 
-                // Adjust day if month length differs (e.g. Jan 31 -> Feb 28)
-                const originalDay = start.getDate();
-                if (targetDate.getDate() !== originalDay) {
-                    targetDate.setDate(0); // Last day of previous month = correct Month end
+                // Overflow Handling
+                const targetMonthIndex = m - 1 + i;
+                const targetY = y + Math.floor(targetMonthIndex / 12);
+                const targetM = targetMonthIndex % 12; // 0-11
+
+                if (targetDate.getUTCMonth() !== targetM && targetM >= 0) {
+                    targetDate = new Date(Date.UTC(targetY, targetM + 1, 0, 12, 0, 0));
+                } else if (targetDate.getUTCMonth() !== (targetM < 0 ? 12 + targetM : targetM)) {
+                    targetDate = new Date(Date.UTC(targetY, targetM + 1, 0, 12, 0, 0));
                 }
 
                 const desc = `${description} (${i + 1}/${count})`;
