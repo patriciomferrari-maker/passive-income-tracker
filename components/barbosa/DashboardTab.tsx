@@ -8,7 +8,7 @@ import { InstallmentsChart } from './InstallmentsChart';
 
 export function DashboardTab() {
     const [viewMode, setViewMode] = useState<'history' | 'projected'>('history');
-    const [currency, setCurrency] = useState<'USD' | 'ARS'>('USD');
+    const [currency, setCurrency] = useState<'USD' | 'ARS'>('ARS'); // Default to ARS
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -303,7 +303,7 @@ export function DashboardTab() {
                                             <Line
                                                 key={cat}
                                                 type="monotone"
-                                                dataKey={cat}
+                                                dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
                                                 name={cat}
                                                 stroke={COLORS[idx % COLORS.length]}
                                                 strokeWidth={2}

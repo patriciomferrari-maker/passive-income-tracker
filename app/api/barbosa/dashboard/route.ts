@@ -72,7 +72,8 @@ export async function GET(req: NextRequest) {
             expenseCostaUSD: number;
             savingsUSD: number;
             date: Date;
-            categoryBreakdown: Record<string, number>; // Track expenses by category
+            categoryBreakdown: Record<string, number>; // USD
+            categoryBreakdownARS: Record<string, number>; // ARS
         }> = {};
 
         // Init months using UTC
@@ -91,7 +92,8 @@ export async function GET(req: NextRequest) {
                 savingsUSD: 0,
                 // Store date as UTC Noon for safe display formatting
                 date: new Date(Date.UTC(y, m, 1, 12, 0, 0)),
-                categoryBreakdown: {}
+                categoryBreakdown: {},
+                categoryBreakdownARS: {}
             };
             current.setUTCMonth(current.getUTCMonth() + 1);
         }
@@ -134,6 +136,7 @@ export async function GET(req: NextRequest) {
                         // Track category breakdown for evolutionary chart
                         const catName = tx.category.name;
                         monthlyData[key].categoryBreakdown[catName] = (monthlyData[key].categoryBreakdown[catName] || 0) + amountUSD;
+                        monthlyData[key].categoryBreakdownARS[catName] = (monthlyData[key].categoryBreakdownARS[catName] || 0) + amount;
                     }
 
                     // Distribution: ALWAYS include in Last Month Expenses (Pie Chart)
@@ -214,10 +217,10 @@ export async function GET(req: NextRequest) {
 
         const topCategories = Object.entries(categoryTotals)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 4)
+            .slice(0, 5)
             .map(([cat]) => cat);
 
-        // Build the category trend array
+        // Build the category trend array with both USD and ARS
         const categoryTrend = Object.entries(monthlyData).sort().map(([key, val]) => {
             const dataPoint: any = {
                 period: key,
@@ -226,6 +229,7 @@ export async function GET(req: NextRequest) {
             };
             topCategories.forEach(cat => {
                 dataPoint[cat] = val.categoryBreakdown[cat] || 0;
+                dataPoint[`${cat}_ARS`] = val.categoryBreakdownARS[cat] || 0;
             });
             return dataPoint;
         });
