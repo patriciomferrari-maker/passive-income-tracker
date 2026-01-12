@@ -311,8 +311,8 @@ export function DashboardTab() {
                                                 <LabelList
                                                     dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
                                                     position="top"
-                                                    formatter={(v: number) => v > 0 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : ''}
-                                                    style={{ fill: COLORS[idx % COLORS.length], fontSize: '9px', fontWeight: 'bold' }}
+                                                    formatter={(v: number) => `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k`}
+                                                    style={{ fill: COLORS[idx % COLORS.length], fontSize: '10px', fontWeight: 'bold' }}
                                                 />
                                             </Line>
                                         ))}
