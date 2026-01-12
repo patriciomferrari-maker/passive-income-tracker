@@ -391,5 +391,7 @@ export function DashboardTab() {
                     </div>
                 </div>
             </div>
-            );
+        </div>
+    );
 }
+
