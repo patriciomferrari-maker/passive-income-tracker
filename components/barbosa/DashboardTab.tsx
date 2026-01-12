@@ -54,18 +54,16 @@ export function DashboardTab() {
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
-                <div className="bg-slate-900 border border-slate-800 p-3 rounded-lg shadow-xl">
-                    <p className="text-slate-300 font-bold mb-2">{label}</p>
+                <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-xl">
+                    <p className="text-slate-300 font-medium mb-2">{label}</p>
                     {payload.map((entry: any, index: number) => (
-                        <div key={index} className="flex items-center gap-2 text-xs">
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></div>
-                            <span className="text-slate-400 capitalize">{entry.name}:</span>
-                            <span className="text-white font-mono font-bold">
-                                {entry.name === 'savingsRate' || entry.name === '% Ahorro'
+                        <div key={index} className="flex items-center gap-2 text-sm">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></div>
+                            <span className="text-slate-400">{entry.name}:</span>
+                            <span className="text-white font-semibold">
+                                {entry.name === '% Ahorro'
                                     ? `${Math.round(entry.value)}%`
-                                    : entry.name.includes('USD') || entry.name === 'savingsUSD'
-                                        ? `US$${Math.round(entry.value).toLocaleString()}`
-                                        : `$${entry.value.toLocaleString()}`}
+                                    : `$${entry.value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                             </span>
                         </div>
                     ))}
@@ -276,7 +274,7 @@ export function DashboardTab() {
                     <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
                         <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                             <TrendingDown className="h-5 w-5 text-blue-500" />
-                            Evolución de Gastos por Categoría (Top 4)
+                            Evolución de Gastos por Categoría
                         </h3>
                         <div className="h-[300px] w-full">
                             {filteredCategoryTrend && filteredCategoryTrend.length > 0 && topCategories ? (
@@ -309,7 +307,14 @@ export function DashboardTab() {
                                                 strokeWidth={2}
                                                 dot={{ r: 3 }}
                                                 activeDot={{ r: 5 }}
-                                            />
+                                            >
+                                                <LabelList
+                                                    dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
+                                                    position="top"
+                                                    formatter={(v: number) => v > 0 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : ''}
+                                                    style={{ fill: COLORS[idx % COLORS.length], fontSize: '9px', fontWeight: 'bold' }}
+                                                />
+                                            </Line>
                                         ))}
                                     </LineChart>
                                 </ResponsiveContainer>
