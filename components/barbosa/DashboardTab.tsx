@@ -302,7 +302,7 @@ export function DashboardTab() {
                                         {topCategories.map((cat: string, idx: number) => (
                                             <Line
                                                 key={cat}
-                                                type="monotone"
+                                                type="step"
                                                 dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
                                                 name={cat}
                                                 stroke={COLORS[idx % COLORS.length]}

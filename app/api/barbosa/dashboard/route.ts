@@ -201,25 +201,8 @@ export async function GET(req: NextRequest) {
             };
         });
 
-        // Build Category Trend for expense evolution chart
-        // Identify top categories across all months
-        const allCategories = new Set<string>();
-        Object.values(monthlyData).forEach(val => {
-            Object.keys(val.categoryBreakdown).forEach(cat => allCategories.add(cat));
-        });
-
-        // Calculate total for each category to find top 5 (excluding 'Gastos cash')
-        const categoryTotals: Record<string, number> = {};
-        allCategories.forEach(cat => {
-            if (cat === 'Gastos cash') return; // Exclude this category
-            categoryTotals[cat] = Object.values(monthlyData)
-                .reduce((sum, val) => sum + (val.categoryBreakdown[cat] || 0), 0);
-        });
-
-        const topCategories = Object.entries(categoryTotals)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([cat]) => cat);
+        // Fixed categories to track (no longer dynamic)
+        const topCategories = ['Departamento', 'Auto', 'Comida', 'Ropa'];
 
         // Build the category trend array with both USD and ARS
         const categoryTrend = Object.entries(monthlyData).sort().map(([key, val]) => {
