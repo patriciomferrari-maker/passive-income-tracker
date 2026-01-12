@@ -200,6 +200,24 @@ export function DashboardTab() {
                                         />
                                     </Bar>
 
+                                    {/* Red Bars: Expenses */}
+                                    <Bar
+                                        yAxisId="left"
+                                        dataKey="expenseUSD"
+                                        name="Egresos"
+                                        fill="#ef4444"
+                                        radius={[4, 4, 0, 0]}
+                                        barSize={40}
+                                        isAnimationActive={false}
+                                    >
+                                        <LabelList
+                                            dataKey="expenseUSD"
+                                            position="top"
+                                            formatter={(v: number) => v > 0 ? `$${(v / 1000).toFixed(1)}k` : ''}
+                                            style={{ fill: '#ef4444', fontSize: '11px', fontWeight: 'bold' }}
+                                        />
+                                    </Bar>
+
                                     {/* Yellow Line: Savings % */}
                                     <Line
                                         yAxisId="right"
