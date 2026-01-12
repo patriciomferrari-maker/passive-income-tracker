@@ -378,6 +378,7 @@ model CostaTransaction {
   category    CostaCategory? @relation(fields: [categoryId], references: [id])
 
   // Rental Specifics (Only for INCOME/RENTAL)
+  rentalCheckIn  DateTime?
   rentalCheckOut DateTime?
   contractUrl    String?
 
