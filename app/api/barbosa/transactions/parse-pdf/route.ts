@@ -217,6 +217,7 @@ async function parseWithGemini(text: string, categories: any[], rules: any[], cu
     if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
 
     // FALLBACK STRATEGY: Try multiple models if one fails (404, 429, etc.)
+    const genAI = new GoogleGenerativeAI(apiKey);
     const modelsToTry = [
         "gemini-1.5-flash",
         "gemini-1.5-flash-001",
