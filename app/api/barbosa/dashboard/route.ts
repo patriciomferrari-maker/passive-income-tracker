@@ -11,8 +11,9 @@ export async function GET(req: NextRequest) {
     try {
         // Timeframe: Custom Range from Nov 2025 (Data Inception) + 12 Months Projection
         // User requested: "Graph from Nov-25 onwards"
-        const startDate = new Date('2025-11-01T00:00:00');
-        const endDate = new Date(startDate.getFullYear() + 1, startDate.getMonth(), 0, 23, 59, 59); // ~Oct 31, 2026
+        // USE UTC to ensure consistent bucketing regardless of server/local timezone
+        const startDate = new Date(Date.UTC(2025, 10, 1)); // Nov 1 2025 00:00 UTC
+        const endDate = new Date(Date.UTC(2026, 10, 0, 23, 59, 59)); // Oct 31 2026
 
         // Fetch Transactions
         const txs = await prisma.barbosaTransaction.findMany({
@@ -49,11 +50,11 @@ export async function GET(req: NextRequest) {
         // 1. Trend Data (Last 12 Months)
         const monthlyData: Record<string, { income: number; expense: number; expenseCosta: number; incomeUSD: number; expenseUSD: number; expenseCostaUSD: number; savingsUSD: number; date: Date }> = {};
 
-        // Init months
+        // Init months using UTC
         let current = new Date(startDate);
         while (current <= endDate) {
-            const y = current.getFullYear();
-            const m = current.getMonth();
+            const y = current.getUTCFullYear();
+            const m = current.getUTCMonth(); // 0-11
             const key = `${y}-${(m + 1).toString().padStart(2, '0')}`;
             monthlyData[key] = {
                 income: 0,
@@ -63,9 +64,10 @@ export async function GET(req: NextRequest) {
                 expenseUSD: 0,
                 expenseCostaUSD: 0,
                 savingsUSD: 0,
-                date: new Date(y, m, 1)
+                // Store date as UTC Noon for safe display formatting
+                date: new Date(Date.UTC(y, m, 1, 12, 0, 0))
             };
-            current.setMonth(current.getMonth() + 1);
+            current.setUTCMonth(current.getUTCMonth() + 1);
         }
 
         let totalSavingsUSD12M = 0;
@@ -73,7 +75,7 @@ export async function GET(req: NextRequest) {
         const lastMonthExpenses: Record<string, number> = {};
 
         txs.forEach(tx => {
-            const key = `${tx.date.getFullYear()}-${(tx.date.getMonth() + 1).toString().padStart(2, '0')}`;
+            const key = `${tx.date.getUTCFullYear()}-${(tx.date.getUTCMonth() + 1).toString().padStart(2, '0')}`;
             const amount = tx.amount;
             // Fallback for Exchange Rate if missing: 1150 (approx current)
             const rate = tx.exchangeRate || (tx.currency === 'ARS' ? 1150 : 1);
@@ -117,7 +119,7 @@ export async function GET(req: NextRequest) {
 
         // Process Rental Cashflows
         rentalCashflows.forEach(cf => {
-            const key = `${cf.date.getFullYear()}-${(cf.date.getMonth() + 1).toString().padStart(2, '0')}`;
+            const key = `${cf.date.getUTCFullYear()}-${(cf.date.getUTCMonth() + 1).toString().padStart(2, '0')}`;
 
             // Should verify if key exists in monthlyData (it should because of date filter)
             if (monthlyData[key]) {
