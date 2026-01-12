@@ -367,18 +367,17 @@ export function DashboardTab() {
                     </div>
                 </div>
             </div>
-        </div>
 
-            {/* Installments Chart Section - Full Width */ }
-    <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
-        <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-            <TrendingDown className="h-5 w-5 text-blue-500" />
-            Análisis de Cuotas
-        </h3>
-        <div className="w-full h-[500px]">
-            <InstallmentsChart />
-        </div>
-    </div>
+            {/* Installments Chart Section - Full Width */}
+            <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
+                <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                    <TrendingDown className="h-5 w-5 text-blue-500" />
+                    Análisis de Cuotas
+                </h3>
+                <div className="w-full h-[500px]">
+                    <InstallmentsChart />
+                </div>
+            </div>
         </div >
     );
 }
