@@ -276,115 +276,120 @@ export function DashboardTab() {
                             <TrendingDown className="h-5 w-5 text-blue-500" />
                             Evolución de Gastos por Categoría
                         </h3>
-                        <div className="h-[300px] w-full">
-                            {filteredCategoryTrend && filteredCategoryTrend.length > 0 && topCategories ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={filteredCategoryTrend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
-                                        <defs>
-                                            {topCategories.map((cat: string, idx: number) => (
-                                                <linearGradient key={`gradient-${cat}`} id={`gradient-${cat}`} x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.8} />
-                                                    <stop offset="95%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.4} />
-                                                </linearGradient>
-                                            ))}
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                                        <XAxis
-                                            dataKey="shortDate"
-                                            stroke="#475569"
-                                            tick={{ fontSize: 12 }}
-                                            tickLine={false}
-                                            axisLine={false}
-                                        />
-                                        <YAxis
-                                            stroke="#475569"
-                                            tick={{ fontSize: 12 }}
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tickFormatter={(value) => `$${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k`}
-                                        />
-                                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#475569', strokeWidth: 1 }} />
-                                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                        {topCategories.map((cat: string, idx: number) => (
-                                            <Area
-                                                key={cat}
-                                                type="monotone"
-                                                dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
-                                                name={cat}
-                                                stackId="1"
-                                                stroke={COLORS[idx % COLORS.length]}
-                                                strokeWidth={2}
-                                                fill={`url(#gradient-${cat})`}
-                                                fillOpacity={1}
-                                            >
-                                                <LabelList
-                                                    dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
-                                                    position="center"
-                                                    formatter={(v: number) => v > 100 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : ''}
-                                                    style={{ fill: '#ffffff', fontSize: '10px', fontWeight: 'bold', textShadow: '0 0 3px rgba(0,0,0,0.8)' }}
-                                                />
-                                            </Area>
-                                        ))}
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="flex items-center justify-center h-full text-slate-500">No hay datos de categorías</div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Distribution Chart */}
-                <div className="space-y-6">
-
-                    <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
-                        <h3 className="text-lg font-bold text-white mb-6">Top Gastos (Último Mes)</h3>
-                        <div className="h-[200px] w-full relative">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={distribution}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={45}
-                                        outerRadius={60}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {distribution.map((entry: any, index: number) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip content={<CustomTooltip />} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="mt-2 space-y-2">
-                            {distribution.slice(0, 3).map((item: any, idx: number) => (
-                                <div key={idx} className="flex justify-between items-center text-xs">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
-                                        <span className="text-slate-400 truncate max-w-[100px]">{item.name}</span>
+                        <div className="flex gap-4">
+                            {/* Category Labels on Left */}
+                            <div className="flex flex-col justify-center gap-8 text-sm font-medium pt-4">
+                                {topCategories.map((cat: string, idx: number) => (
+                                    <div key={cat} className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                                        <span className="text-slate-300">{cat}</span>
                                     </div>
-                                    <span className="text-white font-mono">US${Math.round(item.value).toLocaleString()}</span>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
+                            {/* Chart */}
+                            <div className="flex-1 h-[300px]">
+                                {filteredCategoryTrend && filteredCategoryTrend.length > 0 && topCategories ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={filteredCategoryTrend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                                            <defs>
+                                                {topCategories.map((cat: string, idx: number) => (
+                                                    <linearGradient key={`gradient-${cat}`} id={`gradient-${cat}`} x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.8} />
+                                                        <stop offset="95%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.4} />
+                                                    </linearGradient>
+                                                ))}
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                            <XAxis
+                                                dataKey="shortDate"
+                                                stroke="#475569"
+                                                tick={{ fontSize: 12 }}
+                                                tickLine={false}
+                                                axisLine={false}
+                                            />
+                                            <YAxis hide={true} />
+                                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#475569', strokeWidth: 1 }} />
+                                            <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                                            {topCategories.map((cat: string, idx: number) => (
+                                                <Area
+                                                    key={cat}
+                                                    type="monotone"
+                                                    dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
+                                                    name={cat}
+                                                    stackId="1"
+                                                    stroke={COLORS[idx % COLORS.length]}
+                                                    strokeWidth={2}
+                                                    fill={`url(#gradient-${cat})`}
+                                                    fillOpacity={1}
+                                                >
+                                                    <LabelList
+                                                        dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
+                                                        position="center"
+                                                        formatter={(v: number) => v > 100 ? `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k` : ''}
+                                                        style={{ fill: '#ffffff', fontSize: '10px', fontWeight: 'bold', textShadow: '0 0 3px rgba(0,0,0,0.8)' }}
+                                                    />
+                                                </Area>
+                                            ))}
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex items-center justify-center h-full text-slate-500">No hay datos de categorías</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Distribution Chart */}
+                    <div className="space-y-6">
+
+                        <div className="bg-slate-950 border border-slate-900 rounded-xl p-6 shadow-lg">
+                            <h3 className="text-lg font-bold text-white mb-6">Top Gastos (Último Mes)</h3>
+                            <div className="h-[200px] w-full relative">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={distribution}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={45}
+                                            outerRadius={60}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                        >
+                                            {distribution.map((entry: any, index: number) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip content={<CustomTooltip />} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="mt-2 space-y-2">
+                                {distribution.slice(0, 3).map((item: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between items-center text-xs">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                                            <span className="text-slate-400 truncate max-w-[100px]">{item.name}</span>
+                                        </div>
+                                        <span className="text-white font-mono">US${Math.round(item.value).toLocaleString()}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Installments Chart Section - Bottom */}
-            <div className="space-y-6 pt-6 border-t border-slate-900">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <TrendingDown className="h-6 w-6 text-blue-500" />
-                    Análisis de Cuotas
-                </h2>
+                {/* Installments Chart Section - Bottom */}
+                <div className="space-y-6 pt-6 border-t border-slate-900">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <TrendingDown className="h-6 w-6 text-blue-500" />
+                        Análisis de Cuotas
+                    </h2>
 
-                <div className="w-full h-[400px]">
-                    <InstallmentsChart />
+                    <div className="w-full h-[400px]">
+                        <InstallmentsChart />
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+            );
 }
