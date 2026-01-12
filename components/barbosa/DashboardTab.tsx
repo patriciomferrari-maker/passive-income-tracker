@@ -279,7 +279,15 @@ export function DashboardTab() {
                         <div className="h-[300px] w-full">
                             {filteredCategoryTrend && filteredCategoryTrend.length > 0 && topCategories ? (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={filteredCategoryTrend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                                    <AreaChart data={filteredCategoryTrend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                                        <defs>
+                                            {topCategories.map((cat: string, idx: number) => (
+                                                <linearGradient key={`gradient-${cat}`} id={`gradient-${cat}`} x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.8} />
+                                                    <stop offset="95%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.4} />
+                                                </linearGradient>
+                                            ))}
+                                        </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                                         <XAxis
                                             dataKey="shortDate"
@@ -298,25 +306,19 @@ export function DashboardTab() {
                                         <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#475569', strokeWidth: 1 }} />
                                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
                                         {topCategories.map((cat: string, idx: number) => (
-                                            <Line
+                                            <Area
                                                 key={cat}
-                                                type="step"
+                                                type="monotone"
                                                 dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
                                                 name={cat}
+                                                stackId="1"
                                                 stroke={COLORS[idx % COLORS.length]}
                                                 strokeWidth={2}
-                                                dot={{ r: 3 }}
-                                                activeDot={{ r: 5 }}
-                                            >
-                                                <LabelList
-                                                    dataKey={currency === 'USD' ? cat : `${cat}_ARS`}
-                                                    position="top"
-                                                    formatter={(v: number) => `$${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}k`}
-                                                    style={{ fill: COLORS[idx % COLORS.length], fontSize: '10px', fontWeight: 'bold' }}
-                                                />
-                                            </Line>
+                                                fill={`url(#gradient-${cat})`}
+                                                fillOpacity={1}
+                                            />
                                         ))}
-                                    </LineChart>
+                                    </AreaChart>
                                 </ResponsiveContainer>
                             ) : (
                                 <div className="flex items-center justify-center h-full text-slate-500">No hay datos de categorías</div>
