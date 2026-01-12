@@ -40,9 +40,11 @@ export function DashboardTab() {
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></div>
                             <span className="text-slate-400 capitalize">{entry.name}:</span>
                             <span className="text-white font-mono font-bold">
-                                {entry.name.includes('USD') || entry.name === 'savingsUSD'
-                                    ? `US$${Math.round(entry.value).toLocaleString()}`
-                                    : `$${entry.value.toLocaleString()}`}
+                                {entry.name === 'savingsRate' || entry.name === '% Ahorro'
+                                    ? `${Math.round(entry.value)}%`
+                                    : entry.name.includes('USD') || entry.name === 'savingsUSD'
+                                        ? `US$${Math.round(entry.value).toLocaleString()}`
+                                        : `$${entry.value.toLocaleString()}`}
                             </span>
                         </div>
                     ))}
@@ -152,6 +154,7 @@ export function DashboardTab() {
                                         fill="#10b981"
                                         radius={[4, 4, 0, 0]}
                                         barSize={20}
+                                        isAnimationActive={false}
                                     >
                                         <LabelList dataKey="incomeUSD" position="top" formatter={(v: number) => v > 0 ? `$${(v / 1000).toFixed(1)}k` : ''} style={{ fill: '#10b981', fontSize: '10px', fontWeight: 'bold' }} />
                                     </Bar>
@@ -163,6 +166,7 @@ export function DashboardTab() {
                                         fill="#ef4444"
                                         radius={[4, 4, 0, 0]}
                                         barSize={20}
+                                        isAnimationActive={false}
                                     >
                                         <LabelList dataKey="expenseUSD" position="top" formatter={(v: number) => v > 0 ? `$${(v / 1000).toFixed(1)}k` : ''} style={{ fill: '#ef4444', fontSize: '10px', fontWeight: 'bold' }} />
                                     </Bar>
@@ -208,8 +212,8 @@ export function DashboardTab() {
                                     />
                                     <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.5 }} />
                                     <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                    <Bar dataKey="incomeUSD" name="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="expenseUSD" name="Egresos" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="incomeUSD" name="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                                    <Bar dataKey="expenseUSD" name="Egresos" fill="#ef4444" radius={[4, 4, 0, 0]} isAnimationActive={false} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
