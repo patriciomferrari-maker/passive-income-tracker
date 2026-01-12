@@ -75,8 +75,9 @@ export async function GET(req: NextRequest) {
         txs.forEach(tx => {
             const key = `${tx.date.getFullYear()}-${(tx.date.getMonth() + 1).toString().padStart(2, '0')}`;
             const amount = tx.amount;
-            const rate = tx.exchangeRate || 0;
-            const amountUSD = rate > 0 ? amount / rate : 0;
+            // Fallback for Exchange Rate if missing: 1150 (approx current)
+            const rate = tx.exchangeRate || (tx.currency === 'ARS' ? 1150 : 1);
+            const amountUSD = (tx.currency === 'USD') ? amount : (rate > 0 ? amount / rate : 0);
             const isCosta = tx.category.name.toLowerCase().includes('costa esmeralda');
 
             // STATISTICAL CHECK:

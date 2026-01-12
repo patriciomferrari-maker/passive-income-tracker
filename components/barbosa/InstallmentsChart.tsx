@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { format } from 'date-fns';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, LabelList, ReferenceLine } from 'recharts';
 import { Loader2 } from 'lucide-react';
 
 export function InstallmentsChart() {
@@ -61,6 +61,7 @@ export function InstallmentsChart() {
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData} margin={{ top: 30, right: 10, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                            <ReferenceLine x={format(new Date(), 'MMM yy').toUpperCase()} stroke="#e2e8f0" strokeDasharray="3 3" label={{ position: 'top', value: 'HOY', fill: '#e2e8f0', fontSize: 10 }} />
                             <XAxis
                                 dataKey="name"
                                 stroke="#475569"
