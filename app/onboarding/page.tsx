@@ -4,7 +4,7 @@ import { useFormState, useFormStatus } from 'react-dom';
 import { saveOnboarding } from '@/app/lib/actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertCircle, CheckCircle2, LineChart, Landmark, Building, CreditCard, Wallet } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, LineChart, Landmark, Building, CreditCard, Wallet, Home, Palmtree } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from "@/lib/utils";
 
@@ -44,6 +44,20 @@ const SECTIONS = [
         icon: Wallet,
         description: 'Control de saldos y disponibilidad inmediata.',
         features: ['Plazos Fijos', 'Saldos Consolidados', 'Cash Flow']
+    },
+    {
+        id: 'barbosa',
+        label: 'Hogar & Gastos',
+        icon: Home,
+        description: 'Control de gastos domésticos y presupuestos.',
+        features: ['Gastos por Categoría', 'Evolución Mensual', 'Limpieza']
+    },
+    {
+        id: 'costa',
+        label: 'Costa Esmeralda',
+        icon: Palmtree,
+        description: 'Gestión de propiedad vacacional.',
+        features: ['Alquileres de Verano', 'Expensas', 'Mantenimiento']
     }
 ];
 
