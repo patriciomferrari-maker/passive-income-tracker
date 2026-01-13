@@ -51,6 +51,7 @@
     "@types/react-dom": "^19",
     "prisma": "5.22.0",
     "tailwindcss": "^4",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5"
   }
 }

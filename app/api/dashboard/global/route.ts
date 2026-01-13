@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { startOfMonth, subMonths, format, endOfMonth, addMonths, isBefore, isAfter, startOfDay, differenceInMonths, differenceInDays, isValid } from 'date-fns';
-import { es } from 'date-fns/locale';
+// import { es } from 'date-fns/locale';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
 import { calculateFIFO, FIFOResult, FIFOTransaction } from '@/app/lib/fifo';
 import { getLatestPrices } from '@/app/lib/market-data';
@@ -104,6 +104,13 @@ export async function GET() {
         // 3. Fetch Bank Operations (for PF History & KPIs)
         const bankOperations = await prisma.bankOperation.findMany({
             where: { userId }
+        });
+
+        // 6.1 Add Barbosa Installment Plans to Payables
+        // Moved up to avoid ReferenceError in History calculation
+        const installmentPlans = await prisma.barbosaInstallmentPlan.findMany({
+            where: { userId },
+            include: { transactions: true }
         });
 
         // Calculate PF Maturities
@@ -220,7 +227,7 @@ export async function GET() {
             .map(([key, values]) => {
                 const [year, month] = key.split('-');
                 return {
-                    month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
+                    month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM'),
                     fullDate: key,
                     total: values.ON + values.Treasury + values.Rentals + values.Bank + values.Installments,
                     ...values
@@ -434,7 +441,7 @@ export async function GET() {
             .map(([key, values]) => {
                 const [year, month] = key.split('-');
                 return {
-                    month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es }),
+                    month: format(new Date(parseInt(year), parseInt(month) - 1), 'MMM'),
                     total: values.ON + values.Treasury + values.Rentals + values.PF + values.Installments,
                     ...values
                 };
@@ -475,11 +482,8 @@ export async function GET() {
         const payablesList: any[] = [];
 
         // 6.1 Add Barbosa Installment Plans to Payables
-        // These are effectively debts the user is paying off
-        const installmentPlans = await prisma.barbosaInstallmentPlan.findMany({
-            where: { userId },
-            include: { transactions: true }
-        });
+        // Already fetched above
+        // const installmentPlans = await prisma.barbosaInstallmentPlan.findMany({ ... });
 
         installmentPlans.forEach(plan => {
             const totalAmount = plan.totalAmount || 0;
@@ -567,7 +571,21 @@ export async function GET() {
         const nextInterestTreasury = null;
         const nextRentalAdjustment = null;
         const nextContractExpiration = null;
-        const nextMaturitiesPF: any[] = [];
+        // Calculate Next PF Maturities for Display
+        const nextMaturitiesPF = allPFMaturities
+            .map((pf: any) => {
+                const date = pf.date; // already JS Date
+                const todayMs = today.getTime();
+                const daysLeft = Math.ceil((date.getTime() - todayMs) / (1000 * 60 * 60 * 24));
+                return {
+                    daysLeft,
+                    date: date.toISOString(),
+                    amount: pf.amount,
+                    alias: 'Plazo Fijo' // Simplification
+                };
+            })
+            .filter((m: any) => m.daysLeft >= 0)
+            .sort((a: any, b: any) => a.daysLeft - b.daysLeft);
         const bankComposition: any[] = [];
 
         return NextResponse.json({
