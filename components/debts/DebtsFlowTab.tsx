@@ -44,9 +44,9 @@ export function DebtsFlowTab({ showValues = true }: TabProps) {
     const [debtPayments, setDebtPayments] = useState<Payment[]>([]);
     const [editingTransaction, setEditingTransaction] = useState<any>(null);
 
-    // State for expanded groups
-    const [expandedYears, setExpandedYears] = useState<Record<string, boolean>>({});
-    const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
+    // State for collapsed groups (Default expanded: empty map means all consistent)
+    const [collapsedYears, setCollapsedYears] = useState<Record<string, boolean>>({});
+    const [collapsedMonths, setCollapsedMonths] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         loadDebts();
@@ -111,11 +111,11 @@ export function DebtsFlowTab({ showValues = true }: TabProps) {
     };
 
     const toggleYear = (year: string) => {
-        setExpandedYears(prev => ({ ...prev, [year]: !prev[year] }));
+        setCollapsedYears(prev => ({ ...prev, [year]: !prev[year] }));
     };
 
     const toggleMonth = (yearMonthKey: string) => {
-        setExpandedMonths(prev => ({ ...prev, [yearMonthKey]: !prev[yearMonthKey] }));
+        setCollapsedMonths(prev => ({ ...prev, [yearMonthKey]: !prev[yearMonthKey] }));
     };
 
     const selectedDebt = debts.find(d => d.id === selectedDebtId);
@@ -354,7 +354,8 @@ export function DebtsFlowTab({ showValues = true }: TabProps) {
                                         ) : (
                                             processedData.years.map(year => {
                                                 const yearData = processedData.grouped[year];
-                                                const isYearExpanded = expandedYears[year];
+                                                // Inverse logic: show if NOT collapsed (Default TRUE)
+                                                const isYearExpanded = !collapsedYears[year];
                                                 const sortedMonths = Object.keys(yearData.months).sort((a, b) => parseInt(a) - parseInt(b));
 
                                                 return (
@@ -383,7 +384,8 @@ export function DebtsFlowTab({ showValues = true }: TabProps) {
                                                         {isYearExpanded && sortedMonths.map(month => {
                                                             const monthData = yearData.months[month];
                                                             const yearMonthKey = `${year}-${month}`;
-                                                            const isMonthExpanded = expandedMonths[yearMonthKey];
+                                                            // Inverse logic: show if NOT collapsed (Default TRUE)
+                                                            const isMonthExpanded = !collapsedMonths[yearMonthKey];
 
                                                             return (
                                                                 <React.Fragment key={yearMonthKey}>
