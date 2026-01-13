@@ -179,17 +179,10 @@ export async function generateInvestmentCashflow(investmentId: string): Promise<
             : investment.currency;
 
         // Calculate Interest
-        // Interest = Holdings * ResidualFactor * Rate * (Days / 365)
-        // Determine days since last payment (or emission)
-        let prevDate: Date;
-        if (i === 0) {
-            prevDate = emissionDate || addMonths(payDate, -freqMonths);
-        } else {
-            prevDate = periodFactors[i - 1].date;
-        }
-
-        const days = Math.max(0, daysBetweenExact(prevDate, payDate));
-        const interestAmount = userHoldings * residualForInterest * annualRate * (days / 365);
+        // Interest = Holdings * ResidualFactor * Rate * (Freq / 12)
+        // We use this standardized approach instead of Actual/365 to ensure equal interest payments
+        // which aligns with user premise: "Intereses deberían ser iguales".
+        const interestAmount = userHoldings * residualForInterest * annualRate * (freqMonths / 12);
 
         if (interestAmount > 0) {
             allCashflows.push({
