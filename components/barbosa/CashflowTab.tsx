@@ -64,7 +64,10 @@ export function CashflowTab({ startDate }: CashflowTabProps) {
     const getValue = (type: string, cat: string, sub: string, period: string) => {
         const real = data.data[type]?.[cat]?.subs?.[sub]?.[period] || 0;
         const stat = data.data[type]?.[cat]?.subsStatistical?.[sub]?.[period] || 0;
-        return showStatistical ? (real + stat) : real;
+        return {
+            value: showStatistical ? (real + stat) : real,
+            isStat: showStatistical && stat !== 0
+        };
     };
 
     // Calculate Monthly Totals for Types (ALWAYS REAL ONLY for Grand Totals)
@@ -119,7 +122,10 @@ export function CashflowTab({ startDate }: CashflowTabProps) {
             const catTotals = periods.map((p: string) => {
                 const real = cat.total[p] || 0;
                 const stat = cat.totalStatistical?.[p] || 0;
-                return showStatistical ? (real + stat) : real;
+                return {
+                    value: showStatistical ? (real + stat) : real,
+                    isStat: showStatistical && stat !== 0
+                };
             });
 
             return (
@@ -136,11 +142,11 @@ export function CashflowTab({ startDate }: CashflowTabProps) {
                             </div>
                             {catName}
                         </td>
-                        {catTotals.map((val: number, idx: number) => {
+                        {catTotals.map((item: { value: number, isStat: boolean }, idx: number) => {
                             const p = periods[idx];
-                            const converted = convert(val, p);
+                            const converted = convert(item.value, p);
                             return (
-                                <td key={idx} className="px-2 py-2 text-right text-slate-300 font-mono text-xs font-semibold">
+                                <td key={idx} className={`px-2 py-2 text-right font-mono text-xs font-semibold ${item.isStat ? 'text-indigo-400' : 'text-slate-300'}`}>
                                     {formatMoney(converted)}
                                 </td>
                             );
@@ -154,10 +160,10 @@ export function CashflowTab({ startDate }: CashflowTabProps) {
                                 {subName}
                             </td>
                             {periods.map((p: string) => {
-                                const val = getValue(type, catName, subName, p);
-                                const converted = convert(val, p);
+                                const { value, isStat } = getValue(type, catName, subName, p);
+                                const converted = convert(value, p);
                                 return (
-                                    <td key={p} className="px-2 py-1 text-right text-slate-400 font-mono text-[10px]">
+                                    <td key={p} className={`px-2 py-1 text-right font-mono text-[10px] ${isStat ? 'text-indigo-400' : 'text-slate-400'}`}>
                                         {formatMoney(converted)}
                                     </td>
                                 );
