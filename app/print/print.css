@@ -1,0 +1,31 @@
+
+@media print {
+    /* Ensure background colors are printed */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Avoid breaking cards across pages */
+    .print-card, .dashboard-card {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+    }
+
+    /* Hide non-print elements */
+    .no-print {
+        display: none !important;
+    }
+
+    /* Ensure white backgrounds for readability */
+    body {
+        background-color: white !important;
+        color: black !important;
+    }
+
+    /* Reset margins for A4 */
+    @page {
+        margin: 1cm;
+        size: A4;
+    }
+}

@@ -1,133 +1,96 @@
+
 import { prisma } from '@/lib/prisma';
-import { RentalsDashboardView } from '@/components/rentals/RentalsDashboardView';
-import { notFound, redirect } from 'next/navigation';
+import { differenceInMonths } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
-    params: {
-        userId: string;
-    };
-    searchParams: {
-        secret?: string;
-    };
+    params: Promise<{ userId: string }>;
+    searchParams: Promise<{ secret?: string }>;
 }
 
-import { headers } from 'next/headers';
-
-export default async function RentalsPrintPage({ params, searchParams }: PageProps) {
-    const headerList = await headers();
-    const secretHeader = headerList.get('X-Cron-Secret');
-    const secret = secretHeader || searchParams.secret;
-
-    // 1. Security Check
-    if (secret !== process.env.CRON_SECRET) {
-        return (
-            <div className="p-10 text-red-600 bg-white">
-                <h1 className="text-2xl font-bold mb-4">Access Denied (Debug Mode)</h1>
-                <p><strong>Reason:</strong> Secret Mismatch</p>
-                <div className="mt-4 p-4 bg-gray-100 rounded font-mono text-sm max-w-xl break-all">
-                    <p>Received (Header): {secretHeader ? `"${secretHeader}"` : 'undefined'}</p>
-                    <p>Received (URL): {searchParams.secret ? `"${searchParams.secret}"` : 'undefined'}</p>
-                    <p>Expected (Env): {process.env.CRON_SECRET ? '"[HIDDEN/SET]"' : '"undefined (MISSING IN ENV)"'}</p>
-                    <p>Expected Length: {process.env.CRON_SECRET?.length || 0}</p>
-                    <p>Received Length: {secret?.length || 0}</p>
-                </div>
-                <p className="mt-4 text-sm text-gray-500">
-                    If Expected is "undefined", you forgot to add CRON_SECRET to Vercel Environment Variables.
-                </p>
-            </div>
-        );
-    }
-
-    const { userId } = params;
-    const now = new Date();
-
-    // 2. Fetch Data (Logic adapted from /api/rentals/dashboard)
-    const allContracts = await prisma.contract.findMany({
-        where: {
-            property: { userId }
-        },
-        include: {
-            property: true
-        }
+async function getRentalsData(userId: string) {
+    const contracts = await prisma.contract.findMany({
+        where: { property: { userId } },
+        include: { property: true }
     });
 
-    const activeContracts = allContracts.filter(c => {
+    return contracts.map(c => {
+        const now = new Date();
         const start = new Date(c.startDate);
         const end = new Date(start);
         end.setMonth(end.getMonth() + c.durationMonths);
-        return start <= now && end >= now;
-    });
 
-    const lastCashflowWithInflation = await prisma.rentalCashflow.findFirst({
-        where: { inflationAccum: { not: null } },
-        orderBy: { date: 'desc' }
-    });
+        const monthsLeft = differenceInMonths(end, now);
 
-    let cutoffDate = new Date();
-    if (lastCashflowWithInflation) {
-        const lastDate = new Date(lastCashflowWithInflation.date);
-        cutoffDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 0);
-    }
+        // Traffic Light Logic
+        let statusColor = 'bg-emerald-100 text-emerald-800'; // Green
+        if (monthsLeft <= 3) statusColor = 'bg-red-100 text-red-800'; // Red
+        else if (monthsLeft <= 6) statusColor = 'bg-amber-100 text-amber-800'; // Yellow
 
-    const dashboardData = await Promise.all(activeContracts.map(async (contract) => {
-        const cashflows = await prisma.rentalCashflow.findMany({
-            where: {
-                contractId: contract.id
-            },
-            orderBy: {
-                date: 'asc'
-            }
-        });
-
-        const filteredCashflows = cashflows.filter(cf => cf.date <= cutoffDate);
-
-        const chartData = filteredCashflows.map(cf => ({
-            date: cf.date.toISOString(),
-            monthLabel: new Date(cf.date).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }),
-            amountUSD: cf.amountUSD || 0,
-            amountARS: cf.amountARS || 0,
-            inflationAccum: (cf.inflationAccum || 0) * 100,
-            devaluationAccum: (cf.devaluationAccum || 0) * 100
-        }));
+        // Cap Rate (Simplified: Annual Rent / Property Value)
+        // Note: Assuming 'valuation' exists on property or using a placeholder
+        const annualRent = c.initialRent * 12;
+        const valuation = (c.property as any).valuation || 100000; // Placeholder if field missing
+        const capRate = (annualRent / valuation) * 100;
 
         return {
-            contractId: contract.id,
-            propertyName: contract.property.name,
-            tenantName: contract.tenantName,
-            currency: contract.currency,
-            initialRent: contract.initialRent,
-            startDate: contract.startDate.toISOString(),
-            durationMonths: contract.durationMonths,
-            adjustmentType: contract.adjustmentType,
-            adjustmentFrequency: contract.adjustmentFrequency,
-            chartData
+            property: c.property.name,
+            tenant: c.tenantName,
+            monthsLeft,
+            statusColor,
+            capRate: capRate.toFixed(2) + '%',
+            currentRent: c.initialRent,
+            currency: c.currency
         };
-    }));
+    });
+}
 
-    // 3. Render View
+export default async function PrintRentalsPage({ params, searchParams }: PageProps) {
+    const { userId } = await params;
+    const { secret } = await searchParams;
+
+    if (secret !== process.env.CRON_SECRET) {
+        return <div className="text-red-500">Unauthorized</div>;
+    }
+
+    const contracts = await getRentalsData(userId);
+
     return (
-        <div className="p-8 bg-slate-950 min-h-screen text-slate-100 print:bg-white print:text-black">
-            <style>{`
-                @page {
-                    size: A4 landscape;
-                    margin: 10mm;
-                }
-                body {
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
-                }
-            `}</style>
+        <div className="p-8 max-w-4xl mx-auto space-y-8">
+            <h1 className="text-3xl font-bold border-b pb-4">Reporte de Alquileres</h1>
 
-            <div className="mb-8 print:mb-4 border-b border-slate-800 print:border-slate-300 pb-4">
-                <h1 className="text-2xl font-bold text-white print:text-slate-900">Reporte de Alquileres</h1>
-                <p className="text-slate-400 print:text-slate-600">
-                    {now.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
-                </p>
+            <div className="grid grid-cols-1 gap-6">
+                {contracts.map((c, idx) => (
+                    <div key={idx} className="print-card border rounded-lg p-4 flex justify-between items-center bg-white shadow-sm">
+                        <div>
+                            <h3 className="font-bold text-lg">{c.property}</h3>
+                            <p className="text-slate-500 text-sm">Inquilino: {c.tenant}</p>
+                        </div>
+
+                        <div className="text-right space-y-2">
+                            <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${c.statusColor}`}>
+                                {c.monthsLeft} meses restantes
+                            </div>
+                            <div className="text-sm">
+                                <span className="text-slate-400">Cap Rate:</span> <strong>{c.capRate}</strong>
+                            </div>
+                            <div className="text-xl font-bold text-slate-800">
+                                {c.currency} {c.currentRent.toLocaleString()}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+
+                {contracts.length === 0 && (
+                    <div className="text-center text-slate-400 py-10">No hay contratos activos</div>
+                )}
             </div>
 
-            <RentalsDashboardView contractsData={dashboardData} globalData={null} showValues={true} />
+            <div className="text-center text-xs text-slate-400 mt-8">
+                Calculado sobre contratos vigentes
+            </div>
         </div>
     );
 }
+

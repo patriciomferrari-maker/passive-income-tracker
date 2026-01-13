@@ -317,63 +317,48 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         });
 
                         // Prepare PDF Attachments
-                        // const enabledSections = settings.enabledSections ? settings.enabledSections.split(',').map(s => s.trim()) : ['on', 'bank', 'rentals'];
                         const attachments: any[] = [];
 
-                        // PAUSED PER USER REQUEST (Dec 2025) - Until PDF design is finalized.
-                        /*
-                        // 1. Consolidated Summary Report (React-PDF)
-                        try {
-                            const summaryPdfBuffer = await generateMonthlyReportPdfBuffer(
-                                {
-                                    userName: user.name || 'Usuario',
-                                    month: monthName,
-                                    year: year.toString(),
-                                    totalNetWorthUSD,
-                                    bank: { totalUSD: bankTotalUSD },
-                                    investments: { totalUSD: investmentsTotalUSD, totalArg, totalUSA },
-                                    rentals: { monthlyIncomeUSD: monthlyRentalIncomeUSD, activeContracts: activeContracts.length },
-                                    debts: { totalPendingUSD: debtTotalPendingUSD },
-                                    maturities: maturities
-                                },
-                                enabledSections
-                            );
-                            attachments.push({
-                                filename: `Reporte_Resumen_${monthName}_${year}.pdf`,
-                                content: summaryPdfBuffer
-                            });
-                        } catch (e) {
-                            console.error('Error generating Summary PDF:', e);
-                        }
-
-                        // 2. Headless Rentals Report
-                        if (enabledSections.includes('rentals')) {
+                        // 1. Consolidated Dashboard PDF (Headless Chrome)
+                        if (process.env.CRON_SECRET) {
                             try {
-                                console.log(`Generating Rentals PDF for user ${user.id}...`);
-                                const rentalsPdf = await generateDashboardPdf(user.id, 'rentals', appUrl, process.env.CRON_SECRET!);
+                                console.log(`Generating Dashboard PDF for user ${user.id}...`);
+                                const dashboardPdf = await generateDashboardPdf(user.id, 'dashboard', appUrl, process.env.CRON_SECRET);
                                 attachments.push({
-                                    filename: `Reporte_Alquileres_${monthName}_${year}.pdf`,
-                                    content: rentalsPdf
+                                    filename: `Resumen_Financiero_${monthName}_${year}.pdf`,
+                                    content: dashboardPdf
                                 });
                             } catch (e) {
-                                console.error('Error generating Rentals PDF:', e);
+                                console.error('Error generating Dashboard PDF:', e);
                             }
+                        } else {
+                            console.warn('Skipping PDF generation: CRON_SECRET not defined');
                         }
 
-                        // 3. Headless Investments Report
-                        if (enabledSections.some(s => ['on', 'cedear', 'treasury'].includes(s))) {
-                            try {
-                                console.log(`Generating Investments PDF for user ${user.id}...`);
-                                const investmentsPdf = await generateDashboardPdf(user.id, 'investments', appUrl, process.env.CRON_SECRET!);
-                                attachments.push({
-                                    filename: `Reporte_Inversiones_${monthName}_${year}.pdf`,
-                                    content: investmentsPdf
-                                });
-                            } catch (e) {
-                                console.error('Error generating Investments PDF:', e);
+                        // 2. Specific Section Reports (Investments, Rentals, Finance)
+                        if (process.env.CRON_SECRET) {
+                            // Investments
+                            if (hasArg || hasUSA) {
+                                try {
+                                    const pdf = await generateDashboardPdf(user.id, 'investments', appUrl, process.env.CRON_SECRET);
+                                    attachments.push({ filename: `Detalle_Inversiones_${monthName}.pdf`, content: pdf });
+                                } catch (e) { console.error('Error generating Investments PDF:', e); }
                             }
+
+                            // Rentals
+                            if (hasRentals) {
+                                try {
+                                    const pdf = await generateDashboardPdf(user.id, 'rentals', appUrl, process.env.CRON_SECRET);
+                                    attachments.push({ filename: `Detalle_Alquileres_${monthName}.pdf`, content: pdf });
+                                } catch (e) { console.error('Error generating Rentals PDF:', e); }
+                            }
+
+                            // Finance (Barbosa)
+                            try {
+                                const pdf = await generateDashboardPdf(user.id, 'finance', appUrl, process.env.CRON_SECRET);
+                                attachments.push({ filename: `Detalle_Hogar_${monthName}.pdf`, content: pdf });
+                            } catch (e) { console.error('Error generating Finance PDF:', e); }
                         }
-                        */
 
                         // Send Email with Attachments
                         console.log(`Sending email to: ${recipientEmail} with key: ${process.env.RESEND_API_KEY?.substring(0, 4)}...`);
