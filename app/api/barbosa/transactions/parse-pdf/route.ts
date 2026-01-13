@@ -335,31 +335,33 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
     // Key: Voucher
     // Value: QUEUE of found transactions in the raw text (Ordered top-to-bottom)
     // This solves duplicated vouchers with different descriptions/amounts
-    const auditMap = new Map<string, { date: string, amount: number, voucher: string }[]>();
+    const auditMap = new Map<string, { date: string, amount: number, voucher: string, currency: string }[]>();
 
     // Scan text to build Audit Map (Truth)
     for (const line of lines) {
         // Regex Breakdown:
-        // Date: (\d{2}[-/\.]\d{2}(?:[-/\.]\d{2,4})?)
+        // Date: (\d{2}[-/\.]\d{2}(?:[-/\.]\d{2})?)
         // ... space ...
         // Voucher: \b(\d{6})\b (Strict 6 digits)
-        // ... space? ...
-        // Amount: (?:U\$S|\$)?\s*([0-9\.,-]+) (Capture number, ignore symbol)
+        // ... space ...
+        // Currency (Optional): (U\$S|USD)?
+        // Amount: ([0-9\.,-]+)
 
-        // Strategy: Identifying the "Anchor" columns -> Date and Voucher+Amount at the end.
-        const match = line.match(/(\d{2}[-/\.]\d{2}(?:[-/\.]\d{2})?)\s+.*?\s+(?:(\d{2}\/\d{2})\s+)?(\d{6})\s+((?:-)?(?:\d{1,3}\.)*(?:\d{1,3})(?:,\d{2}))/);
+        const match = line.match(/(\d{2}[-/\.]\d{2}(?:[-/\.]\d{2})?)\s+.*?\s+(?:(\d{2}\/\d{2})\s+)?(\d{6})\s+(?:(U\$S|USD)\s+)?((?:-)?(?:\d{1,3}\.)*(?:\d{1,3})(?:,\d{2}))/);
 
         if (match) {
             // Found a clear Galicia row!
             const rawDate = match[1];
             // const rawCuota = match[2]; // Optional
             const rawVoucher = match[3];
-            const rawAmount = match[4];
+            const rawCurrency = match[4]; // New capture group
+            const rawAmount = match[5];
 
             const parsedDate = normalizeDate(rawDate, yearContext, isJanuaryStatement);
             const parsedAmount = parseArgAmount(rawAmount);
+            const currency = rawCurrency && ['U$S', 'USD'].includes(rawCurrency) ? 'USD' : 'ARS';
 
-            const record = { date: parsedDate, amount: parsedAmount, voucher: rawVoucher };
+            const record = { date: parsedDate, amount: parsedAmount, voucher: rawVoucher, currency };
 
             if (!auditMap.has(rawVoucher)) {
                 auditMap.set(rawVoucher, [record]);
@@ -384,6 +386,7 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
                         ...tx,
                         date: truth.date,
                         amount: truth.amount, // Override AI amount with Regex extraction
+                        currency: truth.currency, // Override AI currency containing strictly detected value
                         grade: 'A+' // Audit Passed
                     };
                 }
