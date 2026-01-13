@@ -46,7 +46,8 @@ export function DebtsFlowTab({ showValues = true }: TabProps) {
 
     // State for collapsed groups (Default expanded: empty map means all consistent)
     const [collapsedYears, setCollapsedYears] = useState<Record<string, boolean>>({});
-    const [collapsedMonths, setCollapsedMonths] = useState<Record<string, boolean>>({});
+    // Default collapsed for months: needs explicit expand
+    const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         loadDebts();
@@ -115,7 +116,7 @@ export function DebtsFlowTab({ showValues = true }: TabProps) {
     };
 
     const toggleMonth = (yearMonthKey: string) => {
-        setCollapsedMonths(prev => ({ ...prev, [yearMonthKey]: !prev[yearMonthKey] }));
+        setExpandedMonths(prev => ({ ...prev, [yearMonthKey]: !prev[yearMonthKey] }));
     };
 
     const selectedDebt = debts.find(d => d.id === selectedDebtId);
@@ -384,8 +385,8 @@ export function DebtsFlowTab({ showValues = true }: TabProps) {
                                                         {isYearExpanded && sortedMonths.map(month => {
                                                             const monthData = yearData.months[month];
                                                             const yearMonthKey = `${year}-${month}`;
-                                                            // Inverse logic: show if NOT collapsed (Default TRUE)
-                                                            const isMonthExpanded = !collapsedMonths[yearMonthKey];
+                                                            // Logic: show only if EXPLICITLY expanded (Default False)
+                                                            const isMonthExpanded = expandedMonths[yearMonthKey];
 
                                                             return (
                                                                 <React.Fragment key={yearMonthKey}>
