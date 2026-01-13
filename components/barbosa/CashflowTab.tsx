@@ -146,7 +146,7 @@ export function CashflowTab({ startDate }: CashflowTabProps) {
                             const p = periods[idx];
                             const converted = convert(item.value, p);
                             return (
-                                <td key={idx} className={`px-2 py-2 text-right font-mono text-xs font-semibold ${item.isStat ? 'text-teal-400' : 'text-slate-300'}`}>
+                                <td key={idx} className={`px-2 py-2 text-right font-mono text-xs font-semibold ${item.isStat ? 'text-amber-400' : 'text-slate-300'}`}>
                                     {formatMoney(converted)}
                                 </td>
                             );
@@ -163,7 +163,7 @@ export function CashflowTab({ startDate }: CashflowTabProps) {
                                 const { value, isStat } = getValue(type, catName, subName, p);
                                 const converted = convert(value, p);
                                 return (
-                                    <td key={p} className={`px-2 py-1 text-right font-mono text-[10px] ${isStat ? 'text-teal-400' : 'text-slate-400'}`}>
+                                    <td key={p} className={`px-2 py-1 text-right font-mono text-[10px] ${isStat ? 'text-amber-400' : 'text-slate-400'}`}>
                                         {formatMoney(converted)}
                                     </td>
                                 );
