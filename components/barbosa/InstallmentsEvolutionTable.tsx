@@ -6,7 +6,11 @@ import { Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export function InstallmentsEvolutionTable() {
+interface InstallmentsEvolutionTableProps {
+    startDate?: string;
+}
+
+export function InstallmentsEvolutionTable({ startDate }: InstallmentsEvolutionTableProps) {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     // State for expanded rows: key can be "CatName" or "CatName-SubName"
@@ -25,7 +29,7 @@ export function InstallmentsEvolutionTable() {
                 console.error(err);
                 setLoading(false);
             });
-    }, []);
+    }, [startDate]);
 
     const processData = (plans: any[]) => {
         const monthsSet = new Set<string>();
@@ -67,7 +71,14 @@ export function InstallmentsEvolutionTable() {
         });
 
         const sortedMonths = Array.from(monthsSet).sort();
-        setData({ hierarchy, months: sortedMonths });
+
+        let displayMonths = sortedMonths;
+        if (startDate) {
+            const startMonth = startDate.substring(0, 7); // YYYY-MM
+            displayMonths = sortedMonths.filter(m => m >= startMonth);
+        }
+
+        setData({ hierarchy, months: displayMonths });
     };
 
     const toggleRow = (id: string) => {

@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { useSession } from 'next-auth/react';
 
 // Tabs
 import { DashboardTab } from '@/components/barbosa/DashboardTab';
@@ -16,7 +17,14 @@ import { RecurrenceTab } from '@/components/barbosa/RecurrenceTab';
 import { InstallmentsTab } from '@/components/barbosa/InstallmentsTab';
 
 export default function BarbosaPage() {
+    const { data: session } = useSession();
     const [activeTab, setActiveTab] = useState('dashboard');
+
+    // Filter Logic:
+    // If user is 'paato.ferrari@hotmail.com', start from Nov 1, 2025.
+    // Otherwise, undefined (show all/default logic).
+    const userEmail = session?.user?.email;
+    const startDate = userEmail === 'paato.ferrari@hotmail.com' ? '2025-11-01' : undefined;
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard' },
@@ -68,11 +76,11 @@ export default function BarbosaPage() {
 
                 {/* Content */}
                 <div className="min-h-[500px]">
-                    {activeTab === 'dashboard' && <DashboardTab />}
+                    {activeTab === 'dashboard' && <DashboardTab startDate={startDate} />}
                     {/* {activeTab === 'cleaning' && <CleaningTab />} */}
-                    {activeTab === 'cashflow' && <CashflowTab />}
+                    {activeTab === 'cashflow' && <CashflowTab startDate={startDate} />}
                     {activeTab === 'transactions' && <TransactionsTab />}
-                    {activeTab === 'installments' && <InstallmentsTab />}
+                    {activeTab === 'installments' && <InstallmentsTab startDate={startDate} />}
                     {activeTab === 'recurrence' && <RecurrenceTab />}
                     {activeTab === 'settings' && <SettingsTab />}
                 </div>

@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const mode = searchParams.get('mode') || 'YEAR'; // 'YEAR' or 'LAST_12'
     const paramYear = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
+    const paramStartDate = searchParams.get('startDate');
 
     let startDate: Date;
     let endDate: Date;
@@ -23,6 +24,13 @@ export async function GET(req: NextRequest) {
     } else {
         startDate = new Date(paramYear, 0, 1);
         endDate = new Date(paramYear, 11, 31, 23, 59, 59);
+    }
+
+    if (paramStartDate) {
+        const userStart = new Date(paramStartDate);
+        if (!isNaN(userStart.getTime()) && userStart > startDate) {
+            startDate = userStart;
+        }
     }
 
     // Generate expected Period Keys

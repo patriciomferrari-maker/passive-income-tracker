@@ -5,7 +5,11 @@ import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 
-export function CashflowTab() {
+interface CashflowTabProps {
+    startDate?: string;
+}
+
+export function CashflowTab({ startDate }: CashflowTabProps) {
     const [viewMode, setViewMode] = useState<string>("LAST_12"); // "LAST_12" or "2025" etc
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -16,7 +20,7 @@ export function CashflowTab() {
 
     useEffect(() => {
         fetchData();
-    }, [viewMode]);
+    }, [viewMode, startDate]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -26,6 +30,9 @@ export function CashflowTab() {
                 url += 'mode=LAST_12';
             } else {
                 url += `mode=YEAR&year=${viewMode}`;
+            }
+            if (startDate) {
+                url += `&startDate=${startDate}`;
             }
             const res = await fetch(url);
             const json = await res.json();

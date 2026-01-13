@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
         // View Toggle: 'history' (default) vs 'projected'
         const { searchParams } = new URL(req.url);
         const view = searchParams.get('view') || 'history';
+        const paramStartDate = searchParams.get('startDate');
 
         const now = new Date();
         const currentYear = now.getUTCFullYear();
@@ -27,7 +28,17 @@ export async function GET(req: NextRequest) {
             // History: Last 12 months (inclusive of current)
             // e.g., if Now is Nov 2025, show Dec 2024 -> Nov 2025
             startDate = new Date(Date.UTC(currentYear - 1, currentMonth + 1, 1));
+
             endDate = new Date(Date.UTC(currentYear, currentMonth + 1, 0, 23, 59, 59));
+        }
+
+        if (paramStartDate) {
+            const userStart = new Date(paramStartDate);
+            // Ensure UTC midnight for comparison
+            const utcUserStart = new Date(Date.UTC(userStart.getFullYear(), userStart.getMonth(), userStart.getDate()));
+            if (!isNaN(utcUserStart.getTime()) && utcUserStart > startDate) {
+                startDate = utcUserStart;
+            }
         }
 
         // Fetch Transactions

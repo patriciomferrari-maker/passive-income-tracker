@@ -25,7 +25,11 @@ const formatCurrency = (amount: number, currency: string = 'ARS') => {
     return `${symbol}${amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-export function InstallmentsTab() {
+interface InstallmentsTabProps {
+    startDate?: string;
+}
+
+export function InstallmentsTab({ startDate }: InstallmentsTabProps) {
     const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     // SHOW ALL BY DEFAULT (Requested by user)
@@ -160,7 +164,7 @@ export function InstallmentsTab() {
             {/* 1. Evolution Table */}
             <div className="space-y-4">
                 <h2 className="text-xl font-bold text-white mb-4">Evolución y Detalle</h2>
-                <InstallmentsEvolutionTable />
+                <InstallmentsEvolutionTable startDate={startDate} />
             </div>
 
             {/* 2. Unified Installments Table */}
