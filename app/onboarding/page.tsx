@@ -4,6 +4,7 @@ import { useFormState, useFormStatus } from 'react-dom';
 import { saveOnboarding } from '@/app/lib/actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useSession } from "next-auth/react";
 import { Loader2, AlertCircle, CheckCircle2, LineChart, Landmark, Building, CreditCard, Wallet, Home, Palmtree } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from "@/lib/utils";
@@ -62,7 +63,15 @@ const SECTIONS = [
 ];
 
 export default function OnboardingPage() {
+    const { data: session } = useSession();
     const [errorMessage, dispatch] = useFormState(saveOnboarding, undefined);
+
+    const filteredSections = SECTIONS.filter(section => {
+        if (section.id === 'costa') {
+            return session?.user?.email === 'patriciomferrari@gmail.com';
+        }
+        return true;
+    });
 
     return (
         <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
@@ -79,7 +88,7 @@ export default function OnboardingPage() {
                     <form action={dispatch} className="space-y-6">
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {SECTIONS.map((section) => (
+                            {filteredSections.map((section) => (
                                 <FeatureCard key={section.id} section={section} />
                             ))}
                         </div>
