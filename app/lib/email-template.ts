@@ -59,9 +59,18 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
 
         return items.map(item => {
             const isUSA = item.type === 'TREASURY';
-            const locationTag = isUSA
-                ? '<span style="background-color: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">USA</span>'
-                : '<span style="background-color: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">ARG</span>';
+            const isPF = item.type === 'PF';
+            const isRental = item.type === 'RENTAL';
+
+            let locationTag = '<span style="background-color: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">ARG</span>';
+
+            if (isUSA) {
+                locationTag = '<span style="background-color: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">USA</span>';
+            } else if (isPF) {
+                locationTag = '<span style="background-color: #fce7f3; color: #9d174d; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">PF</span>';
+            } else if (isRental) {
+                locationTag = '<span style="background-color: #ffedd5; color: #c2410c; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">ALQUILER</span>';
+            }
 
             return `
             <tr style="border-bottom: 1px solid #e2e8f0;">
@@ -294,25 +303,6 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 </div>
             </div>
             
-            ${nextPFMaturity ? `
-            <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
-                <div style="background-color: #f8fafc; padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
-                     <h3 style="margin: 0; color: #0e4166; font-size: 14px; font-weight: 700; text-transform: uppercase;">Próximo Vencimiento Plazo Fijo</h3>
-                </div>
-                <div style="padding: 16px;">
-                     <table width="100%" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td style="color: #64748b; font-size: 12px;">${nextPFMaturity.bank}</td>
-                            <td style="color: #0f172a; font-weight: 500; text-align: right;">
-                                ${format(nextPFMaturity.date, 'dd/MM/yyyy')}
-                                <span style="display:block; color: #0e4166; font-weight: 700;">${formatCurrency(nextPFMaturity.amount, 'ARS')}</span>
-                            </td>
-                        </tr>
-                     </table>
-                </div>
-            </div>
-            ` : ''}
-
             <!-- CTA Button -->
              <div style="text-align: center; margin-top: 32px;">
                 <a href="${dashboardUrl}" style="background-color: #0e4166; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">Ir al Dashboard Consolidado</a>
