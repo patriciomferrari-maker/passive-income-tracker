@@ -19,7 +19,7 @@ const allSections = [
     { id: 'bank', label: 'Banco (PF/FCI)' },
     // Hidden by default, only for specific users
     { id: 'costa', label: 'Costa Esmeralda', restricted: true },
-    { id: 'barbosa', label: 'Hogar' },
+    { id: 'barbosa', label: 'Hogar', restricted: true },
 ];
 
 export default function SettingsPage() {

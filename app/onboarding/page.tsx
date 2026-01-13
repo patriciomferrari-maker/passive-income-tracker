@@ -67,7 +67,7 @@ export default function OnboardingPage() {
     const [errorMessage, dispatch] = useFormState(saveOnboarding, undefined);
 
     const filteredSections = SECTIONS.filter(section => {
-        if (section.id === 'costa') {
+        if (section.id === 'costa' || section.id === 'barbosa') {
             return session?.user?.email === 'patriciomferrari@gmail.com';
         }
         return true;
