@@ -98,148 +98,60 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                 if (force || (day === reportDay)) {
                     userResult.skipped = false;
 
+                    // NEW: Use Shared Dashboard Data Logic for Consistency
+                    const { getDashboardStats } = await import('@/app/lib/dashboard-data');
+                    const stats = await getDashboardStats(user.id);
+
                     // 1. Bank
-                    const bankOps = await prisma.bankOperation.findMany({ where: { userId: user.id } });
-                    const bankTotalUSD = bankOps.filter(op => op.currency === 'USD').reduce((sum, op) => sum + op.amount, 0);
+                    const bankTotalUSD = stats.bank.totalUSD;
 
-                    // 2. Investments (Split Arg/USA)
-                    const investments = await prisma.investment.findMany({
-                        where: { userId: user.id },
-                        include: { transactions: true }
-                    });
+                    // 2. Investments
+                    const totalArg = stats.on.totalInvested; // Uses Market Value + FIFO
+                    const totalUSA = stats.treasury.totalInvested;
 
-                    let investmentsTotalUSD = 0;
-                    let totalArg = 0; // ONs
-                    let totalUSA = 0; // Treasuries/Stocks
-
-                    let hasArg = false;
-                    let hasUSA = false;
-
-                    investments.forEach(inv => {
-                        const invested = inv.transactions.reduce((tSum, t) => tSum + t.totalAmount, 0);
-                        const currentValue = Math.abs(invested);
-
-                        investmentsTotalUSD += currentValue;
-
-                        if (inv.type === 'ON' || inv.type === 'CEDEAR') {
-                            totalArg += currentValue;
-                        } else if (inv.type === 'TREASURY' || inv.type === 'ETF' || inv.type === 'STOCK') {
-                            totalUSA += currentValue;
-                        } else {
-                            totalArg += currentValue;
-                        }
-                    });
-
-                    // Set flags based on VALUES, not just existence
-                    hasArg = totalArg > 1; // Tolerance for small remainders
-                    hasUSA = totalUSA > 1;
+                    const hasArg = stats.on.count > 0;
+                    const hasUSA = stats.treasury.count > 0;
 
                     // 3. Rentals
+                    const monthlyRentalIncomeUSD = stats.rentals.totalIncome;
+                    const hasRentals = stats.rentals.count > 0;
+
+                    // 4. Debts
+                    const debtTotalPendingUSD = stats.debts.totalPending;
+                    const hasDebts = stats.debts.count > 0;
+
+                    const totalNetWorthUSD = bankTotalUSD + totalArg + totalUSA + debtTotalPendingUSD;
+
+                    // --- KEY DATES (Calculations) ---
+                    // Re-fetch only strictly necessary event lists that aren't in summary stats
+                    // (Rentals Events need detailed list, stats only has summary)
                     const contracts = await prisma.contract.findMany({
                         where: { property: { userId: user.id } },
                         include: { property: true }
                     });
-                    // Check if there are any PROPERTIES at all to decide if section should show, 
-                    // but contracts is what we have fetched. If no contracts, no rent.
-                    const hasRentals = contracts.length > 0;
-
-                    const activeContracts = contracts.filter(c => {
-                        const start = new Date(c.startDate);
-                        const end = new Date(start);
-                        end.setMonth(end.getMonth() + c.durationMonths);
-                        return now >= start && now <= end;
-                    });
-                    const monthlyRentalIncomeUSD = activeContracts.reduce((sum, c) => sum + (c.currency === 'USD' ? c.initialRent : 0), 0);
-
-                    // 4. Debts (Net Consolidated)
-                    const debts = await prisma.debt.findMany({
-                        where: { userId: user.id },
-                        include: { payments: true }
-                    });
-                    const hasDebts = debts.length > 0;
-
-                    let debtTotalPendingUSD = 0;
-                    debts.forEach(d => {
-                        let total = d.initialAmount;
-                        let paid = 0;
-                        d.payments.forEach(p => {
-                            if (p.type === 'INCREASE') total += p.amount;
-                            else if (p.type === 'PAYMENT') paid += p.amount;
-                        });
-                        const pending = Math.max(0, total - paid);
-
-                        if (pending > 1) {
-                            if (d.type === 'I_OWE') {
-                                debtTotalPendingUSD -= pending;
-                            } else {
-                                debtTotalPendingUSD += pending;
-                            }
-                        }
-                    });
-
-                    const totalNetWorthUSD = bankTotalUSD + investmentsTotalUSD + debtTotalPendingUSD;
-
-                    // --- KEY DATES (Calculations) ---
-                    // Collect ALL events for the next 12 months
                     const rentalEventsList: { date: Date; property: string; type: 'ADJUSTMENT' | 'EXPIRATION'; monthsTo: number }[] = [];
                     const eventHorizon = addMonths(now, 12);
-
                     contracts.forEach(c => {
-                        // Expiration
                         const expDate = addMonths(new Date(c.startDate), c.durationMonths);
                         if (isAfter(expDate, now)) {
-                            rentalEventsList.push({
-                                date: expDate,
-                                property: c.property.name,
-                                type: 'EXPIRATION',
-                                monthsTo: differenceInMonths(expDate, now)
-                            });
+                            rentalEventsList.push({ date: expDate, property: c.property.name, type: 'EXPIRATION', monthsTo: differenceInMonths(expDate, now) });
                         }
-
-                        // Adjustment
                         if (c.adjustmentType !== 'NONE') {
                             let nextAdjDate = new Date(c.startDate);
-                            // Find next future adjustment
-                            while (isBefore(nextAdjDate, now) || nextAdjDate.getTime() === now.getTime()) {
-                                nextAdjDate = addMonths(nextAdjDate, c.adjustmentFrequency);
-                            }
-
-                            // Iterate and add all adjustments within horizon
+                            while (isBefore(nextAdjDate, now) || nextAdjDate.getTime() === now.getTime()) nextAdjDate = addMonths(nextAdjDate, c.adjustmentFrequency);
                             while (isBefore(nextAdjDate, eventHorizon)) {
-                                rentalEventsList.push({
-                                    date: new Date(nextAdjDate), // Clone
-                                    property: c.property.name,
-                                    type: 'ADJUSTMENT',
-                                    monthsTo: differenceInMonths(nextAdjDate, now)
-                                });
+                                rentalEventsList.push({ date: new Date(nextAdjDate), property: c.property.name, type: 'ADJUSTMENT', monthsTo: differenceInMonths(nextAdjDate, now) });
                                 nextAdjDate = addMonths(nextAdjDate, c.adjustmentFrequency);
                             }
                         }
                     });
-
-                    // Sort events by date
                     rentalEventsList.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-                    // Next PF Maturity
-                    let nextPFMaturity: { date: Date; bank: string; amount: number } | null = null;
-                    let minDiffPF = Infinity;
+                    // Next PF Maturity - Take from stats
+                    const nextPFMaturity = stats.bank.nextMaturitiesPF.length > 0
+                        ? { ...stats.bank.nextMaturitiesPF[0], bank: stats.bank.nextMaturitiesPF[0].alias }
+                        : null;
 
-                    const pfs = bankOps.filter(op => op.type === 'PLAZO_FIJO' && op.startDate);
-                    pfs.forEach(pf => {
-                        const start = new Date(pf.startDate!);
-                        const end = new Date(start);
-                        end.setDate(start.getDate() + (pf.durationDays || 30));
-
-                        // IF it is future
-                        if (isAfter(end, now)) {
-                            const diff = end.getTime() - now.getTime();
-                            if (diff < minDiffPF) {
-                                minDiffPF = diff;
-                                const interest = (pf.amount * (pf.tna || 0) / 100) * ((pf.durationDays || 30) / 365);
-                                nextPFMaturity = { date: end, bank: pf.alias || 'Plazo Fijo', amount: pf.amount + interest };
-                            }
-                        }
-                    });
 
                     // --- DETAILED MATURITIES (Full Month) ---
                     const maturities: any[] = [];
@@ -265,18 +177,15 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     });
 
                     // 2. Current Month PF Maturities
-                    pfs.forEach(pf => {
-                        const start = new Date(pf.startDate!);
-                        const end = new Date(start);
-                        end.setDate(start.getDate() + (pf.durationDays || 30));
-
-                        if (isSameMonth(end, now)) {
-                            const interest = (pf.amount * (pf.tna || 0) / 100) * ((pf.durationDays || 30) / 365);
+                    // 2. Current Month PF Maturities (From Stats)
+                    stats.bank.nextMaturitiesPF.forEach((pf: any) => {
+                        // Check if it's in the current month to be consistent with 'maturities' list
+                        if (isSameMonth(new Date(pf.rawDate), now)) {
                             maturities.push({
-                                date: end,
+                                date: new Date(pf.rawDate),
                                 description: `PF ${pf.alias}`,
-                                amount: pf.amount + interest,
-                                currency: pf.currency,
+                                amount: pf.amount,
+                                currency: 'USD', // Assuming USD for simplicity or fetching from op
                                 type: 'PF'
                             });
                         }
@@ -287,11 +196,11 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         where: { userId_month_year: { userId: user.id, month, year } },
                         update: {
                             totalNetWorthUSD, totalIncomeUSD: monthlyRentalIncomeUSD,
-                            snapshotData: { bank: bankTotalUSD, investments: investmentsTotalUSD, debts: debtTotalPendingUSD, rentalsIncome: monthlyRentalIncomeUSD }
+                            snapshotData: { bank: bankTotalUSD, investments: totalArg + totalUSA, debts: debtTotalPendingUSD, rentalsIncome: monthlyRentalIncomeUSD }
                         },
                         create: {
                             userId: user.id, month, year, totalNetWorthUSD, totalIncomeUSD: monthlyRentalIncomeUSD,
-                            snapshotData: { bank: bankTotalUSD, investments: investmentsTotalUSD, debts: debtTotalPendingUSD, rentalsIncome: monthlyRentalIncomeUSD }
+                            snapshotData: { bank: bankTotalUSD, investments: totalArg + totalUSA, debts: debtTotalPendingUSD, rentalsIncome: monthlyRentalIncomeUSD }
                         }
                     });
 

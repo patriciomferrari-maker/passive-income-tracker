@@ -166,12 +166,37 @@ export async function getDashboardStats(userId: string) {
         safeExec('Bank', async () => {
             const bankOperations = await prisma.bankOperation.findMany({
                 where: { userId },
-                select: { currency: true, amount: true }
+                select: { currency: true, amount: true, type: true, startDate: true, durationDays: true, tna: true, alias: true }
             });
             const bankTotalUSD = bankOperations
                 .filter(op => op.currency === 'USD')
                 .reduce((sum, op) => sum + op.amount, 0);
-            bankData = { totalUSD: bankTotalUSD, nextMaturitiesPF: [] };
+
+            // Calculate Next Maturities for PF
+            const today = new Date();
+            const nextMaturitiesPF = bankOperations
+                .filter(op => op.type === 'PLAZO_FIJO' && op.startDate)
+                .map(op => {
+                    const start = new Date(op.startDate!);
+                    const end = new Date(start);
+                    end.setDate(start.getDate() + (op.durationDays || 30));
+
+                    const interest = (op.amount * (op.tna || 0) / 100) * ((op.durationDays || 30) / 365);
+                    const total = op.amount + interest;
+                    const daysLeft = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+                    return {
+                        daysLeft,
+                        date: end.toLocaleDateString(), // String format for UI/Email
+                        amount: total,
+                        alias: op.alias || 'Plazo Fijo',
+                        rawDate: end // Keep raw date for sorting/filtering
+                    };
+                })
+                .filter(m => m.daysLeft >= 0) // Only future or today
+                .sort((a, b) => a.daysLeft - b.daysLeft);
+
+            bankData = { totalUSD: bankTotalUSD, nextMaturitiesPF };
         }),
 
         // 6. CRYPTO
