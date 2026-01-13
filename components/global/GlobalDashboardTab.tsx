@@ -744,7 +744,7 @@ export function GlobalDashboardTab() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Receivables */}
                     {stats.debtDetails?.receivables?.length > 0 && (
-                        <Card className="bg-slate-950 border-slate-800 overflow-hidden">
+                        <Card className={`bg-slate-950 border-slate-800 overflow-hidden ${!(stats.debtDetails?.payables?.length > 0) ? 'md:col-span-2' : ''}`}>
                             <CardHeader className="text-center pb-2">
                                 <CardTitle className="text-emerald-400 text-lg flex items-center justify-center gap-2">
                                     <ArrowUpRight size={20} /> Cuentas por Cobrar
@@ -784,7 +784,7 @@ export function GlobalDashboardTab() {
 
                     {/* Payables */}
                     {stats.debtDetails?.payables?.length > 0 && (
-                        <Card className="bg-slate-950 border-slate-800 overflow-hidden">
+                        <Card className={`bg-slate-950 border-slate-800 overflow-hidden ${!(stats.debtDetails?.receivables?.length > 0) ? 'md:col-span-2' : ''}`}>
                             <CardHeader className="text-center pb-2">
                                 <CardTitle className="text-rose-400 text-lg flex items-center justify-center gap-2">
                                     <HandCoins size={20} /> Cuentas por Pagar
