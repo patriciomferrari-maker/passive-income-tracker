@@ -789,7 +789,7 @@ export function GlobalDashboardTab() {
                                 <CardTitle className="text-rose-400 text-lg flex items-center justify-center gap-2">
                                     <HandCoins size={20} /> Cuentas por Pagar
                                 </CardTitle>
-                                <CardDescription className="text-slate-400">Cuotas y Deudas</CardDescription>
+                                <CardDescription className="text-slate-400">Deudas</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar p-4">
                                 {stats.debtDetails.payables.map((d, index) => (

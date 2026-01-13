@@ -485,6 +485,10 @@ export async function GET() {
         // Already fetched above
         // const installmentPlans = await prisma.barbosaInstallmentPlan.findMany({ ... });
 
+        /* 
+        // 6.1 Installment Plans logic REMOVED from Payables List as per user request.
+        // They are still used for History and Projection (kept in variables above).
+        
         installmentPlans.forEach(plan => {
             const totalAmount = plan.totalAmount || 0;
             const paid = plan.transactions
@@ -498,18 +502,21 @@ export async function GET() {
                     remainingUSD = remaining / exchangeRate;
                 }
 
-                totalDebtPayable += remainingUSD;
+                // Removed from Total Payable Metric
+                // totalDebtPayable += remainingUSD;
 
-                payablesList.push({
-                    name: plan.description || 'Plan Cuotas',
-                    pending: remainingUSD,
-                    paid: plan.currency === 'ARS' ? paid / exchangeRate : paid,
-                    total: plan.currency === 'ARS' ? totalAmount / exchangeRate : totalAmount,
-                    currency: 'USD',
-                    details: `${plan.installmentsCount} cts (${plan.currency})`
-                });
+                // Removed from List
+                // payablesList.push({
+                //     name: plan.description || 'Plan Cuotas',
+                //     pending: remainingUSD,
+                //     paid: plan.currency === 'ARS' ? paid / exchangeRate : paid,
+                //     total: plan.currency === 'ARS' ? totalAmount / exchangeRate : totalAmount,
+                //     currency: 'USD',
+                //     details: `${plan.installmentsCount} cts (${plan.currency})`
+                // });
             }
         });
+        */
 
         debts.forEach(debt => {
             let initialUSD = debt.initialAmount;
