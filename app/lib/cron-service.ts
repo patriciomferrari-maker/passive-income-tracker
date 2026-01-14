@@ -245,10 +245,13 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     // 2. Current Month PF Maturities (From Stats)
                     stats.bank.nextMaturitiesPF.forEach((pf: any) => {
                         // Check if it's in the current month to be consistent with 'maturities' list
-                        // FIX: SUBTRACT 4 hours to compensate for timezone (GMT-3).
-                        // If DB says Feb 1st 00:00 UTC, it's actually Jan 31st 21:00 in Argentina.
+                        // FIX: Standardize to ARG Noon (UTC 15:00)
+                        // 1. Shift UTC to ARG time (Subtract 3 hours) to identify the correct day
+                        // 2. Set to Noon ARG (12:00 ARG = 15:00 UTC) to avoid boundary flips
                         const rawDate = new Date(pf.rawDate);
-                        const adjustedDate = new Date(rawDate.getTime() - (4 * 60 * 60 * 1000));
+                        const argDate = new Date(rawDate.getTime() - (3 * 60 * 60 * 1000));
+                        argDate.setUTCHours(15, 0, 0, 0);
+                        const adjustedDate = argDate;
 
                         if (isSameMonth(adjustedDate, now)) {
                             // Format currency helper
