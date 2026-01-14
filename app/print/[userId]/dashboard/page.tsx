@@ -1,17 +1,3 @@
-
-import { getDashboardStats } from '@/app/lib/dashboard-data';
-import { DashboardCard } from '@/components/DashboardCard';
-import { FlagARG, FlagUSA } from '@/components/ui/CountryFlags';
-import { notFound } from 'next/navigation';
-
-export const dynamic = 'force-dynamic';
-
-interface PageProps {
-    params: Promise<{ userId: string }>;
-    searchParams: Promise<{ secret?: string }>;
-}
-
-// Print Dashboard Page - Formal Report Redesign
 import { getDashboardStats } from '@/app/lib/dashboard-data';
 import { FlagARG, FlagUSA } from '@/components/ui/CountryFlags';
 import { notFound } from 'next/navigation';
@@ -57,12 +43,14 @@ export default async function PrintDashboardPage({ params, searchParams }: PageP
 
     return (
         <div className="min-h-screen bg-white text-slate-900 font-sans print:p-0 p-8">
-            <style jsx global>{`
+            {/* Inline style for print color adjust */}
+            <div dangerouslySetInnerHTML={{
+                __html: `<style>
                 @media print {
                     @page { margin: 0; size: A4; }
                     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 }
-            `}</style>
+            </style>`}} />
 
             {/* === COVER PAGE === */}
             <div className="min-h-[297mm] flex flex-col justify-between p-12 bg-slate-50 border-b print:border-none relative overflow-hidden">
