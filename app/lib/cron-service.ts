@@ -405,6 +405,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         const attachments: any[] = [];
 
                         if (process.env.CRON_SECRET) {
+                            /*
                             try {
                                 console.log(`Generating Dashboard PDF for user ${user.id}...`);
                                 const dashboardPdf = await generateDashboardPdf(user.id, 'dashboard', appUrl, process.env.CRON_SECRET);
@@ -415,11 +416,13 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             } catch (e) {
                                 console.error('Error generating Dashboard PDF:', e);
                             }
+                            */
                         } else {
                             console.warn('Skipping PDF generation: CRON_SECRET not defined');
                         }
 
                         if (process.env.CRON_SECRET) {
+                            /*
                             // 1. Inversiones Argentina
                             if (hasArg) {
                                 try {
@@ -451,21 +454,24 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                                     attachments.push({ filename: `Estado_Deudas_${monthName}.pdf`, content: pdf });
                                 } catch (e) { console.error('Error generating Debts PDF:', e); }
                             }
+                            */
 
                             // 5. Rentals
                             if (hasRentals) {
                                 try {
                                     const pdf = await generateDashboardPdf(user.id, 'rentals', appUrl, process.env.CRON_SECRET);
-                                    attachments.push({ filename: `Detalle_Alquileres_${monthName}.pdf`, content: pdf });
+                                    // Use clearer filename as per request? "Resumen_Alquileres" sounds good.
+                                    attachments.push({ filename: `Resumen_Alquileres_${monthName}.pdf`, content: pdf });
                                 } catch (e) { console.error('Error generating Rentals PDF:', e); }
                             }
 
-                            // 6. Finance / Hogar (Always included if user has access?) 
-                            // ... Assume yes for now, or check perms. Keeping logically separate.
+                            /*
+                            // 6. Finance / Hogar
                             try {
                                 const pdf = await generateDashboardPdf(user.id, 'finance', appUrl, process.env.CRON_SECRET);
                                 attachments.push({ filename: `Detalle_Hogar_${monthName}.pdf`, content: pdf });
                             } catch (e) { console.error('Error generating Finance PDF:', e); }
+                            */
                         }
 
                         console.log(`Sending email to: ${recipientEmail} with key: ${process.env.RESEND_API_KEY?.substring(0, 4)}...`);
