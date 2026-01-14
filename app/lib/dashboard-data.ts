@@ -189,6 +189,8 @@ export async function getDashboardStats(userId: string) {
                         daysLeft,
                         date: end.toLocaleDateString(), // String format for UI/Email
                         amount: total,
+                        interest: interest, // Added
+                        capital: op.amount, // Added
                         alias: op.alias || 'Plazo Fijo',
                         rawDate: end // Keep raw date for sorting/filtering
                     };

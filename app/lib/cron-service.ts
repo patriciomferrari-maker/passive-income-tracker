@@ -186,12 +186,16 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         const adjustedDate = new Date(rawDate.getTime() - (4 * 60 * 60 * 1000));
 
                         if (isSameMonth(adjustedDate, now)) {
+                            // Format currency helper
+                            const formatUSD = (val: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(val);
+
                             maturities.push({
                                 date: adjustedDate,
                                 description: `PF ${pf.alias}`,
-                                amount: pf.amount,
+                                amount: pf.interest || 0, // Show ONLY Interest
                                 currency: 'USD',
-                                type: 'PF'
+                                type: 'PF',
+                                meta: `Total al vencimiento: ${formatUSD(pf.amount)}` // Show Total
                             });
                         }
                     });

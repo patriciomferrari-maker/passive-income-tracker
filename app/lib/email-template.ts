@@ -66,7 +66,7 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
             if (isUSA) {
                 locationTag = '<span style="background-color: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">USA</span>';
             } else if (isPF) {
-                locationTag = '<span style="background-color: #fce7f3; color: #9d174d; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">PF</span>';
+                locationTag = '<span style="background-color: #fce7f3; color: #9d174d; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">Plazo Fijo</span>';
             } else if (isRental) {
                 locationTag = '<span style="background-color: #ffedd5; color: #c2410c; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">ALQUILER</span>';
             }
@@ -79,6 +79,7 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 <td style="padding: 12px 0; color: #0f172a; font-weight: 500;">
                     <div>${item.description}</div>
                     <div style="margin-top: 4px;">${locationTag}</div>
+                    ${item.meta ? `<div style="margin-top: 2px; color: #64748b; font-size: 11px;">${item.meta}</div>` : ''}
                 </td>
                 <td style="padding: 12px 0; text-align: right; color: #0f172a; font-weight: 600;">
                     ${formatCurrency(item.amount, item.currency)}
