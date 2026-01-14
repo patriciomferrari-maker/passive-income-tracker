@@ -35,6 +35,11 @@ export function TransactionsTab() {
         targetYear: new Date().getFullYear().toString(),
     });
 
+    // Import Target State
+    // Default to Current Month for imputation
+    const [importTargetMonth, setImportTargetMonth] = useState((new Date().getMonth() + 1).toString()); // 1-12
+    const [importTargetYear, setImportTargetYear] = useState(new Date().getFullYear().toString());
+
     // PDF Parsing State
     const [isParsing, setIsParsing] = useState(false);
     const [parsedResults, setParsedResults] = useState<any[] | null>(null);
@@ -199,7 +204,9 @@ export function TransactionsTab() {
         setIsParsing(true);
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('currentYear', new Date().getFullYear().toString()); // Add current year
+        formData.append('currentYear', new Date().getFullYear().toString());
+        formData.append('targetMonth', importTargetMonth);
+        formData.append('targetYear', importTargetYear);
 
         try {
             console.log('[FRONTEND] Sending PDF to server...');
@@ -521,6 +528,29 @@ export function TransactionsTab() {
                     <Button variant="outline" size="sm" onClick={() => setInstallmentsDialogOpen(true)} className="border-slate-700 text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800">
                         <span className="mr-2 text-xs font-bold">💳</span> Cuotas
                     </Button>
+
+                    {/* Import Target Month Selectors */}
+                    <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase mr-1">Imputar en:</span>
+                        <Select value={importTargetMonth} onValueChange={setImportTargetMonth}>
+                            <SelectTrigger className="w-[110px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-900 border-slate-800 text-slate-300 z-50">
+                                {Array.from({ length: 12 }).map((_, i) => (
+                                    <SelectItem key={i} value={(i + 1).toString()}>{format(new Date(2024, i, 1), 'MMMM', { locale: es })}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Select value={importTargetYear} onValueChange={setImportTargetYear}>
+                            <SelectTrigger className="w-[70px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-900 border-slate-800 text-slate-300 z-50">
+                                {['2024', '2025', '2026', '2027'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
                     <div className="relative">
                         <Button
