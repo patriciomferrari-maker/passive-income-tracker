@@ -7,12 +7,15 @@ export const dynamic = 'force-dynamic';
 
 interface PageProps {
     params: Promise<{ userId: string }>;
-    searchParams: Promise<{ secret?: string }>;
+    searchParams: Promise<{ secret?: string; market?: 'ARG' | 'USA' }>;
 }
 
-async function getInvestmentData(userId: string) {
+async function getInvestmentData(userId: string, market?: 'ARG' | 'USA') {
     const investments = await prisma.investment.findMany({
-        where: { userId },
+        where: {
+            userId,
+            ...(market ? { market } : {})
+        },
         include: {
             transactions: true,
             cashflows: {
@@ -27,19 +30,14 @@ async function getInvestmentData(userId: string) {
     });
 
     // Simple valuation logic (Market Value)
-    let totalArg = 0;
-    let totalUSA = 0;
-
+    // ...
     // Future Flows (Next 3 Months)
     const now = new Date();
     const threeMonths = addMonths(now, 3);
     const flows: any[] = [];
 
     for (const inv of investments) {
-        // Valuation (Simplified: Last Price * Balance)
-        // Note: Real logic needs FIFO balance. For summary, we might approximate or reuse dashboard logic.
-        // For now, let's use the cashflows to populate the table.
-
+        // ... (existing logic)
         const relevantFlows = inv.cashflows.filter(cf => cf.date <= threeMonths);
         flows.push(...relevantFlows.map(cf => ({
             date: cf.date,
@@ -58,17 +56,18 @@ async function getInvestmentData(userId: string) {
 
 export default async function PrintInvestmentsPage({ params, searchParams }: PageProps) {
     const { userId } = await params;
-    const { secret } = await searchParams;
+    const { secret, market } = await searchParams;
 
     if (secret !== process.env.CRON_SECRET) {
         return <div className="text-red-500">Unauthorized</div>;
     }
 
-    const data = await getInvestmentData(userId);
+    const data = await getInvestmentData(userId, market);
+    const title = market === 'ARG' ? 'Inversiones Argentina' : (market === 'USA' ? 'Inversiones USA' : 'Reporte de Inversiones');
 
     return (
         <div className="p-8 max-w-4xl mx-auto space-y-8">
-            <h1 className="text-3xl font-bold border-b pb-4">Reporte de Inversiones</h1>
+            <h1 className="text-3xl font-bold border-b pb-4">{title}</h1>
 
             {/* 1. Valuation Summary */}
             <div className="grid grid-cols-2 gap-4">

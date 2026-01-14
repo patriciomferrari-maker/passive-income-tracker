@@ -416,13 +416,39 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         }
 
                         if (process.env.CRON_SECRET) {
-                            if (hasArg || hasUSA) {
+                            // 1. Inversiones Argentina
+                            if (hasArg) {
                                 try {
-                                    const pdf = await generateDashboardPdf(user.id, 'investments', appUrl, process.env.CRON_SECRET);
-                                    attachments.push({ filename: `Detalle_Inversiones_${monthName}.pdf`, content: pdf });
-                                } catch (e) { console.error('Error generating Investments PDF:', e); }
+                                    const pdf = await generateDashboardPdf(user.id, 'investments', appUrl, process.env.CRON_SECRET, { market: 'ARG' });
+                                    attachments.push({ filename: `Inversiones_Argentina_${monthName}.pdf`, content: pdf });
+                                } catch (e) { console.error('Error generating Arg Investments PDF:', e); }
                             }
 
+                            // 2. Inversiones USA
+                            if (hasUSA) {
+                                try {
+                                    const pdf = await generateDashboardPdf(user.id, 'investments', appUrl, process.env.CRON_SECRET, { market: 'USA' });
+                                    attachments.push({ filename: `Inversiones_USA_${monthName}.pdf`, content: pdf });
+                                } catch (e) { console.error('Error generating USA Investments PDF:', e); }
+                            }
+
+                            // 3. Bank (Liquidez + Plazo Fijo)
+                            if (hasBank) {
+                                try {
+                                    const pdf = await generateDashboardPdf(user.id, 'bank', appUrl, process.env.CRON_SECRET);
+                                    attachments.push({ filename: `Resumen_Bancario_${monthName}.pdf`, content: pdf });
+                                } catch (e) { console.error('Error generating Bank PDF:', e); }
+                            }
+
+                            // 4. Debts
+                            if (hasDebts) {
+                                try {
+                                    const pdf = await generateDashboardPdf(user.id, 'debts', appUrl, process.env.CRON_SECRET);
+                                    attachments.push({ filename: `Estado_Deudas_${monthName}.pdf`, content: pdf });
+                                } catch (e) { console.error('Error generating Debts PDF:', e); }
+                            }
+
+                            // 5. Rentals
                             if (hasRentals) {
                                 try {
                                     const pdf = await generateDashboardPdf(user.id, 'rentals', appUrl, process.env.CRON_SECRET);
@@ -430,6 +456,8 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                                 } catch (e) { console.error('Error generating Rentals PDF:', e); }
                             }
 
+                            // 6. Finance / Hogar (Always included if user has access?) 
+                            // ... Assume yes for now, or check perms. Keeping logically separate.
                             try {
                                 const pdf = await generateDashboardPdf(user.id, 'finance', appUrl, process.env.CRON_SECRET);
                                 attachments.push({ filename: `Detalle_Hogar_${monthName}.pdf`, content: pdf });
