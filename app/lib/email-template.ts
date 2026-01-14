@@ -68,7 +68,8 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
     } = data;
 
     // Metrics for Executive Summary
-    const netWorth = totalBank + totalArg + totalUSA + totalDebtPending; // Approximate
+    const netWorth = totalBank + totalArg + totalUSA + totalDebtPending; // Approximate // Fixed logic if debt is negative? Usually pending is positive asset? Or debt? 
+    // Usually 'totalDebtPending' in dashboard data is "Money people owe ME" (Asset). So positive.
     const dateStr = format(new Date(), 'dd MMM yyyy', { locale: es });
 
     const sortedMaturities = [...maturities].sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -110,20 +111,36 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
     const renderEvents = () => {
         if (rentalEvents.length === 0) return '<tr><td colspan="2" style="padding: 16px; text-align: center; color: #94a3b8;">No hay eventos próximos.</td></tr>';
 
-        // Group by month for cleaner look
-        const sorted = [...rentalEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5); // Limit to 5
+        // 1. Sort by date
+        const sorted = [...rentalEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-        return sorted.map(e => {
+        // 2. Find Next Adjustment and Next Expiration
+        const nextAdj = sorted.find(e => e.type === 'ADJUSTMENT');
+        const nextExp = sorted.find(e => e.type === 'EXPIRATION');
+
+        // 3. Construct filtered list (Unique singular events)
+        const finalEvents = [];
+        if (nextAdj) finalEvents.push(nextAdj);
+        // Avoid adding duplicated object if same event is both? (Unlikely). 
+        // Or if we want to show EXPIRATION even if ADJ is sooner? Yes.
+        if (nextExp) finalEvents.push(nextExp);
+
+        // Sort again just to be sure
+        finalEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        if (finalEvents.length === 0) return '<tr><td colspan="2" style="padding: 16px; text-align: center; color: #94a3b8;">No hay ajustes ni vencimientos próximos.</td></tr>';
+
+        return finalEvents.map(e => {
             const isExp = e.type === 'EXPIRATION';
             const color = isExp ? '#dc2626' : '#475569';
             const label = isExp ? 'VENCIMIENTO' : 'AJUSTE';
             return `
                 <tr>
-                   <td style="padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                   <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
                         <span style="color: ${color}; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">${label}</span>
-                        <div style="color: #1e293b; font-weight: 500; margin-top: 2px;">${e.property}</div>
+                        <div style="color: #1e293b; font-weight: 500; margin-top: 4px;">${e.property}</div>
                    </td>
-                   <td style="padding: 10px 0; border-bottom: 1px dashed #e2e8f0; text-align: right;">
+                   <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; text-align: right;">
                         <div style="color: #0f172a; font-weight: 600;">${format(e.date, 'MMM yyyy', { locale: es }).toUpperCase()}</div>
                         <div style="color: #94a3b8; font-size: 11px;">Faltan ${e.monthsTo} meses</div>
                    </td> 
@@ -139,16 +156,19 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
         const { monthName, interests, rentals, plazoFijo, debtCollected, total } = previousMonthPassiveIncome;
 
         // Helper specifically for this table
-        const row = (label: string, value: number, isSubItem: boolean = false) => `
+        const row = (label: string, value: number, isSubItem: boolean = false) => {
+            if (value <= 0) return ''; // Hide if 0
+            return `
             <tr>
                 <td style="padding: 8px 12px; color: ${isSubItem ? '#64748b' : '#334155'}; ${isSubItem ? 'padding-left: 24px;' : 'font-weight: 500;'} font-size: 13px; border-bottom: 1px solid #f1f5f9;">
                     ${label}
                 </td>
                 <td style="padding: 8px 12px; text-align: right; color: #0f172a; font-family: monospace; font-size: 13px; border-bottom: 1px solid #f1f5f9;">
-                    ${value > 0 ? formatCurrency(value, 'USD') : '<span style="color:#cbd5e1">-</span>'}
+                    ${formatCurrency(value, 'USD')}
                 </td>
             </tr>
-        `;
+            `;
+        };
 
         return `
         <div style="margin-bottom: 32px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
@@ -164,8 +184,8 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                     ${row('Intereses (Cartera USA)', interests.usa, false)}
                     ${row('Intereses Plazo Fijo', plazoFijo, false)}
                     ${row('Alquileres Regulares', rentals.regular, false)}
-                    ${rentals.costa > 0 ? row('Alquiler Costa Esmeralda', rentals.costa, false) : ''}
-                    ${debtCollected > 0 ? row('Deuda Cobrada', debtCollected, false) : ''}
+                    ${row('Alquiler Costa Esmeralda', rentals.costa, false)}
+                    ${row('Deuda Cobrada', debtCollected, false)}
                 </tbody>
                 <tfoot style="background-color: #f8fafc; border-top: 2px solid #e2e8f0;">
                     <tr>
@@ -232,12 +252,14 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
             <!-- NEW: Previous Month Passive Income Details -->
             ${renderPassiveIncome()}
 
-            <!-- Two Column Layout for Desktop (Stack on mobile naturally via max-width) -->
+            <!-- New Styled Rentals Box -->
             ${hasRentals ? `
-            <div style="margin-bottom: 32px;">
-                <h3 style="margin: 0 0 16px; color: #1e293b; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-                    🏠 Gestión de Alquileres
-                </h3>
+            <div style="margin-bottom: 32px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #f1f5f9; padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
+                    <h3 style="margin: 0; color: #1e293b; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                        🏠 Gestión de Alquileres
+                    </h3>
+                </div>
                 <table width="100%" cellpadding="0" cellspacing="0">
                     ${renderEvents()}
                 </table>
