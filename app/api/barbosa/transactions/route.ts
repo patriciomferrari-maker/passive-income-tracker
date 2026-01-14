@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
                 comprobante: String(comprobante)
             }
         });
-        if (existing) console.log(`[API] Duplicate detected by VOUCHER: ${ comprobante } `);
+        if (existing) console.log('[API] Duplicate detected by VOUCHER:', comprobante);
     } else if (date && amount) {
         // FALLBACK: If no voucher, use composite key (Date + Amount + Description)
         existing = await prisma.barbosaTransaction.findFirst({
