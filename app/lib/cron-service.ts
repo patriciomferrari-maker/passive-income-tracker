@@ -11,6 +11,7 @@ import { scrapeInflationData } from '@/app/lib/scrapers/inflation';
 import { scrapeDolarBlue } from '@/app/lib/scrapers/dolar';
 import { updateONs } from '@/app/lib/market-data';
 import { regenerateAllCashflows } from '@/lib/rentals';
+import { toArgNoon } from '@/app/lib/date-utils';
 
 // Helper to format currency
 const formatUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -127,19 +128,7 @@ export async function runEconomicUpdates() {
 }
 
 export async function runDailyMaintenance(force: boolean = false, targetUserId?: string | null) {
-    // Helper to standardize dates to Argentina Noon (UTC 15:00)
-    // This avoids "off-by-one" day errors due to timezone shifting.
-    // Logic:
-    // 1. Shift UTC date back by 3 hours (ARG is UTC-3) to ensure we are in the correct "Argentine Day".
-    // 2. Set time to 12:00:00 ARG (which is 15:00:00 UTC) to safely anchor in the middle of that day.
-    const toArgNoon = (date: Date | string): Date => {
-        const d = new Date(date);
-        // 1. Shift to ARG day
-        const argTime = new Date(d.getTime() - (3 * 60 * 60 * 1000));
-        // 2. Set to Noon ARG (15:00 UTC)
-        argTime.setUTCHours(15, 0, 0, 0);
-        return argTime;
-    };
+    // Removed inline helper in favor of shared util (toArgNoon)
 
     const results = {
         economics: await runEconomicUpdates(),
