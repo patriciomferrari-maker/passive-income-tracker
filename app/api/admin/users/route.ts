@@ -64,6 +64,35 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: true, user: newUser });
         }
 
+        if (action === 'LINK_MIRROR') {
+            const { targetUserId, sourceUserId } = body;
+
+            if (!targetUserId) return NextResponse.json({ success: false, error: 'Target User missing' }, { status: 400 });
+
+            // If sourceUserId is null/empty, we are UNLINKING
+            if (!sourceUserId) {
+                await prisma.user.update({
+                    where: { id: targetUserId },
+                    data: { dataOwnerId: null }
+                });
+                return NextResponse.json({ success: true, message: 'Unlinked' });
+            }
+
+            // Verify source exists
+            const source = await prisma.user.findUnique({ where: { id: sourceUserId } });
+            if (!source) return NextResponse.json({ success: false, error: 'Source user not found' }, { status: 404 });
+
+            // Prevent self-mirroring or circular (simple check: id != id)
+            if (targetUserId === sourceUserId) return NextResponse.json({ success: false, error: 'Cannot mirror self' }, { status: 400 });
+
+            await prisma.user.update({
+                where: { id: targetUserId },
+                data: { dataOwnerId: sourceUserId }
+            });
+
+            return NextResponse.json({ success: true, message: 'Linked' });
+        }
+
         return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
 
     } catch (error) {

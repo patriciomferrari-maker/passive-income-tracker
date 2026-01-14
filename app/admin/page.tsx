@@ -642,6 +642,11 @@ function UsersCard() {
     const [newMirrorName, setNewMirrorName] = useState('');
     const [selectedSourceId, setSelectedSourceId] = useState('');
 
+    // Linking Existing Logic
+    const [linkDialog, setLinkDialog] = useState(false);
+    const [userToLink, setUserToLink] = useState<any>(null);
+    const [linkSourceId, setLinkSourceId] = useState('');
+
     const [actionLoading, setActionLoading] = useState(false);
 
     useEffect(() => {
@@ -692,6 +697,40 @@ function UsersCard() {
         } finally {
             setActionLoading(false);
         }
+    };
+
+    const handleLinkAccount = async () => {
+        if (!userToLink) return;
+        setActionLoading(true);
+        try {
+            const res = await fetch('/api/admin/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'LINK_MIRROR',
+                    targetUserId: userToLink.id,
+                    sourceUserId: linkSourceId === 'none' ? '' : linkSourceId,
+                })
+            });
+            if (res.ok) {
+                setLinkDialog(false);
+                setUserToLink(null);
+                setLinkSourceId('');
+                fetchUsers();
+            } else {
+                alert("Error vinculando cuenta");
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const openLinkDialog = (user: any) => {
+        setUserToLink(user);
+        setLinkSourceId(user.dataOwnerId || 'none');
+        setLinkDialog(true);
     };
 
     return (
@@ -761,6 +800,44 @@ function UsersCard() {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
+
+                    {/* LINK EXISTING DIALOG */}
+                    <Dialog open={linkDialog} onOpenChange={setLinkDialog}>
+                        <DialogContent className="bg-slate-950 border-slate-800 text-slate-100">
+                            <DialogHeader>
+                                <DialogTitle>Vincular Cuenta (Espejo)</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <p className="text-xs text-slate-400">
+                                    Estás editando a: <strong className="text-white">{userToLink?.name || userToLink?.email}</strong>
+                                </p>
+                                <div className="space-y-2">
+                                    <Label>Ver datos de (Dueño):</Label>
+                                    <Select value={linkSourceId} onValueChange={setLinkSourceId}>
+                                        <SelectTrigger className="bg-slate-900 border-slate-700">
+                                            <SelectValue placeholder="Ninguno (Cuenta Independiente)" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-slate-900 border-slate-700">
+                                            <SelectItem value="none">-- Ninguno (Desvincular) --</SelectItem>
+                                            {users.filter(u => u.id !== userToLink?.id && !u.dataOwnerId).map(u => (
+                                                <SelectItem key={u.id} value={u.id}>
+                                                    {u.name || u.email}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-[10px] text-yellow-500 pt-2">
+                                        ⚠ Si vinculás, este usuario dejará de ver sus datos propios y verá los del dueño seleccionado.
+                                    </p>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button onClick={handleLinkAccount} disabled={actionLoading} className="bg-blue-600 hover:bg-blue-700">
+                                    {actionLoading ? 'Guardando...' : 'Guardar Cambios'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
                 <CardDescription className="text-slate-400 text-xs">
                     Administración de accesos y cuentas compartidas.
@@ -772,7 +849,7 @@ function UsersCard() {
                         <span className="col-span-1">Usuario</span>
                         <span className="col-span-1">Email</span>
                         <span className="text-center">Rol</span>
-                        <span className="text-right">Tipo Acceso</span>
+                        <span className="text-right">Acceso / Link</span>
                     </div>
                     <div className="flex-1 overflow-y-auto">
                         {loading ? (
@@ -795,9 +872,16 @@ function UsersCard() {
                                             </Badge>
                                         ) : (
                                             <Badge variant="secondary" className="bg-emerald-900/50 text-emerald-300 text-[10px] hover:bg-emerald-900">
-                                                Principal {u._count?.dataViewers > 0 && `(${u._count.dataViewers} espejos)`}
                                             </Badge>
                                         )}
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 ml-2"
+                                            onClick={() => openLinkDialog(u)}
+                                        >
+                                            <RefreshCw className="h-3 w-3 text-slate-500 hover:text-white" />
+                                        </Button>
                                     </div>
                                 </div>
                             ))
