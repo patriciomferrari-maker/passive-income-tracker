@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { Resend } from 'resend';
 import { generateMonthlyReportEmail, PassiveIncomeStats } from '@/app/lib/email-template';
-import { startOfMonth, endOfMonth, isSameMonth, addMonths, isBefore, isAfter, differenceInMonths, subMonths } from 'date-fns';
+import { startOfMonth, endOfMonth, isSameMonth, addMonths, isBefore, isAfter, differenceInMonths, subMonths, subHours } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { generateMonthlyReportPdfBuffer } from '@/app/lib/pdf-generator';
 import { generateDashboardPdf } from '@/app/lib/pdf-capture';
@@ -334,14 +334,17 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         const maturityDate = new Date(pf.startDate);
                         maturityDate.setDate(maturityDate.getDate() + pf.durationDays);
 
+                        // Shift to Argentina Time (UTC-3) for correct month assignment
+                        const maturityDateArg = subHours(maturityDate, 3);
+
                         // Check if maturity is in the report month
-                        if (maturityDate >= monthStart && maturityDate <= monthEnd) {
+                        if (isSameMonth(maturityDateArg, monthStart)) {
                             const interest = (pf.amount * (pf.tna || 0) / 100) * (pf.durationDays / 365);
                             const total = pf.amount + interest;
                             const formatUSD = (val: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(val);
 
-                            // Adjust date for display (Argentina Noon)
-                            const displayDate = new Date(maturityDate); // Clone
+                            // Adjust date for display (Arg Noon)
+                            const displayDate = new Date(maturityDateArg);
                             displayDate.setHours(12, 0, 0, 0);
 
                             maturities.push({
