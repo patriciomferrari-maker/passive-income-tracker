@@ -1,7 +1,6 @@
-
 import { NextResponse } from 'next/server';
-import { prisma } from '@/app/lib/prisma';
-import { getUserId } from '@/app/lib/auth-helper'; // Note: getUserId returns the *effective* ID. We might need the *real* ID here.
+import { prisma } from '@/lib/prisma';
+import { getUserId } from '@/lib/auth-helper';
 import { auth } from '@/auth';
 
 export async function GET() {
