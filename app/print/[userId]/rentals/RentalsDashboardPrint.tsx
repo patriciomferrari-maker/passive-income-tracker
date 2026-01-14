@@ -338,7 +338,7 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                         <CardContent>
                             <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={globalData.history} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                                    <BarChart data={globalData.history} margin={{ top: 20, right: 10, left: 0, bottom: 0 }} isAnimationActive={false}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.5} vertical={false} />
                                         <XAxis dataKey="monthLabel" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 12 }} tickMargin={10} />
                                         <YAxis
@@ -353,6 +353,7 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                                             fill="#10b981"
                                             radius={[4, 4, 0, 0]}
                                             name="Ingreso USD"
+                                            isAnimationActive={false}
                                             label={{
                                                 position: 'top',
                                                 fill: '#10b981',
@@ -474,6 +475,7 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                                                 radius={[4, 4, 0, 0]}
                                                 maxBarSize={50}
                                                 fillOpacity={0.8}
+                                                isAnimationActive={false}
                                             />
 
                                             <Line
@@ -484,6 +486,7 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                                                 stroke="#f59e0b"
                                                 strokeWidth={2}
                                                 dot={false}
+                                                isAnimationActive={false}
                                             />
                                             <Line
                                                 yAxisId="right"
@@ -493,6 +496,7 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                                                 stroke="#f43f5e"
                                                 strokeWidth={2}
                                                 dot={false}
+                                                isAnimationActive={false}
                                             />
                                         </ComposedChart>
                                     </ResponsiveContainer>

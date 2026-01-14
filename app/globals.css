@@ -48,3 +48,22 @@
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Print-specific optimizations for PDF generation */
+@media print {
+  /* Force colors and backgrounds to render in PDF */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Prevent cards and charts from breaking across pages */
+  .break-inside-avoid {
+    break-inside: avoid !important;
+  }
+
+  /* Remove scrollbars that might appear in PDF */
+  body {
+    overflow: visible !important;
+  }
+}

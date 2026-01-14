@@ -48,10 +48,16 @@ export async function generateDashboardPdf(userId: string, type: 'rentals' | 'in
     try {
         const page = await browser.newPage();
 
+
         // Pass the secret via Header (more robust) and URL (fallback)
         await page.setExtraHTTPHeaders({
             'X-Cron-Secret': secret
         });
+
+        // FORCE DARK MODE: Activate Tailwind dark: classes
+        await page.emulateMediaFeatures([
+            { name: 'prefers-color-scheme', value: 'dark' }
+        ]);
 
         // Construct URL with Query Params
         const urlObj = new URL(`${baseUrl}/print/${userId}/${type}`);
@@ -76,20 +82,27 @@ export async function generateDashboardPdf(userId: string, type: 'rentals' | 'in
             }
         });
 
+        // EXTENDED WAIT: Ensure fonts and scripts load completely
         await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
+
+        // SAFETY MARGIN: Extra 1 second for Recharts to draw SVGs
+        await new Promise(r => setTimeout(r, 1000));
 
         // Generate PDF
         const pdf = await page.pdf({
             format: 'A4',
-            printBackground: true,
+            printBackground: true, // MANDATORY for dark background
             landscape: isRentals, // Rentals usually landscape if it has wide tables
+            displayHeaderFooter: false,
             margin: {
                 top: '10mm',
                 right: '10mm',
                 bottom: '10mm',
                 left: '10mm'
-            }
+            },
+            scale: 0.9 // Gives breathing room to avoid content being "glued" to edges
         });
+
 
         return Buffer.from(pdf);
     } finally {
