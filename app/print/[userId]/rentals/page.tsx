@@ -1,6 +1,6 @@
-
 import { prisma } from '@/lib/prisma';
-import { differenceInMonths } from 'date-fns';
+import { NextResponse } from 'next/server';
+import RentalsDashboardPrint from './RentalsDashboardPrint';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,41 +9,81 @@ interface PageProps {
     searchParams: Promise<{ secret?: string }>;
 }
 
-async function getRentalsData(userId: string) {
+async function getDashboardData(userId: string) {
+    const now = new Date();
+
+    const allContracts = await prisma.contract.findMany({
+        where: {
+            property: { userId }
+        },
+        include: {
+            property: true
+        }
+    });
+
+    const activeContracts = allContracts.filter(c => {
+        const start = new Date(c.startDate);
+        const end = new Date(start);
+        end.setMonth(end.getMonth() + c.durationMonths);
+        return start <= now && end >= now;
+    });
+
+    const dashboardData = await Promise.all(activeContracts.map(async (contract) => {
+        const cashflows = await prisma.rentalCashflow.findMany({
+            where: {
+                contractId: contract.id
+            },
+            orderBy: {
+                date: 'asc'
+            }
+        });
+
+        const todayEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const filteredCashflows = cashflows.filter(cf => cf.date <= todayEnd);
+
+        const chartData = filteredCashflows.map(cf => ({
+            date: cf.date.toISOString(),
+            monthLabel: new Date(cf.date).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }),
+            amountUSD: cf.amountUSD || 0,
+            amountARS: cf.amountARS || 0,
+            inflationAccum: cf.inflationAccum !== null ? (cf.inflationAccum * 100) : null,
+            devaluationAccum: cf.devaluationAccum !== null ? (cf.devaluationAccum * 100) : null
+        }));
+
+        return {
+            contractId: contract.id,
+            propertyName: contract.property.name,
+            tenantName: contract.tenantName,
+            currency: contract.currency,
+            initialRent: contract.initialRent,
+            startDate: contract.startDate,
+            durationMonths: contract.durationMonths,
+            adjustmentType: contract.adjustmentType,
+            adjustmentFrequency: contract.adjustmentFrequency,
+            chartData,
+            isConsolidated: contract.property.isConsolidated,
+            propertyRole: (contract.property as any).role || 'OWNER'
+        };
+    }));
+
+    return dashboardData;
+}
+
+async function getGlobalData(userId: string) {
+    // Simplified version - you can expand this based on the actual global-dashboard API
     const contracts = await prisma.contract.findMany({
         where: { property: { userId } },
         include: { property: true }
     });
 
-    return contracts.map(c => {
-        const now = new Date();
-        const start = new Date(c.startDate);
-        const end = new Date(start);
-        end.setMonth(end.getMonth() + c.durationMonths);
-
-        const monthsLeft = differenceInMonths(end, now);
-
-        // Traffic Light Logic
-        let statusColor = 'bg-emerald-100 text-emerald-800'; // Green
-        if (monthsLeft <= 3) statusColor = 'bg-red-100 text-red-800'; // Red
-        else if (monthsLeft <= 6) statusColor = 'bg-amber-100 text-amber-800'; // Yellow
-
-        // Cap Rate (Simplified: Annual Rent / Property Value)
-        // Note: Assuming 'valuation' exists on property or using a placeholder
-        const annualRent = c.initialRent * 12;
-        const valuation = (c.property as any).valuation || 100000; // Placeholder if field missing
-        const capRate = (annualRent / valuation) * 100;
-
-        return {
-            property: c.property.name,
-            tenant: c.tenantName,
-            monthsLeft,
-            statusColor,
-            capRate: capRate.toFixed(2) + '%',
-            currentRent: c.initialRent,
-            currency: c.currency
-        };
-    });
+    // Return basic structure
+    return {
+        history: [],
+        currencyDistribution: {
+            owner: { USD: 0, ARS: 0 },
+            tenant: { USD: 0, ARS: 0 }
+        }
+    };
 }
 
 export default async function PrintRentalsPage({ params, searchParams }: PageProps) {
@@ -51,46 +91,16 @@ export default async function PrintRentalsPage({ params, searchParams }: PagePro
     const { secret } = await searchParams;
 
     if (secret !== process.env.CRON_SECRET) {
-        return <div className="text-red-500">Unauthorized</div>;
+        return <div className="text-red-500 p-8">Unauthorized</div>;
     }
 
-    const contracts = await getRentalsData(userId);
+    const contractsData = await getDashboardData(userId);
+    const globalData = await getGlobalData(userId);
 
     return (
-        <div className="p-8 max-w-4xl mx-auto space-y-8">
-            <h1 className="text-3xl font-bold border-b pb-4">Reporte de Alquileres</h1>
-
-            <div className="grid grid-cols-1 gap-6">
-                {contracts.map((c, idx) => (
-                    <div key={idx} className="print-card border rounded-lg p-4 flex justify-between items-center bg-white shadow-sm">
-                        <div>
-                            <h3 className="font-bold text-lg">{c.property}</h3>
-                            <p className="text-slate-500 text-sm">Inquilino: {c.tenant}</p>
-                        </div>
-
-                        <div className="text-right space-y-2">
-                            <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${c.statusColor}`}>
-                                {c.monthsLeft} meses restantes
-                            </div>
-                            <div className="text-sm">
-                                <span className="text-slate-400">Cap Rate:</span> <strong>{c.capRate}</strong>
-                            </div>
-                            <div className="text-xl font-bold text-slate-800">
-                                {c.currency} {c.currentRent.toLocaleString()}
-                            </div>
-                        </div>
-                    </div>
-                ))}
-
-                {contracts.length === 0 && (
-                    <div className="text-center text-slate-400 py-10">No hay contratos activos</div>
-                )}
-            </div>
-
-            <div className="text-center text-xs text-slate-400 mt-8">
-                Calculado sobre contratos vigentes
-            </div>
-        </div>
+        <RentalsDashboardPrint
+            contractsData={contractsData}
+            globalData={globalData}
+        />
     );
 }
-
