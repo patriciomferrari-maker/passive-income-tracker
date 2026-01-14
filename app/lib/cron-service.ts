@@ -180,9 +180,10 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     // 2. Current Month PF Maturities (From Stats)
                     stats.bank.nextMaturitiesPF.forEach((pf: any) => {
                         // Check if it's in the current month to be consistent with 'maturities' list
-                        // FIX: Add 4 hours to compensate for potential timezone offsets (GMT-3) when parsing YYYY-MM-DD
+                        // FIX: SUBTRACT 4 hours to compensate for timezone (GMT-3).
+                        // If DB says Feb 1st 00:00 UTC, it's actually Jan 31st 21:00 in Argentina.
                         const rawDate = new Date(pf.rawDate);
-                        const adjustedDate = new Date(rawDate.getTime() + (4 * 60 * 60 * 1000));
+                        const adjustedDate = new Date(rawDate.getTime() - (4 * 60 * 60 * 1000));
 
                         if (isSameMonth(adjustedDate, now)) {
                             maturities.push({
