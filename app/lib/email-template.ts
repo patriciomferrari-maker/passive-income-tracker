@@ -228,31 +228,40 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 Hola <strong>${userName}</strong>, aquí está el resumen de tu actividad financiera y proyecciones para este período.
             </p>
 
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 32px;">
-                <!-- 1. BANK (Liquidez Only) -->
-                <div style="background-color: #f1f5f9; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
-                    <div style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Liquidez</div>
-                    <div style="color: #0f172a; font-size: 18px; font-weight: 700; margin-top: 6px; letter-spacing: -0.5px;">
-                        ${formatCurrency(totalBank, 'USD')}
-                    </div>
-                </div>
-                
-                <!-- 2. INVESTMENTS (Arg + USA) -->
-                <div style="background-color: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
-                    <div style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Inversiones</div>
-                    <div style="color: #0f172a; font-size: 18px; font-weight: 700; margin-top: 6px; letter-spacing: -0.5px;">
-                        ${formatCurrency(totalArg + totalUSA, 'USD')}
-                    </div>
-                </div>
+            <!-- Cards Layout Table -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 32px; border-collapse: separate; border-spacing: 8px 0;">
+                <tr>
+                    <!-- 1. BANK (Liquidez Only) -->
+                    <td width="33%" valign="top" style="background-color: #f1f5f9; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
+                        <div style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Liquidez</div>
+                        <div style="color: #0f172a; font-size: 16px; font-weight: 700; margin-top: 6px; letter-spacing: -0.5px;">
+                            ${formatCurrency(totalBank, 'USD')}
+                        </div>
+                    </td>
+                    
+                    <!-- Spacer -->
+                    <td width="2%" style="font-size: 0; line-height: 0;">&nbsp;</td>
 
-                <!-- 3. DEBT -->
-                 <div style="background-color: ${totalDebtPending > 0 ? '#ecfdf5' : '#fff1f2'}; padding: 16px; border-radius: 8px; border: 1px solid ${totalDebtPending > 0 ? '#a7f3d0' : '#fecdd3'}; text-align: center;">
-                    <div style="color: ${totalDebtPending > 0 ? '#047857' : '#be123c'}; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">${totalDebtPending > 0 ? 'A Cobrar' : 'Pasivos'}</div>
-                    <div style="color: ${totalDebtPending > 0 ? '#065f46' : '#9f1239'}; font-size: 18px; font-weight: 700; margin-top: 6px; letter-spacing: -0.5px;">
-                        ${formatCurrency(Math.abs(totalDebtPending), 'USD')}
-                    </div>
-                </div>
-            </div>
+                    <!-- 2. INVESTMENTS (Arg + USA) -->
+                    <td width="33%" valign="top" style="background-color: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
+                        <div style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Inversiones</div>
+                        <div style="color: #0f172a; font-size: 16px; font-weight: 700; margin-top: 6px; letter-spacing: -0.5px;">
+                            ${formatCurrency(totalArg + totalUSA, 'USD')}
+                        </div>
+                    </td>
+
+                    <!-- Spacer -->
+                    <td width="2%" style="font-size: 0; line-height: 0;">&nbsp;</td>
+
+                    <!-- 3. DEBT -->
+                    <td width="30%" valign="top" style="background-color: ${totalDebtPending > 0 ? '#ecfdf5' : '#fff1f2'}; padding: 16px; border-radius: 8px; border: 1px solid ${totalDebtPending > 0 ? '#a7f3d0' : '#fecdd3'}; text-align: center;">
+                        <div style="color: ${totalDebtPending > 0 ? '#047857' : '#be123c'}; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">${totalDebtPending > 0 ? 'A Cobrar' : 'Pasivos'}</div>
+                        <div style="color: ${totalDebtPending > 0 ? '#065f46' : '#9f1239'}; font-size: 16px; font-weight: 700; margin-top: 6px; letter-spacing: -0.5px;">
+                            ${formatCurrency(Math.abs(totalDebtPending), 'USD')}
+                        </div>
+                    </td>
+                </tr>
+            </table>
         </div>
 
         <!-- Main Content -->
