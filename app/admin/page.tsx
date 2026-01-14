@@ -634,14 +634,6 @@ function CedearCard() {
 function UsersCard() {
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [openDialog, setOpenDialog] = useState(false);
-
-    // New Mirror User State
-    const [newMirrorEmail, setNewMirrorEmail] = useState('');
-    const [newMirrorPass, setNewMirrorPass] = useState('');
-    const [newMirrorName, setNewMirrorName] = useState('');
-    const [selectedSourceId, setSelectedSourceId] = useState('');
-
     // Linking Existing Logic
     const [linkDialog, setLinkDialog] = useState(false);
     const [userToLink, setUserToLink] = useState<any>(null);
@@ -668,36 +660,8 @@ function UsersCard() {
         }
     };
 
-    const handleCreateMirror = async () => {
-        if (!newMirrorEmail || !newMirrorPass || !selectedSourceId) return;
-        setActionLoading(true);
-        try {
-            const res = await fetch('/api/admin/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'CREATE_MIRROR',
-                    email: newMirrorEmail,
-                    password: newMirrorPass,
-                    name: newMirrorName,
-                    dataOwnerId: selectedSourceId
-                })
-            });
 
-            if (res.ok) {
-                setOpenDialog(false);
-                setNewMirrorEmail('');
-                setNewMirrorPass('');
-                fetchUsers();
-            } else {
-                alert("Error creando usuario (Email duplicado?)");
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setActionLoading(false);
-        }
-    };
+
 
     const handleLinkAccount = async () => {
         if (!userToLink) return;
@@ -739,67 +703,7 @@ function UsersCard() {
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-slate-100 text-lg">Gestión de Usuarios</CardTitle>
 
-                    <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-                        <DialogTrigger asChild>
-                            <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                                <UserPlus className="mr-2 h-4 w-4" />
-                                Nueva Cuenta Espejo
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="bg-slate-950 border-slate-800 text-slate-100">
-                            <DialogHeader>
-                                <DialogTitle>Crear Cuenta Espejo</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                                <div className="space-y-2">
-                                    <Label>Usuario Fuente (Dueño de datos)</Label>
-                                    <Select value={selectedSourceId} onValueChange={setSelectedSourceId}>
-                                        <SelectTrigger className="bg-slate-900 border-slate-700">
-                                            <SelectValue placeholder="Seleccionar usuario..." />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-slate-900 border-slate-700">
-                                            {users.filter(u => !u.dataOwnerId).map(u => (
-                                                <SelectItem key={u.id} value={u.id}>
-                                                    {u.name || u.email}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Email Nuevo Usuario (Espejo)</Label>
-                                    <Input
-                                        type="email"
-                                        className="bg-slate-900 border-slate-700"
-                                        value={newMirrorEmail}
-                                        onChange={e => setNewMirrorEmail(e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Nombre</Label>
-                                    <Input
-                                        className="bg-slate-900 border-slate-700"
-                                        value={newMirrorName}
-                                        onChange={e => setNewMirrorName(e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Contraseña</Label>
-                                    <Input
-                                        type="password"
-                                        className="bg-slate-900 border-slate-700"
-                                        value={newMirrorPass}
-                                        onChange={e => setNewMirrorPass(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button onClick={handleCreateMirror} disabled={actionLoading} className="bg-purple-600 hover:bg-purple-700">
-                                    {actionLoading ? 'Creando...' : 'Crear Usuario'}
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                    <div className="h-8"></div> {/* Spacer to replace button */}
 
                     {/* LINK EXISTING DIALOG */}
                     <Dialog open={linkDialog} onOpenChange={setLinkDialog}>
