@@ -127,6 +127,20 @@ export async function runEconomicUpdates() {
 }
 
 export async function runDailyMaintenance(force: boolean = false, targetUserId?: string | null) {
+    // Helper to standardize dates to Argentina Noon (UTC 15:00)
+    // This avoids "off-by-one" day errors due to timezone shifting.
+    // Logic:
+    // 1. Shift UTC date back by 3 hours (ARG is UTC-3) to ensure we are in the correct "Argentine Day".
+    // 2. Set time to 12:00:00 ARG (which is 15:00:00 UTC) to safely anchor in the middle of that day.
+    const toArgNoon = (date: Date | string): Date => {
+        const d = new Date(date);
+        // 1. Shift to ARG day
+        const argTime = new Date(d.getTime() - (3 * 60 * 60 * 1000));
+        // 2. Set to Noon ARG (15:00 UTC)
+        argTime.setUTCHours(15, 0, 0, 0);
+        return argTime;
+    };
+
     const results = {
         economics: await runEconomicUpdates(),
         reports: [] as any[]
@@ -197,12 +211,15 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     const rentalEventsList: { date: Date; property: string; type: 'ADJUSTMENT' | 'EXPIRATION'; monthsTo: number }[] = [];
                     const eventHorizon = addMonths(now, 12);
                     contracts.forEach(c => {
-                        const expDate = addMonths(new Date(c.startDate), c.durationMonths);
+                        // Standardize Start Date
+                        const startDate = toArgNoon(c.startDate);
+
+                        const expDate = addMonths(startDate, c.durationMonths);
                         if (isAfter(expDate, now)) {
                             rentalEventsList.push({ date: expDate, property: c.property.name, type: 'EXPIRATION', monthsTo: differenceInMonths(expDate, now) });
                         }
                         if (c.adjustmentType !== 'NONE') {
-                            let nextAdjDate = new Date(c.startDate);
+                            let nextAdjDate = new Date(startDate);
                             while (isBefore(nextAdjDate, now) || nextAdjDate.getTime() === now.getTime()) nextAdjDate = addMonths(nextAdjDate, c.adjustmentFrequency);
                             while (isBefore(nextAdjDate, eventHorizon)) {
                                 rentalEventsList.push({ date: new Date(nextAdjDate), property: c.property.name, type: 'ADJUSTMENT', monthsTo: differenceInMonths(nextAdjDate, now) });
@@ -233,7 +250,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
 
                     monthCashflows.forEach(cf => {
                         maturities.push({
-                            date: cf.date,
+                            date: toArgNoon(cf.date), // Standardize
                             description: `${cf.investment.name} (${cf.type === 'INTEREST' ? 'Interés' : 'Amort.'})`,
                             amount: cf.amount,
                             currency: cf.currency,
@@ -245,13 +262,8 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     // 2. Current Month PF Maturities (From Stats)
                     stats.bank.nextMaturitiesPF.forEach((pf: any) => {
                         // Check if it's in the current month to be consistent with 'maturities' list
-                        // FIX: Standardize to ARG Noon (UTC 15:00)
-                        // 1. Shift UTC to ARG time (Subtract 3 hours) to identify the correct day
-                        // 2. Set to Noon ARG (12:00 ARG = 15:00 UTC) to avoid boundary flips
-                        const rawDate = new Date(pf.rawDate);
-                        const argDate = new Date(rawDate.getTime() - (3 * 60 * 60 * 1000));
-                        argDate.setUTCHours(15, 0, 0, 0);
-                        const adjustedDate = argDate;
+                        // FIX: Standardize to ARG Noon using helper
+                        const adjustedDate = toArgNoon(pf.rawDate);
 
                         if (isSameMonth(adjustedDate, now)) {
                             // Format currency helper
