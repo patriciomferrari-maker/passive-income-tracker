@@ -255,6 +255,8 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     const investedPF = (stats.bank as any).investedPF_USD || 0;
                     const investedFCI = (stats.bank as any).investedFCI_USD || 0;
 
+                    const hasBank = bankTotalUSD > 1 || investedPF > 1;
+
                     const totalArg = stats.on.totalInvested + investedPF + investedFCI;
                     const totalUSA = stats.treasury.totalInvested;
 
@@ -267,7 +269,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
 
                     // 4. Debts
                     const debtTotalPendingUSD = stats.debts.totalPending;
-                    const hasDebts = stats.debts.count > 0;
+                    const hasDebts = Math.abs(debtTotalPendingUSD) > 1;
 
                     const totalNetWorthUSD = bankTotalUSD + totalArg + totalUSA + debtTotalPendingUSD;
 
@@ -377,6 +379,8 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     const passiveIncomeStats = await getPreviousMonthPassiveIncome(user.id, now);
 
                     // Send HTML Email
+
+
                     if (process.env.RESEND_API_KEY && recipientEmail) {
                         const htmlContent = generateMonthlyReportEmail({
                             userName: user.name || 'Usuario',
@@ -393,8 +397,8 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             hasRentals,
                             hasArg,
                             hasUSA,
-                            hasBank: bankTotalUSD > 1,
-                            hasDebts: Math.abs(debtTotalPendingUSD) > 1
+                            hasBank,
+                            hasDebts
                         });
 
                         // Prepare PDF Attachments
