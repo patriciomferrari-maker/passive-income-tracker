@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
                 description: description // Use name as tie-breaker for non-voucher transactions
             }
         });
-        if (existing) console.log(`[API] Duplicate detected by DATE / AMOUNT / DESC: ${ description } `);
+        if (existing) console.log('[API] Duplicate detected by DATE / AMOUNT / DESC:', description);
     }
 
     if (existing) {
