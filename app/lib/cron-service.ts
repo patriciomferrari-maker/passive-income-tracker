@@ -324,18 +324,35 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         });
                     });
 
-                    stats.bank.nextMaturitiesPF.forEach((pf: any) => {
-                        const adjustedDate = toArgNoon(pf.rawDate);
-                        if (isSameMonth(adjustedDate, now)) {
+                    // 2. Plazo Fijo Maturities (Current Month)
+                    const currentMonthPFs = await prisma.bankOperation.findMany({
+                        where: { userId: user.id, type: 'PLAZO_FIJO', startDate: { not: null } }
+                    });
+
+                    currentMonthPFs.forEach(pf => {
+                        if (!pf.startDate || !pf.durationDays) return;
+                        const maturityDate = new Date(pf.startDate);
+                        maturityDate.setDate(maturityDate.getDate() + pf.durationDays);
+
+                        // Check if maturity is in the report month
+                        if (maturityDate >= monthStart && maturityDate <= monthEnd) {
+                            const interest = (pf.amount * (pf.tna || 0) / 100) * (pf.durationDays / 365);
+                            const total = pf.amount + interest;
                             const formatUSD = (val: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(val);
 
+                            // Adjust date for display (Argentina Noon)
+                            const displayDate = new Date(maturityDate); // Clone
+                            displayDate.setHours(12, 0, 0, 0);
+
                             maturities.push({
-                                date: adjustedDate,
-                                description: `PF ${pf.alias}`,
-                                amount: pf.interest || 0, // Show ONLY Interest
-                                currency: 'USD',
+                                date: displayDate,
+                                description: `PF ${pf.alias || 'Plazo Fijo'}`,
+                                amount: interest, // Show Interest Only as per request? Or Total? 
+                                // User screenshot showed "Interés" for bonds. 
+                                // Usually for PF we show Interest in the list, and maybe Total in meta.
+                                currency: pf.currency || 'ARS', // use PF currency
                                 type: 'PF',
-                                meta: `Total al vencimiento: ${formatUSD(pf.amount)}` // Show Total
+                                meta: `Total: ${formatUSD(total)}`
                             });
                         }
                     });
