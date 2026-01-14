@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
         const trueStartDate = new Date(date);
         trueStartDate.setMonth(trueStartDate.getMonth() - (currentQuota - 1));
 
-        console.log(`[API] Installment Plan: Main Date = ${ date }, Quota = ${ currentQuota }/${installments.total}, Calculated StartDate=${trueStartDate.toISOString()}`);
+        console.log('[API] Installment Plan: Main Date = ' + date + ', Quota = ' + currentQuota + '/' + installments.total + ', Calculated StartDate=' + trueStartDate.toISOString());
 
 // Clean description for matching (remove numbers, "Cuota", etc to match the "Plan Parent")
 // e.g. "DLO*INPRO | Health Off 05/09" -> "DLO*INPRO | Health Off"
@@ -194,7 +194,7 @@ for (const p of existingPlans) {
     if (diffDays < 35 && amtDiff < (parseFloat(amount) * 0.1) && descMatch) {
         // Found it! 35 days buffer allows for some month shifting/billing cycle weirdness
         foundPlan = p;
-        console.log(`[API] Found existing Installment Plan: ${p.id} (${p.description})`);
+        console.log('[API] Found existing Installment Plan: ' + p.id + ' (' + p.description + ')');
         break;
     }
 }
@@ -217,13 +217,13 @@ if (foundPlan) {
     });
 
     if (existingProjected) {
-        console.log(`[API] Deleting existing PROJECTED transaction ${existingProjected.id} in favor of REAL import.`);
+        console.log('[API] Deleting existing PROJECTED transaction ' + existingProjected.id + ' in favor of REAL import.');
         await prisma.barbosaTransaction.delete({ where: { id: existingProjected.id } });
     }
 
 } else {
     // Create NEW Plan
-    console.log(`[API] Creating NEW Installment Plan (Total: ${installments.total}). Start: ${trueStartDate.toISOString()}`);
+    console.log('[API] Creating NEW Installment Plan (Total: ' + installments.total + '). Start: ' + trueStartDate.toISOString());
 
     const plan = await prisma.barbosaInstallmentPlan.create({
         data: {
@@ -270,7 +270,7 @@ if (foundPlan) {
                 amount: parseFloat(amount),
                 currency,
                 type: 'EXPENSE',
-                description: `${description} (Cuota ${i}/${installments.total})`,
+                description: description + ' (Cuota ' + i + '/' + installments.total + ')',
                 categoryId: validCategoryId,
                 subCategoryId: validSubCategoryId,
                 status: 'PROJECTED',
@@ -309,7 +309,7 @@ const tx = await prisma.barbosaTransaction.create({
     }
 });
 
-console.log(`[API] Transaction created: ID=${tx.id}, Date=${tx.date.toISOString()}, Desc=${tx.description}`);
+console.log('[API] Transaction created: ID=' + tx.id + ', Date=' + tx.date.toISOString() + ', Desc=' + tx.description);
 
 // --- COSTA SYNC LOGIC ---
 if (category.name.toLowerCase().includes('costa')) {
@@ -340,7 +340,7 @@ if (category.name.toLowerCase().includes('costa')) {
                 type: 'EXPENSE',
                 amount: parseFloat(amount),
                 currency,
-                description: description || `Sync desde Barbosa (${category.name})`,
+                description: description || 'Sync desde Barbosa (' + category.name + ')',
                 categoryId: costaCategory.id,
                 linkedTransactionId: tx.id
             }
