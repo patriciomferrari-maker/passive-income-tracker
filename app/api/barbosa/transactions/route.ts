@@ -240,7 +240,7 @@ if (foundPlan) {
     installmentPlanId = plan.id;
 
     // Generate ALL other installments (Past and Future) as PROJECTED
-    // We skip the `currentQuota` index because that will be the REAL transaction created below.
+    // We skip the 'currentQuota' index because that will be the REAL transaction created below.
     const promises = [];
     for (let i = 1; i <= installments.total; i++) {
         if (i === currentQuota) continue; // Skip the current one, it will be inserted as REAL
