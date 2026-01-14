@@ -180,12 +180,16 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     // 2. Current Month PF Maturities (From Stats)
                     stats.bank.nextMaturitiesPF.forEach((pf: any) => {
                         // Check if it's in the current month to be consistent with 'maturities' list
-                        if (isSameMonth(new Date(pf.rawDate), now)) {
+                        // FIX: Add 4 hours to compensate for potential timezone offsets (GMT-3) when parsing YYYY-MM-DD
+                        const rawDate = new Date(pf.rawDate);
+                        const adjustedDate = new Date(rawDate.getTime() + (4 * 60 * 60 * 1000));
+
+                        if (isSameMonth(adjustedDate, now)) {
                             maturities.push({
-                                date: new Date(pf.rawDate),
+                                date: adjustedDate,
                                 description: `PF ${pf.alias}`,
                                 amount: pf.amount,
-                                currency: 'USD', // Assuming USD for simplicity or fetching from op
+                                currency: 'USD',
                                 type: 'PF'
                             });
                         }
@@ -217,7 +221,6 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             totalUSA: totalUSA,
                             maturities: maturities,
                             rentalEvents: rentalEventsList, // Updated
-                            nextPFMaturity,
                             hasRentals,
                             hasArg,
                             hasUSA,

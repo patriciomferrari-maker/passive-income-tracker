@@ -32,8 +32,6 @@ interface MonthlyReportData {
     // Highlights
     rentalEvents: { date: Date; property: string; type: 'ADJUSTMENT' | 'EXPIRATION'; monthsTo: number }[];
 
-    nextPFMaturity?: { date: Date; bank: string; amount: number } | null;
-
     // Flags
     hasRentals?: boolean;
     hasArg?: boolean;
@@ -47,9 +45,10 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
         userName, month, year, dashboardUrl,
         totalDebtPending, totalBank, totalArg, totalUSA,
         maturities,
-        rentalEvents, nextPFMaturity,
+        rentalEvents,
         hasRentals, hasArg, hasUSA, hasBank, hasDebts
     } = data;
+
 
     // Sort by date
     const sortedMaturities = [...maturities].sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -223,31 +222,8 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 </div>
             </div>` : ''}
 
-            <!-- 3. Próximo Plazo Fijo -->
-            ${nextPFMaturity ? `
-            <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
-                <div style="background-color: #fce7f3; padding: 12px 16px; border-bottom: 1px solid #fbcfe8;">
-                    <h3 style="margin: 0; color: #831843; font-size: 14px; font-weight: 700; text-transform: uppercase;">Próximo Vencimiento Plazo Fijo</h3>
-                </div>
-                <div style="padding: 16px;">
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td style="padding-bottom: 4px; color: #64748b; font-size: 11px; text-transform: uppercase;">Fecha</td>
-                            <td style="padding-bottom: 4px; color: #0f172a; font-weight: 600; text-align: right;">${format(nextPFMaturity.date, 'dd/MM/yyyy')}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding-bottom: 4px; color: #64748b; font-size: 11px; text-transform: uppercase;">Banco</td>
-                            <td style="padding-bottom: 4px; color: #0f172a; font-weight: 600; text-align: right;">${nextPFMaturity.bank}</td>
-                        </tr>
-                        <tr>
-                            <td style="color: #64748b; font-size: 11px; text-transform: uppercase;">Monto</td>
-                            <td style="color: #0f172a; font-weight: 700; text-align: right; color: #db2777;">${formatCurrency(nextPFMaturity.amount, 'USD')}</td> <!-- Assuming USD for display consistency, or check currency -->
-                        </tr>
-                    </table>
-                </div>
-            </div>` : ''}
 
-            <!-- 4. Alquileres Tables (Prox Ajustes & Vencimientos) -->
+            <!-- 3. Alquileres Tables (Prox Ajustes & Vencimientos) -->
              <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
                 <div style="background-color: #f8fafc; padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
                     <h3 style="margin: 0; color: #0e4166; font-size: 14px; font-weight: 700; text-transform: uppercase;">Alquileres - Próximos Eventos</h3>
