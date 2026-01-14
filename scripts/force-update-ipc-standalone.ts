@@ -138,6 +138,34 @@ async function main() {
                 });
                 console.log('  -> Created');
             }
+
+            // Sync to InflationData if IPC
+            if (item.type === 'IPC') {
+                const year = item.date.getUTCFullYear();
+                // Assuming date is end of month or related to month, extracting month number
+                // BCRA usually gives date of data.
+                const month = item.date.getUTCMonth() + 1;
+
+                const existingInf = await prisma.inflationData.findUnique({
+                    where: { year_month: { year, month } }
+                });
+
+                if (existingInf) {
+                    if (existingInf.value !== item.value) {
+                        await prisma.inflationData.update({
+                            where: { id: existingInf.id },
+                            data: { value: item.value }
+                        });
+                        console.log('  -> InflationData Updated');
+                    }
+                } else {
+                    await prisma.inflationData.create({
+                        data: { year, month, value: item.value }
+                    });
+                    console.log('  -> InflationData Created');
+                }
+            }
+
         }
     } catch (e) {
         console.error('Failure:', e);

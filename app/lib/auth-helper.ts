@@ -1,3 +1,4 @@
+import { prisma } from "@/lib/prisma"; // Adjust path if needed
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
@@ -11,8 +12,25 @@ export async function getUserId() {
         const session = await auth();
 
         if (session?.user?.id) {
+            // Check for Mirror/Shared Account
+            const realId = session.user.id;
+            try {
+                // Determine if this user is a "Mirror" of another
+                const user = await prisma.user.findUnique({
+                    where: { id: realId },
+                    select: { dataOwnerId: true }
+                });
+
+                if (user?.dataOwnerId) {
+                    console.log(`[AUTH] Mirror Access: ${realId} viewing data of ${user.dataOwnerId}`);
+                    return user.dataOwnerId;
+                }
+            } catch (dbError) {
+                console.warn('[AUTH] Failed to check dataOwnerId, using session ID', dbError);
+            }
+
             console.log('[AUTH] Session found for user:', session.user.email);
-            return session.user.id;
+            return realId;
         }
 
         // DEVELOPMENT BYPASS: Return a default user ID if in development or if AUTH_SECRET is missing locally

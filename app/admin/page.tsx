@@ -5,7 +5,12 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, RefreshCw, Database } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AlertCircle, CheckCircle, RefreshCw, Database, Users, UserPlus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function AdminPage() {
     // ONs State
@@ -59,6 +64,9 @@ export default function AdminPage() {
             <h1 className="text-4xl font-bold mb-8 text-center text-slate-50">Panel de Administración</h1>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+                {/* Users Management */}
+                <UsersCard />
+
                 {/* ONs Card */}
                 <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
                     <CardHeader>
@@ -622,3 +630,181 @@ function CedearCard() {
     );
 }
 
+
+function UsersCard() {
+    const [users, setUsers] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [openDialog, setOpenDialog] = useState(false);
+
+    // New Mirror User State
+    const [newMirrorEmail, setNewMirrorEmail] = useState('');
+    const [newMirrorPass, setNewMirrorPass] = useState('');
+    const [newMirrorName, setNewMirrorName] = useState('');
+    const [selectedSourceId, setSelectedSourceId] = useState('');
+
+    const [actionLoading, setActionLoading] = useState(false);
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
+
+    const fetchUsers = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/admin/users');
+            const data = await res.json();
+            if (data.success) {
+                setUsers(data.users);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCreateMirror = async () => {
+        if (!newMirrorEmail || !newMirrorPass || !selectedSourceId) return;
+        setActionLoading(true);
+        try {
+            const res = await fetch('/api/admin/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'CREATE_MIRROR',
+                    email: newMirrorEmail,
+                    password: newMirrorPass,
+                    name: newMirrorName,
+                    dataOwnerId: selectedSourceId
+                })
+            });
+
+            if (res.ok) {
+                setOpenDialog(false);
+                setNewMirrorEmail('');
+                setNewMirrorPass('');
+                fetchUsers();
+            } else {
+                alert("Error creando usuario (Email duplicado?)");
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    return (
+        <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col md:col-span-2">
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="text-slate-100 text-lg">Gestión de Usuarios</CardTitle>
+
+                    <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                Nueva Cuenta Espejo
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-slate-950 border-slate-800 text-slate-100">
+                            <DialogHeader>
+                                <DialogTitle>Crear Cuenta Espejo</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                    <Label>Usuario Fuente (Dueño de datos)</Label>
+                                    <Select value={selectedSourceId} onValueChange={setSelectedSourceId}>
+                                        <SelectTrigger className="bg-slate-900 border-slate-700">
+                                            <SelectValue placeholder="Seleccionar usuario..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-slate-900 border-slate-700">
+                                            {users.filter(u => !u.dataOwnerId).map(u => (
+                                                <SelectItem key={u.id} value={u.id}>
+                                                    {u.name || u.email}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Email Nuevo Usuario (Espejo)</Label>
+                                    <Input
+                                        type="email"
+                                        className="bg-slate-900 border-slate-700"
+                                        value={newMirrorEmail}
+                                        onChange={e => setNewMirrorEmail(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Nombre</Label>
+                                    <Input
+                                        className="bg-slate-900 border-slate-700"
+                                        value={newMirrorName}
+                                        onChange={e => setNewMirrorName(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Contraseña</Label>
+                                    <Input
+                                        type="password"
+                                        className="bg-slate-900 border-slate-700"
+                                        value={newMirrorPass}
+                                        onChange={e => setNewMirrorPass(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button onClick={handleCreateMirror} disabled={actionLoading} className="bg-purple-600 hover:bg-purple-700">
+                                    {actionLoading ? 'Creando...' : 'Crear Usuario'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+                <CardDescription className="text-slate-400 text-xs">
+                    Administración de accesos y cuentas compartidas.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-hidden">
+                <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden h-full flex flex-col">
+                    <div className="grid grid-cols-4 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
+                        <span className="col-span-1">Usuario</span>
+                        <span className="col-span-1">Email</span>
+                        <span className="text-center">Rol</span>
+                        <span className="text-right">Tipo Acceso</span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                        {loading ? (
+                            <div className="p-4 text-center text-xs text-slate-500">Cargando...</div>
+                        ) : (
+                            users.map(u => (
+                                <div key={u.id} className="grid grid-cols-4 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 items-center">
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-slate-200">{u.name}</span>
+                                        <span className="text-[10px] text-slate-500">ID: {u.id.substring(0, 8)}...</span>
+                                    </div>
+                                    <span className="text-slate-400 truncate pr-2">{u.email}</span>
+                                    <div className="text-center">
+                                        <Badge variant="outline" className="text-[10px] border-slate-700">{u.role}</Badge>
+                                    </div>
+                                    <div className="text-right">
+                                        {u.dataOwnerId ? (
+                                            <Badge variant="secondary" className="bg-purple-900/50 text-purple-300 text-[10px] hover:bg-purple-900">
+                                                Espejo
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="secondary" className="bg-emerald-900/50 text-emerald-300 text-[10px] hover:bg-emerald-900">
+                                                Principal {u._count?.dataViewers > 0 && `(${u._count.dataViewers} espejos)`}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}

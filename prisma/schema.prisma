@@ -25,6 +25,12 @@ model User {
   
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
+
+  // Data Sharing / Mirror Account
+  dataOwnerId      String?   // If set, this user views/edits THIS other user's data
+  dataOwner        User?     @relation("DataSharing", fields: [dataOwnerId], references: [id])
+  dataViewers      User[]    @relation("DataSharing")
+
   
   // Relations
   properties      Property[]
