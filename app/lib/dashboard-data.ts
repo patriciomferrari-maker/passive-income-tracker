@@ -168,9 +168,38 @@ export async function getDashboardStats(userId: string) {
                 where: { userId },
                 select: { currency: true, amount: true, type: true, startDate: true, durationDays: true, tna: true, alias: true }
             });
-            const bankTotalUSD = bankOperations
-                .filter(op => op.currency === 'USD')
-                .reduce((sum, op) => sum + op.amount, 0);
+
+            // Calculate Totals separated by Category (Converting ARS to USD)
+            let liquidityUSD = 0;
+            let investedPF_USD = 0;
+            let investedFCI_USD = 0;
+
+            bankOperations.forEach(op => {
+                let amountUSD = op.amount;
+                if (op.currency === 'ARS') {
+                    amountUSD = op.amount / exchangeRate;
+                }
+
+                if (op.type === 'PLAZO_FIJO') {
+                    // For PF, maybe show Capital, or Capital + Accrued Interest?
+                    // Usually "Invested" implies Capital. 
+                    // Let's stick to Principal Amount for now to match "Total Invested" concept efficiently.
+                    investedPF_USD += amountUSD;
+                } else if (op.type === 'FCI') {
+                    investedFCI_USD += amountUSD;
+                } else {
+                    // Everything else (Caja Ahorro, Cuenta Corriente, Cash) = Liquidity
+                    liquidityUSD += amountUSD;
+                }
+            });
+
+            // Legacy Total (now sum of all USD equivalents?) or just Liquidity?
+            // To be safe for existing consumers that might expect "Total Money in Bank", we sum them?
+            // But the user requested "Bank" to be "Everything minus PF/FCI".
+            // So we'll set totalUSD to liquidityUSD for new purposes, but be aware.
+            // Actually, let's pass all 3.
+
+            const bankTotalUSD = liquidityUSD;
 
             // Calculate Next Maturities for PF
             const today = new Date();
@@ -198,7 +227,14 @@ export async function getDashboardStats(userId: string) {
                 .filter(m => m.daysLeft >= 0) // Only future or today
                 .sort((a, b) => a.daysLeft - b.daysLeft);
 
-            bankData = { totalUSD: bankTotalUSD, nextMaturitiesPF };
+            bankData = {
+                totalUSD: bankTotalUSD, // Now represents 'Liquidity'
+                nextMaturitiesPF,
+                // @ts-ignore - dynamic extension
+                investedPF_USD,
+                // @ts-ignore
+                investedFCI_USD
+            };
         }),
 
         // 6. CRYPTO
