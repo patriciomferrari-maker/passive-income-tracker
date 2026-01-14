@@ -6,66 +6,131 @@ import { es } from 'date-fns/locale';
 import { generateMonthlyReportPdfBuffer } from '@/app/lib/pdf-generator';
 import { generateDashboardPdf } from '@/app/lib/pdf-capture';
 
+// Economic Imports
+import { scrapeInflationData } from '@/app/lib/scrapers/inflation';
+import { scrapeDolarBlue } from '@/app/lib/scrapers/dolar';
+import { updateONs } from '@/app/lib/market-data';
+import { regenerateAllCashflows } from '@/lib/rentals';
+
 // Helper to format currency
 const formatUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
-export async function runDailyMaintenance(force: boolean = false, targetUserId?: string | null) {
+export async function runEconomicUpdates() {
     const results = {
-        economics: {
-            blue: { success: false, message: '' },
-            ipc: { success: false, message: '' }
-        },
-        reports: [] as any[]
+        ipc: { status: 'skipped', count: 0, error: null as any },
+        dolar: { status: 'skipped', count: 0, error: null as any },
+        ons: { status: 'skipped', count: 0, error: null as any },
+        bcra: { status: 'skipped', count: 0, error: null as any, seeded: false, created: 0, updated: 0, skipped: 0 }
     };
 
-    // --- PART 1: ECONOMICS (Global - Run once) ---
+    // 1. Update BCRA Data FIRST
     try {
-        // 1. Dolar Blue
-        try {
-            const response = await fetch('https://dolarapi.com/v1/dolares/blue');
-            if (response.ok) {
-                const data = await response.json();
-                const rate = data.venta;
-                const today = new Date();
-                const monthDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        console.log('🌐 Scraping latest BCRA data...');
+        const { scrapeBCRA, saveBCRAData } = await import('@/app/lib/scrapers/bcra');
+        const data = await scrapeBCRA();
+        const stats = await saveBCRAData(data);
 
-                const existing = await prisma.economicIndicator.findFirst({
-                    where: { type: 'TC_USD_ARS', date: monthDate }
-                });
-
-                if (existing) {
-                    await prisma.economicIndicator.update({
-                        where: { id: existing.id }, data: { value: rate }
-                    });
-                    results.economics.blue = { success: true, message: `Updated: ${rate}` };
-                } else {
-                    await prisma.economicIndicator.create({
-                        data: { type: 'TC_USD_ARS', date: monthDate, value: rate }
-                    });
-                    results.economics.blue = { success: true, message: `Created: ${rate}` };
-                }
-            }
-        } catch (e: any) {
-            results.economics.blue = { success: false, message: e.message };
-        }
-
-        // 2. IPC Check
-        try {
-            const today = new Date();
-            const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-            const hasIPC = await prisma.economicIndicator.findFirst({
-                where: { type: 'IPC', date: lastMonth }
-            });
-            results.economics.ipc = hasIPC
-                ? { success: true, message: 'Found last month IPC' }
-                : { success: false, message: 'Missing last month IPC' };
-        } catch (e: any) {
-            results.economics.ipc = { success: false, message: e.message };
-        }
-
-    } catch (error: any) {
-        console.error('Economics Update Error:', error);
+        results.bcra = {
+            status: 'success',
+            count: stats.created + stats.updated,
+            error: null,
+            created: stats.created, // Fixed partial assignment
+            updated: stats.updated,
+            skipped: stats.skipped,
+            seeded: false
+        };
+        console.log(`✅ BCRA update: ${stats.created} created, ${stats.updated} updated`);
+    } catch (e) {
+        results.bcra = {
+            status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e),
+            seeded: false, created: 0, updated: 0, skipped: 0
+        };
+        console.error('Cron BCRA Error:', e);
     }
+
+    // 2. Update IPC
+    try {
+        const ipcData = await scrapeInflationData();
+        let ipcCount = 0;
+        for (const item of ipcData) {
+            await prisma.inflationData.upsert({
+                where: { year_month: { year: item.year, month: item.month } },
+                update: { value: item.value },
+                create: { year: item.year, month: item.month, value: item.value }
+            });
+            ipcCount++;
+        }
+
+        // SYNC WITH EconomicIndicator
+        for (const item of ipcData) {
+            const date = new Date(item.year, item.month - 1, 1);
+            date.setUTCHours(12, 0, 0, 0);
+
+            await prisma.economicIndicator.upsert({
+                where: { type_date: { type: 'IPC', date } },
+                update: { value: item.value },
+                create: { type: 'IPC', date, value: item.value }
+            });
+        }
+
+        if (ipcCount > 0) {
+            await regenerateAllCashflows();
+        }
+        results.ipc = { status: 'success', count: ipcCount, error: null };
+    } catch (e) {
+        results.ipc = { status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e) };
+    }
+
+    // 3. Update Dollar
+    try {
+        const endDate = new Date().toISOString().split('T')[0];
+        const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const dollarData = await scrapeDolarBlue(startDate, endDate);
+        let dollarCount = 0;
+
+        for (const item of dollarData) {
+            const dayStart = new Date(item.date);
+            dayStart.setUTCHours(0, 0, 0, 0);
+            const dayEnd = new Date(item.date);
+            dayEnd.setUTCHours(23, 59, 59, 999);
+
+            const existing = await prisma.economicIndicator.findFirst({
+                where: { type: 'TC_USD_ARS', date: { gte: dayStart, lte: dayEnd } }
+            });
+
+            if (existing) {
+                await prisma.economicIndicator.update({
+                    where: { id: existing.id },
+                    data: { value: item.avg, buyRate: item.buy, sellRate: item.sell }
+                });
+            } else {
+                await prisma.economicIndicator.create({
+                    data: { type: 'TC_USD_ARS', date: item.date, value: item.avg, buyRate: item.buy, sellRate: item.sell }
+                });
+            }
+            dollarCount++;
+        }
+        results.dolar = { status: 'success', count: dollarCount, error: null };
+    } catch (e) {
+        results.dolar = { status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e) };
+    }
+
+    // 4. Update ONs
+    try {
+        const onsResults = await updateONs();
+        results.ons = { status: 'success', count: onsResults.length, error: null };
+    } catch (e) {
+        results.ons = { status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e) };
+    }
+
+    return results;
+}
+
+export async function runDailyMaintenance(force: boolean = false, targetUserId?: string | null) {
+    const results = {
+        economics: await runEconomicUpdates(),
+        reports: [] as any[]
+    };
 
     // --- PART 2: MONTHLY REPORTS (Per User) ---
     try {
