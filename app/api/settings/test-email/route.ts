@@ -18,7 +18,8 @@ export async function POST() {
 
         // DIRECT CALL - Bypassing Vercel HTTP Authentication Wall
         // Instead of fetching the URL, we run the function directly on the server.
-        const result = await runDailyMaintenance(true, userId);
+        // Skip Scraping for test emails to ensure speed and avoid timeouts
+        const result = await runDailyMaintenance(true, userId, true);
 
         return NextResponse.json(result);
 

@@ -205,9 +205,9 @@ export async function runEconomicUpdates() {
     return results;
 }
 
-export async function runDailyMaintenance(force: boolean = false, targetUserId?: string | null) {
+export async function runDailyMaintenance(force: boolean = false, targetUserId?: string | null, skipScraping: boolean = false) {
     const results = {
-        economics: await runEconomicUpdates(),
+        economics: skipScraping ? { status: 'skipped' } : await runEconomicUpdates(),
         reports: [] as any[]
     };
 
