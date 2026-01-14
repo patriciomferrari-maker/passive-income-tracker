@@ -236,8 +236,7 @@ export default function SettingsPage() {
 
                     <div className="flex justify-between pt-4 border-t border-slate-800">
                         <Button
-                            variant="outline"
-                            className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
                             onClick={handleSendTest}
                             disabled={sendingTest}
                         >
