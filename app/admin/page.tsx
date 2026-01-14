@@ -786,7 +786,7 @@ function UsersCard() {
                                     </div>
                                     <span className="text-slate-400 truncate pr-2">{u.email}</span>
                                     <div className="text-center">
-                                        <Badge variant="outline" className="text-[10px] border-slate-700">{u.role}</Badge>
+                                        <Badge variant="outline" className="text-[10px] border-slate-700 text-slate-300">{u.role}</Badge>
                                     </div>
                                     <div className="text-right">
                                         {u.dataOwnerId ? (
