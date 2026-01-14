@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
 
 // Clean description for matching (remove numbers, "Cuota", etc to match the "Plan Parent")
 // e.g. "DLO*INPRO | Health Off 05/09" -> "DLO*INPRO | Health Off"
-// actually `description` passed here is potentially already cleaned by frontend, but let's be safe.
+// actually 'description' passed here is potentially already cleaned by frontend, but let's be safe.
 // We want to find a plan that looks like this.
 
 // Try to find EXISTING plan
