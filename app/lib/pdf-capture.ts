@@ -19,16 +19,23 @@ export async function generateDashboardPdf(userId: string, type: 'rentals' | 'in
             browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessToken}&stealth`,
         });
     } else {
-        // ... (existing fallback)
-        let executablePath = await chromium.executablePath();
+        let executablePath: string | undefined;
 
-        if (isLocal && !executablePath) {
-            const { platform } = process;
-            // ...
-            if (platform === 'win32') executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-            else if (platform === 'darwin') executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-            else executablePath = '/usr/bin/google-chrome';
+        if (isLocal) {
+            if (process.platform === 'win32') {
+                executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+            } else if (process.platform === 'darwin') {
+                executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+            } else {
+                executablePath = '/usr/bin/google-chrome';
+            }
         }
+
+        if (!executablePath) {
+            executablePath = await chromium.executablePath();
+        }
+
+        console.log(`[PDF] Launching Puppeteer. Local: ${isLocal}, Platform: ${process.platform}, Path: ${executablePath}`);
 
         browser = await puppeteer.launch({
             args: isLocal ? ['--no-sandbox'] : chromium.args,
