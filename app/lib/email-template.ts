@@ -86,7 +86,7 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
             let typeBadge = `<span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; background-color: #f1f5f9; color: #64748b; letter-spacing: 0.5px;">ARG</span>`;
 
             if (isUSA) typeBadge = `<span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; background-color: #eff6ff; color: #1e40af; letter-spacing: 0.5px;">USA</span>`;
-            if (isPF) typeBadge = `<span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; background-color: #fdf2f8; color: #be185d; letter-spacing: 0.5px;">P. FIJO</span>`;
+            if (isPF) typeBadge = `<span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; background-color: #fdf2f8; color: #be185d; letter-spacing: 0.5px;">PLAZO FIJO</span>`;
             if (isRental) typeBadge = `<span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; background-color: #fff7ed; color: #c2410c; letter-spacing: 0.5px;">RENTA</span>`;
 
             return `

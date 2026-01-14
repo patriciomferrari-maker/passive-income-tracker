@@ -349,7 +349,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
 
                             maturities.push({
                                 date: displayDate,
-                                description: `PF ${pf.alias || 'Plazo Fijo'}`,
+                                description: `Plazo Fijo ${pf.alias || ''}`,
                                 amount: interest, // Show Interest Only as per request? Or Total? 
                                 // User screenshot showed "Interés" for bonds. 
                                 // Usually for PF we show Interest in the list, and maybe Total in meta.
