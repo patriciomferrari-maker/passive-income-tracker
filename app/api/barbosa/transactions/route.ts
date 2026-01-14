@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     if (existing) {
         return NextResponse.json({
             error: 'DUPLICATE',
-            message: `La transacción "${description}" ya existe(ID: ${ existing.id }).`,
+            message: 'La transacción "' + description + '" ya existe(ID: ' + existing.id + ').',
             transaction: existing
         }, { status: 409 });
     }
