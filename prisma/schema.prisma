@@ -27,9 +27,13 @@ model User {
   resetTokenExpiry DateTime?
 
   // Data Sharing / Mirror Account
-  dataOwnerId      String?   // If set, this user views/edits THIS other user's data
-  dataOwner        User?     @relation("DataSharing", fields: [dataOwnerId], references: [id])
-  dataViewers      User[]    @relation("DataSharing")
+  dataOwnerId      String?   // If set, this user acts as a viewer of THIS other user's data (Active Context)
+  dataOwner        User?     @relation("ActiveContext", fields: [dataOwnerId], references: [id])
+  dataViewers      User[]    @relation("ActiveContext")
+  
+  // Multi-Account Permissions
+  accessGiven      SharedAccess[] @relation("AccessGiven")    // Users I let view my data
+  accessReceived   SharedAccess[] @relation("AccessReceived") // Users I can view
 
   
   // Relations
@@ -673,4 +677,24 @@ model BarbosaCategorizationRule {
 
   @@unique([userId, pattern])
   @@index([userId])
+}
+
+// =================================================================
+// SHARED ACCESS / PERMISSIONS
+// =================================================================
+
+model SharedAccess {
+  id        String   @id @default(cuid())
+  
+  ownerId   String
+  owner     User     @relation("AccessGiven", fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  viewerId  String
+  viewer    User     @relation("AccessReceived", fields: [viewerId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+
+  @@unique([ownerId, viewerId]) // Cannot grant same access twice
+  @@index([ownerId])
+  @@index([viewerId])
 }

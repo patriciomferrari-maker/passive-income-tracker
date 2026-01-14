@@ -8,6 +8,7 @@ import { Loader2, Clock, Menu, Settings, LogOut } from 'lucide-react';
 import { FlagARG, FlagUSA } from '@/components/ui/CountryFlags';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { AccountSwitcher } from '@/components/global/AccountSwitcher';
 
 interface DashboardStats {
   on: {
@@ -136,6 +137,7 @@ export default function HomePage() {
           </h1>
 
           <div className="absolute right-0 top-0 flex items-center gap-4">
+            <AccountSwitcher />
             <Link href="/settings" className="text-slate-500 hover:text-blue-400 transition-colors">
               <Settings size={20} />
             </Link>

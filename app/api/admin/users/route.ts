@@ -90,6 +90,18 @@ export async function POST(req: Request) {
                 data: { dataOwnerId: sourceUserId }
             });
 
+            // Also grant persistent permission
+            await prisma.sharedAccess.upsert({
+                where: {
+                    ownerId_viewerId: { ownerId: sourceUserId, viewerId: targetUserId }
+                },
+                update: {}, // Already exists, do nothing
+                create: {
+                    ownerId: sourceUserId,
+                    viewerId: targetUserId
+                }
+            });
+
             return NextResponse.json({ success: true, message: 'Linked' });
         }
 
