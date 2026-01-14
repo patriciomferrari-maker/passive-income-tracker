@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    console.log(`[API] POST / api / barbosa / transactions - Received: `, JSON.stringify(body, null, 2));
+    console.log('[API] POST /api/barbosa/transactions - Received:', JSON.stringify(body, null, 2));
     const {
         date,
         amount,

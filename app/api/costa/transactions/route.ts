@@ -61,41 +61,38 @@ export async function PUT(request: Request) {
         const updatedTrx = await prisma.costaTransaction.update({
             where: { id },
             data: {
-                const updatedTrx = await prisma.costaTransaction.update({
-                    where: { id },
-                    data: {
-                        date: toArgNoon(date, 'keep-day'),
-                        type,
-                        description,
-                        amount: parseFloat(amount),
-                        currency,
-                        categoryId: categoryId || null,
-                        rentalCheckIn: rentalCheckIn ? new Date(rentalCheckIn) : null,
-                        rentalCheckOut: rentalCheckOut ? new Date(rentalCheckOut) : null,
-                        contractUrl: contractUrl || null
-                    }
-                });
-                return NextResponse.json(updatedTrx);
-            } catch(error) {
-                console.error("PUT Trx Error Details:", error);
-                return unauthorized();
+                date: toArgNoon(date, 'keep-day'),
+                type,
+                description,
+                amount: parseFloat(amount),
+                currency,
+                categoryId: categoryId || null,
+                rentalCheckIn: rentalCheckIn ? new Date(rentalCheckIn) : null,
+                rentalCheckOut: rentalCheckOut ? new Date(rentalCheckOut) : null,
+                contractUrl: contractUrl || null
             }
-        }
+        });
+        return NextResponse.json(updatedTrx);
+    } catch (error) {
+        console.error("PUT Trx Error Details:", error);
+        return unauthorized();
+    }
+}
 
 export async function DELETE(request: Request) {
-            try {
-                const userId = await getUserId();
-                const { searchParams } = new URL(request.url);
-                const id = searchParams.get('id');
-                if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+    try {
+        const userId = await getUserId();
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+        if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-                // Ownership check
-                const existing = await prisma.costaTransaction.findFirst({ where: { id, userId } });
-                if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        // Ownership check
+        const existing = await prisma.costaTransaction.findFirst({ where: { id, userId } });
+        if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-                await prisma.costaTransaction.delete({ where: { id } });
-                return NextResponse.json({ success: true });
-            } catch (error) {
-                return unauthorized();
-            }
-        }
+        await prisma.costaTransaction.delete({ where: { id } });
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        return unauthorized();
+    }
+}
