@@ -1,20 +1,98 @@
 import { prisma } from '@/lib/prisma';
 import { Resend } from 'resend';
-import { generateMonthlyReportEmail } from '@/app/lib/email-template';
-import { startOfMonth, endOfMonth, isSameMonth, addMonths, isBefore, isAfter, differenceInMonths } from 'date-fns';
+import { generateMonthlyReportEmail, PassiveIncomeStats } from '@/app/lib/email-template';
+import { startOfMonth, endOfMonth, isSameMonth, addMonths, isBefore, isAfter, differenceInMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { generateMonthlyReportPdfBuffer } from '@/app/lib/pdf-generator';
 import { generateDashboardPdf } from '@/app/lib/pdf-capture';
-
-// Economic Imports
 import { scrapeInflationData } from '@/app/lib/scrapers/inflation';
 import { scrapeDolarBlue } from '@/app/lib/scrapers/dolar';
 import { updateONs } from '@/app/lib/market-data';
 import { regenerateAllCashflows } from '@/lib/rentals';
 import { toArgNoon } from '@/app/lib/date-utils';
 
-// Helper to format currency
-const formatUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+// Helper for Passive Income (Previous Month)
+async function getPreviousMonthPassiveIncome(userId: string, targetDate: Date): Promise<PassiveIncomeStats> {
+    const prevMonthDate = subMonths(targetDate, 1);
+    const start = startOfMonth(prevMonthDate);
+    const end = endOfMonth(prevMonthDate);
+    const monthName = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(prevMonthDate);
+
+    // 1. Interests (Cashflows) - ARG & USA
+    const interestCashflows = await prisma.cashflow.findMany({
+        where: {
+            investment: { userId },
+            date: { gte: start, lte: end },
+            type: { in: ['INTEREST', 'COUPON', 'DIVIDEND'] },
+        },
+        include: { investment: { select: { market: true } } }
+    });
+
+    let interestArg = 0;
+    let interestUsa = 0;
+
+    interestCashflows.forEach(cf => {
+        let val = cf.amount;
+        if (cf.currency !== 'USD') val = 0; // Skip ARS for now
+
+        if (cf.investment.market === 'ARG') interestArg += val;
+        else interestUsa += val;
+    });
+
+    // 2. Plazo Fijo Interests (BankOperations)
+    const allPFs = await prisma.bankOperation.findMany({
+        where: { userId, type: 'PLAZO_FIJO', startDate: { not: null } }
+    });
+
+    let pfInterest = 0;
+    allPFs.forEach(pf => {
+        if (!pf.startDate || !pf.durationDays) return;
+        const maturityDate = new Date(pf.startDate);
+        maturityDate.setDate(maturityDate.getDate() + pf.durationDays);
+
+        if (maturityDate >= start && maturityDate <= end) {
+            const interest = (pf.amount * (pf.tna || 0) / 100) * (pf.durationDays / 365);
+            let valUSD = interest;
+            if (pf.currency === 'ARS') valUSD = interest / 1140; // Approx rate conversion
+            pfInterest += valUSD;
+        }
+    });
+
+    // 3. Rentals (RentalCashflow)
+    const rentals = await prisma.rentalCashflow.findMany({
+        where: { contract: { property: { userId } }, date: { gte: start, lte: end } },
+        select: { amountUSD: true }
+    });
+    const rentalIncome = rentals.reduce((acc, curr) => acc + (curr.amountUSD || 0), 0);
+
+    // 4. Costa Esmeralda (CostaTransaction)
+    const costaTxs = await prisma.costaTransaction.findMany({
+        where: {
+            userId,
+            type: 'INCOME',
+            date: { gte: start, lte: end },
+            category: { name: 'Alquiler' }
+        },
+        include: { category: true }
+    });
+
+    const costaIncome = costaTxs.reduce((acc, curr) => acc + curr.amount, 0);
+
+    // 5. Debt (DebtPayment)
+    const debtPayments = await prisma.debtPayment.findMany({
+        where: { debt: { userId }, date: { gte: start, lte: end }, type: 'PAYMENT' }
+    });
+    const debtCollected = debtPayments.reduce((acc, curr) => acc + curr.amount, 0);
+
+    return {
+        monthName,
+        total: interestArg + interestUsa + pfInterest + rentalIncome + costaIncome + debtCollected,
+        interests: { arg: interestArg, usa: interestUsa },
+        rentals: { regular: rentalIncome, costa: costaIncome },
+        plazoFijo: pfInterest,
+        debtCollected
+    };
+}
 
 export async function runEconomicUpdates() {
     const results = {
@@ -35,7 +113,7 @@ export async function runEconomicUpdates() {
             status: 'success',
             count: stats.created + stats.updated,
             error: null,
-            created: stats.created, // Fixed partial assignment
+            created: stats.created,
             updated: stats.updated,
             skipped: stats.skipped,
             seeded: false
@@ -128,8 +206,6 @@ export async function runEconomicUpdates() {
 }
 
 export async function runDailyMaintenance(force: boolean = false, targetUserId?: string | null) {
-    // Removed inline helper in favor of shared util (toArgNoon)
-
     const results = {
         economics: await runEconomicUpdates(),
         reports: [] as any[]
@@ -191,8 +267,6 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     const totalNetWorthUSD = bankTotalUSD + totalArg + totalUSA + debtTotalPendingUSD;
 
                     // --- KEY DATES (Calculations) ---
-                    // Re-fetch only strictly necessary event lists that aren't in summary stats
-                    // (Rentals Events need detailed list, stats only has summary)
                     const contracts = await prisma.contract.findMany({
                         where: { property: { userId: user.id } },
                         include: { property: true }
@@ -218,11 +292,9 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     });
                     rentalEventsList.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-                    // Next PF Maturity - Take from stats
                     const nextPFMaturity = stats.bank.nextMaturitiesPF.length > 0
                         ? { ...stats.bank.nextMaturitiesPF[0], bank: stats.bank.nextMaturitiesPF[0].alias }
                         : null;
-
 
                     // --- DETAILED MATURITIES (Full Month) ---
                     const maturities: any[] = [];
@@ -247,15 +319,9 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         });
                     });
 
-                    // 2. Current Month PF Maturities
-                    // 2. Current Month PF Maturities (From Stats)
                     stats.bank.nextMaturitiesPF.forEach((pf: any) => {
-                        // Check if it's in the current month to be consistent with 'maturities' list
-                        // FIX: Standardize to ARG Noon using helper
                         const adjustedDate = toArgNoon(pf.rawDate);
-
                         if (isSameMonth(adjustedDate, now)) {
-                            // Format currency helper
                             const formatUSD = (val: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(val);
 
                             maturities.push({
@@ -282,6 +348,9 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         }
                     });
 
+                    // NEW: Calculate Previous Month Passive Income
+                    const passiveIncomeStats = await getPreviousMonthPassiveIncome(user.id, now);
+
                     // Send HTML Email
                     if (process.env.RESEND_API_KEY && recipientEmail) {
                         const htmlContent = generateMonthlyReportEmail({
@@ -290,11 +359,12 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             year: year.toString(),
                             dashboardUrl: appUrl + '/dashboard/global',
                             totalDebtPending: debtTotalPendingUSD,
-                            totalBank: bankTotalUSD, // Added
+                            totalBank: bankTotalUSD,
                             totalArg: totalArg,
                             totalUSA: totalUSA,
                             maturities: maturities,
-                            rentalEvents: rentalEventsList, // Updated
+                            rentalEvents: rentalEventsList,
+                            previousMonthPassiveIncome: passiveIncomeStats, // Include New Stat
                             hasRentals,
                             hasArg,
                             hasUSA,
@@ -305,7 +375,6 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         // Prepare PDF Attachments
                         const attachments: any[] = [];
 
-                        // 1. Consolidated Dashboard PDF (Headless Chrome)
                         if (process.env.CRON_SECRET) {
                             try {
                                 console.log(`Generating Dashboard PDF for user ${user.id}...`);
@@ -321,9 +390,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             console.warn('Skipping PDF generation: CRON_SECRET not defined');
                         }
 
-                        // 2. Specific Section Reports (Investments, Rentals, Finance)
                         if (process.env.CRON_SECRET) {
-                            // Investments
                             if (hasArg || hasUSA) {
                                 try {
                                     const pdf = await generateDashboardPdf(user.id, 'investments', appUrl, process.env.CRON_SECRET);
@@ -331,7 +398,6 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                                 } catch (e) { console.error('Error generating Investments PDF:', e); }
                             }
 
-                            // Rentals
                             if (hasRentals) {
                                 try {
                                     const pdf = await generateDashboardPdf(user.id, 'rentals', appUrl, process.env.CRON_SECRET);
@@ -339,14 +405,12 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                                 } catch (e) { console.error('Error generating Rentals PDF:', e); }
                             }
 
-                            // Finance (Barbosa)
                             try {
                                 const pdf = await generateDashboardPdf(user.id, 'finance', appUrl, process.env.CRON_SECRET);
                                 attachments.push({ filename: `Detalle_Hogar_${monthName}.pdf`, content: pdf });
                             } catch (e) { console.error('Error generating Finance PDF:', e); }
                         }
 
-                        // Send Email with Attachments
                         console.log(`Sending email to: ${recipientEmail} with key: ${process.env.RESEND_API_KEY?.substring(0, 4)}...`);
 
                         const resend = new Resend(process.env.RESEND_API_KEY);

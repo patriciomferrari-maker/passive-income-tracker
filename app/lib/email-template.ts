@@ -14,6 +14,21 @@ interface MaturityItem {
     type: 'ON' | 'TREASURY' | 'RENTAL' | 'PF' | 'OTHER';
 }
 
+export interface PassiveIncomeStats {
+    monthName: string;
+    total: number;
+    interests: {
+        arg: number;
+        usa: number;
+    };
+    rentals: {
+        regular: number;
+        costa: number; // Only for main user usually
+    };
+    plazoFijo: number; // Only interest
+    debtCollected: number;
+}
+
 interface MonthlyReportData {
     userName: string;
     month: string;
@@ -28,6 +43,9 @@ interface MonthlyReportData {
 
     // Details
     maturities: MaturityItem[];
+
+    // NEW: Previous Month Passive Income
+    previousMonthPassiveIncome?: PassiveIncomeStats;
 
     // Highlights
     rentalEvents: { date: Date; property: string; type: 'ADJUSTMENT' | 'EXPIRATION'; monthsTo: number }[];
@@ -44,7 +62,7 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
     const {
         userName, month, year, dashboardUrl,
         totalDebtPending, totalBank, totalArg, totalUSA,
-        maturities,
+        maturities, previousMonthPassiveIncome, // New
         rentalEvents,
         hasRentals, hasArg, hasUSA, hasBank, hasDebts
     } = data;
@@ -114,6 +132,54 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
         }).join('');
     };
 
+    // New: Passive Income Previous Month Section
+    const renderPassiveIncome = () => {
+        if (!previousMonthPassiveIncome) return '';
+
+        const { monthName, interests, rentals, plazoFijo, debtCollected, total } = previousMonthPassiveIncome;
+
+        // Helper specifically for this table
+        const row = (label: string, value: number, isSubItem: boolean = false) => `
+            <tr>
+                <td style="padding: 8px 12px; color: ${isSubItem ? '#64748b' : '#334155'}; ${isSubItem ? 'padding-left: 24px;' : 'font-weight: 500;'} font-size: 13px; border-bottom: 1px solid #f1f5f9;">
+                    ${label}
+                </td>
+                <td style="padding: 8px 12px; text-align: right; color: #0f172a; font-family: monospace; font-size: 13px; border-bottom: 1px solid #f1f5f9;">
+                    ${value > 0 ? formatCurrency(value, 'USD') : '<span style="color:#cbd5e1">-</span>'}
+                </td>
+            </tr>
+        `;
+
+        return `
+        <div style="margin-bottom: 32px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+             <div style="background-color: #f1f5f9; padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
+                <h3 style="margin: 0; color: #1e293b; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                   💰 Ingresos Pasivos (${monthName})
+                </h3>
+                <p style="margin: 2px 0 0; color: #64748b; font-size: 11px;">Efectivamente cobrados el mes anterior</p>
+             </div>
+             <table width="100%" cellpadding="0" cellspacing="0">
+                <tbody>
+                    ${row('Intereses (Cartera Argentina)', interests.arg, false)}
+                    ${row('Intereses (Cartera USA)', interests.usa, false)}
+                    ${row('Intereses Plazo Fijo', plazoFijo, false)}
+                    ${row('Alquileres Regulares', rentals.regular, false)}
+                    ${rentals.costa > 0 ? row('Alquiler Costa Esmeralda', rentals.costa, false) : ''}
+                    ${debtCollected > 0 ? row('Deuda Cobrada', debtCollected, false) : ''}
+                </tbody>
+                <tfoot style="background-color: #f8fafc; border-top: 2px solid #e2e8f0;">
+                    <tr>
+                        <td style="padding: 12px 16px; color: #0f172a; font-weight: 700; font-size: 13px; text-transform: uppercase;">Total Cobrado</td>
+                        <td style="padding: 12px 16px; text-align: right; color: #059669; font-weight: 700; font-family: monospace; font-size: 15px;">
+                            ${formatCurrency(total, 'USD')}
+                        </td>
+                    </tr>
+                </tfoot>
+             </table>
+        </div>
+        `;
+    };
+
     return `
 <!DOCTYPE html>
 <html>
@@ -160,9 +226,12 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
             </div>
         </div>
 
-        <!-- Main Content (Rentals & Maturities) -->
+        <!-- Main Content -->
         <div style="padding: 0 32px 32px;">
             
+            <!-- NEW: Previous Month Passive Income Details -->
+            ${renderPassiveIncome()}
+
             <!-- Two Column Layout for Desktop (Stack on mobile naturally via max-width) -->
             ${hasRentals ? `
             <div style="margin-bottom: 32px;">
