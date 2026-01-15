@@ -369,8 +369,8 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                 </div>
             )}
 
-            {/* Individual Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Individual Charts Grid - Using flexbox for better PDF rendering */}
+            <div className="flex flex-wrap gap-6" style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
                 {activeContracts.map((contract) => {
                     const lastInf = [...contract.chartData].reverse().find(d => d.inflationAccum !== null && d.inflationAccum !== undefined)?.inflationAccum ?? 0;
                     const lastDev = [...contract.chartData].reverse().find(d => d.devaluationAccum !== null && d.devaluationAccum !== undefined)?.devaluationAccum ?? 0;
@@ -379,7 +379,11 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                     const avgRent = contract.chartData.reduce((sum, d) => sum + d.amountUSD, 0) / (contract.chartData.length || 1);
 
                     return (
-                        <Card key={contract.contractId} className="bg-white border-slate-300 shadow-lg break-inside-avoid">
+                        <Card
+                            key={contract.contractId}
+                            className="bg-white border-slate-300 shadow-lg break-inside-avoid"
+                            style={{ width: 'calc(50% - 12px)', minWidth: '400px' }}
+                        >
                             <CardHeader className="border-b border-slate-200 pb-4">
                                 <div className="flex justify-between items-start">
                                     <div>
