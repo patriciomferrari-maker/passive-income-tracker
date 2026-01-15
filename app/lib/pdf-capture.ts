@@ -48,6 +48,12 @@ export async function generateDashboardPdf(userId: string, type: 'rentals' | 'in
     try {
         const page = await browser.newPage();
 
+        // CLAVE 1: Definir un Viewport grande para que el layout no se rompa
+        await page.setViewport({
+            width: 1280, // Suficiente para gráficos de 1000px y 480px
+            height: 800,
+            deviceScaleFactor: 2, // Mejora la nitidez de textos y SVG
+        });
 
         // Pass the secret via Header (more robust) and URL (fallback)
         await page.setExtraHTTPHeaders({
@@ -58,6 +64,11 @@ export async function generateDashboardPdf(userId: string, type: 'rentals' | 'in
         await page.emulateMediaFeatures([
             { name: 'prefers-color-scheme', value: 'dark' }
         ]);
+
+        // CLAVE 2: Forzar fondo negro antes de cargar
+        await page.evaluate(() => {
+            document.documentElement.style.background = '#020617';
+        });
 
         // Construct URL with Query Params
         const urlObj = new URL(`${baseUrl}/print/${userId}/${type}`);
@@ -85,22 +96,23 @@ export async function generateDashboardPdf(userId: string, type: 'rentals' | 'in
         // EXTENDED WAIT: Ensure fonts and scripts load completely
         await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
 
-        // SAFETY MARGIN: Extra 1 second for Recharts to draw SVGs
-        await new Promise(r => setTimeout(r, 1000));
+        // CLAVE 3: Esperar a que las fuentes se carguen (evita texto genérico)
+        await page.evaluateHandle('document.fonts.ready');
+        await new Promise(r => setTimeout(r, 1500)); // Margen para Recharts
 
         // Generate PDF
         const pdf = await page.pdf({
             format: 'A4',
             printBackground: true, // MANDATORY for dark background
-            landscape: isRentals, // Rentals usually landscape if it has wide tables
+            landscape: true, // Rentals se ve mejor en horizontal
             displayHeaderFooter: false,
             margin: {
-                top: '10mm',
-                right: '10mm',
-                bottom: '10mm',
-                left: '10mm'
+                top: '5mm',
+                right: '5mm',
+                bottom: '5mm',
+                left: '5mm'
             },
-            scale: 0.9 // Gives breathing room to avoid content being "glued" to edges
+            scale: 0.8 // Ajusta para que los 1000px entren en A4
         });
 
 

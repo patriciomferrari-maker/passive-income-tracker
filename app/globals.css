@@ -51,19 +51,42 @@ body {
 
 /* Print-specific optimizations for PDF generation */
 @media print {
+  @page {
+    size: A4 landscape;
+    /* Coincidir con la configuración de Puppeteer */
+    margin: 0;
+    /* Puppeteer ya maneja los márgenes en page.pdf() */
+  }
+
+  body {
+    background-color: #020617 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   /* Force colors and backgrounds to render in PDF */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Prevent cards and charts from breaking across pages */
+  /* Evitar que Shadcn Cards se rompan entre páginas */
   .break-inside-avoid {
     break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    display: block !important;
+    /* A veces el flex rompe el avoid-break */
+    position: relative !important;
   }
 
   /* Remove scrollbars that might appear in PDF */
   body {
     overflow: visible !important;
+  }
+
+  /* Asegurar que el texto sea nítido */
+  * {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
   }
 }

@@ -188,25 +188,40 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
 
     if (contractsData.length === 0) {
         return (
-            <div className="text-slate-600 text-center py-12">
+            <div className="text-slate-400 text-center py-12">
                 No hay contratos vigentes para mostrar.
             </div>
         );
     }
 
     return (
-        <div className="space-y-8 bg-white text-slate-900">
+        <div className="min-h-screen bg-[#020617] text-white p-4 space-y-10" style={{ width: '1200px', margin: '0 auto' }}>
+            {/* Header Prolijo */}
+            <div className="flex justify-between items-end border-b border-slate-800 pb-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-100">Reporte de Alquileres</h1>
+                    <p className="text-slate-400">Consolidado Mensual - {new Date().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}</p>
+                </div>
+                {summaryMetrics && (
+                    <div className="text-right">
+                        <p className="text-emerald-400 font-mono font-bold text-xl">
+                            Ingresos: {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(summaryMetrics.totalIncome)}
+                        </p>
+                    </div>
+                )}
+            </div>
+
             {/* Top Summary Cards */}
             {summaryMetrics && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                     {/* Income Card */}
-                    <Card className="bg-white border-slate-300">
+                    <Card className="bg-slate-900/50 border-slate-800">
                         <CardContent className="p-4 flex flex-col items-center text-center justify-center">
-                            <div className="flex items-center gap-2 mb-2 text-emerald-600">
+                            <div className="flex items-center gap-2 mb-2 text-emerald-500">
                                 <DollarSign size={20} />
-                                <span className="text-sm font-semibold uppercase text-slate-600 tracking-wider">Ingresos Mes Actual</span>
+                                <span className="text-sm font-semibold uppercase text-slate-400 tracking-wider">Ingresos Mes Actual</span>
                             </div>
-                            <h3 className="text-2xl font-bold text-emerald-700">
+                            <h3 className="text-2xl font-bold text-emerald-400">
                                 {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(summaryMetrics.totalIncome)}
                             </h3>
                             <p className="text-xs text-slate-500 mt-1">
@@ -216,11 +231,11 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                     </Card>
 
                     {/* Next Expiration */}
-                    <Card className="bg-white border-slate-300">
+                    <Card className="bg-slate-900/50 border-slate-800">
                         <CardContent className="p-4 flex flex-col items-center text-center justify-center">
-                            <div className="flex items-center gap-2 mb-2 text-purple-600">
+                            <div className="flex items-center gap-2 mb-2 text-purple-500">
                                 <Calendar size={20} />
-                                <span className="text-sm font-semibold uppercase text-slate-600 tracking-wider">Próximo Vencimiento</span>
+                                <span className="text-sm font-semibold uppercase text-slate-400 tracking-wider">Próximo Vencimiento</span>
                             </div>
                             {summaryMetrics.nextExpiration ? (
                                 <>
@@ -261,11 +276,11 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                     </Card>
 
                     {/* Next Adjustment */}
-                    <Card className="bg-white border-slate-300">
+                    <Card className="bg-slate-900/50 border-slate-800">
                         <CardContent className="p-4 flex flex-col items-center text-center justify-center">
-                            <div className="flex items-center gap-2 mb-2 text-amber-600">
+                            <div className="flex items-center gap-2 mb-2 text-amber-500">
                                 <Clock size={20} />
-                                <span className="text-sm font-semibold uppercase text-slate-600 tracking-wider">Próxima Actualización</span>
+                                <span className="text-sm font-semibold uppercase text-slate-400 tracking-wider">Próxima Actualización</span>
                             </div>
                             {summaryMetrics.nextAdjustment ? (
                                 <>
@@ -306,13 +321,13 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                     </Card>
 
                     {/* Active Contracts */}
-                    <Card className="bg-white border-slate-300">
+                    <Card className="bg-slate-900/50 border-slate-800">
                         <CardContent className="p-4 flex flex-col items-center text-center justify-center">
-                            <div className="flex items-center gap-2 mb-2 text-blue-600">
+                            <div className="flex items-center gap-2 mb-2 text-blue-500">
                                 <Building2 size={20} />
-                                <span className="text-sm font-semibold uppercase text-slate-600 tracking-wider">Contratos Activos</span>
+                                <span className="text-sm font-semibold uppercase text-slate-400 tracking-wider">Contratos Activos</span>
                             </div>
-                            <h3 className="text-2xl font-bold text-blue-700">
+                            <h3 className="text-2xl font-bold text-blue-400">
                                 {summaryMetrics.count}
                             </h3>
                             <p className="text-xs text-slate-500 mt-1">
@@ -323,32 +338,32 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                 </div>
             )}
 
-            {/* Global Chart Section */}
+            {/* Global Chart Section - Más alto para mejor detalle */}
             {globalData && globalData.history && globalData.history.length > 0 && (
                 <div className="space-y-6">
-                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        <TrendingUp size={24} className="text-emerald-600" />
-                        Histórico Global (Ingresos)
+                    <h2 className="text-xl font-bold text-slate-200 flex items-center gap-2 uppercase text-sm tracking-widest">
+                        <TrendingUp size={24} className="text-emerald-500" />
+                        Evolución Histórica
                     </h2>
 
-                    <Card className="bg-white border-slate-300 shadow-lg">
+                    <Card className="bg-slate-900/50 border-slate-800 shadow-lg break-inside-avoid">
                         <CardHeader>
-                            <CardTitle className="text-slate-900">Evolución Ingresos Totales (USD)</CardTitle>
+                            <CardTitle className="text-slate-200 uppercase text-sm tracking-widest">Evolución Ingresos Totales (USD)</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="h-[300px] w-full" style={{ width: '100%', height: '300px' }}>
+                            <div className="h-[400px] w-full" style={{ width: '100%', height: '400px' }}>
                                 <BarChart
-                                    width={1000}
-                                    height={300}
+                                    width={1100}
+                                    height={400}
                                     data={globalData.history}
                                     margin={{ top: 20, right: 10, left: 0, bottom: 0 }}
                                     isAnimationActive={false}
                                 >
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.5} vertical={false} />
-                                    <XAxis dataKey="monthLabel" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 12 }} tickMargin={10} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.5} vertical={false} />
+                                    <XAxis dataKey="monthLabel" stroke="#475569" tick={{ fill: '#475569', fontSize: 11 }} tickMargin={10} />
                                     <YAxis
                                         stroke="#10b981"
-                                        tick={{ fill: '#10b981', fontSize: 12 }}
+                                        tick={{ fill: '#10b981', fontSize: 11 }}
                                         tickFormatter={(value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}
                                         width={80}
                                     />
@@ -373,8 +388,8 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                 </div>
             )}
 
-            {/* Individual Charts Grid - Using flexbox for better PDF rendering */}
-            <div className="flex flex-wrap gap-6" style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+            {/* Individual Charts Grid - Layout de Grilla Controlada */}
+            <div className="grid grid-cols-2 gap-8">
                 {activeContracts.map((contract) => {
                     const lastInf = [...contract.chartData].reverse().find(d => d.inflationAccum !== null && d.inflationAccum !== undefined)?.inflationAccum ?? 0;
                     const lastDev = [...contract.chartData].reverse().find(d => d.devaluationAccum !== null && d.devaluationAccum !== undefined)?.devaluationAccum ?? 0;
@@ -385,40 +400,39 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                     return (
                         <Card
                             key={contract.contractId}
-                            className="bg-white border-slate-300 shadow-lg break-inside-avoid"
-                            style={{ width: 'calc(50% - 12px)', minWidth: '400px' }}
+                            className="bg-slate-900/40 border-slate-800 break-inside-avoid overflow-hidden"
                         >
-                            <CardHeader className="border-b border-slate-200 pb-4">
+                            <CardHeader className="bg-slate-900/80 border-b border-slate-800 pb-4">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <CardTitle className="text-slate-900 flex items-center gap-3">
+                                        <CardTitle className="text-slate-100 flex items-center gap-3">
                                             {contract.propertyName}
-                                            <span className={`text-xs px-2 py-0.5 rounded border ${contract.currency === 'USD' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-blue-100 text-blue-700 border-blue-300'}`}>
+                                            <span className={`text-xs px-2 py-1 rounded border ${contract.currency === 'USD' ? 'bg-emerald-900/50 text-emerald-400 border-emerald-700' : 'bg-blue-900/50 text-blue-400 border-blue-700'}`}>
                                                 {contract.currency}
                                             </span>
                                         </CardTitle>
-                                        <p className="text-sm text-slate-600 mt-1">{contract.tenantName || 'Inquilino'}</p>
+                                        <p className="text-sm text-slate-400 mt-1">{contract.tenantName || 'Inquilino'}</p>
                                     </div>
 
                                     <div className="flex items-center gap-8">
                                         <div className="flex flex-col items-end gap-1 text-right">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Último</span>
-                                                <span className="text-xl font-mono font-bold text-slate-900">
+                                                <span className="text-xl font-mono font-bold text-slate-100">
                                                     {new Intl.NumberFormat('en-US', {
                                                         style: 'currency',
                                                         currency: 'USD',
                                                         maximumFractionDigits: 0
                                                     }).format(contract.chartData[contract.chartData.length - 1]?.amountUSD || 0)}
                                                 </span>
-                                                {Math.round(lastRent) > Math.round(avgRent) && <Triangle size={10} className="fill-emerald-600 text-emerald-600" />}
-                                                {Math.round(lastRent) < Math.round(avgRent) && <Triangle size={10} className="fill-rose-600 text-rose-600 rotate-180" />}
+                                                {Math.round(lastRent) > Math.round(avgRent) && <Triangle size={10} className="fill-emerald-500 text-emerald-500" />}
+                                                {Math.round(lastRent) < Math.round(avgRent) && <Triangle size={10} className="fill-rose-500 text-rose-500 rotate-180" />}
                                                 {Math.round(lastRent) === Math.round(avgRent) && <Minus size={10} className="text-slate-500" />}
                                             </div>
 
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Promedio</span>
-                                                <span className="text-xl font-mono font-bold text-slate-900">
+                                                <span className="text-xl font-mono font-bold text-slate-100">
                                                     {new Intl.NumberFormat('en-US', {
                                                         style: 'currency',
                                                         currency: 'USD',
@@ -428,34 +442,35 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-col items-end gap-1 border-l border-slate-300 pl-6">
+                                        <div className="flex flex-col items-end gap-1 border-l border-slate-700 pl-6">
                                             <div className="flex items-center gap-2">
-                                                <TrendingUp size={14} className="text-amber-600" />
-                                                <span className="text-xs text-slate-600">Infl. Acum:</span>
-                                                <span className="text-sm text-slate-900 font-mono font-bold">{lastInf.toFixed(1)}%</span>
+                                                <TrendingUp size={14} className="text-amber-500" />
+                                                <span className="text-xs text-slate-400">Infl. Acum:</span>
+                                                <span className="text-sm text-slate-100 font-mono font-bold">{lastInf.toFixed(1)}%</span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <AlertCircle size={14} className="text-rose-600" />
-                                                <span className="text-xs text-slate-600">Dev. Acum:</span>
-                                                <span className="text-sm text-slate-900 font-mono font-bold">{lastDev.toFixed(1)}%</span>
+                                                <AlertCircle size={14} className="text-rose-500" />
+                                                <span className="text-xs text-slate-400">Dev. Acum:</span>
+                                                <span className="text-sm text-slate-100 font-mono font-bold">{lastDev.toFixed(1)}%</span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </CardHeader>
-                            <CardContent className="pt-6">
-                                <div className="h-[300px] w-full" style={{ width: '100%', height: '300px' }}>
+                            <CardContent className="pt-6 bg-slate-900/20">
+                                <div className="h-[320px] w-full" style={{ width: '100%', height: '320px' }}>
                                     <ComposedChart
-                                        width={480}
-                                        height={300}
+                                        width={520}
+                                        height={320}
                                         data={contract.chartData}
                                         margin={{ top: 10, right: 20, left: 10, bottom: 0 }}
+                                        isAnimationActive={false}
                                     >
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.5} vertical={false} />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                                         <XAxis
                                             dataKey="monthLabel"
-                                            stroke="#64748b"
-                                            tick={{ fill: '#64748b', fontSize: 12 }}
+                                            stroke="#475569"
+                                            tick={{ fill: '#475569', fontSize: 11 }}
                                             tickMargin={10}
                                         />
                                         <YAxis
