@@ -444,7 +444,7 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                                     <ResponsiveContainer width="100%" height="100%">
                                         <ComposedChart
                                             data={contract.chartData}
-                                            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                                            margin={{ top: 10, right: 20, left: 10, bottom: 0 }}
                                         >
                                             <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.5} vertical={false} />
                                             <XAxis
@@ -456,17 +456,17 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                                             <YAxis
                                                 yAxisId="left"
                                                 stroke="#10b981"
-                                                tick={{ fill: '#10b981', fontSize: 12 }}
+                                                tick={{ fill: '#10b981', fontSize: 11 }}
                                                 tickFormatter={(value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}
-                                                width={80}
+                                                width={60}
                                             />
                                             <YAxis
                                                 yAxisId="right"
                                                 orientation="right"
                                                 stroke="#f59e0b"
-                                                tick={{ fill: '#f59e0b', fontSize: 12 }}
+                                                tick={{ fill: '#f59e0b', fontSize: 11 }}
                                                 tickFormatter={(value) => `${Math.round(value)}%`}
-                                                width={40}
+                                                width={35}
                                             />
                                             <Tooltip content={<CustomTooltip />} />
                                             <Legend wrapperStyle={{ paddingTop: '10px' }} />
