@@ -336,33 +336,37 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                             <CardTitle className="text-slate-900">Evolución Ingresos Totales (USD)</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="h-[300px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={globalData.history} margin={{ top: 20, right: 10, left: 0, bottom: 0 }} isAnimationActive={false}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.5} vertical={false} />
-                                        <XAxis dataKey="monthLabel" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 12 }} tickMargin={10} />
-                                        <YAxis
-                                            stroke="#10b981"
-                                            tick={{ fill: '#10b981', fontSize: 12 }}
-                                            tickFormatter={(value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}
-                                            width={80}
-                                        />
-                                        <Tooltip content={<CustomTooltip />} />
-                                        <Bar
-                                            dataKey="incomeUSD"
-                                            fill="#10b981"
-                                            radius={[4, 4, 0, 0]}
-                                            name="Ingreso USD"
-                                            isAnimationActive={false}
-                                            label={{
-                                                position: 'top',
-                                                fill: '#10b981',
-                                                fontSize: 11,
-                                                formatter: (value: number) => value > 0 ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value) : ''
-                                            }}
-                                        />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                            <div className="h-[300px] w-full" style={{ width: '100%', height: '300px' }}>
+                                <BarChart
+                                    width={1000}
+                                    height={300}
+                                    data={globalData.history}
+                                    margin={{ top: 20, right: 10, left: 0, bottom: 0 }}
+                                    isAnimationActive={false}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.5} vertical={false} />
+                                    <XAxis dataKey="monthLabel" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 12 }} tickMargin={10} />
+                                    <YAxis
+                                        stroke="#10b981"
+                                        tick={{ fill: '#10b981', fontSize: 12 }}
+                                        tickFormatter={(value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}
+                                        width={80}
+                                    />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Bar
+                                        dataKey="incomeUSD"
+                                        fill="#10b981"
+                                        radius={[4, 4, 0, 0]}
+                                        name="Ingreso USD"
+                                        isAnimationActive={false}
+                                        label={{
+                                            position: 'top',
+                                            fill: '#10b981',
+                                            fontSize: 11,
+                                            formatter: (value: number) => value > 0 ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value) : ''
+                                        }}
+                                    />
+                                </BarChart>
                             </div>
                         </CardContent>
                     </Card>
@@ -440,76 +444,76 @@ export default function RentalsDashboardPrint({ contractsData, globalData }: Pro
                                 </div>
                             </CardHeader>
                             <CardContent className="pt-6">
-                                <div className="h-[300px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <ComposedChart
-                                            data={contract.chartData}
-                                            margin={{ top: 10, right: 20, left: 10, bottom: 0 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.5} vertical={false} />
-                                            <XAxis
-                                                dataKey="monthLabel"
-                                                stroke="#64748b"
-                                                tick={{ fill: '#64748b', fontSize: 12 }}
-                                                tickMargin={10}
-                                            />
-                                            <YAxis
-                                                yAxisId="left"
-                                                stroke="#10b981"
-                                                tick={{ fill: '#10b981', fontSize: 11 }}
-                                                tickFormatter={(value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}
-                                                width={60}
-                                            />
-                                            <YAxis
-                                                yAxisId="right"
-                                                orientation="right"
-                                                stroke="#f59e0b"
-                                                tick={{ fill: '#f59e0b', fontSize: 11 }}
-                                                tickFormatter={(value) => `${Math.round(value)}%`}
-                                                width={35}
-                                            />
-                                            <Tooltip content={<CustomTooltip />} />
-                                            <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                <div className="h-[300px] w-full" style={{ width: '100%', height: '300px' }}>
+                                    <ComposedChart
+                                        width={480}
+                                        height={300}
+                                        data={contract.chartData}
+                                        margin={{ top: 10, right: 20, left: 10, bottom: 0 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.5} vertical={false} />
+                                        <XAxis
+                                            dataKey="monthLabel"
+                                            stroke="#64748b"
+                                            tick={{ fill: '#64748b', fontSize: 12 }}
+                                            tickMargin={10}
+                                        />
+                                        <YAxis
+                                            yAxisId="left"
+                                            stroke="#10b981"
+                                            tick={{ fill: '#10b981', fontSize: 11 }}
+                                            tickFormatter={(value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)}
+                                            width={60}
+                                        />
+                                        <YAxis
+                                            yAxisId="right"
+                                            orientation="right"
+                                            stroke="#f59e0b"
+                                            tick={{ fill: '#f59e0b', fontSize: 11 }}
+                                            tickFormatter={(value) => `${Math.round(value)}%`}
+                                            width={35}
+                                        />
+                                        <Tooltip content={<CustomTooltip />} />
+                                        <Legend wrapperStyle={{ paddingTop: '10px' }} />
 
-                                            <Bar
-                                                yAxisId="left"
-                                                dataKey="amountUSD"
-                                                name="Alquiler USD"
-                                                fill="#10b981"
-                                                radius={[4, 4, 0, 0]}
-                                                maxBarSize={50}
-                                                fillOpacity={0.8}
-                                                isAnimationActive={false}
-                                            />
+                                        <Bar
+                                            yAxisId="left"
+                                            dataKey="amountUSD"
+                                            name="Alquiler USD"
+                                            fill="#10b981"
+                                            radius={[4, 4, 0, 0]}
+                                            maxBarSize={50}
+                                            fillOpacity={0.8}
+                                            isAnimationActive={false}
+                                        />
 
-                                            <Line
-                                                yAxisId="right"
-                                                type="linear"
-                                                dataKey="inflationAccum"
-                                                name="Inf. Acum."
-                                                stroke="#f59e0b"
-                                                strokeWidth={2}
-                                                dot={false}
-                                                isAnimationActive={false}
-                                            />
-                                            <Line
-                                                yAxisId="right"
-                                                type="linear"
-                                                dataKey="devaluationAccum"
-                                                name="Dev. Acum."
-                                                stroke="#f43f5e"
-                                                strokeWidth={2}
-                                                dot={false}
-                                                isAnimationActive={false}
-                                            />
-                                        </ComposedChart>
-                                    </ResponsiveContainer>
+                                        <Line
+                                            yAxisId="right"
+                                            type="linear"
+                                            dataKey="inflationAccum"
+                                            name="Inf. Acum."
+                                            stroke="#f59e0b"
+                                            strokeWidth={2}
+                                            dot={false}
+                                            isAnimationActive={false}
+                                        />
+                                        <Line
+                                            yAxisId="right"
+                                            type="linear"
+                                            dataKey="devaluationAccum"
+                                            name="Dev. Acum."
+                                            stroke="#f43f5e"
+                                            strokeWidth={2}
+                                            dot={false}
+                                            isAnimationActive={false}
+                                        />
+                                    </ComposedChart>
                                 </div>
                             </CardContent>
                         </Card>
                     );
                 })}
             </div>
-        </div>
+        </div >
     );
 }
