@@ -5,6 +5,7 @@ import { calculateFIFO } from '@/app/lib/fifo';
 
 // Types mimicking the return of the Dashboard API
 export interface DashboardStats {
+    investments: any[]; // Raw investments list for tables
     capitalInvertido: number;
     capitalCobrado: number;
     interesCobrado: number;
@@ -350,7 +351,9 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
         type: cf.type
     }));
 
+    // Return plain object, let the caller handle Response wrapping
     return {
+        investments,
         capitalInvertido,
         capitalCobrado,
         interesCobrado,
@@ -361,11 +364,11 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
         tirConsolidada: tirConsolidada ? tirConsolidada * 100 : 0,
         proximoPago: upcomingPayments[0] || null,
         upcomingPayments,
-        portfolioBreakdown: portfolioBreakdown,
-        totalONs: investments.length, // Approx
+        portfolioBreakdown,
+        totalONs: investments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(i.type || '')).length,
         totalInvestments: investments.length,
-        totalTransactions: 0,
+        totalTransactions: investments.reduce((sum, inv) => sum + inv.transactions.length, 0),
         totalCurrentValue: tenenciaTotalValorActual,
-        pnl: null
+        pnl: null // Placeholder, assuming pnl calculation is done elsewhere or not needed here.
     };
 }
