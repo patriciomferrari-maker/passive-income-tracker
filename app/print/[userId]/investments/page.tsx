@@ -28,15 +28,27 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         }
     });
 
+    // Helper to safely convert Prisma Decimals/Strings to Number
+    const toNumber = (val: any): number => {
+        if (val === null || val === undefined) return 0;
+        if (typeof val === 'number') return Number.isFinite(val) ? val : 0;
+        if (typeof val === 'string') return parseFloat(val) || 0;
+        if (typeof val === 'object') {
+            if ('toNumber' in val && typeof val.toNumber === 'function') return val.toNumber();
+            if ('toString' in val && typeof val.toString === 'function') return parseFloat(val.toString()) || 0;
+        }
+        return 0;
+    };
+
     // 1. Calculate Valuation & Allocation
     let totalValueUSD = 0;
     const allocationMap = new Map<string, number>();
 
     const activeInvestments = investments.map(inv => {
-        // Simple valuation: quantity * currentPrice (if set manually) or logic
-        // For now relying on `currentPrice` being populated by trackers
-        const price = inv.currentPrice || 0;
-        const value = inv.quantity * price;
+        // Sanitize core fields immediately
+        const quantity = toNumber(inv.quantity);
+        const currentPrice = toNumber(inv.currentPrice);
+        const value = quantity * currentPrice;
 
         if (value > 0) {
             totalValueUSD += value;
@@ -44,19 +56,37 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
             allocationMap.set(type, (allocationMap.get(type) || 0) + value);
         }
 
+        // Sanitize nested arrays
+        const cleanTransactions = inv.transactions.map(t => ({
+            ...t,
+            amount: toNumber(t.amount),
+            price: toNumber(t.price),
+            totalAmount: toNumber(t.totalAmount),
+            date: t.date.toISOString(),
+            createdAt: undefined,
+            updatedAt: undefined
+        }));
+
+        const cleanCashflows = inv.cashflows.map(c => ({
+            ...c,
+            amount: toNumber(c.amount),
+            date: c.date //.toISOString() (Wait, logic uses Date obj later?)
+            // Logic below uses `cf.date`. We should keep it as Date for logic, then stringify.
+        }));
+
         return {
             ...inv,
+            quantity, // Now a primitive number
+            currentPrice, // Now a primitive number
             maturityDate: inv.maturityDate ? inv.maturityDate.toISOString() : null,
             emissionDate: inv.emissionDate ? inv.emissionDate.toISOString() : null,
             lastPriceDate: inv.lastPriceDate ? inv.lastPriceDate.toISOString() : null,
             createdAt: inv.createdAt.toISOString(),
             updatedAt: inv.updatedAt.toISOString(),
-            currentPrice: price,
-            transactions: inv.transactions.map(t => ({ ...t, date: t.date.toISOString(), createdAt: undefined, updatedAt: undefined })),
-            cashflows: inv.cashflows.map(c => ({ ...c, date: c.date.toISOString() }))
+            transactions: cleanTransactions,
+            cashflows: cleanCashflows
         };
-    }).filter(i => i.quantity > 0 || i.type === 'ON'); // Keep ONs even if quantity is 0? No, usually quantity > 0.
-    // Actually, for ONs, quantity is face value, so it should be > 0.
+    }).filter(i => i.quantity > 0 || i.type === 'ON');
 
     const allocation = Array.from(allocationMap.entries()).map(([name, value]) => ({
         name: name || 'Desconocido',
@@ -79,15 +109,13 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
 
     activeInvestments.forEach(inv => {
         inv.cashflows.forEach(cf => {
+            // cf.date is still a Date object here because we didn't stringify it in the first map (left it for logic)
             if (cf.date <= nextYear && cf.date >= now) {
-                // Determine USD Amount (approx for ARS)
-                let amountUSD = cf.amount;
-                if (cf.currency === 'ARS') amountUSD = cf.amount / 1100; // Hardcoded exchange rate fallback or 0
-                else amountUSD = cf.amount;
+                let amountUSD = cf.amount; // Already a number
+                if (cf.currency === 'ARS') amountUSD = cf.amount / 1100;
 
                 if (Number.isFinite(amountUSD)) {
                     totalIncomeUSD += amountUSD;
-
                     const label = cf.date.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
                     if (monthlyFlowsMap.has(label)) {
                         monthlyFlowsMap.set(label, (monthlyFlowsMap.get(label) || 0) + amountUSD);
@@ -99,13 +127,21 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         });
     });
 
+    // NOW stringify cashflow dates for the client
+    const safeInvestments = activeInvestments.map(inv => ({
+        ...inv,
+        cashflows: inv.cashflows.map(cf => ({
+            ...cf,
+            date: cf.date.toISOString()
+        }))
+    }));
+
     const monthlyFlows = Array.from(monthlyFlowsMap.entries()).map(([monthLabel, amountUSD]) => ({
         monthLabel,
         amountUSD: Number.isFinite(amountUSD) ? Math.round(amountUSD) : 0
     }));
-    // Note: The map iteration order is insertion order, so it stays sorted by date.
 
-    // 3. Yield Estimate (Simple: Annualized Income / Total Value)
+    // 3. Yield Estimate
     let yieldAPY = 0;
     if (totalValueUSD > 0 && Number.isFinite(totalIncomeUSD) && Number.isFinite(totalValueUSD)) {
         yieldAPY = (totalIncomeUSD / totalValueUSD) * 100;
@@ -113,23 +149,6 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
     yieldAPY = Number.isFinite(yieldAPY) ? yieldAPY : 0;
 
     const reportDate = new Date().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
-
-    // Explicitly sanitize investments to primitive numbers
-    const safeInvestments = activeInvestments.map(inv => ({
-        ...inv,
-        quantity: Number(inv.quantity) || 0,
-        currentPrice: inv.currentPrice ? Number(inv.currentPrice) : 0,
-        transactions: inv.transactions.map(t => ({
-            ...t,
-            amount: Number(t.amount),
-            price: Number(t.price),
-            totalAmount: Number(t.totalAmount)
-        })),
-        cashflows: inv.cashflows.map(cf => ({
-            ...cf,
-            amount: Number(cf.amount)
-        }))
-    }));
 
     return {
         investments: safeInvestments as any,
