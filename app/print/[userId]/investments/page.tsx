@@ -28,6 +28,31 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         }
     });
 
+    // 0. Fetch Exchange Rate (Blue Dollar)
+    const latestExchangeRate = await prisma.economicIndicator.findFirst({
+        where: { type: 'TC_USD_ARS' },
+        orderBy: { date: 'desc' }
+    });
+    const exchangeRate = latestExchangeRate?.value || 1160;
+
+    // 0b. Fetch Latest Asset Prices (Mirroring Dashboard Logic)
+    // The Dashboard doesn't trust inv.lastPrice alone; it checks AssetPrice table.
+    const invIds = investments.map(i => i.id);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const recentPrices = await prisma.assetPrice.findMany({
+        where: { investmentId: { in: invIds }, date: { gte: weekAgo } },
+        orderBy: { date: 'desc' }
+    });
+
+    const priceMap: Record<string, number> = {};
+    recentPrices.forEach(p => {
+        // We want the LATEST price for each investment
+        if (!priceMap[p.investmentId]) priceMap[p.investmentId] = p.price;
+    });
+
+
     // Helper to safely convert Prisma Decimals/Strings to Number
     const toNumber = (val: any): number => {
         if (val === null || val === undefined) return 0;
@@ -39,13 +64,6 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         }
         return 0;
     };
-
-    // 0. Fetch Exchange Rate (Blue Dollar)
-    const latestExchangeRate = await prisma.economicIndicator.findFirst({
-        where: { type: 'TC_USD_ARS' },
-        orderBy: { date: 'desc' }
-    });
-    const exchangeRate = latestExchangeRate?.value || 1160;
 
     // 1. Calculate Valuation & Allocation
     let totalValueUSD = 0;
@@ -62,8 +80,8 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         });
 
         // Smart Price Logic
-        // 1. Get raw price (lastPrice)
-        let rawPrice = toNumber(inv.lastPrice);
+        // 1. Get raw price (Try priceMap first, then fallback to lastPrice)
+        let rawPrice = priceMap[inv.id] !== undefined ? priceMap[inv.id] : toNumber(inv.lastPrice);
 
         // 2. Normalize "Per 100" convention (Common for ONs)
         // If price is massive (e.g. 160,000), it's likely ARS per 100.
@@ -103,7 +121,7 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         const cleanCashflows = inv.cashflows.map(c => ({
             ...c,
             amount: toNumber(c.amount),
-            date: c.date //.toISOString() (Wait, logic uses Date obj later?)
+            date: c.date // Date object is kept for logic below
         }));
 
         return {
@@ -141,22 +159,14 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
 
     activeInvestments.forEach(inv => {
         inv.cashflows.forEach(cf => {
+            // cf.date is still a Date object here because we didn't stringify it in the first map (left it for logic)
             if (cf.date <= nextYear && cf.date >= now) {
-                // Determine USD Amount (approx for ARS)
-                let amountUSD = cf.amount; // Already a number from map above? No, we need to access safe number
-                // Actually we rely on `cf.amount` being correct here? 
-                // Wait, `cleanCashflows` above made it a number.
-
-                // Oops, `activeInvestments` map *returns* the new object, but forEach iterates the *result*? 
-                // Check Typescript. map returns new array. We are iterating `activeInvestments` (the new array).
-
+                let amountUSD = cf.amount; // Already a number
                 if (cf.currency === 'ARS') amountUSD = cf.amount / exchangeRate;
 
                 if (Number.isFinite(amountUSD)) {
                     totalIncomeUSD += amountUSD;
-
                     const label = cf.date.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
-                    // Accessing map via key
                     if (monthlyFlowsMap.has(label)) {
                         monthlyFlowsMap.set(label, (monthlyFlowsMap.get(label) || 0) + amountUSD);
                     } else {
@@ -167,7 +177,7 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         });
     });
 
-    // NOW stringify cashflow dates for the client (Fixing the double pass issue)
+    // NOW stringify cashflow dates for the client
     const safeInvestments = activeInvestments.map(inv => ({
         ...inv,
         cashflows: inv.cashflows.map(cf => ({
