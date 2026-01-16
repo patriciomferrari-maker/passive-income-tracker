@@ -17,7 +17,7 @@ import { DollarSign, PieChart as PieIcon, TrendingUp, Calendar, Wallet } from 'l
 
 interface InvestmentTransaction {
     id: string;
-    date: Date;
+    date: string; // Serialized Date
     type: string; // BU, SE, DI, IN, AM
     amount: number;
     price: number;
@@ -27,7 +27,7 @@ interface InvestmentTransaction {
 
 interface InvestmentCashflow {
     id: string;
-    date: Date;
+    date: string; // Serialized Date
     amount: number;
     currency: string;
     type: string;
@@ -254,8 +254,8 @@ export default function InvestmentsDashboardPrint({ investments, globalData, mar
                                         <td className="px-6 py-4 truncate max-w-[200px]">{inv.name}</td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${inv.type === 'ON' ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-800' :
-                                                    inv.type === 'CEDEAR' ? 'bg-blue-900/50 text-blue-400 border border-blue-800' :
-                                                        'bg-slate-800 text-slate-400 border border-slate-700'
+                                                inv.type === 'CEDEAR' ? 'bg-blue-900/50 text-blue-400 border border-blue-800' :
+                                                    'bg-slate-800 text-slate-400 border border-slate-700'
                                                 }`}>
                                                 {inv.type}
                                             </span>

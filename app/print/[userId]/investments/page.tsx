@@ -47,8 +47,8 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         return {
             ...inv,
             currentPrice: price,
-            transactions: inv.transactions, // Type casting needed? 
-            cashflows: inv.cashflows
+            transactions: inv.transactions.map(t => ({ ...t, date: t.date.toISOString(), createdAt: undefined, updatedAt: undefined })),
+            cashflows: inv.cashflows.map(c => ({ ...c, date: c.date.toISOString() }))
         };
     }).filter(i => i.quantity > 0 || i.type === 'ON'); // Keep ONs even if quantity is 0? No, usually quantity > 0.
     // Actually, for ONs, quantity is face value, so it should be > 0.
