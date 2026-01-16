@@ -225,9 +225,11 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
             ticker: inv.ticker,
             name: inv.name,
             tir: calculatedTir ? calculatedTir * 100 : 0,
-            marketTir: inv.theoreticalTir || 0, // Now mapped correctly from enriched list
+            marketTir: inv.theoreticalTir || 0,
             type: inv.type,
-            value: inv.marketValue
+            value: inv.marketValue,
+            invested: costBasis,
+            percentage: 0
         };
     }).filter(i => i.value > 0 || i.tir !== 0);
 
