@@ -11,7 +11,8 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip,
-    Legend
+    Legend,
+    LabelList
 } from 'recharts';
 import { DollarSign, PieChart as PieIcon, TrendingUp, Calendar, Wallet } from 'lucide-react';
 
@@ -57,7 +58,7 @@ interface GlobalInvestmentData {
     totalIncomeUSD: number; // Next 12 months projected
     yieldAPY: number; // Approximate
     allocation: { name: string; value: number; fill: string }[];
-    monthlyFlows: { monthLabel: string; amountUSD: number }[];
+    monthlyFlows: { monthLabel: string; interest: number; amortization: number; total: number }[];
 }
 
 // Use DashboardStats for extended data
@@ -123,7 +124,7 @@ export default function InvestmentsDashboardPrint({ investments, globalData, sta
             </div>
 
             {/* Top KPI Cards (High Level) */}
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 gap-4">
                 {/* Valuation */}
                 <Card className="bg-slate-900/50 border-slate-800">
                     <CardContent className="p-4 flex flex-col items-center text-center justify-center">
@@ -165,23 +166,9 @@ export default function InvestmentsDashboardPrint({ investments, globalData, sta
                         <p className="text-xs text-slate-500 mt-1">Próx. 12 meses</p>
                     </CardContent>
                 </Card>
-
-                {/* ROI */}
-                <Card className="bg-slate-900/50 border-slate-800">
-                    <CardContent className="p-4 flex flex-col items-center text-center justify-center">
-                        <div className="flex items-center gap-2 mb-2 text-purple-500">
-                            <PieIcon size={20} />
-                            <span className="text-sm font-semibold uppercase text-slate-400 tracking-wider">Retorno Total</span>
-                        </div>
-                        <h3 className="text-2xl font-bold text-purple-400">
-                            {(stats?.roi || 0).toFixed(2)}%
-                        </h3>
-                        <p className="text-xs text-slate-500 mt-1">ROI Histórico</p>
-                    </CardContent>
-                </Card>
             </div>
 
-            {/* Cashflow Breakdown Cards (Requested Improvement) */}
+            {/* Cashflow Breakdown Cards */}
             {stats && (
                 <div className="grid grid-cols-4 gap-4">
                     <Card className="bg-slate-900/30 border-slate-800">
@@ -213,7 +200,7 @@ export default function InvestmentsDashboardPrint({ investments, globalData, sta
 
             {/* Charts Area */}
             <div className="grid grid-cols-2 gap-8 h-[350px]">
-                {/* TIR Comparison Chart (New) */}
+                {/* TIR Comparison Chart */}
                 <Card className="bg-slate-900/50 border-slate-800 break-inside-avoid">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-slate-200 uppercase text-sm tracking-widest text-center">TIR vs Mercado</CardTitle>
@@ -232,13 +219,17 @@ export default function InvestmentsDashboardPrint({ investments, globalData, sta
                             <YAxis stroke="#475569" tick={{ fill: '#475569', fontSize: 11 }} tickFormatter={(val) => `${val}%`} />
                             <Tooltip content={<CustomTooltip />} />
                             <Legend />
-                            <Bar dataKey="marketTir" fill="#8b5cf6" name="TIR Mercado" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                            <Bar dataKey="userTir" fill="#10b981" name="Tu TIR" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                            <Bar dataKey="marketTir" fill="#8b5cf6" name="TIR Mercado" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                                <LabelList dataKey="marketTir" position="top" fill="#8b5cf6" fontSize={10} formatter={(val: number) => val.toFixed(1) + '%'} />
+                            </Bar>
+                            <Bar dataKey="userTir" fill="#10b981" name="Tu TIR" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                                <LabelList dataKey="userTir" position="top" fill="#10b981" fontSize={10} formatter={(val: number) => val.toFixed(1) + '%'} />
+                            </Bar>
                         </BarChart>
                     </CardContent>
                 </Card>
 
-                {/* Projected Flows (Existing) */}
+                {/* Projected Flows (Stacked) */}
                 <Card className="bg-slate-900/50 border-slate-800 break-inside-avoid">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-slate-200 uppercase text-sm tracking-widest text-center">Flujo Mensual (Próx. 12)</CardTitle>
@@ -255,7 +246,11 @@ export default function InvestmentsDashboardPrint({ investments, globalData, sta
                             <XAxis dataKey="monthLabel" stroke="#475569" tick={{ fill: '#475569', fontSize: 11 }} />
                             <YAxis stroke="#475569" tick={{ fill: '#475569', fontSize: 11 }} tickFormatter={(val) => `$${val}`} />
                             <Tooltip content={<CustomTooltip />} />
-                            <Bar dataKey="amountUSD" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Ingreso USD" isAnimationActive={false} />
+                            <Legend />
+                            <Bar dataKey="interest" stackId="a" fill="#10b981" name="Interés" isAnimationActive={false} />
+                            <Bar dataKey="amortization" stackId="a" fill="#3b82f6" name="Amortización" isAnimationActive={false} radius={[4, 4, 0, 0]}>
+                                <LabelList dataKey="total" position="top" fill="#cbd5e1" fontSize={10} formatter={(val: number) => `$${val.toFixed(0)}`} />
+                            </Bar>
                         </BarChart>
                     </CardContent>
                 </Card>

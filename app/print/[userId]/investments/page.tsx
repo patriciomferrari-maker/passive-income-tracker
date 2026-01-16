@@ -21,20 +21,38 @@ export default async function InvestmentsReportPage({ params, searchParams }: Pa
     // Prepare Global Data for the Print Component
     // Map stats to the GlobalData interface expected by the view
     // Note: We aggregate monthly flows here since the view expects summarized data
-    const monthlyFlowsMap: Record<string, number> = {};
+    // Aggregate monthly flows by type (Interest vs Limit)
+    const monthlyFlowsMap: Record<string, { interest: number; amortization: number; sortKey: number }> = {};
     const today = new Date();
 
-    stats.upcomingPayments.forEach(pay => {
+    // Sort by date first to ensure map insertion order (usually keys are ordered by insertion in JS, but better to map later)
+    stats.upcomingPayments.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).forEach(pay => {
         const d = new Date(pay.date);
-        // Label format: "MMM" (Jan, Feb...)
-        const label = format(d, 'MMM', { locale: es });
-        monthlyFlowsMap[label] = (monthlyFlowsMap[label] || 0) + pay.amount;
+        // Key: "MMM yyyy" to distinguish years
+        const label = format(d, 'MMM yyyy', { locale: es });
+        const sortKey = d.getFullYear() * 100 + d.getMonth();
+
+        if (!monthlyFlowsMap[label]) {
+            monthlyFlowsMap[label] = { interest: 0, amortization: 0, sortKey };
+        }
+
+        if (pay.type === 'INTEREST') {
+            monthlyFlowsMap[label].interest += pay.amount;
+        } else {
+            // Amortization (or others)
+            monthlyFlowsMap[label].amortization += pay.amount;
+        }
     });
 
-    const monthlyFlows = Object.entries(monthlyFlowsMap).map(([label, amount]) => ({
-        monthLabel: label.charAt(0).toUpperCase() + label.slice(1), // Capitalize
-        amountUSD: amount
-    }));
+    const monthlyFlows = Object.entries(monthlyFlowsMap)
+        .sort(([, a], [, b]) => a.sortKey - b.sortKey)
+        .slice(0, 12) // Limit to 12 months
+        .map(([label, data]) => ({
+            monthLabel: label.charAt(0).toUpperCase() + label.slice(1), // Capitalize
+            interest: data.interest,
+            amortization: data.amortization,
+            total: data.interest + data.amortization
+        }));
 
     // Asset Allocation (for Pie Chart)
     const allocation = stats.portfolioBreakdown.map(item => ({
