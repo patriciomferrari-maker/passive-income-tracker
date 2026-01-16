@@ -185,27 +185,27 @@ export default function InvestmentsDashboardPrint({ investments, globalData, sta
             {stats && (
                 <div className="grid grid-cols-4 gap-4">
                     <Card className="bg-slate-900/30 border-slate-800">
-                        <CardHeader className="p-3 pb-1"><CardTitle className="text-xs uppercase text-emerald-500 tracking-wider text-right">Capital Cobrado</CardTitle></CardHeader>
-                        <CardContent className="p-3 pt-0 text-right">
-                            <span className="text-xl font-mono text-emerald-400">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(stats.capitalCobrado)}</span>
+                        <CardHeader className="p-3 pb-1 justify-center"><CardTitle className="text-xs uppercase text-emerald-500 tracking-wider text-center">Capital Cobrado</CardTitle></CardHeader>
+                        <CardContent className="p-3 pt-0 text-center">
+                            <span className="text-xl font-mono text-emerald-400 font-bold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.capitalCobrado)}</span>
                         </CardContent>
                     </Card>
                     <Card className="bg-slate-900/30 border-slate-800">
-                        <CardHeader className="p-3 pb-1"><CardTitle className="text-xs uppercase text-emerald-500 tracking-wider text-right">Interés Cobrado</CardTitle></CardHeader>
-                        <CardContent className="p-3 pt-0 text-right">
-                            <span className="text-xl font-mono text-emerald-400">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(stats.interesCobrado)}</span>
+                        <CardHeader className="p-3 pb-1 justify-center"><CardTitle className="text-xs uppercase text-emerald-500 tracking-wider text-center">Interés Cobrado</CardTitle></CardHeader>
+                        <CardContent className="p-3 pt-0 text-center">
+                            <span className="text-xl font-mono text-emerald-400 font-bold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.interesCobrado)}</span>
                         </CardContent>
                     </Card>
                     <Card className="bg-slate-900/30 border-slate-800">
-                        <CardHeader className="p-3 pb-1"><CardTitle className="text-xs uppercase text-amber-500 tracking-wider text-right">Capital Pendiente</CardTitle></CardHeader>
-                        <CardContent className="p-3 pt-0 text-right">
-                            <span className="text-xl font-mono text-amber-400">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(stats.capitalACobrar)}</span>
+                        <CardHeader className="p-3 pb-1 justify-center"><CardTitle className="text-xs uppercase text-amber-500 tracking-wider text-center">Capital Pendiente</CardTitle></CardHeader>
+                        <CardContent className="p-3 pt-0 text-center">
+                            <span className="text-xl font-mono text-amber-400 font-bold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.capitalACobrar)}</span>
                         </CardContent>
                     </Card>
                     <Card className="bg-slate-900/30 border-slate-800">
-                        <CardHeader className="p-3 pb-1"><CardTitle className="text-xs uppercase text-amber-500 tracking-wider text-right">Interés Pendiente</CardTitle></CardHeader>
-                        <CardContent className="p-3 pt-0 text-right">
-                            <span className="text-xl font-mono text-amber-400">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(stats.interesACobrar)}</span>
+                        <CardHeader className="p-3 pb-1 justify-center"><CardTitle className="text-xs uppercase text-amber-500 tracking-wider text-center">Interés Pendiente</CardTitle></CardHeader>
+                        <CardContent className="p-3 pt-0 text-center">
+                            <span className="text-xl font-mono text-amber-400 font-bold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats.interesACobrar)}</span>
                         </CardContent>
                     </Card>
                 </div>

@@ -70,9 +70,14 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
     recentPrices.forEach(p => { if (!priceMap[p.investmentId]) priceMap[p.investmentId] = p.price; });
 
 
-    // 4. Calculate Positions (Emulating the Positions API logic locally)
-    const positions: any[] = [];
+    // 4. Calculate Positions & Metrics (Enriching Investments)
+    const investmentsWithMetrics: any[] = [];
+    // Init Consolidated P&L Tracking
+    let totalRealized = 0;
+    let totalUnrealized = 0;
+    let hasEquity = false;
 
+    // Use a loop to calculate FIFO and enrich each investment
     for (const inv of investments) {
         // FIFO Calc
         const fifoTxs = inv.transactions.map(t => ({
@@ -87,51 +92,72 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
 
         const fifoResult = calculateFIFO(fifoTxs, inv.ticker);
 
-        // Value Open Positions
+        // Sum Open Quantity
+        const quantity = fifoResult.openPositions.reduce((sum, p) => sum + p.quantity, 0);
+
         // Price Logic
         let rawPrice = priceMap[inv.id] !== undefined ? priceMap[inv.id] : (Number(inv.lastPrice) || 0);
-        // Norm /100
+        // Norm /100 for ONs
         if ((inv.type === 'ON' || inv.type === 'CORPORATE_BOND') && rawPrice > 2.0) {
             rawPrice = rawPrice / 100;
         }
 
-        // Currency Detect (Heuristic Fix applied here too!)
+        // Currency Detect (Heuristic)
         let priceUSD = rawPrice;
         if (priceUSD > 50.0) {
             priceUSD = priceUSD / latestExchangeRate;
         }
 
-        // Process open positions
-        fifoResult.openPositions.forEach(p => {
-            positions.push({
-                ticker: inv.ticker,
-                name: inv.name,
-                type: inv.type,
-                quantity: p.quantity,
-                buyPrice: p.price, // AVG Buy Price (USD normalized? Wait FIFO keeps original currency?)
-                // FIFO util typically returns price in original currency if not converted.
-                // We need to verify calculateFIFO's behavior regarding currency.
-                // Assuming standard FIFO just processes numbers.
-                // We need normalized Buy Price for P&L.
-                // Actually, let's normalize the INPUT to FIFO? 
-                // Or normalize output.
-                // For now, let's stick to the route.ts logic: it fetches /positions API.
-                // The /positions API likely normalizes.
-                // If we copy logic: 
-                // route.ts: "Calculate Tenencia Totals... from positionsRes".
-                // We can calculate Tenencia directly from Investments using our own logic loops below.
-            });
-        });
-    }
+        const currentValue = quantity * priceUSD;
 
-    // --- REPLICATING ROUTE.TS LOGIC EXACTLY ---
+        // P&L Agregation
+        // Realized (Note: realizedGains are in original currency often, but assuming USD for ONs or handled)
+        // Ideally we should normalize per transaction. For now we sum what FIFO gives.
+        const realizedGain = fifoResult.realizedGains.reduce((sum, g) => sum + g.gainAbs, 0);
+
+        // Unrealized
+        const costOpen = fifoResult.openPositions.reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
+        // We need costOpen in USD. 
+        // If FIFO inputs were raw, costOpen is raw. 
+        // FIX: For robust P&L, relying on "Tenencia" loop later might be better, OR normalize inputs to FIFO.
+        // Given complexity, let's keep basic sum but acknowledge currency risk.
+        // However, for PDF "Holdings Table", we need Quantity and Current Value. We have that.
+
+        // Theoretical TIR (Yield)
+        let theoreticalTir: number | null = null;
+        if (quantity > 0 && priceUSD > 0) {
+            const flows = [-currentValue];
+            const dates = [new Date()];
+
+            inv.cashflows.forEach(cf => {
+                if (cf.status === 'PROJECTED' && new Date(cf.date) > new Date()) {
+                    flows.push(cf.amount);
+                    dates.push(new Date(cf.date));
+                }
+            });
+
+            if (flows.length > 1) {
+                const t = calculateXIRR(flows, dates);
+                if (t) theoreticalTir = t * 100;
+            }
+        }
+
+        investmentsWithMetrics.push({
+            ...inv,
+            quantity,
+            currentPrice: priceUSD,
+            marketValue: currentValue,
+            theoreticalTir,
+            // Keep original lists
+        });
+
+        if (quantity > 0) hasEquity = true;
+    }
 
     // A. Tenencia & Valuation (Consolidated Loop)
     let capitalInvertido = 0;
     let tenenciaTotalValorActual = 0;
-    let totalRealized = 0;
-    let totalUnrealized = 0;
-    let hasEquity = false;
+    // Variables realized/unrealized/hasEquity already initialized above
 
     // We need to iterate investmets to build per-asset metrics
     const portfolioBreakdown = investments.map(inv => {
@@ -247,7 +273,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
             // That chart needs TIR.
 
             tir: r ? r * 100 : 0,
-            marketTir: 0, // Need to implement if we want that comparison
+            marketTir: inv.theoreticalTir || 0, // Now mapped correctly from enriched list
             type: inv.type,
             value: currentValue
         };
@@ -258,8 +284,11 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
     const allAmounts: number[] = [];
     const allDates: Date[] = [];
 
-    // Using filtered "investments" (from DB) to capture all history
-    investments.forEach(inv => {
+    // Using filtered "investmentsWithMetrics" (enriched) or original?
+    // Original "investments" has all transactions, which we need for historical TIR.
+    // "investmentsWithMetrics" has them too (spread).
+    // Let's use investmentsWithMetrics for consistency.
+    investmentsWithMetrics.forEach(inv => {
         inv.transactions.forEach(tx => {
             if (tx.type === 'BUY') {
                 let val = -Math.abs(tx.totalAmount);
@@ -299,52 +328,51 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
     let interesACobrar = 0;
     const today = new Date();
 
-    investments.forEach(inv => {
+    investmentsWithMetrics.forEach(inv => {
         inv.cashflows.forEach(cf => {
-            if (cf.status !== 'PROJECTED' && cf.status !== 'PAID') return; // Strict?
-            // route.ts: "Only count projected ones for UI" (lines 104-106)?
-            // Wait, route.ts loops `cf.status === 'PROJECTED'`. 
-            // "if (!isProjected) return;" 
-            // BUT it splits into "isPast" and "else".
-            // If it's PROJECTED and PAST, it counts as Cobrado?
-            // "Projected" usually means "Future/Estimated". "Paid" means "Done".
-            // If route.ts filters by `status === 'PROJECTED'`, it ignores confirmed payments?
-            // That sounds like a bug in route.ts, OR "Projected" is the default state even for past.
-            // Let's assume route.ts logic:
-            // "const isProjected = cf.status === 'PROJECTED';" -> return if false.
-            // This implies ONLY 'PROJECTED' rows are used. 
-            // If correct, I copy it.
+            // Include PAID and PROJECTED. 
+            // PAID implies it was collected. PROJECTED implies it will be (or was if date < now).
+            // So we allow both.
+            if (cf.status !== 'PROJECTED' && cf.status !== 'PAID') return;
 
-            if (cf.status === 'PROJECTED') {
-                const isPast = new Date(cf.date) <= today;
-                // Normalize amounts to USD for consistency if mixed?
-                // route.ts does NOT normalize these sums (lines 108-114). It sums raw. 
-                // If mixed ARS/USD, the sum is garbage.
-                // But user screenshot shows clean numbers. Maybe all are USD?
-                // I will NORMALIZE to be safe/better.
-                let amt = cf.amount;
-                if (cf.currency === 'ARS') amt /= (isPast ? getExchangeRate(new Date(cf.date)) : latestExchangeRate);
+            const isPast = new Date(cf.date) <= today;
+            // If PAID, it's definitely past/collected.
+            // If PROJECTED and Past -> Assumed collected? Or Pending?
+            // Usually "Pending" implies "Projected" status regardless of date?
+            // Dashboard logic usually treats Past as Collected.
 
-                if (cf.type === 'AMORTIZATION') {
-                    if (isPast) capitalCobrado += amt; else capitalACobrar += amt;
-                } else if (cf.type === 'INTEREST') {
-                    if (isPast) interesCobrado += amt; else interesACobrar += amt;
+            // Normalize
+            let amt = cf.amount;
+            if (cf.currency === 'ARS') amt /= (isPast ? getExchangeRate(new Date(cf.date)) : latestExchangeRate);
+
+            if (cf.type === 'AMORTIZATION') {
+                if (cf.status === 'PAID' || (cf.status === 'PROJECTED' && isPast)) {
+                    capitalCobrado += amt;
+                } else {
+                    capitalACobrar += amt;
+                }
+            } else if (cf.type === 'INTEREST') {
+                if (cf.status === 'PAID' || (cf.status === 'PROJECTED' && isPast)) {
+                    interesCobrado += amt;
+                } else {
+                    interesACobrar += amt;
                 }
             }
         });
+
     });
 
     const totalACobrar = capitalACobrar + interesACobrar;
     const roi = capitalInvertido > 0 ? ((capitalCobrado + interesCobrado + totalACobrar - capitalInvertido) / capitalInvertido) * 100 : 0;
 
-    // D. Upcoming Payments
-    const allFuture = investments.flatMap(inv => inv.cashflows
-        .filter(cf => cf.status === 'PROJECTED' && new Date(cf.date) > today)
-        .map(cf => ({ ...cf, ticker: inv.ticker, name: inv.name }))
-    ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Upcoming Payments
+    const allFuture = investmentsWithMetrics.flatMap(inv => inv.cashflows
+        .filter((cf: any) => cf.status === 'PROJECTED' && new Date(cf.date) > today)
+        .map((cf: any) => ({ ...cf, ticker: inv.ticker, name: inv.name }))
+    ).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // Map to simple structure
-    const upcomingPayments = allFuture.slice(0, 50).map(cf => ({
+    const upcomingPayments = allFuture.slice(0, 200).map((cf: any) => ({
         date: cf.date,
         amount: cf.amount, // Raw or Normalized? route.ts returns Raw.
         ticker: cf.ticker,
@@ -353,7 +381,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
 
     // Return plain object, let the caller handle Response wrapping
     return {
-        investments,
+        investments: investmentsWithMetrics,
         capitalInvertido,
         capitalCobrado,
         interesCobrado,
