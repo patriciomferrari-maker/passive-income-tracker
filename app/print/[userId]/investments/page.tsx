@@ -212,10 +212,12 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
     }).filter(i => i.quantity > 0 || i.type === 'ON');
 
     // Add current portfolio value as a final cashflow for XIRR calculation
-    if (totalValueUSD > 0) {
-        tirAmounts.push(totalValueUSD);
-        tirDates.push(new Date());
-    }
+    // REMOVED: Dashboard logic (YTM) relies on Projected Future Flows as terminal value.
+    // Adding Current Value as well causes double counting.
+    // if (totalValueUSD > 0) {
+    //    tirAmounts.push(totalValueUSD);
+    //    tirDates.push(new Date());
+    // }
 
     const allocation = Array.from(allocationMap.entries()).map(([name, value]) => ({
         name: name || 'Desconocido',
