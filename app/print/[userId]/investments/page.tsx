@@ -133,7 +133,10 @@ export default async function PrintInvestmentsPage({ params, searchParams }: Pag
     }
 
     const selectedMarket = market || 'ARG';
-    const data = await getDashboardData(userId, selectedMarket);
+    const rawData = await getDashboardData(userId, selectedMarket);
+
+    // NUCLEAR FIX: Verify strict serialization by parsing/stringifying
+    const data = JSON.parse(JSON.stringify(rawData));
 
     return (
         <InvestmentsDashboardPrint
