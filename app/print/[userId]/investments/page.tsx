@@ -1,7 +1,7 @@
 
 import { prisma } from '@/lib/prisma';
-import { notFound } from 'next/navigation';
-import { differenceInMonths, addMonths } from 'date-fns';
+import InvestmentsDashboardPrint from './InvestmentsDashboardPrint';
+import { addMonths } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,11 +10,11 @@ interface PageProps {
     searchParams: Promise<{ secret?: string; market?: 'ARG' | 'USA' }>;
 }
 
-async function getInvestmentData(userId: string, market?: 'ARG' | 'USA') {
+async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
     const investments = await prisma.investment.findMany({
         where: {
             userId,
-            ...(market ? { market } : {})
+            market
         },
         include: {
             transactions: true,
@@ -23,34 +23,99 @@ async function getInvestmentData(userId: string, market?: 'ARG' | 'USA') {
                     date: { gte: new Date() },
                     status: 'PROJECTED'
                 },
-                orderBy: { date: 'asc' },
-                take: 20
+                orderBy: { date: 'asc' }
             }
         }
     });
 
-    // Simple valuation logic (Market Value)
-    // ...
-    // Future Flows (Next 3 Months)
-    const now = new Date();
-    const threeMonths = addMonths(now, 3);
-    const flows: any[] = [];
+    // 1. Calculate Valuation & Allocation
+    let totalValueUSD = 0;
+    const allocationMap = new Map<string, number>();
 
-    for (const inv of investments) {
-        // ... (existing logic)
-        const relevantFlows = inv.cashflows.filter(cf => cf.date <= threeMonths);
-        flows.push(...relevantFlows.map(cf => ({
-            date: cf.date,
-            ticker: inv.ticker || inv.name,
-            type: cf.type,
-            amount: cf.amount,
-            currency: cf.currency
-        })));
+    const activeInvestments = investments.map(inv => {
+        // Simple valuation: quantity * currentPrice (if set manually) or logic
+        // For now relying on `currentPrice` being populated by trackers
+        const price = inv.currentPrice || 0;
+        const value = inv.quantity * price;
+
+        if (value > 0) {
+            totalValueUSD += value;
+            const type = inv.type || 'OTRO';
+            allocationMap.set(type, (allocationMap.get(type) || 0) + value);
+        }
+
+        return {
+            ...inv,
+            currentPrice: price,
+            transactions: inv.transactions, // Type casting needed? 
+            cashflows: inv.cashflows
+        };
+    }).filter(i => i.quantity > 0 || i.type === 'ON'); // Keep ONs even if quantity is 0? No, usually quantity > 0.
+    // Actually, for ONs, quantity is face value, so it should be > 0.
+
+    const allocation = Array.from(allocationMap.entries()).map(([name, value]) => ({
+        name,
+        value,
+        fill: '#cccccc' // Will be overridden by component
+    })).sort((a, b) => b.value - a.value);
+
+    // 2. Projected Income (Next 12 Months)
+    const now = new Date();
+    const nextYear = addMonths(now, 12);
+    let totalIncomeUSD = 0;
+    const monthlyFlowsMap = new Map<string, number>();
+
+    // Initial 12 months buckets
+    for (let i = 0; i < 12; i++) {
+        const d = addMonths(now, i);
+        const label = d.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
+        monthlyFlowsMap.set(label, 0);
     }
 
+    activeInvestments.forEach(inv => {
+        inv.cashflows.forEach(cf => {
+            if (cf.date <= nextYear && cf.date >= now) {
+                // Determine USD Amount (approx for ARS)
+                let amountUSD = cf.amount;
+                if (cf.currency === 'ARS') amountUSD = cf.amount / 1100; // Hardcoded exchange rate fallback or 0
+                else amountUSD = cf.amount;
+
+                totalIncomeUSD += amountUSD;
+
+                const label = cf.date.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
+                // We might need strict Key matching (Month/Year indices) to avoid locale issues
+                // But map.has(label) works if generated same way.
+                // Let's use a simpler approach key: "YYYY-MM"
+                if (monthlyFlowsMap.has(label)) {
+                    monthlyFlowsMap.set(label, (monthlyFlowsMap.get(label) || 0) + amountUSD);
+                } else {
+                    // Try to match created keys (sometimes date differs slightly)
+                    // For simplicity, just add if it matches the bucket roughly?
+                    // Let's stick to strict map for "dashboard-y" feel
+                    monthlyFlowsMap.set(label, (monthlyFlowsMap.get(label) || 0) + amountUSD);
+                }
+            }
+        });
+    });
+
+    const monthlyFlows = Array.from(monthlyFlowsMap.entries()).map(([monthLabel, amountUSD]) => ({
+        monthLabel,
+        amountUSD: Math.round(amountUSD)
+    }));
+    // Note: The map iteration order is insertion order, so it stays sorted by date.
+
+    // 3. Yield Estimate (Simple: Annualized Income / Total Value)
+    const yieldAPY = totalValueUSD > 0 ? (totalIncomeUSD / totalValueUSD) * 100 : 0;
+
     return {
-        investments,
-        futureFlows: flows.sort((a, b) => a.date.getTime() - b.date.getTime())
+        investments: activeInvestments as any,
+        globalData: {
+            totalValueUSD,
+            totalIncomeUSD,
+            yieldAPY,
+            allocation,
+            monthlyFlows
+        }
     };
 }
 
@@ -59,56 +124,17 @@ export default async function PrintInvestmentsPage({ params, searchParams }: Pag
     const { secret, market } = await searchParams;
 
     if (secret !== process.env.CRON_SECRET) {
-        return <div className="text-red-500">Unauthorized</div>;
+        return <div className="text-red-500 p-8">Unauthorized</div>;
     }
 
-    const data = await getInvestmentData(userId, market);
-    const title = market === 'ARG' ? 'Inversiones Argentina' : (market === 'USA' ? 'Inversiones USA' : 'Reporte de Inversiones');
+    const selectedMarket = market || 'ARG';
+    const data = await getDashboardData(userId, selectedMarket);
 
     return (
-        <div className="p-8 max-w-4xl mx-auto space-y-8">
-            <h1 className="text-3xl font-bold border-b pb-4">{title}</h1>
-
-            {/* 1. Valuation Summary */}
-            <div className="grid grid-cols-2 gap-4">
-                <div className="print-card border p-4 rounded bg-slate-50">
-                    <h3 className="font-bold text-slate-500 text-sm uppercase">Flujos Proyectados (3 Meses)</h3>
-                    <p className="text-2xl font-bold">{data.futureFlows.length} Eventos</p>
-                </div>
-            </div>
-
-            {/* 2. Future Flows Table */}
-            <div className="print-card border rounded overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-slate-100 border-b">
-                        <tr>
-                            <th className="p-2 text-left">Fecha</th>
-                            <th className="p-2 text-left">Activo</th>
-                            <th className="p-2 text-left">Evento</th>
-                            <th className="p-2 text-right">Monto</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {data.futureFlows.map((flow, idx) => (
-                            <tr key={idx} className="border-b last:border-0">
-                                <td className="p-2">{flow.date.toLocaleDateString()}</td>
-                                <td className="p-2 font-semibold">{flow.ticker}</td>
-                                <td className="p-2 capitalize">{flow.type.toLowerCase()}</td>
-                                <td className="p-2 text-right font-mono">
-                                    {flow.currency} {flow.amount.toLocaleString()}
-                                </td>
-                            </tr>
-                        ))}
-                        {data.futureFlows.length === 0 && (
-                            <tr><td colSpan={4} className="p-4 text-center text-slate-400">Sin cobros próximos</td></tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
-            <div className="text-center text-xs text-slate-400 mt-8">
-                Generado para uso interno
-            </div>
-        </div>
+        <InvestmentsDashboardPrint
+            investments={data.investments}
+            globalData={data.globalData}
+            market={selectedMarket}
+        />
     );
 }

@@ -422,12 +422,33 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                         }
 
                         if (process.env.CRON_SECRET) {
-                            /*
+
                             // 1. Inversiones Argentina
-                            if (hasArg) {
+                            // Condition: Active CEDEAR/ETF (qty > 0) OR Active ON (Maturity > Now)
+                            const argInvestments = await prisma.investment.findMany({
+                                where: { userId: user.id, market: 'ARG' }
+                            });
+
+                            const hasActiveArg = argInvestments.some(inv => {
+                                const isEquity = ['CEDEAR', 'ETF', 'ACCION'].includes(inv.type || '');
+                                const isON = ['ON', 'CORPORATE_BOND'].includes(inv.type || '');
+
+                                if (isEquity) return inv.quantity > 0;
+                                if (isON) {
+                                    // Check maturity if available, otherwise fallback to quantity
+                                    if (inv.maturityDate) {
+                                        return new Date(inv.maturityDate) > now;
+                                    }
+                                    return inv.quantity > 0;
+                                }
+                                return inv.quantity > 0; // Default for others (FCI, etc)
+                            });
+
+                            if (hasActiveArg) {
                                 try {
+                                    console.log(`Generating ARG Investments PDF for user ${user.id}...`);
                                     const pdf = await generateDashboardPdf(user.id, 'investments', appUrl, process.env.CRON_SECRET, { market: 'ARG' });
-                                    attachments.push({ filename: `Inversiones_Argentina_${monthName}.pdf`, content: pdf });
+                                    attachments.push({ filename: `Inversiones_Argentina_${monthName}_${year}.pdf`, content: pdf });
                                 } catch (e) { console.error('Error generating Arg Investments PDF:', e); }
                             }
 
@@ -457,11 +478,19 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             */
 
                             // 5. Rentals
-                            if (hasRentals) {
+                            // Strict check: Only attach PDF if there are ACTIVE contracts
+                            const activeContractsCount = contracts.filter(c => {
+                                const start = new Date(c.startDate);
+                                const end = addMonths(start, c.durationMonths);
+                                return start <= now && end >= now;
+                            }).length;
+
+                            if (activeContractsCount > 0) {
                                 try {
+                                    console.log(`Generating Rentals PDF for user ${user.id} (Active Contracts: ${activeContractsCount})...`);
                                     const pdf = await generateDashboardPdf(user.id, 'rentals', appUrl, process.env.CRON_SECRET);
                                     // Use clearer filename as per request? "Resumen_Alquileres" sounds good.
-                                    attachments.push({ filename: `Resumen_Alquileres_${monthName}.pdf`, content: pdf });
+                                    attachments.push({ filename: `Resumen_Alquileres_${monthName}_${year}.pdf`, content: pdf });
                                 } catch (e) { console.error('Error generating Rentals PDF:', e); }
                             }
 
