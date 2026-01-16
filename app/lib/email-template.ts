@@ -141,7 +141,7 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                         <span style="color: ${color}; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">${label}</span>
                         <div style="color: #1e293b; font-weight: 500; margin-top: 4px;">${e.property}</div>
                    </td>
-                   <td width="30%" align="right" style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; text-align: right;">
+                   <td width="30%" align="right" style="padding: 12px 0px 12px 16px; border-bottom: 1px solid #f1f5f9; text-align: right;">
                         <div style="color: #0f172a; font-weight: 600; text-align: right;">${format(e.date, 'MMM yyyy', { locale: es }).toUpperCase()}</div>
                         <div style="color: #94a3b8; font-size: 11px; text-align: right;">Faltan ${e.monthsTo} meses</div>
                    </td> 
