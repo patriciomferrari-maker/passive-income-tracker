@@ -426,8 +426,8 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                         </h2>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Income Bar Chart */}
-                            <Card className="bg-slate-950 border-slate-800 lg:col-span-2 shadow-lg print:border-slate-300 print:bg-white">
+                            {/* Income Bar Chart - Adaptive Width */}
+                            <Card className={`bg-slate-950 border-slate-800 shadow-lg print:border-slate-300 print:bg-white ${(globalData?.currencyDistribution?.owner?.USD > 0 || globalData?.currencyDistribution?.owner?.ARS > 0) ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
                                 <CardHeader>
                                     <CardTitle className="text-white print:text-slate-900">Evolución Ingresos Totales ({currency})</CardTitle>
                                 </CardHeader>
@@ -471,7 +471,36 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                 </CardContent>
                             </Card>
 
-                            {/* Income Pie Chart ... (No change needed here as it already splits USD/ARS) */}
+                            {/* Income Pie Chart - Restored & Conditional */}
+                            {(globalData?.currencyDistribution?.owner?.USD > 0 || globalData?.currencyDistribution?.owner?.ARS > 0) && (
+                                <Card className="bg-slate-950 border-slate-800 shadow-lg print:border-slate-300 print:bg-white flex flex-col">
+                                    <CardHeader>
+                                        <CardTitle className="text-white print:text-slate-900 flex items-center gap-2">
+                                            <PieChartIcon size={16} /> Distribución (Ingresos)
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="flex flex-col items-center justify-center p-4 flex-1">
+                                        <div className="h-[200px] w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={showValues ? [{ name: 'USD', value: globalData.currencyDistribution.owner.USD }, { name: 'ARS', value: globalData.currencyDistribution.owner.ARS }].filter((d: any) => d.value > 0) : [{ name: 'Sin datos', value: 1 }]}
+                                                        cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={showValues ? 5 : 0} dataKey="value" stroke="none"
+                                                    >
+                                                        {showValues ? (
+                                                            [{ name: 'USD', value: globalData.currencyDistribution.owner.USD }, { name: 'ARS', value: globalData.currencyDistribution.owner.ARS }].filter((d: any) => d.value > 0).map((entry: any, index: number) => (
+                                                                <Cell key={`cell-${index}`} fill={entry.name === 'USD' ? '#10b981' : '#3b82f6'} />
+                                                            ))
+                                                        ) : (<Cell fill="#1e293b" />)}
+                                                    </Pie>
+                                                    {showValues && <Tooltip />}
+                                                    {showValues && <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: '10px' }} />}
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
 
                         </div>
                     </div>
@@ -485,8 +514,8 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                             </h2>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                {/* Expense Bar Chart */}
-                                <Card className="bg-slate-950 border-slate-800 lg:col-span-2 shadow-lg print:border-slate-300 print:bg-white">
+                                {/* Expense Bar Chart - Adaptive Width */}
+                                <Card className={`bg-slate-950 border-slate-800 shadow-lg print:border-slate-300 print:bg-white ${(globalData?.currencyDistribution?.tenant?.USD > 0 || globalData?.currencyDistribution?.tenant?.ARS > 0) ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
                                     <CardHeader>
                                         <CardTitle className="text-white print:text-slate-900">Evolución Gastos Totales ({currency})</CardTitle>
                                     </CardHeader>
@@ -530,34 +559,36 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
                                     </CardContent>
                                 </Card>
 
-                                {/* Expense Pie Chart */}
-                                <Card className="bg-slate-950 border-slate-800 shadow-lg print:border-slate-300 print:bg-white flex flex-col">
-                                    <CardHeader>
-                                        <CardTitle className="text-white print:text-slate-900 flex items-center gap-2">
-                                            <PieChartIcon size={16} /> Distribución (Gastos)
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="flex flex-col items-center justify-center p-4 flex-1">
-                                        <div className="h-[200px] w-full">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <PieChart>
-                                                    <Pie
-                                                        data={showValues && globalData?.currencyDistribution?.tenant ? [{ name: 'USD', value: globalData.currencyDistribution.tenant.USD }, { name: 'ARS', value: globalData.currencyDistribution.tenant.ARS }].filter((d: any) => d.value > 0) : [{ name: 'Sin datos', value: 1 }]}
-                                                        cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={showValues ? 5 : 0} dataKey="value" stroke="none"
-                                                    >
-                                                        {showValues && globalData?.currencyDistribution?.tenant ? (
-                                                            [{ name: 'USD', value: globalData.currencyDistribution.tenant.USD }, { name: 'ARS', value: globalData.currencyDistribution.tenant.ARS }].filter((d: any) => d.value > 0).map((entry: any, index: number) => (
-                                                                <Cell key={`cell-${index}`} fill={entry.name === 'USD' ? '#f43f5e' : '#3b82f6'} />
-                                                            ))
-                                                        ) : (<Cell fill="#1e293b" />)}
-                                                    </Pie>
-                                                    {showValues && <Tooltip />}
-                                                    {showValues && <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: '10px' }} />}
-                                                </PieChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                {/* Expense Pie Chart - Conditional */}
+                                {(globalData?.currencyDistribution?.tenant?.USD > 0 || globalData?.currencyDistribution?.tenant?.ARS > 0) && (
+                                    <Card className="bg-slate-950 border-slate-800 shadow-lg print:border-slate-300 print:bg-white flex flex-col">
+                                        <CardHeader>
+                                            <CardTitle className="text-white print:text-slate-900 flex items-center gap-2">
+                                                <PieChartIcon size={16} /> Distribución (Gastos)
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="flex flex-col items-center justify-center p-4 flex-1">
+                                            <div className="h-[200px] w-full">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={showValues && globalData?.currencyDistribution?.tenant ? [{ name: 'USD', value: globalData.currencyDistribution.tenant.USD }, { name: 'ARS', value: globalData.currencyDistribution.tenant.ARS }].filter((d: any) => d.value > 0) : [{ name: 'Sin datos', value: 1 }]}
+                                                            cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={showValues ? 5 : 0} dataKey="value" stroke="none"
+                                                        >
+                                                            {showValues && globalData?.currencyDistribution?.tenant ? (
+                                                                [{ name: 'USD', value: globalData.currencyDistribution.tenant.USD }, { name: 'ARS', value: globalData.currencyDistribution.tenant.ARS }].filter((d: any) => d.value > 0).map((entry: any, index: number) => (
+                                                                    <Cell key={`cell-${index}`} fill={entry.name === 'USD' ? '#f43f5e' : '#3b82f6'} />
+                                                                ))
+                                                            ) : (<Cell fill="#1e293b" />)}
+                                                        </Pie>
+                                                        {showValues && <Tooltip />}
+                                                        {showValues && <Legend verticalAlign="bottom" height={24} iconSize={8} wrapperStyle={{ fontSize: '10px' }} />}
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
                             </div>
                         </div>
                     )}
