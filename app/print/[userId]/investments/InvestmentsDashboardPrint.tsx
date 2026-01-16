@@ -77,8 +77,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                     <p key={index} className="text-xs" style={{ color: entry.color }}>
                         {entry.name}: {
                             entry.name === 'Monto' || entry.name === 'Ingreso USD'
-                                ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(entry.value)
-                                : `${entry.value}%`
+                                ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(entry.value || 0)
+                                : `${(entry.value || 0).toFixed(2)}%`
                         }
                     </p>
                 ))}
@@ -150,7 +150,7 @@ export default function InvestmentsDashboardPrint({ investments, globalData, mar
                             <span className="text-sm font-semibold uppercase text-slate-400 tracking-wider">Yield Estimado</span>
                         </div>
                         <h3 className="text-2xl font-bold text-amber-400">
-                            {globalData.yieldAPY.toFixed(1)}%
+                            {(globalData.yieldAPY || 0).toFixed(1)}%
                         </h3>
                         <p className="text-xs text-slate-500 mt-1">
                             TIR Promedio Ponderada
