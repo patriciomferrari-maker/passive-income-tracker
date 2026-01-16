@@ -40,43 +40,65 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         return 0;
     };
 
+    // 0. Fetch Exchange Rate (Blue Dollar)
+    const latestExchangeRate = await prisma.economicIndicator.findFirst({
+        where: { type: 'TC_USD_ARS' },
+        orderBy: { date: 'desc' }
+    });
+    const exchangeRate = latestExchangeRate?.value || 1160;
+
     // 1. Calculate Valuation & Allocation
     let totalValueUSD = 0;
     const allocationMap = new Map<string, number>();
 
     const activeInvestments = investments.map(inv => {
         // Calculate Quantity from Transactions
-        // Schema doesn't store quantity on Investment, so we sum numeric quantities
         let quantity = 0;
-        const cleanTransactions = inv.transactions.map(t => {
+        inv.transactions.forEach(t => {
             const qty = toNumber(t.quantity);
-            // Assuming positive quantity in DB for both BUY/SELL, need to check type
-            // But usually 'quantity' in Transaction is absolute.
-            // Let's assume standard logic: BUY adds, SELL subtracts.
             if (t.type === 'BUY') quantity += qty;
             else if (t.type === 'SELL') quantity -= qty;
-            else quantity += qty; // Fallback
-
-            return {
-                ...t,
-                amount: toNumber(t.amount),
-                price: toNumber(t.price),
-                totalAmount: toNumber(t.totalAmount),
-                date: t.date.toISOString(),
-                createdAt: undefined,
-                updatedAt: undefined
-            };
+            else quantity += qty;
         });
 
-        // Use lastPrice as currentPrice
-        const currentPrice = toNumber(inv.lastPrice);
-        const value = quantity * currentPrice;
+        // Smart Price Logic
+        // 1. Get raw price (lastPrice)
+        let rawPrice = toNumber(inv.lastPrice);
+
+        // 2. Normalize "Per 100" convention (Common for ONs)
+        // If price is massive (e.g. 160,000), it's likely ARS per 100.
+        // If price is 100-200, it's likely USD per 100 (resulting in 1-2).
+        if ((inv.type === 'ON' || inv.type === 'CORPORATE_BOND') && rawPrice > 2.0) {
+            rawPrice = rawPrice / 100;
+        }
+
+        // 3. Detect Currency & Convert to USD
+        // If price is still > 10 (e.g. 1300 ARS normalized from 130,000), it's definitely ARS.
+        // ONs usually trade between 0.50 and 1.50 USD.
+        let priceUSD = rawPrice;
+
+        // Explicit ARS check or Heuristic check (Price > 5 USD is rare for ON unit price)
+        if (inv.currency === 'ARS' || priceUSD > 5.0) {
+            priceUSD = priceUSD / exchangeRate;
+        }
+
+        const value = quantity * priceUSD;
 
         if (value > 0) {
             totalValueUSD += value;
             const type = inv.type || 'OTRO';
             allocationMap.set(type, (allocationMap.get(type) || 0) + value);
         }
+
+        const cleanTransactions = inv.transactions.map(t => ({
+            ...t,
+            amount: toNumber(t.amount),
+            price: toNumber(t.price),
+            totalAmount: toNumber(t.totalAmount),
+            date: t.date.toISOString(),
+            createdAt: undefined,
+            updatedAt: undefined
+        }));
 
         const cleanCashflows = inv.cashflows.map(c => ({
             ...c,
@@ -86,8 +108,8 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
 
         return {
             ...inv,
-            quantity, // Calculated
-            currentPrice, // Mapped from lastPrice
+            quantity,
+            currentPrice: priceUSD, // We pass the CLEAN USD price to the client
             maturityDate: inv.maturityDate ? inv.maturityDate.toISOString() : null,
             emissionDate: inv.emissionDate ? inv.emissionDate.toISOString() : null,
             lastPriceDate: inv.lastPriceDate ? inv.lastPriceDate.toISOString() : null,
@@ -119,14 +141,22 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
 
     activeInvestments.forEach(inv => {
         inv.cashflows.forEach(cf => {
-            // cf.date is still a Date object here because we didn't stringify it in the first map (left it for logic)
             if (cf.date <= nextYear && cf.date >= now) {
-                let amountUSD = cf.amount; // Already a number
-                if (cf.currency === 'ARS') amountUSD = cf.amount / 1100;
+                // Determine USD Amount (approx for ARS)
+                let amountUSD = cf.amount; // Already a number from map above? No, we need to access safe number
+                // Actually we rely on `cf.amount` being correct here? 
+                // Wait, `cleanCashflows` above made it a number.
+
+                // Oops, `activeInvestments` map *returns* the new object, but forEach iterates the *result*? 
+                // Check Typescript. map returns new array. We are iterating `activeInvestments` (the new array).
+
+                if (cf.currency === 'ARS') amountUSD = cf.amount / exchangeRate;
 
                 if (Number.isFinite(amountUSD)) {
                     totalIncomeUSD += amountUSD;
+
                     const label = cf.date.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
+                    // Accessing map via key
                     if (monthlyFlowsMap.has(label)) {
                         monthlyFlowsMap.set(label, (monthlyFlowsMap.get(label) || 0) + amountUSD);
                     } else {
@@ -137,12 +167,12 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         });
     });
 
-    // NOW stringify cashflow dates for the client
+    // NOW stringify cashflow dates for the client (Fixing the double pass issue)
     const safeInvestments = activeInvestments.map(inv => ({
         ...inv,
         cashflows: inv.cashflows.map(cf => ({
             ...cf,
-            date: cf.date.toISOString()
+            date: typeof cf.date === 'object' ? (cf.date as Date).toISOString() : cf.date
         }))
     }));
 
