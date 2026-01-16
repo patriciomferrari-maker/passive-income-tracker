@@ -93,9 +93,6 @@ export default function OnboardingPage() {
                             ))}
                         </div>
 
-                        <input type="hidden" name="sections" id="sections-input" />
-                        <Script />
-
                         <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800 text-center">
                             <p className="text-sm text-slate-400">
                                 <span className="text-emerald-400 font-medium">Nota:</span> Lo que no selecciones ahora podrá ser activado luego desde el panel de Configuración.
@@ -133,7 +130,7 @@ function FeatureCard({ section }: { section: any }) {
         >
             <input
                 type="checkbox"
-                name="sections_checkbox"
+                name="sections"
                 value={section.id}
                 className="sr-only"
                 checked={checked}

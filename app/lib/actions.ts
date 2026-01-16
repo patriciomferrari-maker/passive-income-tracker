@@ -152,17 +152,20 @@ export async function saveOnboarding(prevState: string | undefined, formData: Fo
         return "No autorizado";
     }
 
-    let sections = formData.get('sections') as string;
+    // Get all checked values (they share the name 'sections')
+    const selectedSections = formData.getAll('sections');
 
-    // If empty (user selected nothing), save as 'none' to mark as completed
-    if (!sections || sections.trim() === '') {
-        sections = 'none';
+    let sectionsString = '';
+    if (selectedSections.length > 0) {
+        sectionsString = selectedSections.join(',');
+    } else {
+        sectionsString = 'none';
     }
 
     try {
         await prisma.appSettings.update({
             where: { userId: session.user.id },
-            data: { enabledSections: sections }
+            data: { enabledSections: sectionsString }
         });
     } catch (error) {
         console.error("Onboarding error:", error);
