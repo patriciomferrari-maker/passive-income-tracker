@@ -19,13 +19,17 @@ async function main() {
         console.log(`  - Portfolio Items:     ${stats.totalONs}`);
 
         console.log("\n🧪 Breakdown Check (Top 3):");
-        stats.investments.slice(0, 5).forEach((p: any) => {
-            console.log(`    * ${p.ticker}: Qty ${p.quantity} | Val $${p.marketValue?.toFixed(0)} | TIR ${p.theoreticalTir?.toFixed(1) || 'N/A'}%`);
-            if (['DNC3D', 'RUCDO'].includes(p.ticker)) {
-                console.log(`      DEBUG ${p.ticker}: PriceUSD: ${p.currentPrice}, Flows: ${p.cashflows?.length}`);
-                console.log(`      First 3 Flows:`, p.cashflows.slice(0, 3).map((c: any) => `${c.date} ${c.amount} ${c.status}`));
-            }
-        });
+        if (stats.portfolioBreakdown) {
+            stats.portfolioBreakdown.slice(0, 10).forEach((p: any) => {
+                console.log(`    * ${p.ticker}: Invested $${p.invested?.toFixed(0)} | Val $${p.value?.toFixed(0)} | MarketTIR ${p.marketTir?.toFixed(1)}% | UserTIR (Purple): ${p.tir?.toFixed(1)}%`);
+                if (p.ticker === 'DNC3D') {
+                    // DNC3D Specifics
+                    console.log(`      DEBUG DNC3D Result: UserTIR=${p.tir}% based on Held-to-Maturity flows.`);
+                }
+            });
+        } else {
+            console.log('    (No portfolio breakdown returned)');
+        }
 
         console.log("\n🔮 Upcoming Payments (Next 3):");
         stats.upcomingPayments.slice(0, 3).forEach((p: any) => {

@@ -188,8 +188,9 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
             tenenciaTotalValorActual += inv.marketValue;
         }
 
-        // TIR (Personal Performance) calculation
-        // Need specific XIRR for this investment including Current Value as last flow
+        // TIR (Personal Performance - Held to Maturity)
+        // User requested "Purchase Yield" which is fixed at moment of purchase.
+        // We calculate this as XIRR(Transactions + All Future/Paid Cashflows), ignoring Current Market Value.
         const amounts: number[] = [];
         const dates: Date[] = [];
 
@@ -201,25 +202,18 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
             dates.push(new Date(tx.date));
         });
 
+        // Add ALL cashflows (Paid and Projected)
         inv.cashflows.forEach((cf: any) => {
-            // Only realized cashflows count for Historical TIR? 
-            // Usually YES + Current Market Value.
-            const isPast = new Date(cf.date) <= new Date();
-            if ((cf.status === 'PAID' || (cf.status === 'PROJECTED' && isPast)) && isPast) {
-                let amt = cf.amount;
-                if (cf.currency === 'ARS') amt /= getExchangeRate(new Date(cf.date));
-                amounts.push(amt);
-                dates.push(new Date(cf.date));
-            }
+            amounts.push(cf.amount);
+            dates.push(new Date(cf.date));
         });
 
-        // Add Current Value (Tenencia) as "Sale now"
-        if (inv.quantity > 0) {
-            amounts.push(inv.marketValue);
-            dates.push(new Date());
+        // Calculate Purchase Yield (XIRR of Buys + All Future Flows, no Market Value)
+        let calculatedTir = null;
+        if (amounts.length > 1) {
+            const t = calculateXIRR(amounts, dates);
+            if (t) calculatedTir = t;
         }
-
-        const calculatedTir = calculateXIRR(amounts, dates);
 
         return {
             ticker: inv.ticker,
