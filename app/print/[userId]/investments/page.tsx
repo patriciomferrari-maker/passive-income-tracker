@@ -59,8 +59,8 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
     // Actually, for ONs, quantity is face value, so it should be > 0.
 
     const allocation = Array.from(allocationMap.entries()).map(([name, value]) => ({
-        name,
-        value,
+        name: name || 'Desconocido',
+        value: Number.isFinite(value) ? value : 0,
         fill: '#cccccc' // Will be overridden by component
     })).sort((a, b) => b.value - a.value);
 
@@ -85,19 +85,15 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
                 if (cf.currency === 'ARS') amountUSD = cf.amount / 1100; // Hardcoded exchange rate fallback or 0
                 else amountUSD = cf.amount;
 
-                totalIncomeUSD += amountUSD;
+                if (Number.isFinite(amountUSD)) {
+                    totalIncomeUSD += amountUSD;
 
-                const label = cf.date.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
-                // We might need strict Key matching (Month/Year indices) to avoid locale issues
-                // But map.has(label) works if generated same way.
-                // Let's use a simpler approach key: "YYYY-MM"
-                if (monthlyFlowsMap.has(label)) {
-                    monthlyFlowsMap.set(label, (monthlyFlowsMap.get(label) || 0) + amountUSD);
-                } else {
-                    // Try to match created keys (sometimes date differs slightly)
-                    // For simplicity, just add if it matches the bucket roughly?
-                    // Let's stick to strict map for "dashboard-y" feel
-                    monthlyFlowsMap.set(label, (monthlyFlowsMap.get(label) || 0) + amountUSD);
+                    const label = cf.date.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
+                    if (monthlyFlowsMap.has(label)) {
+                        monthlyFlowsMap.set(label, (monthlyFlowsMap.get(label) || 0) + amountUSD);
+                    } else {
+                        monthlyFlowsMap.set(label, (monthlyFlowsMap.get(label) || 0) + amountUSD);
+                    }
                 }
             }
         });
@@ -105,18 +101,22 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
 
     const monthlyFlows = Array.from(monthlyFlowsMap.entries()).map(([monthLabel, amountUSD]) => ({
         monthLabel,
-        amountUSD: Math.round(amountUSD)
+        amountUSD: Number.isFinite(amountUSD) ? Math.round(amountUSD) : 0
     }));
     // Note: The map iteration order is insertion order, so it stays sorted by date.
 
     // 3. Yield Estimate (Simple: Annualized Income / Total Value)
-    const yieldAPY = totalValueUSD > 0 ? (totalIncomeUSD / totalValueUSD) * 100 : 0;
+    let yieldAPY = 0;
+    if (totalValueUSD > 0 && Number.isFinite(totalIncomeUSD) && Number.isFinite(totalValueUSD)) {
+        yieldAPY = (totalIncomeUSD / totalValueUSD) * 100;
+    }
+    yieldAPY = Number.isFinite(yieldAPY) ? yieldAPY : 0;
 
     return {
         investments: activeInvestments as any,
         globalData: {
-            totalValueUSD,
-            totalIncomeUSD,
+            totalValueUSD: Number.isFinite(totalValueUSD) ? totalValueUSD : 0,
+            totalIncomeUSD: Number.isFinite(totalIncomeUSD) ? totalIncomeUSD : 0,
             yieldAPY,
             allocation,
             monthlyFlows
