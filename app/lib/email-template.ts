@@ -1,6 +1,7 @@
 
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { getNextIndecReleaseDate, getDaysUntilNextRelease } from '@/app/lib/indec-calendar';
 
 const formatCurrency = (val: number, currency: string = 'USD') => {
     return new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(val);
@@ -278,8 +279,31 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                         🏠 Gestión de Alquileres
                     </h3>
                 </div>
-                <table width="100%" cellpadding="0" cellspacing="0">
                     ${renderEvents()}
+                    ${(() => {
+                const indecDateStr = getNextIndecReleaseDate();
+                if (!indecDateStr) return '';
+
+                const days = getDaysUntilNextRelease();
+                const dateObj = new Date(indecDateStr);
+                // Move to UTC/Local normalization if needed, but the date string is YYYY-MM-DD
+                // Simple parse:
+                // We use the same format as above: MMM yyyy or dd/MM?
+                // User wants "Próxima publicación".
+
+                return `
+                        <tr>
+                           <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
+                                <span style="color: #0ea5e9; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">INDEC</span>
+                                <div style="color: #1e293b; font-weight: 500; margin-top: 4px;">Próximo IPC (Inflación)</div>
+                           </td>
+                           <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; text-align: right;">
+                                <div style="color: #0f172a; font-weight: 600;">${format(dateObj, 'dd MMM', { locale: es }).toUpperCase()}</div>
+                                <div style="color: #94a3b8; font-size: 11px;">Faltan ${days} dias</div>
+                           </td> 
+                        </tr>
+                        `;
+            })()} 
                 </table>
             </div>
             ` : ''}
