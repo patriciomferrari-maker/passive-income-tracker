@@ -452,6 +452,7 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                                 } catch (e) { console.error('Error generating Arg Investments PDF:', e); }
                             }
 
+                            /*
                             // 2. Inversiones USA
                             if (hasUSA) {
                                 try {
