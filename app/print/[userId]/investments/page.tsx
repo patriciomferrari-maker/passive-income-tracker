@@ -45,9 +45,31 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
     const allocationMap = new Map<string, number>();
 
     const activeInvestments = investments.map(inv => {
-        // Sanitize core fields immediately
-        const quantity = toNumber(inv.quantity);
-        const currentPrice = toNumber(inv.currentPrice);
+        // Calculate Quantity from Transactions
+        // Schema doesn't store quantity on Investment, so we sum numeric quantities
+        let quantity = 0;
+        const cleanTransactions = inv.transactions.map(t => {
+            const qty = toNumber(t.quantity);
+            // Assuming positive quantity in DB for both BUY/SELL, need to check type
+            // But usually 'quantity' in Transaction is absolute.
+            // Let's assume standard logic: BUY adds, SELL subtracts.
+            if (t.type === 'BUY') quantity += qty;
+            else if (t.type === 'SELL') quantity -= qty;
+            else quantity += qty; // Fallback
+
+            return {
+                ...t,
+                amount: toNumber(t.amount),
+                price: toNumber(t.price),
+                totalAmount: toNumber(t.totalAmount),
+                date: t.date.toISOString(),
+                createdAt: undefined,
+                updatedAt: undefined
+            };
+        });
+
+        // Use lastPrice as currentPrice
+        const currentPrice = toNumber(inv.lastPrice);
         const value = quantity * currentPrice;
 
         if (value > 0) {
@@ -56,28 +78,16 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
             allocationMap.set(type, (allocationMap.get(type) || 0) + value);
         }
 
-        // Sanitize nested arrays
-        const cleanTransactions = inv.transactions.map(t => ({
-            ...t,
-            amount: toNumber(t.amount),
-            price: toNumber(t.price),
-            totalAmount: toNumber(t.totalAmount),
-            date: t.date.toISOString(),
-            createdAt: undefined,
-            updatedAt: undefined
-        }));
-
         const cleanCashflows = inv.cashflows.map(c => ({
             ...c,
             amount: toNumber(c.amount),
             date: c.date //.toISOString() (Wait, logic uses Date obj later?)
-            // Logic below uses `cf.date`. We should keep it as Date for logic, then stringify.
         }));
 
         return {
             ...inv,
-            quantity, // Now a primitive number
-            currentPrice, // Now a primitive number
+            quantity, // Calculated
+            currentPrice, // Mapped from lastPrice
             maturityDate: inv.maturityDate ? inv.maturityDate.toISOString() : null,
             emissionDate: inv.emissionDate ? inv.emissionDate.toISOString() : null,
             lastPriceDate: inv.lastPriceDate ? inv.lastPriceDate.toISOString() : null,
