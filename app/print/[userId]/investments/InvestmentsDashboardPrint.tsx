@@ -176,8 +176,7 @@ export default function InvestmentsDashboardPrint({ investments, globalData, mar
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-2 gap-8 h-[400px]">
-                {/* 1. Asset Allocation (Pie) */}
+            {/* <div className="grid grid-cols-2 gap-8 h-[400px]">
                 <Card className="bg-slate-900/50 border-slate-800 break-inside-avoid">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-slate-200 uppercase text-sm tracking-widest text-center">Distribución por Activo</CardTitle>
@@ -209,7 +208,6 @@ export default function InvestmentsDashboardPrint({ investments, globalData, mar
                     </CardContent>
                 </Card>
 
-                {/* 2. Projected Flows (Bar) */}
                 <Card className="bg-slate-900/50 border-slate-800 break-inside-avoid">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-slate-200 uppercase text-sm tracking-widest text-center">Flujo de Fondos Proyectado</CardTitle>
@@ -230,7 +228,7 @@ export default function InvestmentsDashboardPrint({ investments, globalData, mar
                         </BarChart>
                     </CardContent>
                 </Card>
-            </div>
+            </div> */}
 
             {/* Holdings Table */}
             <Card className="bg-slate-900/50 border-slate-800 break-inside-avoid mt-8">
