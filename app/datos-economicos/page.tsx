@@ -6,8 +6,7 @@ import AccumulatedChart from '@/components/economic/AccumulatedChart';
 import ExchangeRateGapChart from '@/components/economic/ExchangeRateGapChart';
 import UVAEvolutionChart from '@/components/economic/UVAEvolutionChart';
 import { getNextIndecReleaseDate, getDaysUntilNextRelease } from '@/app/lib/indec-calendar';
-import ExchangeRateGapChart from '@/components/economic/ExchangeRateGapChart';
-import UVAEvolutionChart from '@/components/economic/UVAEvolutionChart';
+
 import Link from 'next/link';
 
 export default function EconomicDataPage() {
