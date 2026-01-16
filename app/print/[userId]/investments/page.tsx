@@ -112,6 +112,8 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
     }
     yieldAPY = Number.isFinite(yieldAPY) ? yieldAPY : 0;
 
+    const reportDate = new Date().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+
     return {
         investments: activeInvestments as any,
         globalData: {
@@ -120,7 +122,8 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
             yieldAPY,
             allocation,
             monthlyFlows
-        }
+        },
+        reportDate
     };
 }
 
@@ -143,6 +146,7 @@ export default async function PrintInvestmentsPage({ params, searchParams }: Pag
             investments={data.investments}
             globalData={data.globalData}
             market={selectedMarket}
+            reportDate={data.reportDate}
         />
     );
 }

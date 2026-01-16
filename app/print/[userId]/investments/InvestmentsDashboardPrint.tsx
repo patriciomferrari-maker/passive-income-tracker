@@ -1,18 +1,18 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    PieChart,
-    Pie,
-    Cell,
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend
-} from 'recharts';
+// import {
+//     PieChart,
+//     Pie,
+//     Cell,
+//     BarChart,
+//     Bar,
+//     XAxis,
+//     YAxis,
+//     CartesianGrid,
+//     Tooltip,
+//     Legend
+// } from 'recharts';
 import { DollarSign, PieChart as PieIcon, TrendingUp, Calendar, Wallet } from 'lucide-react';
 
 interface InvestmentTransaction {
@@ -64,6 +64,7 @@ interface Props {
     investments: Investment[];
     globalData: GlobalInvestmentData;
     market: 'ARG' | 'USA';
+    reportDate: string;
 }
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1'];
@@ -88,9 +89,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return null;
 };
 
-export default function InvestmentsDashboardPrint({ investments, globalData, market }: Props) {
+export default function InvestmentsDashboardPrint({ investments, globalData, market, reportDate }: Props) {
     const title = market === 'ARG' ? 'Cartera Argentina' : (market === 'USA' ? 'Cartera USA' : 'Reporte Global de Inversiones');
-    const today = new Date();
+    // const today = new Date(); -- MOVED TO SERVER
 
     return (
         <div className="min-h-screen bg-[#020617] text-white p-4 space-y-8" style={{ width: '1200px', margin: '0 auto' }}>
@@ -99,7 +100,7 @@ export default function InvestmentsDashboardPrint({ investments, globalData, mar
             <div className="flex justify-between items-end border-b border-slate-800 pb-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-100">{title}</h1>
-                    <p className="text-slate-400">Consolidado Mensual - {today.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}</p>
+                    <p className="text-slate-400">Consolidado Mensual - {reportDate}</p>
                 </div>
                 <div className="text-right">
                     <p className="text-emerald-400 font-mono font-bold text-xl">
