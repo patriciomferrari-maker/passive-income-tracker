@@ -250,8 +250,9 @@ export default function InvestmentsDashboardPrint({ investments, globalData, mar
                         </thead>
                         <tbody>
                             {investments.map((inv) => {
-                                const lastPrice = inv.currentPrice || 0;
-                                const valuation = inv.quantity * lastPrice;
+                                const lastPrice = Number(inv.currentPrice || 0);
+                                const quantity = Number(inv.quantity || 0);
+                                const valuation = quantity * lastPrice;
                                 return (
                                     <tr key={inv.id} className="bg-slate-900/20 border-b border-slate-800 hover:bg-slate-800/30">
                                         <td className="px-6 py-4 font-bold text-slate-100">{inv.ticker || '-'}</td>
@@ -264,7 +265,7 @@ export default function InvestmentsDashboardPrint({ investments, globalData, mar
                                                 {inv.type}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right font-mono">{inv.quantity.toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-right font-mono">{quantity.toLocaleString()}</td>
                                         <td className="px-6 py-4 text-right font-mono text-slate-400">${lastPrice.toFixed(2)}</td>
                                         <td className="px-6 py-4 text-right font-mono font-bold text-emerald-400">
                                             {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(valuation)}
