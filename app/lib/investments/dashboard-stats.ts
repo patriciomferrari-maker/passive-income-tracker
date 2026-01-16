@@ -224,7 +224,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
         return {
             ticker: inv.ticker,
             name: inv.name,
-            tir: r ? r * 100 : 0,
+            tir: calculatedTir ? calculatedTir * 100 : 0,
             marketTir: inv.theoreticalTir || 0, // Now mapped correctly from enriched list
             type: inv.type,
             value: currentValue
