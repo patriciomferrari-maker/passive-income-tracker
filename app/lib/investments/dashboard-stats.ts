@@ -227,7 +227,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
             tir: calculatedTir ? calculatedTir * 100 : 0,
             marketTir: inv.theoreticalTir || 0, // Now mapped correctly from enriched list
             type: inv.type,
-            value: currentValue
+            value: inv.marketValue
         };
     }).filter(i => i.value > 0 || i.tir !== 0);
 
