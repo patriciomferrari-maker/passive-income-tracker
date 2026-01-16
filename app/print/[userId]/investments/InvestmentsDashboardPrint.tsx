@@ -102,7 +102,7 @@ export default function InvestmentsDashboardPrint({ investments, globalData, sta
         ?.map((p: any) => ({
             ticker: p.ticker,
             userTir: p.tir,
-            marketTir: p.theoreticalTir || 0 // Assuming theoreticalTir is market benchmark
+            marketTir: p.marketTir || 0 // Correct property from dashboard-stats.ts
         }))
         .sort((a: any, b: any) => b.userTir - a.userTir)
         .slice(0, 8) || [];
