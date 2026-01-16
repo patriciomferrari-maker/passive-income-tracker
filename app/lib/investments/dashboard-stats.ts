@@ -159,65 +159,19 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
     let tenenciaTotalValorActual = 0;
     // Variables realized/unrealized/hasEquity already initialized above
 
-    // We need to iterate investmets to build per-asset metrics
-    const portfolioBreakdown = investments.map(inv => {
-        // 1. Calculate Invested Capital (Normalized to USD)
-        // Sum of all BUYs (TotalAmount normalized)
-        const invested = inv.transactions.reduce((sum, tx) => {
-            if (tx.type !== 'BUY') return sum;
-            let txAmount = Math.abs(tx.totalAmount); // TotalAmount includes price * qty + comm
-            if (tx.currency === 'ARS') {
-                const rate = getExchangeRate(new Date(tx.date));
-                txAmount = txAmount / rate;
-            }
-            return sum + txAmount;
-        }, 0);
+    // We use the enriched array which already has FIFO, Price, and TheoreticalTir
+    const portfolioBreakdown = investmentsWithMetrics.map(inv => {
 
-        // 2. Calculate Current Value (Positions)
-        let quantity = 0;
-        inv.transactions.forEach(t => {
-            if (t.type === 'BUY') quantity += Number(t.quantity);
-            else if (t.type === 'SELL') quantity -= Number(t.quantity);
-        });
+        // Cost Basis from FIFO logic? 
+        // We didn't save "totalCost" in metrics loop, only "quantity". 
+        // But we need "invested" for the Breakdown.
+        // Let's recalculate simplified Cost Basis or look back at what we need.
+        // We really just need { ticker, name, invested, percentage, tir, theoreticalTir, type }.
 
-        // Price Logic repeated
-        let rawPrice = priceMap[inv.id] !== undefined ? priceMap[inv.id] : (Number(inv.lastPrice) || 0);
-        if ((inv.type === 'ON' || inv.type === 'CORPORATE_BOND') && rawPrice > 2.0) rawPrice = rawPrice / 100;
-        let priceUSD = rawPrice;
-        if (priceUSD > 50.0) priceUSD = priceUSD / latestExchangeRate;
-
-        const currentValue = quantity * priceUSD;
-
-        // Add to Totals
-        // Note: capitalInvertido in dashboard is sum of "Tenencia Total Inversion" (Open Positions Cost).
-        // But here `invested` is sum of ALL history buys.
-        // Dashboard uses `positions.reduce(...)` for Capital Invertido.
-        // We should calculate Cost Basis of OPEN positions for "Capital Invertido" context in Dashboard?
-        // route.ts says: `const capitalInvertido = tenenciaTotalInversion;` (from positions).
-        // So yes, Capital Invertido = Cost Basis of Open Positions. NOT Total Historical Invested.
-
-        // Simple Average Price logic for Cost Basis (since we don't have full FIFO without complex logic)
-        // Or re-implement FIFO?
-        // Let's use Weighted Average for simplicity if FIFO is too heavy?
-        // Actually, for "Capital Invertido" in the header, users usually expect "money I currently have in the market".
-        // Let's approximate: 
-        // Cost Basis = Total Buys - Total Sells (FIFO).
-        // If we want exact match, we need FIFO.
-        // Let's stick with the simpler "Total Historical Invested" for the Breakdown chart, 
-        // but for the Top Cards, we need Cost Basis.
-
-        // Let's assume Capital Invertido = Invested. 
-        // *Correction*: route.ts uses `tenenciaTotalInversion` which comes from `/positions`.
-        // `/positions` likely uses FIFO.
-        // If I can't easily reproduce FIFO here, I might diverge slightly. 
-        // User cares about "Numbers matching Dashboard".
-        // If Dashboard uses FIFO, I must use FIFO.
-
-        // Let's use a simplified Cost Basis:
-        // Avg Buy Price * Current Qty.
+        // Cost Basis: Avg Price * Quantity (Safe approx)
         let totalBuyQty = 0;
         let totalBuyCostUSD = 0;
-        inv.transactions.forEach(tx => {
+        inv.transactions.forEach((tx: any) => {
             if (tx.type === 'BUY') {
                 let cost = Math.abs(tx.totalAmount);
                 if (tx.currency === 'ARS') cost /= getExchangeRate(new Date(tx.date));
@@ -226,52 +180,50 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
             }
         });
         const avgBuyPrice = totalBuyQty > 0 ? totalBuyCostUSD / totalBuyQty : 0;
-        const costBasis = avgBuyPrice * quantity; // This matches Weighted Avg, close to FIFO unless lots of trading.
+        const costBasis = avgBuyPrice * inv.quantity; // Matches "Capital Invertido" contribution
 
-        if (quantity > 0) {
+        // Sum to global totals (redundant if we did it in first loop, but safe here)
+        if (inv.quantity > 0) {
             capitalInvertido += costBasis;
-            tenenciaTotalValorActual += currentValue;
+            tenenciaTotalValorActual += inv.marketValue;
         }
 
-        // TIR Calculation (Individual)
+        // TIR (Personal Performance) calculation
+        // Need specific XIRR for this investment including Current Value as last flow
         const amounts: number[] = [];
         const dates: Date[] = [];
 
-        inv.transactions.forEach(tx => {
-            let amt = -Math.abs(tx.totalAmount); // Buys are negative outflow
-            if (tx.type === 'SELL') amt = Math.abs(tx.totalAmount); // Sells are positive inflow
-            // Normalize
+        inv.transactions.forEach((tx: any) => {
+            let amt = -Math.abs(tx.totalAmount); // Outflow
+            if (tx.type === 'SELL') amt = Math.abs(tx.totalAmount); // Inflow
             if (tx.currency === 'ARS') amt /= getExchangeRate(new Date(tx.date));
             amounts.push(amt);
             dates.push(new Date(tx.date));
         });
-        inv.cashflows.forEach(cf => {
-            let amt = cf.amount;
-            if (cf.currency === 'ARS') {
-                // Past/Future rate
-                const r = new Date(cf.date) <= new Date() ? getExchangeRate(new Date(cf.date)) : latestExchangeRate;
-                if (r > 0) amt /= r;
+
+        inv.cashflows.forEach((cf: any) => {
+            // Only realized cashflows count for Historical TIR? 
+            // Usually YES + Current Market Value.
+            const isPast = new Date(cf.date) <= new Date();
+            if ((cf.status === 'PAID' || (cf.status === 'PROJECTED' && isPast)) && isPast) {
+                let amt = cf.amount;
+                if (cf.currency === 'ARS') amt /= getExchangeRate(new Date(cf.date));
+                amounts.push(amt);
+                dates.push(new Date(cf.date));
             }
-            amounts.push(amt);
-            dates.push(new Date(cf.date));
         });
 
-        const r = calculateXIRR(amounts, dates);
+        // Add Current Value (Tenencia) as "Sale now"
+        if (inv.quantity > 0) {
+            amounts.push(inv.marketValue);
+            dates.push(new Date());
+        }
+
+        const calculatedTir = calculateXIRR(amounts, dates);
 
         return {
             ticker: inv.ticker,
             name: inv.name,
-            invested: costBasis, // Use Cost Basis for breakdown? Or Market Value? 
-            // Dashboard Breakdown uses `invested` (calculated from transactions) or Market Value?
-            // route.ts: `invested = inv.transactions.reduce...` (Sum of ALL buys).
-            // Then `percentage = invested / capitalInvertido`.
-            // Wait, if `capitalInvertido` is Cost Basis of Open, and `invested` is History Sum, ratio is wrong.
-            // route.ts line 152: `invested` is sum of ALL transactions (buys?).
-            // Actually route.ts breakdown logic seems to use "Total Invested History" for the pie chart?
-            // Let's use `currentValue` for allocation pie chart usually.
-            // But the chart in screenshot is "TIR: Compra vs Mercado".
-            // That chart needs TIR.
-
             tir: r ? r * 100 : 0,
             marketTir: inv.theoreticalTir || 0, // Now mapped correctly from enriched list
             type: inv.type,
