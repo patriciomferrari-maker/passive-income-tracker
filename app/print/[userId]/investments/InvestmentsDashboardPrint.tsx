@@ -93,7 +93,6 @@ export default function InvestmentsDashboardPrint({ investments, globalData, mar
     const today = new Date();
 
     return (
-    return (
         <div className="min-h-screen bg-[#020617] text-white p-4">
             <h1 className="text-3xl font-bold text-red-500">DEBUG MODE: DOES THIS RENDER?</h1>
             <pre className="text-xs text-slate-500 mt-4">
