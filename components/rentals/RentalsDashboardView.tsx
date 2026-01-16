@@ -253,7 +253,7 @@ export function RentalsDashboardView({ contractsData, globalData, showValues, lo
 
             {/* Top Summary Cards */}
             {summaryMetrics && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className={`grid grid-cols-1 md:grid-cols-2 ${summaryMetrics.totalExpense > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4`}>
                     {/* Income Card */}
                     <Card className="bg-slate-950 border-slate-800 print:border-slate-300 print:bg-white print:text-slate-900">
                         <CardContent className="p-4 flex flex-col items-center text-center justify-center">
