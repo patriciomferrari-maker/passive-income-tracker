@@ -47,6 +47,8 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         return {
             ...inv,
             maturityDate: inv.maturityDate ? inv.maturityDate.toISOString() : null,
+            emissionDate: inv.emissionDate ? inv.emissionDate.toISOString() : null,
+            lastPriceDate: inv.lastPriceDate ? inv.lastPriceDate.toISOString() : null,
             createdAt: inv.createdAt.toISOString(),
             updatedAt: inv.updatedAt.toISOString(),
             currentPrice: price,

@@ -44,6 +44,8 @@ interface Investment {
     quantity: number;
     currentPrice: number | null;
     maturityDate?: string | null; // Serialized Date
+    emissionDate?: string | null; // Serialized Date
+    lastPriceDate?: string | null; // Serialized Date
     createdAt: string; // Serialized Date
     updatedAt: string; // Serialized Date
     transactions: InvestmentTransaction[];
