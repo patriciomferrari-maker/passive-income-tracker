@@ -7,19 +7,63 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Mail, Save, Send, CheckCircle, AlertCircle, ArrowLeft, LayoutDashboard } from 'lucide-react';
+import { Loader2, Mail, Save, Send, CheckCircle, AlertCircle, ArrowLeft, LayoutDashboard, CheckCircle2 } from 'lucide-react';
+import { LineChart, Landmark, Building, CreditCard, Wallet, Home, Palmtree } from 'lucide-react';
 import Link from 'next/link';
 
-// Definition of sections
+// Definition of sections (Rich format)
 const allSections = [
-    { id: 'on', label: 'Cartera Argentina (ONs/Cedears)' },
-    { id: 'treasury', label: 'Cartera USA (Treasuries)' },
-    { id: 'rentals', label: 'Alquileres' },
-    { id: 'debts', label: 'Deudas a Cobrar' },
-    { id: 'bank', label: 'Banco (PF/FCI)' },
-    // Hidden by default, only for specific users
-    { id: 'costa', label: 'Costa Esmeralda', restricted: true },
-    { id: 'barbosa', label: 'Hogar', restricted: true },
+    {
+        id: 'on',
+        label: 'Cartera Argentina',
+        icon: LineChart,
+        description: 'ONs y Cedears',
+        features: ['Rendimientos', 'Calendario']
+    },
+    {
+        id: 'treasury',
+        label: 'Cartera USA',
+        icon: Landmark,
+        description: 'Bonos del Tesoro',
+        features: ['Yield Curve', 'T-Bills']
+    },
+    {
+        id: 'rentals',
+        label: 'Alquileres',
+        icon: Building,
+        description: 'Propiedades y contratos',
+        features: ['Rentas', 'Ajustes']
+    },
+    {
+        id: 'debts',
+        label: 'Deudas',
+        icon: CreditCard,
+        description: 'Pasivos y pagos',
+        features: ['Préstamos', 'Tarjetas']
+    },
+    {
+        id: 'bank',
+        label: 'Banco & Liquidez',
+        icon: Wallet,
+        description: 'Saldos y Plazos Fijos',
+        features: ['Liquidez', 'Cashflow']
+    },
+    {
+        id: 'barbosa',
+        label: 'Hogar',
+        icon: Home,
+        description: 'Gastos domésticos',
+        features: ['Presupuesto', 'Limpieza'],
+        restricted: true
+    },
+    {
+        id: 'costa',
+        label: 'Costa Esmeralda',
+        icon: Palmtree,
+        description: 'Gestión vacacional',
+        features: ['Alquiler', 'Expensas'],
+        restricted: true
+    }
 ];
 
 export default function SettingsPage() {
@@ -114,6 +158,15 @@ export default function SettingsPage() {
         }
     };
 
+    const toggleSection = (sectionId: string) => {
+        const isEnabled = enabledSections.includes(sectionId);
+        if (isEnabled) {
+            setEnabledSections(enabledSections.filter(id => id !== sectionId));
+        } else {
+            setEnabledSections([...enabledSections, sectionId]);
+        }
+    };
+
     if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-slate-500" /></div>;
 
     return (
@@ -204,33 +257,40 @@ export default function SettingsPage() {
                             <h3 className="text-lg font-semibold text-white">Secciones Visibles</h3>
                         </div>
                         <p className="text-sm text-slate-400 mb-4">
-                            Elige qué tarjetas ver en el Dashboard principal.
+                            Selecciona las tarjetas que deseas ver en tu Dashboard.
                         </p>
 
-                        <div className="grid grid-cols-1 gap-3">
-                            {availableSections.map((section) => (
-                                <div key={section.id} className="flex items-center space-x-2">
-                                    <input
-                                        type="checkbox"
-                                        id={`setting-${section.id}`}
-                                        checked={enabledSections.includes(section.id)}
-                                        onChange={(e) => {
-                                            if (e.target.checked) {
-                                                setEnabledSections([...enabledSections, section.id]);
-                                            } else {
-                                                setEnabledSections(enabledSections.filter(id => id !== section.id));
-                                            }
-                                        }}
-                                        className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-green-600 focus:ring-green-600"
-                                    />
-                                    <label
-                                        htmlFor={`setting-${section.id}`}
-                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-300"
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {availableSections.map((section) => {
+                                const isEnabled = enabledSections.includes(section.id);
+                                return (
+                                    <div
+                                        key={section.id}
+                                        onClick={() => toggleSection(section.id)}
+                                        className={`
+                                            relative flex items-center p-3 rounded-xl border cursor-pointer transition-all duration-200 group
+                                            ${isEnabled
+                                                ? "bg-slate-950/60 border-emerald-500/40 shadow-sm shadow-emerald-900/10"
+                                                : "bg-slate-950/30 border-slate-800 hover:border-slate-700 hover:bg-slate-900/50"}
+                                        `}
                                     >
-                                        {section.label}
-                                    </label>
-                                </div>
-                            ))}
+                                        <div className={`p-2 rounded-lg mr-3 transition-colors ${isEnabled ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-900 text-slate-500 group-hover:text-slate-400"}`}>
+                                            <section.icon className="h-5 w-5" />
+                                        </div>
+
+                                        <div className="flex-1">
+                                            <h4 className={`text-sm font-medium ${isEnabled ? "text-white" : "text-slate-400 group-hover:text-slate-300"}`}>
+                                                {section.label}
+                                            </h4>
+                                            <p className="text-xs text-slate-500 line-clamp-1">
+                                                {section.description}
+                                            </p>
+                                        </div>
+
+                                        {isEnabled && <CheckCircle2 className="h-4 w-4 text-emerald-500 ml-2" />}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
