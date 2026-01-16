@@ -28,15 +28,31 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         }
     });
 
-    // 0. Fetch Exchange Rate (Blue Dollar)
-    const latestExchangeRate = await prisma.economicIndicator.findFirst({
+    // 0. Fetch Exchange Rates (History for TIR) & Asset Prices
+    const allRates = await prisma.economicIndicator.findMany({
         where: { type: 'TC_USD_ARS' },
         orderBy: { date: 'desc' }
     });
-    const exchangeRate = latestExchangeRate?.value || 1160;
+    const latestExchangeRate = allRates[0]?.value || 1160;
 
-    // 0b. Fetch Latest Asset Prices (Mirroring Dashboard Logic)
-    // The Dashboard doesn't trust inv.lastPrice alone; it checks AssetPrice table.
+    const getExchangeRate = (date: Date): number => {
+        // Find closest rate <= date
+        // Since list is descending, we look for first rate where r.date <= date
+        // Wait, array is Descending (Newest first).
+        // e.g. [2024-01-20, 2024-01-19...]
+        // If we want rate for 2024-01-15, we iterate until we find <= 2024-01-15?
+        // Actually, if we want historical rate, we should find one CLOSE to that date.
+        // Array.find returns the first element matching.
+        // If we sort DESC, finding (r.date <= date) gives the newest rate that is OLDER/EQUAL to date. 
+        // Example: Date=2024-01-15. Rates= [20, 19, 16, 14]. Find(<=15) -> 14. Correct? 
+        // Yes, this finds the most recent rate as of that date.
+        const rate = allRates.find(r => r.date <= date);
+        if (rate) return rate.value;
+        if (allRates.length > 0) return allRates[allRates.length - 1].value; // Oldest fallback
+        return 1200;
+    };
+
+    // Fetch Latest Asset Prices
     const invIds = investments.map(i => i.id);
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
@@ -48,7 +64,6 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
 
     const priceMap: Record<string, number> = {};
     recentPrices.forEach(p => {
-        // We want the LATEST price for each investment
         if (!priceMap[p.investmentId]) priceMap[p.investmentId] = p.price;
     });
 
@@ -65,39 +80,67 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         return 0;
     };
 
-    // 1. Calculate Valuation & Allocation
+    // 1. Calculate Valuation & Allocation & TIR Data Construction
     let totalValueUSD = 0;
     const allocationMap = new Map<string, number>();
 
+    // TIR Data Arrays
+    const tirAmounts: number[] = [];
+    const tirDates: Date[] = [];
+
     const activeInvestments = investments.map(inv => {
-        // Calculate Quantity from Transactions
+        // -- 1. Valuation Logic --
         let quantity = 0;
+
+        // Process Transactions for both Quantity and TIR
         inv.transactions.forEach(t => {
             const qty = toNumber(t.quantity);
-            if (t.type === 'BUY') quantity += qty;
-            else if (t.type === 'SELL') quantity -= qty;
-            else quantity += qty;
+            const totalAmountIdx = toNumber(t.totalAmount); // Negative for BUY usually
+
+            if (t.type === 'BUY') {
+                quantity += qty;
+
+                // For TIR: Add Outflow (Negative)
+                // Normalize to USD using Historical Rate
+                let amountUSD = -Math.abs(totalAmountIdx);
+                if (t.currency === 'ARS') {
+                    const rate = getExchangeRate(t.date);
+                    amountUSD = amountUSD / rate;
+                }
+                tirAmounts.push(amountUSD);
+                tirDates.push(t.date);
+
+            } else if (t.type === 'SELL') {
+                quantity -= qty;
+                // For TIR: Add Inflow (Positive) - Not fully handled in dashboard logic shown, 
+                // but usually SELL is a positive cashflow.
+                // Dashboard logic: "Add all BUY transactions as negative... Add ALL cashflows". 
+                // Does it handle SELLs? `positions` logic handles P&L. 
+                // XIRR usually relies on Cashflows (Coupons + Amort + Final Sale).
+                // If we include SELL transaction as a cashflow, it should be positive.
+                let amountUSD = Math.abs(totalAmountIdx);
+                if (t.currency === 'ARS') {
+                    const rate = getExchangeRate(t.date);
+                    amountUSD = amountUSD / rate;
+                }
+                tirAmounts.push(amountUSD);
+                tirDates.push(t.date);
+
+            } else {
+                quantity += qty;
+            }
         });
 
-        // Smart Price Logic
-        // 1. Get raw price (Try priceMap first, then fallback to lastPrice)
+        // Smart Price Logic for Valuation
         let rawPrice = priceMap[inv.id] !== undefined ? priceMap[inv.id] : toNumber(inv.lastPrice);
 
-        // 2. Normalize "Per 100" convention (Common for ONs)
-        // If price is massive (e.g. 160,000), it's likely ARS per 100.
-        // If price is 100-200, it's likely USD per 100 (resulting in 1-2).
         if ((inv.type === 'ON' || inv.type === 'CORPORATE_BOND') && rawPrice > 2.0) {
             rawPrice = rawPrice / 100;
         }
 
-        // 3. Detect Currency & Convert to USD
-        // If price is still > 10 (e.g. 1300 ARS normalized from 130,000), it's definitely ARS.
-        // ONs usually trade between 0.50 and 1.50 USD.
         let priceUSD = rawPrice;
-
-        // Explicit ARS check or Heuristic check (Price > 5 USD is rare for ON unit price)
         if (inv.currency === 'ARS' || priceUSD > 5.0) {
-            priceUSD = priceUSD / exchangeRate;
+            priceUSD = priceUSD / latestExchangeRate; // Current Value uses Latest Rate
         }
 
         const value = quantity * priceUSD;
@@ -108,6 +151,7 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
             allocationMap.set(type, (allocationMap.get(type) || 0) + value);
         }
 
+        // -- 2. Cashflows for TIR & Arrays --
         const cleanTransactions = inv.transactions.map(t => ({
             ...t,
             amount: toNumber(t.amount),
@@ -118,16 +162,33 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
             updatedAt: undefined
         }));
 
-        const cleanCashflows = inv.cashflows.map(c => ({
-            ...c,
-            amount: toNumber(c.amount),
-            date: c.date // Date object is kept for logic below
-        }));
+        const cleanCashflows = inv.cashflows.map(c => {
+            // For TIR: Add Cashflow
+            let amount = toNumber(c.amount);
+            const cfDate = c.date;
+            const cfCurrency = c.currency || inv.currency;
+
+            // Conversion Logic for TIR
+            if (cfCurrency === 'ARS') {
+                // Past vs Future Rate
+                const rate = cfDate <= new Date() ? getExchangeRate(cfDate) : latestExchangeRate;
+                if (rate > 0) amount = amount / rate;
+            }
+
+            tirAmounts.push(amount);
+            tirDates.push(cfDate);
+
+            return {
+                ...c,
+                amount: toNumber(c.amount),
+                date: c.date
+            };
+        });
 
         return {
             ...inv,
             quantity,
-            currentPrice: priceUSD, // We pass the CLEAN USD price to the client
+            currentPrice: priceUSD,
             maturityDate: inv.maturityDate ? inv.maturityDate.toISOString() : null,
             emissionDate: inv.emissionDate ? inv.emissionDate.toISOString() : null,
             lastPriceDate: inv.lastPriceDate ? inv.lastPriceDate.toISOString() : null,
@@ -138,13 +199,24 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         };
     }).filter(i => i.quantity > 0 || i.type === 'ON');
 
+    // Add current portfolio value as a final cashflow for XIRR calculation
+    if (totalValueUSD > 0) {
+        tirAmounts.push(totalValueUSD);
+        tirDates.push(new Date());
+    }
+
     const allocation = Array.from(allocationMap.entries()).map(([name, value]) => ({
         name: name || 'Desconocido',
         value: Number.isFinite(value) ? value : 0,
-        fill: '#cccccc' // Will be overridden by component
+        fill: '#cccccc'
     })).sort((a, b) => b.value - a.value);
 
-    // 2. Projected Income (Next 12 Months)
+    // 2. Projected Income & XIRR Calculation
+    const { calculateXIRR } = await import('@/lib/financial');
+    const calculatedTIR = calculateXIRR(tirAmounts, tirDates);
+    const yieldAPY = calculatedTIR ? calculatedTIR * 100 : 0;
+
+    // Projected Income (Next 12 Months) - kept for chart
     const now = new Date();
     const nextYear = addMonths(now, 12);
     let totalIncomeUSD = 0;
@@ -157,16 +229,19 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         monthlyFlowsMap.set(label, 0);
     }
 
-    activeInvestments.forEach(inv => {
+    activeInvestments.forEach(inv => { // Using processed list
+        // Note: inv.cashflows here have Date objects from above map.
         inv.cashflows.forEach(cf => {
-            // cf.date is still a Date object here because we didn't stringify it in the first map (left it for logic)
-            if (cf.date <= nextYear && cf.date >= now) {
-                let amountUSD = cf.amount; // Already a number
-                if (cf.currency === 'ARS') amountUSD = cf.amount / exchangeRate;
+            // @ts-ignore - we know it's a date object before stringify step below
+            const dateObj = cf.date;
+
+            if (dateObj <= nextYear && dateObj >= now) {
+                let amountUSD = Number(cf.amount);
+                if (cf.currency === 'ARS') amountUSD = amountUSD / latestExchangeRate;
 
                 if (Number.isFinite(amountUSD)) {
                     totalIncomeUSD += amountUSD;
-                    const label = cf.date.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
+                    const label = dateObj.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
                     if (monthlyFlowsMap.has(label)) {
                         monthlyFlowsMap.set(label, (monthlyFlowsMap.get(label) || 0) + amountUSD);
                     } else {
@@ -177,26 +252,19 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         });
     });
 
-    // NOW stringify cashflow dates for the client
-    const safeInvestments = activeInvestments.map(inv => ({
-        ...inv,
-        cashflows: inv.cashflows.map(cf => ({
-            ...cf,
-            date: typeof cf.date === 'object' ? (cf.date as Date).toISOString() : cf.date
-        }))
-    }));
-
     const monthlyFlows = Array.from(monthlyFlowsMap.entries()).map(([monthLabel, amountUSD]) => ({
         monthLabel,
         amountUSD: Number.isFinite(amountUSD) ? Math.round(amountUSD) : 0
     }));
 
-    // 3. Yield Estimate
-    let yieldAPY = 0;
-    if (totalValueUSD > 0 && Number.isFinite(totalIncomeUSD) && Number.isFinite(totalValueUSD)) {
-        yieldAPY = (totalIncomeUSD / totalValueUSD) * 100;
-    }
-    yieldAPY = Number.isFinite(yieldAPY) ? yieldAPY : 0;
+    // 3. Stringify Dates for Transport
+    const safeInvestments = activeInvestments.map(inv => ({
+        ...inv,
+        cashflows: inv.cashflows.map(cf => ({
+            ...cf,
+            date: (cf.date as unknown as Date).toISOString()
+        }))
+    }));
 
     const reportDate = new Date().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
 
@@ -205,7 +273,7 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         globalData: {
             totalValueUSD: Number.isFinite(totalValueUSD) ? totalValueUSD : 0,
             totalIncomeUSD: Number.isFinite(totalIncomeUSD) ? totalIncomeUSD : 0,
-            yieldAPY,
+            yieldAPY, // Now represents Consolidated TIR
             allocation,
             monthlyFlows
         },
