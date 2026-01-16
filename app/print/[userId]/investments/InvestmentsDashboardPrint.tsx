@@ -124,12 +124,26 @@ export default function InvestmentsDashboardPrint({ investments, globalData, sta
             </div>
 
             {/* Top KPI Cards (High Level) */}
-            <div className="grid grid-cols-3 gap-4">
-                {/* Valuation */}
+            <div className="grid grid-cols-4 gap-4">
+                {/* Total Investment (New) */}
                 <Card className="bg-slate-900/50 border-slate-800">
                     <CardContent className="p-4 flex flex-col items-center text-center justify-center">
                         <div className="flex items-center gap-2 mb-2 text-emerald-500">
                             <Wallet size={20} />
+                            <span className="text-sm font-semibold uppercase text-slate-400 tracking-wider">Inversión Total</span>
+                        </div>
+                        <h3 className="text-2xl font-bold text-emerald-400">
+                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.capitalInvertido || 0)}
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1">{stats?.totalTransactions} operaciones</p>
+                    </CardContent>
+                </Card>
+
+                {/* Valuation */}
+                <Card className="bg-slate-900/50 border-slate-800">
+                    <CardContent className="p-4 flex flex-col items-center text-center justify-center">
+                        <div className="flex items-center gap-2 mb-2 text-emerald-500">
+                            <TrendingUp size={20} />
                             <span className="text-sm font-semibold uppercase text-slate-400 tracking-wider">Valuación Total</span>
                         </div>
                         <h3 className="text-2xl font-bold text-emerald-400">
