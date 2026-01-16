@@ -46,6 +46,9 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
 
         return {
             ...inv,
+            maturityDate: inv.maturityDate ? inv.maturityDate.toISOString() : null,
+            createdAt: inv.createdAt.toISOString(),
+            updatedAt: inv.updatedAt.toISOString(),
             currentPrice: price,
             transactions: inv.transactions.map(t => ({ ...t, date: t.date.toISOString(), createdAt: undefined, updatedAt: undefined })),
             cashflows: inv.cashflows.map(c => ({ ...c, date: c.date.toISOString() }))
