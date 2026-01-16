@@ -36,7 +36,7 @@ export interface DashboardData {
         invested: number;
         percentage: number;
         tir: number;
-        theoreticalTir?: number | null;
+        marketTir?: number | null;
         type?: string;
     }>;
     totalONs: number;
@@ -102,9 +102,9 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
         .map(item => ({
             ticker: item.ticker,
             purchaseTir: item.tir,
-            marketTir: item.theoreticalTir || 0,
-            diff: item.tir - (item.theoreticalTir || 0),
-            better: item.tir > (item.theoreticalTir || 0)
+            marketTir: item.marketTir || 0,
+            diff: item.tir - (item.marketTir || 0),
+            better: item.tir > (item.marketTir || 0)
         }))
         .sort((a, b) => b.purchaseTir - a.purchaseTir) : [];
 
