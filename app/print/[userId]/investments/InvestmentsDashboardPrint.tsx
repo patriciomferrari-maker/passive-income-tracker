@@ -1,18 +1,18 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-// import {
-//     PieChart,
-//     Pie,
-//     Cell,
-//     BarChart,
-//     Bar,
-//     XAxis,
-//     YAxis,
-//     CartesianGrid,
-//     Tooltip,
-//     Legend
-// } from 'recharts';
+import {
+    PieChart,
+    Pie,
+    Cell,
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend
+} from 'recharts';
 import { DollarSign, PieChart as PieIcon, TrendingUp, Calendar, Wallet } from 'lucide-react';
 
 interface InvestmentTransaction {
@@ -91,7 +91,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function InvestmentsDashboardPrint({ investments, globalData, market, reportDate }: Props) {
     const title = market === 'ARG' ? 'Cartera Argentina' : (market === 'USA' ? 'Cartera USA' : 'Reporte Global de Inversiones');
-    // const today = new Date(); -- MOVED TO SERVER
 
     return (
         <div className="min-h-screen bg-[#020617] text-white p-4 space-y-8" style={{ width: '1200px', margin: '0 auto' }}>
@@ -176,8 +175,9 @@ export default function InvestmentsDashboardPrint({ investments, globalData, mar
                 </Card>
             </div>
 
-            {/* Charts Section - COMMENTED OUT FOR DEBUGGING */}
-            {/* <div className="grid grid-cols-2 gap-8 h-[400px]">
+            {/* Charts Section */}
+            <div className="grid grid-cols-2 gap-8 h-[400px]">
+                {/* 1. Asset Allocation (Pie) */}
                 <Card className="bg-slate-900/50 border-slate-800 break-inside-avoid">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-slate-200 uppercase text-sm tracking-widest text-center">Distribución por Activo</CardTitle>
@@ -209,6 +209,7 @@ export default function InvestmentsDashboardPrint({ investments, globalData, mar
                     </CardContent>
                 </Card>
 
+                {/* 2. Projected Flows (Bar) */}
                 <Card className="bg-slate-900/50 border-slate-800 break-inside-avoid">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-slate-200 uppercase text-sm tracking-widest text-center">Flujo de Fondos Proyectado</CardTitle>
@@ -229,7 +230,7 @@ export default function InvestmentsDashboardPrint({ investments, globalData, mar
                         </BarChart>
                     </CardContent>
                 </Card>
-            </div> */}
+            </div>
 
             {/* Holdings Table */}
             <Card className="bg-slate-900/50 border-slate-800 break-inside-avoid mt-8">

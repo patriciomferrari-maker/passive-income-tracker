@@ -114,8 +114,25 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
 
     const reportDate = new Date().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
 
+    // Explicitly sanitize investments to primitive numbers
+    const safeInvestments = activeInvestments.map(inv => ({
+        ...inv,
+        quantity: Number(inv.quantity) || 0,
+        currentPrice: inv.currentPrice ? Number(inv.currentPrice) : 0,
+        transactions: inv.transactions.map(t => ({
+            ...t,
+            amount: Number(t.amount),
+            price: Number(t.price),
+            totalAmount: Number(t.totalAmount)
+        })),
+        cashflows: inv.cashflows.map(cf => ({
+            ...cf,
+            amount: Number(cf.amount)
+        }))
+    }));
+
     return {
-        investments: activeInvestments as any,
+        investments: safeInvestments as any,
         globalData: {
             totalValueUSD: Number.isFinite(totalValueUSD) ? totalValueUSD : 0,
             totalIncomeUSD: Number.isFinite(totalIncomeUSD) ? totalIncomeUSD : 0,
