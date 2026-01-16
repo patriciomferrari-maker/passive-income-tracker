@@ -134,13 +134,25 @@ async function getDashboardData(userId: string, market: 'ARG' | 'USA') {
         // Smart Price Logic for Valuation
         let rawPrice = priceMap[inv.id] !== undefined ? priceMap[inv.id] : toNumber(inv.lastPrice);
 
+        // 2. Normalize "Per 100" convention (Common for ONs)
         if ((inv.type === 'ON' || inv.type === 'CORPORATE_BOND') && rawPrice > 2.0) {
+            // Heuristic: If it's huge, it's likely per 100.
+            // But wait, if it's 108.3 (USD per 100), /100 = 1.083. Correct.
+            // If it's 160,000 (ARS per 100), /100 = 1600. Correct.
+            // If it's 1.05 (USD unit), rawPrice > 2.0 is False. stays 1.05. Correct.
             rawPrice = rawPrice / 100;
         }
 
         let priceUSD = rawPrice;
-        if (inv.currency === 'ARS' || priceUSD > 5.0) {
-            priceUSD = priceUSD / latestExchangeRate; // Current Value uses Latest Rate
+
+        // 3. Detect Currency & Convert to USD
+        // CRITICAL FIX: Ignore inv.currency for the decision to convert.
+        // Data sources often mix USD and ARS prices for the same ticker.
+        // Heuristic: If price is > 50, it is definitely ARS (Exchange rate ~1100).
+        // ONs trade ~1.00 USD. CEDEARs ~5-20 USD. 
+        // Anything above 50 is likely ARS.
+        if (priceUSD > 50.0) {
+            priceUSD = priceUSD / latestExchangeRate;
         }
 
         const value = quantity * priceUSD;
