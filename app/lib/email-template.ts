@@ -295,11 +295,11 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                         <tr>
                            <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
                                 <span style="color: #0ea5e9; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">INDEC</span>
-                                <div style="color: #1e293b; font-weight: 500; margin-top: 4px;">Próximo IPC (Inflación)</div>
+                                <div style="color: #1e293b; font-weight: 500; margin-top: 4px;">Próximo Dato (IPC)</div>
                            </td>
                            <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; text-align: right;">
-                                <div style="color: #0f172a; font-weight: 600;">${format(dateObj, 'dd MMM', { locale: es }).toUpperCase()}</div>
-                                <div style="color: #94a3b8; font-size: 11px;">Faltan ${days} dias</div>
+                                <div style="color: #0f172a; font-weight: 600; text-align: right;">${format(dateObj, 'dd MMM yyyy', { locale: es }).toUpperCase()}</div>
+                                <div style="color: #94a3b8; font-size: 11px; text-align: right;">Faltan ${days} días</div>
                            </td> 
                         </tr>
                         `;
