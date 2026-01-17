@@ -144,12 +144,12 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                    <td width="30%" align="right" style="padding: 0; border-bottom: 1px solid #f1f5f9;">
                         <table width="100%" cellpadding="0" cellspacing="0">
                             <tr>
-                                <td align="right" style="padding: 8px 12px 4px 12px;">
+                                <td align="right" style="padding: 12px 16px 4px 16px;">
                                     <div style="color: #0f172a; font-weight: 600;">${format(e.date, 'MMM yyyy', { locale: es }).toUpperCase()}</div>
                                 </td>
                             </tr>
                             <tr>
-                                <td align="right" style="padding: 0 12px 8px 12px;">
+                                <td align="right" style="padding: 0 16px 12px 16px;">
                                     <div style="color: #94a3b8; font-size: 11px;">Faltan ${e.monthsTo} meses</div>
                                 </td>
                             </tr>
@@ -310,12 +310,12 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                            <td width="30%" align="right" style="padding: 0; border-bottom: 1px solid #f1f5f9;">
                                 <table width="100%" cellpadding="0" cellspacing="0">
                                     <tr>
-                                        <td align="right" style="padding: 8px 12px 4px 12px;">
+                                        <td align="right" style="padding: 12px 16px 4px 16px;">
                                             <div style="color: #0f172a; font-weight: 600;">${format(dateObj, 'dd MMM yyyy', { locale: es }).toUpperCase()}</div>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td align="right" style="padding: 0 12px 8px 12px;">
+                                        <td align="right" style="padding: 0 16px 12px 16px;">
                                             <div style="color: #94a3b8; font-size: 11px;">Faltan ${days} días</div>
                                         </td>
                                     </tr>
