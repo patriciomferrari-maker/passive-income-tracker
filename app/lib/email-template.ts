@@ -137,7 +137,7 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
             const label = isExp ? 'VENCIMIENTO' : 'AJUSTE';
             return `
                 <tr>
-                   <td width="70%" align="left" style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
+                   <td width="70%" align="left" style="padding: 12px 16px 12px 8px; border-bottom: 1px solid #f1f5f9;">
                         <span style="color: ${color}; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">${label}</span>
                         <div style="color: #1e293b; font-weight: 500; margin-top: 4px;">${e.property}</div>
                    </td>
@@ -303,7 +303,7 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
 
                 return `
                         <tr>
-                           <td width="70%" align="left" style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
+                           <td width="70%" align="left" style="padding: 12px 16px 12px 8px; border-bottom: 1px solid #f1f5f9;">
                                 <span style="color: #0ea5e9; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">INDEC</span>
                                 <div style="color: #1e293b; font-weight: 500; margin-top: 4px;">Próximo Dato (IPC)</div>
                            </td>
