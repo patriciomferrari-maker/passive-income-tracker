@@ -78,9 +78,16 @@ async function getPreviousMonthPassiveIncome(userId: string, targetDate: Date): 
 
     const costaIncome = costaTxs.reduce((acc, curr) => acc + curr.amount, 0);
 
-    // 5. Debt (DebtPayment)
+    // 5. Debt (DebtPayment) - Only count payments on debts OWED TO the user (income)
     const debtPayments = await prisma.debtPayment.findMany({
-        where: { debt: { userId }, date: { gte: start, lte: end }, type: 'PAYMENT' }
+        where: {
+            debt: {
+                userId,
+                type: 'OWED_TO_ME'  // Only count money collected, not money paid
+            },
+            date: { gte: start, lte: end },
+            type: 'PAYMENT'
+        }
     });
     const debtCollected = debtPayments.reduce((acc, curr) => acc + curr.amount, 0);
 
