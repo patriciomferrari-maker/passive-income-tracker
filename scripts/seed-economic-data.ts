@@ -98,13 +98,6 @@ async function seedEconomicData() {
                 });
 
                 if (existing) {
-                    // Skip if value was manually entered
-                    if (existing.isManual) {
-                        console.log(`⚠️  Skipping ${item.date.toISOString().slice(0, 10)} - manually entered`);
-                        totalSkipped++;
-                        continue;
-                    }
-
                     // Update if values changed
                     if (existing.value !== item.value || existing.interannualValue !== item.interannualValue) {
                         await prisma.economicIndicator.update({
@@ -124,8 +117,7 @@ async function seedEconomicData() {
                             type: 'IPC',
                             date: item.date,
                             value: item.value,
-                            interannualValue: item.interannualValue,
-                            isManual: false  // Mark as automatic
+                            interannualValue: item.interannualValue
                         }
                     });
                     totalCreated++;
