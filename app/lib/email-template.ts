@@ -137,23 +137,14 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
             const label = isExp ? 'VENCIMIENTO' : 'AJUSTE';
             return `
                 <tr>
-                   <td width="70%" align="left" style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9;">
+                   <td align="left" style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
                         <span style="color: ${color}; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">${label}</span>
                         <div style="color: #1e293b; font-weight: 500; margin-top: 4px;">${e.property}</div>
                    </td>
-                   <td width="30%" align="right" style="padding: 0; border-bottom: 1px solid #f1f5f9;">
-                        <table width="100%" cellpadding="0" cellspacing="0">
-                            <tr>
-                                <td align="right" style="padding: 12px 16px 4px 16px;">
-                                    <div style="color: #0f172a; font-weight: 600;">${format(e.date, 'MMM yyyy', { locale: es }).toUpperCase()}</div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td align="right" style="padding: 0 16px 12px 16px;">
-                                    <div style="color: #94a3b8; font-size: 11px;">Faltan ${e.monthsTo} meses</div>
-                                </td>
-                            </tr>
-                        </table>
+                   <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;"></td>
+                   <td align="right" style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; text-align: right;">
+                        <div style="color: #0f172a; font-weight: 600;">${format(e.date, 'MMM yyyy', { locale: es }).toUpperCase()}</div>
+                        <div style="color: #94a3b8; font-size: 11px; margin-top: 4px;">Faltan ${e.monthsTo} meses</div>
                    </td> 
                 </tr>
             `
@@ -303,23 +294,14 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
 
                 return `
                         <tr>
-                           <td width="70%" align="left" style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9;">
+                           <td align="left" style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
                                 <span style="color: #0ea5e9; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">INDEC</span>
                                 <div style="color: #1e293b; font-weight: 500; margin-top: 4px;">Próximo Dato (IPC)</div>
                            </td>
-                           <td width="30%" align="right" style="padding: 0; border-bottom: 1px solid #f1f5f9;">
-                                <table width="100%" cellpadding="0" cellspacing="0">
-                                    <tr>
-                                        <td align="right" style="padding: 12px 16px 4px 16px;">
-                                            <div style="color: #0f172a; font-weight: 600;">${format(dateObj, 'dd MMM yyyy', { locale: es }).toUpperCase()}</div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td align="right" style="padding: 0 16px 12px 16px;">
-                                            <div style="color: #94a3b8; font-size: 11px;">Faltan ${days} días</div>
-                                        </td>
-                                    </tr>
-                                </table>
+                           <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;"></td>
+                           <td align="right" style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; text-align: right;">
+                                <div style="color: #0f172a; font-weight: 600;">${format(dateObj, 'dd MMM yyyy', { locale: es }).toUpperCase()}</div>
+                                <div style="color: #94a3b8; font-size: 11px; margin-top: 4px;">Faltan ${days} días</div>
                            </td> 
                         </tr>
                         `;
