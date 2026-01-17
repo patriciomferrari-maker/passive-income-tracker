@@ -1,25 +1,27 @@
 import { PrismaClient } from '@prisma/client';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
-const execAsync = promisify(exec);
 const prisma = new PrismaClient();
 
 /**
  * Recalculate all rental cashflows affected by IPC changes
- * This function runs the separate-regenerate script which recalculates
- * all rental periods based on current IPC values
+ * 
+ * NOTE: In serverless environment (Vercel), we can't execute scripts directly.
+ * This function logs the affected contracts and returns the count.
+ * The actual recalculation should be triggered via:
+ * 1. Manual script execution: npx tsx scripts/separate-regenerate.ts
+ * 2. Scheduled cron job
+ * 3. Webhook trigger
  */
 export async function recalculateRentalsForIPCChange(ipcDate?: Date): Promise<number> {
     try {
-        console.log('[Rental Recalc] Starting rental recalculation...');
+        console.log('[Rental Recalc] Checking IPC-based contracts...');
 
         // Count contracts that use IPC adjustment
         const ipcContracts = await prisma.contract.findMany({
             where: {
                 adjustmentType: 'IPC'
             },
-            select: { id: true }
+            select: { id: true, propertyId: true }
         });
 
         if (ipcContracts.length === 0) {
@@ -27,27 +29,15 @@ export async function recalculateRentalsForIPCChange(ipcDate?: Date): Promise<nu
             return 0;
         }
 
-        console.log(`[Rental Recalc] Found ${ipcContracts.length} IPC-based contracts`);
-
-        // Run the regenerate script
-        // This script recalculates all rental cashflows based on current economic data
-        const { stdout, stderr } = await execAsync(
-            'npx tsx scripts/separate-regenerate.ts',
-            { cwd: process.cwd() }
-        );
-
-        if (stderr) {
-            console.error('[Rental Recalc] Script errors:', stderr);
-        }
-
-        console.log('[Rental Recalc] Script output:', stdout);
-        console.log(`[Rental Recalc] Successfully recalculated ${ipcContracts.length} contracts`);
+        console.log(`[Rental Recalc] Found ${ipcContracts.length} IPC-based contracts affected by IPC change`);
+        console.log('[Rental Recalc] Note: Run "npx tsx scripts/separate-regenerate.ts" to recalculate cashflows');
 
         return ipcContracts.length;
 
     } catch (error: any) {
-        console.error('[Rental Recalc] Error recalculating rentals:', error.message);
-        throw error;
+        console.error('[Rental Recalc] Error checking contracts:', error.message);
+        // Don't throw - just log and return 0
+        return 0;
     } finally {
         await prisma.$disconnect();
     }
@@ -57,7 +47,8 @@ export async function recalculateRentalsForIPCChange(ipcDate?: Date): Promise<nu
 if (require.main === module) {
     recalculateRentalsForIPCChange()
         .then((count) => {
-            console.log(`✅ Recalculated ${count} rental contracts`);
+            console.log(`✅ Found ${count} IPC-based rental contracts`);
+            console.log('💡 Run "npx tsx scripts/separate-regenerate.ts" to recalculate');
             process.exit(0);
         })
         .catch((error) => {
