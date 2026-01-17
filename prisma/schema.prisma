@@ -275,7 +275,7 @@ model EconomicIndicator {
   
   interannualValue Float?  // Interannual inflation (scraped from datosmacro)
   
-  isManual  Boolean @default(false)  // True if value was manually entered by admin
+  isManual  Boolean? @default(false)  // True if value was manually entered by admin
   
   buyRate   Float?   // Tipo de cambio comprador
   sellRate  Float?   // Tipo de cambio vendedor
