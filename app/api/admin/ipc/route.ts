@@ -149,15 +149,22 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        // TODO: Trigger rental recalculation
-        // This will be implemented in a separate function
-        // const affectedRentals = await recalculateRentalsForIPCChange(normalizedDate);
+        // Trigger rental recalculation asynchronously
+        let affectedRentals = 0;
+        try {
+            const { recalculateRentalsForIPCChange } = await import('@/lib/rental-recalculator');
+            affectedRentals = await recalculateRentalsForIPCChange(normalizedDate);
+            console.log(`[IPC API] Recalculated ${affectedRentals} rental contracts`);
+        } catch (recalcError: any) {
+            console.error('[IPC API] Error recalculating rentals:', recalcError.message);
+            // Don't fail the request if recalculation fails
+        }
 
         return NextResponse.json({
             success: true,
             indicator,
             message: `IPC value for ${normalizedDate.toISOString().slice(0, 7)} saved successfully`,
-            // affectedRentals: affectedRentals || 0
+            affectedRentals
         });
 
     } catch (error: any) {
