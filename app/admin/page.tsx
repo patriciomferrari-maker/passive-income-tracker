@@ -418,38 +418,85 @@ function DollarCard() {
 
 function IPCCard() {
     const [inflationData, setInflationData] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [addDialogOpen, setAddDialogOpen] = useState(false);
+    const [newIPCDate, setNewIPCDate] = useState('');
+    const [newIPCValue, setNewIPCValue] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [message, setMessage] = useState('');
+    const [messageType, setMessageType] = useState<'success' | 'error' | ''>('');
     const fetchedRef = useRef(false);
 
+    const fetchIPCData = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/admin/ipc?limit=24');
+            const data = await res.json();
+            if (data.success && Array.isArray(data.indicators)) {
+                setInflationData(data.indicators);
+            }
+        } catch (err) {
+            console.error('[IPCCard] Error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        if (fetchedRef.current) {
-            console.log('[IPCCard] Already fetched, skipping');
+        if (fetchedRef.current) return;
+        fetchedRef.current = true;
+        fetchIPCData();
+    }, []);
+
+    const handleAddIPC = async () => {
+        if (!newIPCDate || !newIPCValue) {
+            setMessage('Por favor completa todos los campos');
+            setMessageType('error');
             return;
         }
-        fetchedRef.current = true;
 
-        console.log('[IPCCard] Fetching inflation data...');
-        fetch('/api/admin/inflation')
-            .then(res => res.json())
-            .then(data => {
-                console.log('[IPCCard] Raw data length:', data.length);
-                if (Array.isArray(data)) {
-                    // AGGRESSIVE deduplication
-                    const seen = new Set<string>();
-                    const unique = data.filter(item => {
-                        const key = `${item.year}-${item.month}`;
-                        if (seen.has(key)) {
-                            console.log(`[IPCCard] Duplicate found: ${key}`);
-                            return false;
-                        }
-                        seen.add(key);
-                        return true;
-                    });
-                    console.log('[IPCCard] After dedup:', unique.length, 'unique records');
-                    setInflationData(unique);
-                }
-            })
-            .catch(err => console.error('[IPCCard] Error:', err));
-    }, []);
+        const valueNum = parseFloat(newIPCValue);
+        if (isNaN(valueNum)) {
+            setMessage('El valor debe ser un número válido');
+            setMessageType('error');
+            return;
+        }
+
+        setSaving(true);
+        setMessage('');
+        setMessageType('');
+
+        try {
+            const res = await fetch('/api/admin/ipc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: newIPCDate,
+                    value: valueNum / 100 // Convert percentage to decimal
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                setMessage(data.message || 'IPC guardado exitosamente');
+                setMessageType('success');
+                setNewIPCDate('');
+                setNewIPCValue('');
+                setAddDialogOpen(false);
+                // Refresh data
+                fetchIPCData();
+            } else {
+                setMessage(data.error || 'Error al guardar IPC');
+                setMessageType('error');
+            }
+        } catch (error: any) {
+            setMessage('Error de conexión: ' + error.message);
+            setMessageType('error');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     return (
         <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
@@ -457,37 +504,113 @@ function IPCCard() {
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-slate-100 text-lg">Inflación (IPC)</CardTitle>
                     <div className="flex gap-2">
-                        <Badge variant="secondary" className="bg-emerald-900 text-emerald-400">Auto</Badge>
+                        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white h-7 text-xs">
+                                    + Agregar IPC
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-slate-950 border-slate-800 text-slate-100">
+                                <DialogHeader>
+                                    <DialogTitle>Agregar/Editar IPC Mensual</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label>Mes/Año</Label>
+                                        <Input
+                                            type="month"
+                                            value={newIPCDate}
+                                            onChange={(e) => setNewIPCDate(e.target.value)}
+                                            className="bg-slate-900 border-slate-700"
+                                        />
+                                        <p className="text-[10px] text-slate-500">
+                                            Selecciona el mes para el cual quieres ingresar el IPC
+                                        </p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>IPC Mensual (%)</Label>
+                                        <Input
+                                            type="number"
+                                            step="0.1"
+                                            placeholder="Ej: 2.5"
+                                            value={newIPCValue}
+                                            onChange={(e) => setNewIPCValue(e.target.value)}
+                                            className="bg-slate-900 border-slate-700"
+                                        />
+                                        <p className="text-[10px] text-slate-500">
+                                            Ingresa el porcentaje mensual (ej: 2.5 para 2.5%)
+                                        </p>
+                                    </div>
+                                    {message && (
+                                        <div className={`p-3 rounded-md text-xs ${messageType === 'success'
+                                                ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900'
+                                                : 'bg-red-950/50 text-red-400 border border-red-900'
+                                            }`}>
+                                            {message}
+                                        </div>
+                                    )}
+                                </div>
+                                <DialogFooter>
+                                    <Button
+                                        onClick={handleAddIPC}
+                                        disabled={saving}
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                        {saving ? 'Guardando...' : 'Guardar IPC'}
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                        <Badge variant="secondary" className="bg-emerald-900 text-emerald-400">Manual</Badge>
                         <Badge variant="secondary" className="bg-slate-800 text-slate-400">BCRA</Badge>
                     </div>
                 </div>
                 <CardDescription className="text-slate-400 text-xs">
-                    Actualización automática diaria desde BCRA.
+                    Actualización manual y automática. Los valores manuales no se sobreescriben.
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
                 <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden h-full flex flex-col">
-                    <div className="grid grid-cols-4 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
+                    <div className="grid grid-cols-5 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
                         <span>Año</span>
                         <span>Mes</span>
                         <span className="text-right">Mensual</span>
                         <span className="text-right">Interanual</span>
+                        <span className="text-center">Origen</span>
                     </div>
                     <div className="flex-1 overflow-y-auto">
-                        {inflationData.length > 0 ? (
-                            inflationData.map((item) => (
-                                <div key={`${item.year}-${item.month}`} className="grid grid-cols-4 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
-                                    <span className="text-slate-300">{item.year}</span>
-                                    <span className="text-slate-500">{getMonthName(item.month)}</span>
-                                    <span className="text-right font-bold text-slate-200">{item.value.toFixed(1)}%</span>
-                                    <span className="text-right font-bold text-green-400">
-                                        {item.interannualValue ? `${item.interannualValue.toFixed(1)}%` : '-'}
-                                    </span>
-                                </div>
-                            ))
+                        {loading ? (
+                            <div className="p-4 text-center text-xs text-slate-500">Cargando...</div>
+                        ) : inflationData.length > 0 ? (
+                            inflationData.map((item) => {
+                                const date = new Date(item.date);
+                                const year = date.getUTCFullYear();
+                                const month = date.getUTCMonth() + 1;
+                                return (
+                                    <div key={item.id} className="grid grid-cols-5 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
+                                        <span className="text-slate-300">{year}</span>
+                                        <span className="text-slate-500">{getMonthName(month)}</span>
+                                        <span className="text-right font-bold text-slate-200">{(item.value * 100).toFixed(1)}%</span>
+                                        <span className="text-right font-bold text-green-400">
+                                            {item.interannualValue ? `${(item.interannualValue * 100).toFixed(1)}%` : '-'}
+                                        </span>
+                                        <div className="text-center">
+                                            {item.isManual ? (
+                                                <Badge variant="outline" className="text-[9px] border-blue-700 text-blue-400 bg-blue-950/30">
+                                                    Manual
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline" className="text-[9px] border-slate-700 text-slate-500">
+                                                    Auto
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })
                         ) : (
                             <div className="p-4 text-center text-xs text-slate-500">
-                                Cargando...
+                                No hay datos. Ejecuta "Seed Historical Data" o agrega valores manualmente.
                             </div>
                         )}
                     </div>
