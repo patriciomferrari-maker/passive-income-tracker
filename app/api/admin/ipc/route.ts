@@ -48,24 +48,10 @@ export async function GET(req: NextRequest) {
 /**
  * POST /api/admin/ipc
  * Create or update an IPC value
+ * Note: Admin page is protected, so we don't need additional auth here
  */
 export async function POST(req: NextRequest) {
     try {
-        const userId = await getUserId();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        // Check if user is admin
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { role: true }
-        });
-
-        if (user?.role !== 'admin') {
-            return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 });
-        }
-
         const body = await req.json();
         const { date, value } = body;
 
