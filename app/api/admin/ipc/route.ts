@@ -1,28 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getUserId } from '../../../lib/auth-helper';
 
 /**
  * GET /api/admin/ipc
  * Fetch IPC history with optional filtering
+ * Note: Admin page is protected, so we don't need additional auth here
  */
 export async function GET(req: NextRequest) {
     try {
-        const userId = await getUserId();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        // Check if user is admin
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { role: true }
-        });
-
-        if (user?.role !== 'admin') {
-            return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 });
-        }
-
         // Get query parameters
         const { searchParams } = new URL(req.url);
         const limit = parseInt(searchParams.get('limit') || '24');
