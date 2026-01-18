@@ -98,14 +98,24 @@ async function seedEconomicData() {
                 });
 
                 if (existing) {
-                    // Skip if value was manually entered
+                    // If manually entered, only complement missing data
                     if (existing.isManual) {
-                        console.log(`⚠️  Skipping ${item.date.toISOString().slice(0, 10)} - manually entered`);
-                        totalSkipped++;
+                        // Check if we can add interannual value
+                        if (!existing.interannualValue && item.interannualValue) {
+                            await prisma.economicIndicator.update({
+                                where: { id: existing.id },
+                                data: { interannualValue: item.interannualValue }
+                            });
+                            console.log(`✓ Added interannual to manual entry: ${item.date.toISOString().slice(0, 10)}`);
+                            totalUpdated++;
+                        } else {
+                            console.log(`⚠️  Skipping ${item.date.toISOString().slice(0, 10)} - manually entered (complete)`);
+                            totalSkipped++;
+                        }
                         continue;
                     }
 
-                    // Update if values changed
+                    // Update if values changed (for automatic entries)
                     if (existing.value !== item.value || existing.interannualValue !== item.interannualValue) {
                         await prisma.economicIndicator.update({
                             where: { id: existing.id },
