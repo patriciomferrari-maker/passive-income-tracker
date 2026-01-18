@@ -543,8 +543,8 @@ function IPCCard() {
                                     </div>
                                     {message && (
                                         <div className={`p-3 rounded-md text-xs ${messageType === 'success'
-                                                ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900'
-                                                : 'bg-red-950/50 text-red-400 border border-red-900'
+                                            ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900'
+                                            : 'bg-red-950/50 text-red-400 border border-red-900'
                                             }`}>
                                             {message}
                                         </div>
@@ -595,7 +595,7 @@ function IPCCard() {
                                             {item.interannualValue ? `${(item.interannualValue * 100).toFixed(1)}%` : '-'}
                                         </span>
                                         <div className="text-center">
-                                            {item.isManual ? (
+                                            {item.isManual === true ? (
                                                 <Badge variant="outline" className="text-[9px] border-blue-700 text-blue-400 bg-blue-950/30">
                                                     Manual
                                                 </Badge>

@@ -38,7 +38,6 @@ export async function GET(req: NextRequest) {
                 date: true,
                 value: true,
                 interannualValue: true,
-                isManual: true,
                 createdAt: true,
                 updatedAt: true
             }
