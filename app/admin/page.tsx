@@ -590,9 +590,9 @@ function IPCCard() {
                                     <div key={item.id} className="grid grid-cols-5 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 transition-colors">
                                         <span className="text-slate-300">{year}</span>
                                         <span className="text-slate-500">{getMonthName(month)}</span>
-                                        <span className="text-right font-bold text-slate-200">{(item.value * 100).toFixed(1)}%</span>
+                                        <span className="text-right font-bold text-slate-200">{item.value.toFixed(1)}%</span>
                                         <span className="text-right font-bold text-green-400">
-                                            {item.interannualValue ? `${(item.interannualValue * 100).toFixed(1)}%` : '-'}
+                                            {item.interannualValue ? `${item.interannualValue.toFixed(1)}%` : '-'}
                                         </span>
                                         <div className="text-center">
                                             {item.isManual === true ? (
