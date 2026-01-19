@@ -131,3 +131,57 @@ export async function POST(req: NextRequest) {
         );
     }
 }
+
+/**
+ * DELETE /api/admin/ipc
+ * Delete an IPC value
+ */
+export async function DELETE(req: NextRequest) {
+    try {
+        const { searchParams } = new URL(req.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json(
+                { error: 'Missing required field: id' },
+                { status: 400 }
+            );
+        }
+
+        // Check if record exists
+        const record = await prisma.economicIndicator.findUnique({
+            where: { id }
+        });
+
+        if (!record) {
+            return NextResponse.json(
+                { error: 'Record not found' },
+                { status: 404 }
+            );
+        }
+
+        // Only allow deleting IPC records
+        if (record.type !== 'IPC') {
+            return NextResponse.json(
+                { error: 'Can only delete IPC records via this endpoint' },
+                { status: 400 }
+            );
+        }
+
+        await prisma.economicIndicator.delete({
+            where: { id }
+        });
+
+        return NextResponse.json({
+            success: true,
+            message: 'IPC record deleted successfully'
+        });
+
+    } catch (error: any) {
+        console.error('[API] Error deleting IPC value:', error);
+        return NextResponse.json(
+            { error: 'Failed to delete IPC value', details: error.message },
+            { status: 500 }
+        );
+    }
+}

@@ -6,124 +6,133 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { AlertCircle, CheckCircle, RefreshCw, Database, Users, UserPlus } from 'lucide-react';
+import { AlertCircle, CheckCircle, RefreshCw, Database, Users, UserPlus, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast"; // Assuming you have this, otherwise we use local state alerts
 
 export default function AdminPage() {
-    // ONs State
-    const [onPrices, setOnPrices] = useState<any[]>([]);
-    const [usEtfPrices, setUsEtfPrices] = useState<any[]>([]); // New state for US ETFs
-    const [loadingONs, setLoadingONs] = useState(true);
+    // ... existing code ...
+}
 
-    // Fetch ONs on mount
-    useEffect(() => {
-        async function initAdmin() {
-            setLoadingONs(true);
-            try {
-                // 1. Trigger Updates (Auto-update requested by user)
-                // We fire both updates in parallel for efficiency
-                await Promise.all([
-                    fetch('/api/admin/market-data', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'UPDATE_ONS' })
-                    }),
-                    fetch('/api/admin/market-data', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'UPDATE_TREASURIES' })
-                    })
-                ]);
 
-                // 2. Fetch Latest Data
-                const resON = await fetch('/api/admin/market-data?category=ON');
-                const dataON = await resON.json();
-                if (dataON.success && dataON.prices) {
-                    setOnPrices(dataON.prices.sort((a: any, b: any) => a.ticker.localeCompare(b.ticker)));
-                }
 
-                const resUS = await fetch('/api/admin/market-data?category=US_ETF');
-                const dataUS = await resUS.json();
-                if (dataUS.success && dataUS.prices) {
-                    setUsEtfPrices(dataUS.prices.sort((a: any, b: any) => a.ticker.localeCompare(b.ticker)));
-                }
-            } catch (e) {
-                console.error("Failed to update/load assets", e);
-            } finally {
-                setLoadingONs(false);
+
+
+
+// ONs State
+const [onPrices, setOnPrices] = useState<any[]>([]);
+const [usEtfPrices, setUsEtfPrices] = useState<any[]>([]); // New state for US ETFs
+const [loadingONs, setLoadingONs] = useState(true);
+
+// Fetch ONs on mount
+useEffect(() => {
+    async function initAdmin() {
+        setLoadingONs(true);
+        try {
+            // 1. Trigger Updates (Auto-update requested by user)
+            // We fire both updates in parallel for efficiency
+            await Promise.all([
+                fetch('/api/admin/market-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'UPDATE_ONS' })
+                }),
+                fetch('/api/admin/market-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'UPDATE_TREASURIES' })
+                })
+            ]);
+
+            // 2. Fetch Latest Data
+            const resON = await fetch('/api/admin/market-data?category=ON');
+            const dataON = await resON.json();
+            if (dataON.success && dataON.prices) {
+                setOnPrices(dataON.prices.sort((a: any, b: any) => a.ticker.localeCompare(b.ticker)));
             }
+
+            const resUS = await fetch('/api/admin/market-data?category=US_ETF');
+            const dataUS = await resUS.json();
+            if (dataUS.success && dataUS.prices) {
+                setUsEtfPrices(dataUS.prices.sort((a: any, b: any) => a.ticker.localeCompare(b.ticker)));
+            }
+        } catch (e) {
+            console.error("Failed to update/load assets", e);
+        } finally {
+            setLoadingONs(false);
         }
-        initAdmin();
-    }, []);
+    }
+    initAdmin();
+}, []);
 
-    return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
-            <h1 className="text-4xl font-bold mb-8 text-center text-slate-50">Panel de Administración</h1>
+return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
+        <h1 className="text-4xl font-bold mb-8 text-center text-slate-50">Panel de Administración</h1>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-                {/* Users Management */}
-                <UsersCard />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+            {/* Users Management */}
+            <UsersCard />
 
-                {/* ONs Card */}
-                <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <CardTitle className="text-slate-100 text-lg">Cotización ONs/Bonos</CardTitle>
-                            <Badge variant="secondary" className="bg-slate-800 text-slate-400">Multi-Market</Badge>
+            {/* ONs Card */}
+            <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
+                <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <CardTitle className="text-slate-100 text-lg">Cotización ONs/Bonos</CardTitle>
+                        <Badge variant="secondary" className="bg-slate-800 text-slate-400">Multi-Market</Badge>
+                    </div>
+                    <CardDescription className="text-slate-400 text-xs">
+                        Cotización ONs (IOL)
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-hidden">
+                    {loadingONs ? (
+                        <div className="flex flex-col gap-2">
+                            <span className="text-xs text-yellow-500 animate-pulse">Actualizando cotizaciones...</span>
+                            <span className="text-[10px] text-slate-500">Esto puede demorar unos segundos.</span>
                         </div>
-                        <CardDescription className="text-slate-400 text-xs">
-                            Cotización ONs (IOL)
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-hidden">
-                        {loadingONs ? (
-                            <div className="flex flex-col gap-2">
-                                <span className="text-xs text-yellow-500 animate-pulse">Actualizando cotizaciones...</span>
-                                <span className="text-[10px] text-slate-500">Esto puede demorar unos segundos.</span>
-                            </div>
-                        ) : (
-                            <ONListTable prices={onPrices} />
-                        )}
-                        {/* Manual update button removed as requested */}
-                    </CardContent>
-                </Card>
+                    ) : (
+                        <ONListTable prices={onPrices} />
+                    )}
+                    {/* Manual update button removed as requested */}
+                </CardContent>
+            </Card>
 
-                {/* US ETFs Card */}
-                <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <CardTitle className="text-slate-100 text-lg">US ETFs/Treasuries</CardTitle>
-                            <Badge variant="secondary" className="bg-slate-800 text-slate-400">Yahoo Finance</Badge>
-                        </div>
-                        <CardDescription className="text-slate-400 text-xs">
-                            Cotización desde Yahoo Finance (Automático)
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-hidden">
-                        <PriceList prices={usEtfPrices} />
-                    </CardContent>
-                </Card>
+            {/* US ETFs Card */}
+            <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
+                <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <CardTitle className="text-slate-100 text-lg">US ETFs/Treasuries</CardTitle>
+                        <Badge variant="secondary" className="bg-slate-800 text-slate-400">Yahoo Finance</Badge>
+                    </div>
+                    <CardDescription className="text-slate-400 text-xs">
+                        Cotización desde Yahoo Finance (Automático)
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-hidden">
+                    <PriceList prices={usEtfPrices} />
+                </CardContent>
+            </Card>
 
-                {/* CEDEARs Card */}
-                <CedearCard />
+            {/* CEDEARs Card */}
+            <CedearCard />
 
-                {/* IPC Card */}
-                <IPCCard />
+            {/* IPC Card */}
+            <IPCCard />
 
-                {/* UVA Card */}
-                <UVACard />
+            {/* UVA Card */}
+            <UVACard />
 
-                {/* TC Oficial Card */}
-                <TCOficialCard />
+            {/* TC Oficial Card */}
+            <TCOficialCard />
 
-                {/* Dolar Card */}
-                <DollarCard />
-            </div>
+            {/* Dolar Card */}
+            <DollarCard />
         </div>
-    );
+    </div>
+);
 }
 
 function BCRAControlCard() {
@@ -448,6 +457,23 @@ function IPCCard() {
         fetchIPCData();
     }, []);
 
+    const handleDeleteIPC = async (id: string) => {
+        try {
+            const res = await fetch(`/api/admin/ipc?id=${id}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                setInflationData(prev => prev.filter(item => item.id !== id));
+            } else {
+                alert('Error al eliminar el registro');
+            }
+        } catch (error) {
+            console.error('Error deleting IPC:', error);
+            alert('Error al eliminar el registro');
+        }
+    };
+
     const handleAddIPC = async () => {
         if (!newIPCDate || !newIPCValue) {
             setMessage('Por favor completa todos los campos');
@@ -596,9 +622,23 @@ function IPCCard() {
                                         </span>
                                         <div className="text-center">
                                             {item.isManual === true ? (
-                                                <Badge variant="outline" className="text-[9px] border-blue-700 text-blue-400 bg-blue-950/30">
-                                                    Manual
-                                                </Badge>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <Badge variant="outline" className="text-[9px] border-blue-700 text-blue-400 bg-blue-950/30">
+                                                        Manual
+                                                    </Badge>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (confirm('¿Estás seguro de eliminar este registro manual?')) {
+                                                                handleDeleteIPC(item.id);
+                                                            }
+                                                        }}
+                                                        className="text-slate-600 hover:text-red-400 transition-colors"
+                                                        title="Eliminar registro manual"
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </button>
+                                                </div>
                                             ) : (
                                                 <Badge variant="outline" className="text-[9px] border-slate-700 text-slate-500">
                                                     Auto
