@@ -1,5 +1,4 @@
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import puppeteer from 'puppeteer';
 
 export interface MetrogasResult {
     status: 'UP_TO_DATE' | 'OVERDUE' | 'UNKNOWN' | 'ERROR';
@@ -16,16 +15,9 @@ export async function checkMetrogas(clientNumber: string): Promise<MetrogasResul
     try {
         console.log(`[Metrogas] Checking account: ${clientNumber}`);
 
-        // Detect environment
-        const isProduction = process.env.VERCEL || process.env.NODE_ENV === 'production';
-
         browser = await puppeteer.launch({
-            args: isProduction ? chromium.args : ['--no-sandbox', '--disable-setuid-sandbox'],
-            defaultViewport: chromium.defaultViewport,
-            executablePath: isProduction
-                ? await chromium.executablePath()
-                : process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
-            headless: chromium.headless,
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
         });
 
         const page = await browser.newPage();
