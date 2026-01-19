@@ -29,15 +29,26 @@ export async function checkMetrogas(clientNumber: string): Promise<MetrogasResul
             timeout: 30000
         });
 
+        // Wait for page to load
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
         // Enter client number
-        await page.waitForSelector('input[type="text"]', { timeout: 10000 });
-        await page.type('input[type="text"]', clientNumber);
+        await page.waitForSelector('input', { timeout: 10000 });
+        const inputs = await page.$$('input');
+        if (inputs.length > 0) {
+            await inputs[0].type(clientNumber);
+        }
 
         // Click search button
-        await page.click('button[type="button"]');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const buttons = await page.$$('button');
+        for (const button of buttons) {
+            await button.click();
+            break;
+        }
 
         // Wait for results
-        await page.waitForTimeout(3000);
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
         // Check for debt status
         const pageContent = await page.content();

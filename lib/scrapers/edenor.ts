@@ -30,7 +30,7 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
         });
 
         // Click "Pago sin registrarse"
-        await page.waitForTimeout(2000);
+        await new Promise(resolve => setTimeout(resolve, 2000));
         const buttons = await page.$$('button');
         for (const button of buttons) {
             const text = await page.evaluate(el => el.textContent, button);
@@ -41,7 +41,7 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
         }
 
         // Wait and select "N° de cuenta"
-        await page.waitForTimeout(2000);
+        await new Promise(resolve => setTimeout(resolve, 2000));
         const options = await page.$$('div[role="button"]');
         for (const option of options) {
             const text = await page.evaluate(el => el.textContent, option);
@@ -52,7 +52,7 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
         }
 
         // Click "Siguiente"
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
         const nextButtons = await page.$$('button');
         for (const button of nextButtons) {
             const text = await page.evaluate(el => el.textContent, button);
@@ -63,11 +63,11 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
         }
 
         // Enter account number
-        await page.waitForTimeout(2000);
+        await new Promise(resolve => setTimeout(resolve, 2000));
         await page.type('input[type="text"]', accountNumber);
 
         // Click "Siguiente" again
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
         const nextButtons2 = await page.$$('button');
         for (const button of nextButtons2) {
             const text = await page.evaluate(el => el.textContent, button);
@@ -78,7 +78,7 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
         }
 
         // Wait for address confirmation and click "Siguiente"
-        await page.waitForTimeout(2000);
+        await new Promise(resolve => setTimeout(resolve, 2000));
         const nextButtons3 = await page.$$('button');
         for (const button of nextButtons3) {
             const text = await page.evaluate(el => el.textContent, button);
@@ -89,7 +89,7 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
         }
 
         // Wait for balance page
-        await page.waitForTimeout(3000);
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
         // Extract debt amount
         const pageContent = await page.content();
