@@ -1,27 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { auth } from '@/auth';
 
-export default async function middleware(req: NextRequest) {
-    const pathname = req.nextUrl.pathname;
-
-    // Protect /admin routes
-    if (pathname.startsWith('/admin')) {
-        const session = await auth();
-
-        // Not logged in → redirect to login
-        if (!session?.user) {
-            const loginUrl = new URL('/login', req.url);
-            loginUrl.searchParams.set('callbackUrl', pathname);
-            return NextResponse.redirect(loginUrl);
-        }
-
-        // Logged in but not admin → redirect to dashboard
-        if (session.user.role !== 'ADMIN') {
-            return NextResponse.redirect(new URL('/dashboard', req.url));
-        }
-    }
-
+// NOTE: Cannot use NextAuth in middleware due to 1MB Edge Function size limit
+// Admin protection is handled at layout level instead (app/admin/layout.tsx)
+export default function middleware(req: NextRequest) {
     const response = NextResponse.next();
 
     // Prevent caching for all routes to solve "back button" issue
