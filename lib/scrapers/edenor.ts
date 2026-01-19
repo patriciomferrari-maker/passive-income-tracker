@@ -29,10 +29,12 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
             timeout: 30000
         });
 
-        // Click "Pago sin registrarse"
         await new Promise(resolve => setTimeout(resolve, 2000));
-        const buttons = await page.$$('button');
-        for (const button of buttons) {
+
+        // Click "Realizá tu pago o recarga sin registrarte"
+        await page.waitForSelector('text/sin registrarte', { timeout: 10000 });
+        const payButtons = await page.$$('a, button');
+        for (const button of payButtons) {
             const text = await page.evaluate(el => el.textContent, button);
             if (text?.includes('sin registrarte')) {
                 await button.click();
@@ -40,10 +42,11 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
             }
         }
 
-        // Wait and select "N° de cuenta"
         await new Promise(resolve => setTimeout(resolve, 2000));
-        const options = await page.$$('div[role="button"]');
-        for (const option of options) {
+
+        // Select "N° de cuenta"
+        const accountOptions = await page.$$('div[role="button"], button');
+        for (const option of accountOptions) {
             const text = await page.evaluate(el => el.textContent, option);
             if (text?.includes('N° de cuenta')) {
                 await option.click();
@@ -51,10 +54,11 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
             }
         }
 
-        // Click "Siguiente"
         await new Promise(resolve => setTimeout(resolve, 1000));
-        const nextButtons = await page.$$('button');
-        for (const button of nextButtons) {
+
+        // Click "Siguiente"
+        const nextButtons1 = await page.$$('button');
+        for (const button of nextButtons1) {
             const text = await page.evaluate(el => el.textContent, button);
             if (text?.includes('Siguiente')) {
                 await button.click();
@@ -62,12 +66,15 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
             }
         }
 
-        // Enter account number
         await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Enter account number
+        await page.waitForSelector('input[type="text"]', { timeout: 10000 });
         await page.type('input[type="text"]', accountNumber);
 
-        // Click "Siguiente" again
         await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Click "Siguiente" again
         const nextButtons2 = await page.$$('button');
         for (const button of nextButtons2) {
             const text = await page.evaluate(el => el.textContent, button);
@@ -77,8 +84,10 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
             }
         }
 
-        // Wait for address confirmation and click "Siguiente"
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Wait for address confirmation
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        // Click "Siguiente" to confirm address
         const nextButtons3 = await page.$$('button');
         for (const button of nextButtons3) {
             const text = await page.evaluate(el => el.textContent, button);
@@ -88,28 +97,46 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
             }
         }
 
-        // Wait for balance page
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Wait for balance page to load
+        await new Promise(resolve => setTimeout(resolve, 10000));
 
-        // Extract debt amount
-        const pageContent = await page.content();
+        // Extract balance from h2 and adjacent div
+        const balanceData = await page.evaluate(() => {
+            // Look for "Saldo Total" h4
+            const h4Elements = Array.from(document.querySelectorAll('h4'));
+            const saldoH4 = h4Elements.find(el => el.textContent?.includes('Saldo Total'));
+
+            if (!saldoH4) return null;
+
+            // Find the h2 with the main amount
+            const parent = saldoH4.closest('div');
+            const h2 = parent?.querySelector('h2');
+            const decimalsDiv = h2?.nextElementSibling;
+
+            const mainAmount = h2?.textContent?.trim() || '';
+            const decimals = decimalsDiv?.textContent?.trim() || '';
+
+            return {
+                mainAmount,
+                decimals,
+                fullText: mainAmount + decimals
+            };
+        });
+
+        console.log(`[Edenor] Balance data:`, balanceData);
+
         let debtAmount = 0;
 
-        try {
-            const amountText = await page.evaluate(() => {
-                const elements = Array.from(document.querySelectorAll('*'));
-                const amountElement = elements.find(el =>
-                    el.textContent?.includes('$') && el.textContent?.match(/\d/)
-                );
-                return amountElement?.textContent || '';
-            });
+        if (balanceData && balanceData.fullText) {
+            // Parse amount like "$22.792,99" or "$ 22.792 99"
+            const cleanText = balanceData.fullText.replace(/\$/g, '').replace(/\s/g, '');
+            const amountMatch = cleanText.match(/([\d.]+),?(\d{2})?/);
 
-            const amountMatch = amountText.match(/\$\s*([\d,.]+)/);
             if (amountMatch) {
-                debtAmount = parseFloat(amountMatch[1].replace(/\./g, '').replace(',', '.'));
+                const integerPart = amountMatch[1].replace(/\./g, ''); // Remove thousand separators
+                const decimalPart = amountMatch[2] || '00';
+                debtAmount = parseFloat(`${integerPart}.${decimalPart}`);
             }
-        } catch (e) {
-            console.log('[Edenor] Could not extract amount');
         }
 
         const result: EdenorResult = {
@@ -120,7 +147,7 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
             dueDate: null
         };
 
-        console.log(`[Edenor] Result:`, result);
+        console.log(`[Edenor] Result: ${result.status}, Amount: $${result.debtAmount}`);
         return result;
 
     } catch (error: any) {

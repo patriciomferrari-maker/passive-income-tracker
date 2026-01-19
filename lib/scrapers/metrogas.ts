@@ -34,25 +34,22 @@ export async function checkMetrogas(clientNumber: string): Promise<MetrogasResul
 
         // Enter client number
         await page.waitForSelector('input', { timeout: 10000 });
-        const inputs = await page.$$('input');
-        if (inputs.length > 0) {
-            await inputs[0].type(clientNumber);
-        }
+        await page.type('input', clientNumber);
 
-        // Click search button
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const buttons = await page.$$('button');
-        for (const button of buttons) {
-            await button.click();
-            break;
-        }
+        // Press Enter to search
+        await page.keyboard.press('Enter');
 
         // Wait for results
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
-        // Check for debt status
-        const pageContent = await page.content();
-        const hasDebt = !pageContent.includes('No registra deuda');
+        // Check for "No registra deuda" text
+        const statusText = await page.evaluate(() => {
+            // Look for the specific span with class sapMObjectNumberText
+            const statusSpan = document.querySelector('.sapMObjectNumberText');
+            return statusSpan?.textContent?.trim() || '';
+        });
+
+        console.log(`[Metrogas] Status text found: "${statusText}"`);
 
         let result: MetrogasResult = {
             status: 'UNKNOWN',
@@ -62,48 +59,22 @@ export async function checkMetrogas(clientNumber: string): Promise<MetrogasResul
             dueDate: null
         };
 
-        if (pageContent.includes('No registra deuda')) {
+        if (statusText.includes('No registra deuda')) {
             result.status = 'UP_TO_DATE';
-
-            // Try to extract last bill amount
-            try {
-                const billText = await page.evaluate(() => {
-                    const elements = Array.from(document.querySelectorAll('*'));
-                    const billElement = elements.find(el =>
-                        el.textContent?.includes('$') && el.textContent?.includes(',')
-                    );
-                    return billElement?.textContent || '';
-                });
-
-                const amountMatch = billText.match(/\$\s*([\d,.]+)/);
-                if (amountMatch) {
-                    result.lastBillAmount = parseFloat(amountMatch[1].replace(/\./g, '').replace(',', '.'));
-                }
-            } catch (e) {
-                console.log('[Metrogas] Could not extract bill amount');
-            }
-        } else if (hasDebt) {
+            result.debtAmount = 0;
+            console.log(`[Metrogas] ✅ No debt found`);
+        } else if (statusText.match(/\$\s*[\d,.]+/)) {
+            // Has a dollar amount - means there's debt
             result.status = 'OVERDUE';
-            // Try to extract debt amount
-            try {
-                const debtText = await page.evaluate(() => {
-                    const elements = Array.from(document.querySelectorAll('*'));
-                    const debtElement = elements.find(el =>
-                        el.textContent?.toLowerCase().includes('deuda') && el.textContent?.includes('$')
-                    );
-                    return debtElement?.textContent || '';
-                });
-
-                const amountMatch = debtText.match(/\$\s*([\d,.]+)/);
-                if (amountMatch) {
-                    result.debtAmount = parseFloat(amountMatch[1].replace(/\./g, '').replace(',', '.'));
-                }
-            } catch (e) {
-                console.log('[Metrogas] Could not extract debt amount');
+            const amountMatch = statusText.match(/\$\s*([\d,.]+)/);
+            if (amountMatch) {
+                result.debtAmount = parseFloat(amountMatch[1].replace(/\./g, '').replace(',', '.'));
             }
+            console.log(`[Metrogas] ⚠️ Debt found: $${result.debtAmount}`);
+        } else {
+            console.log(`[Metrogas] ❓ Unknown status: "${statusText}"`);
         }
 
-        console.log(`[Metrogas] Result:`, result);
         return result;
 
     } catch (error: any) {
