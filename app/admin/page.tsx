@@ -809,6 +809,9 @@ function UsersCard() {
 
     const [actionLoading, setActionLoading] = useState(false);
 
+    // Special sections state
+    const [userSections, setUserSections] = useState<Record<string, { hasCosta: boolean; hasBarbosa: boolean }>>({});
+
     useEffect(() => {
         fetchUsers();
     }, []);
@@ -816,10 +819,26 @@ function UsersCard() {
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/admin/users');
-            const data = await res.json();
-            if (data.success) {
-                setUsers(data.users);
+            const [usersRes, sectionsRes] = await Promise.all([
+                fetch('/api/admin/users'),
+                fetch('/api/admin/users/sections')
+            ]);
+
+            const usersData = await usersRes.json();
+            if (usersData.success) {
+                setUsers(usersData.users);
+            }
+
+            const sectionsData = await sectionsRes.json();
+            if (Array.isArray(sectionsData)) {
+                const sectionsMap: Record<string, { hasCosta: boolean; hasBarbosa: boolean }> = {};
+                sectionsData.forEach((user: any) => {
+                    sectionsMap[user.id] = {
+                        hasCosta: user.hasCosta,
+                        hasBarbosa: user.hasBarbosa
+                    };
+                });
+                setUserSections(sectionsMap);
             }
         } catch (e) {
             console.error(e);
@@ -863,6 +882,52 @@ function UsersCard() {
         setUserToLink(user);
         setLinkSourceId(user.dataOwnerId || 'none');
         setLinkDialog(true);
+    };
+
+    const toggleSection = async (userId: string, section: 'costa' | 'barbosa') => {
+        const currentValue = userSections[userId]?.[section === 'costa' ? 'hasCosta' : 'hasBarbosa'] || false;
+
+        // Optimistic update
+        setUserSections(prev => ({
+            ...prev,
+            [userId]: {
+                ...prev[userId],
+                [section === 'costa' ? 'hasCosta' : 'hasBarbosa']: !currentValue
+            }
+        }));
+
+        try {
+            const res = await fetch('/api/admin/users/sections', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId,
+                    section,
+                    enabled: !currentValue
+                })
+            });
+
+            if (!res.ok) {
+                // Revert on error
+                setUserSections(prev => ({
+                    ...prev,
+                    [userId]: {
+                        ...prev[userId],
+                        [section === 'costa' ? 'hasCosta' : 'hasBarbosa']: currentValue
+                    }
+                }));
+            }
+        } catch (error) {
+            console.error('Error toggling section:', error);
+            // Revert on error
+            setUserSections(prev => ({
+                ...prev,
+                [userId]: {
+                    ...prev[userId],
+                    [section === 'costa' ? 'hasCosta' : 'hasBarbosa']: currentValue
+                }
+            }));
+        }
     };
 
     return (
@@ -917,18 +982,20 @@ function UsersCard() {
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
                 <div className="bg-slate-950 rounded-md border border-slate-800 overflow-hidden h-full flex flex-col">
-                    <div className="grid grid-cols-4 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
+                    <div className="grid grid-cols-6 bg-slate-900 p-2 text-xs font-medium text-slate-400 border-b border-slate-800">
                         <span className="col-span-1">Usuario</span>
                         <span className="col-span-1">Email</span>
                         <span className="text-center">Rol</span>
-                        <span className="text-right">Acceso / Link</span>
+                        <span className="text-center">Costa</span>
+                        <span className="text-center">Barbosa</span>
+                        <span className="text-right">Link</span>
                     </div>
                     <div className="flex-1 overflow-y-auto">
                         {loading ? (
                             <div className="p-4 text-center text-xs text-slate-500">Cargando...</div>
                         ) : (
                             users.map(u => (
-                                <div key={u.id} className="grid grid-cols-4 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 items-center">
+                                <div key={u.id} className="grid grid-cols-6 p-2 text-xs border-b border-slate-800 last:border-0 hover:bg-slate-900/50 items-center">
                                     <div className="flex flex-col">
                                         <span className="font-bold text-slate-200">{u.name}</span>
                                         <span className="text-[10px] text-slate-500">ID: {u.id.substring(0, 8)}...</span>
@@ -936,6 +1003,24 @@ function UsersCard() {
                                     <span className="text-slate-400 truncate pr-2">{u.email}</span>
                                     <div className="text-center">
                                         <Badge variant="outline" className="text-[10px] border-slate-700 text-slate-300">{u.role}</Badge>
+                                    </div>
+                                    {/* Costa Toggle */}
+                                    <div className="text-center">
+                                        <button
+                                            onClick={() => toggleSection(u.id, 'costa')}
+                                            className={`w-10 h-5 rounded-full transition-colors ${userSections[u.id]?.hasCosta ? 'bg-emerald-600' : 'bg-slate-700'}`}
+                                        >
+                                            <div className={`w-4 h-4 bg-white rounded-full transition-transform ${userSections[u.id]?.hasCosta ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                        </button>
+                                    </div>
+                                    {/* Barbosa Toggle */}
+                                    <div className="text-center">
+                                        <button
+                                            onClick={() => toggleSection(u.id, 'barbosa')}
+                                            className={`w-10 h-5 rounded-full transition-colors ${userSections[u.id]?.hasBarbosa ? 'bg-purple-600' : 'bg-slate-700'}`}
+                                        >
+                                            <div className={`w-4 h-4 bg-white rounded-full transition-transform ${userSections[u.id]?.hasBarbosa ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                        </button>
                                     </div>
                                     <div className="text-right">
                                         {u.dataOwnerId ? (
