@@ -86,6 +86,7 @@ model Property {
   isConsolidated Boolean   @default(true) // Whether to include in Global Dashboard
 
   contracts Contract[]
+  utilityChecks UtilityCheck[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   
@@ -284,6 +285,39 @@ model EconomicIndicator {
   updatedAt DateTime @updatedAt
 
   @@unique([type, date]) // Prevent duplicate entries for same month/day
+}
+
+// =================================================================
+// UTILITY CHECKS (Service Bills Tracking)
+// =================================================================
+
+model UtilityCheck {
+  id          String   @id @default(cuid())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  serviceType String   // ELECTRICITY, GAS
+  checkDate   DateTime @default(now())
+  
+  // Status
+  status      String   // UP_TO_DATE, OVERDUE, UNKNOWN, ERROR
+  debtAmount  Float?   // Amount owed (if any)
+  
+  // Bill details
+  lastBillAmount Float?
+  lastBillDate   DateTime?
+  dueDate        DateTime?
+  
+  // Metadata
+  accountNumber  String?  // For reference
+  notes          String?
+  isAutomatic    Boolean  @default(false) // true if scraped, false if manual
+  errorMessage   String?  // If scraping failed
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([propertyId, serviceType])
+  @@index([checkDate])
 }
 
 // =================================================================

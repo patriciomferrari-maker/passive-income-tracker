@@ -1,0 +1,175 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getUserId } from '@/app/lib/auth-helper';
+
+/**
+ * GET /api/properties/[id]/utilities
+ * Get latest utility checks for a property
+ */
+export async function GET(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const userId = await getUserId();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const propertyId = params.id;
+
+        // Verify property belongs to user
+        const property = await prisma.property.findFirst({
+            where: {
+                id: propertyId,
+                userId
+            },
+            select: {
+                id: true,
+                name: true,
+                gasId: true,
+                electricityId: true
+            }
+        });
+
+        if (!property) {
+            return NextResponse.json({ error: 'Property not found' }, { status: 404 });
+        }
+
+        // Get latest check for each service type
+        const latestChecks = await prisma.$transaction([
+            // Latest GAS check
+            prisma.utilityCheck.findFirst({
+                where: {
+                    propertyId,
+                    serviceType: 'GAS'
+                },
+                orderBy: { checkDate: 'desc' }
+            }),
+            // Latest ELECTRICITY check
+            prisma.utilityCheck.findFirst({
+                where: {
+                    propertyId,
+                    serviceType: 'ELECTRICITY'
+                },
+                orderBy: { checkDate: 'desc' }
+            })
+        ]);
+
+        const [gasCheck, electricityCheck] = latestChecks;
+
+        return NextResponse.json({
+            property: {
+                id: property.id,
+                name: property.name,
+                gasId: property.gasId,
+                electricityId: property.electricityId
+            },
+            checks: {
+                gas: gasCheck,
+                electricity: electricityCheck
+            }
+        });
+
+    } catch (error: any) {
+        console.error('Error fetching utility checks:', error);
+        return NextResponse.json(
+            { error: 'Failed to fetch utility checks' },
+            { status: 500 }
+        );
+    }
+}
+
+/**
+ * POST /api/properties/[id]/utilities/check
+ * Trigger a manual check for utilities
+ */
+export async function POST(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const userId = await getUserId();
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const propertyId = params.id;
+        const body = await req.json();
+        const { serviceType } = body; // 'GAS' or 'ELECTRICITY'
+
+        // Verify property belongs to user
+        const property = await prisma.property.findFirst({
+            where: {
+                id: propertyId,
+                userId
+            },
+            select: {
+                id: true,
+                gasId: true,
+                electricityId: true
+            }
+        });
+
+        if (!property) {
+            return NextResponse.json({ error: 'Property not found' }, { status: 404 });
+        }
+
+        // Import scrapers dynamically to avoid serverless bundle issues
+        if (serviceType === 'GAS' && property.gasId) {
+            const { checkMetrogas } = await import('@/lib/scrapers/metrogas');
+            const result = await checkMetrogas(property.gasId);
+
+            const check = await prisma.utilityCheck.create({
+                data: {
+                    propertyId,
+                    serviceType: 'GAS',
+                    accountNumber: property.gasId,
+                    status: result.status,
+                    debtAmount: result.debtAmount,
+                    lastBillAmount: result.lastBillAmount,
+                    lastBillDate: result.lastBillDate,
+                    dueDate: result.dueDate,
+                    isAutomatic: false, // Manual trigger
+                    errorMessage: result.errorMessage
+                }
+            });
+
+            return NextResponse.json({ success: true, check });
+        }
+
+        if (serviceType === 'ELECTRICITY' && property.electricityId) {
+            const { checkEdenor } = await import('@/lib/scrapers/edenor');
+            const result = await checkEdenor(property.electricityId);
+
+            const check = await prisma.utilityCheck.create({
+                data: {
+                    propertyId,
+                    serviceType: 'ELECTRICITY',
+                    accountNumber: property.electricityId,
+                    status: result.status,
+                    debtAmount: result.debtAmount,
+                    lastBillAmount: result.lastBillAmount,
+                    lastBillDate: result.lastBillDate,
+                    dueDate: result.dueDate,
+                    isAutomatic: false, // Manual trigger
+                    errorMessage: result.errorMessage
+                }
+            });
+
+            return NextResponse.json({ success: true, check });
+        }
+
+        return NextResponse.json(
+            { error: 'Invalid service type or missing account number' },
+            { status: 400 }
+        );
+
+    } catch (error: any) {
+        console.error('Error checking utility:', error);
+        return NextResponse.json(
+            { error: 'Failed to check utility', message: error.message },
+            { status: 500 }
+        );
+    }
+}

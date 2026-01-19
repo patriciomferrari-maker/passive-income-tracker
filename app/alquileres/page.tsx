@@ -9,6 +9,7 @@ import { PropertiesTab } from '@/components/rentals/PropertiesTab';
 import { ContractsTab } from '@/components/rentals/ContractsTab';
 import { IndividualCashflowTab } from '@/components/rentals/IndividualCashflowTab';
 import { ConsolidatedCashflowTab } from '@/components/rentals/ConsolidatedCashflowTab';
+import { UtilitiesTab } from '@/components/rentals/UtilitiesTab';
 
 import { DashboardTab } from '@/components/rentals/DashboardTab';
 
@@ -21,7 +22,8 @@ export default function AlquileresPage() {
         { id: 'contracts', label: 'Contratos' },
         { id: 'individual', label: 'Flujo Individual' },
         { id: 'consolidated', label: 'Flujo Consolidado' },
-        { id: 'properties', label: 'Propiedades' }
+        { id: 'properties', label: 'Propiedades' },
+        { id: 'utilities', label: 'Servicios' }
     ];
 
     return (
@@ -76,6 +78,7 @@ export default function AlquileresPage() {
                     {activeTab === 'contracts' && <ContractsTab showValues={showValues} />}
                     {activeTab === 'individual' && <IndividualCashflowTab showValues={showValues} />}
                     {activeTab === 'consolidated' && <ConsolidatedCashflowTab showValues={showValues} />}
+                    {activeTab === 'utilities' && <UtilitiesTab showValues={showValues} />}
                 </div>
             </div>
         </div>
