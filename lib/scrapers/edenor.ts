@@ -100,49 +100,63 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
         // Wait for balance page to load
         await new Promise(resolve => setTimeout(resolve, 10000));
 
-        // Extract balance from h2 and adjacent div
+        // Extract both Saldo Total and Factura Actual
         const balanceData = await page.evaluate(() => {
-            // Look for "Saldo Total" h4
             const h4Elements = Array.from(document.querySelectorAll('h4'));
+
+            // Find Saldo Total
             const saldoH4 = h4Elements.find(el => el.textContent?.includes('Saldo Total'));
+            let saldoTotal = '';
+            if (saldoH4) {
+                const parent = saldoH4.closest('div');
+                const h2 = parent?.querySelector('h2');
+                const decimalsDiv = h2?.nextElementSibling;
+                saldoTotal = (h2?.textContent?.trim() || '') + (decimalsDiv?.textContent?.trim() || '');
+            }
 
-            if (!saldoH4) return null;
-
-            // Find the h2 with the main amount
-            const parent = saldoH4.closest('div');
-            const h2 = parent?.querySelector('h2');
-            const decimalsDiv = h2?.nextElementSibling;
-
-            const mainAmount = h2?.textContent?.trim() || '';
-            const decimals = decimalsDiv?.textContent?.trim() || '';
+            // Find Factura Actual
+            const facturaH4 = h4Elements.find(el => el.textContent?.includes('Factura Actual'));
+            let facturaActual = '';
+            if (facturaH4) {
+                const parent = facturaH4.closest('div');
+                const h2 = parent?.querySelector('h2');
+                const decimalsDiv = h2?.nextElementSibling;
+                facturaActual = (h2?.textContent?.trim() || '') + (decimalsDiv?.textContent?.trim() || '');
+            }
 
             return {
-                mainAmount,
-                decimals,
-                fullText: mainAmount + decimals
+                saldoTotal,
+                facturaActual
             };
         });
 
         console.log(`[Edenor] Balance data:`, balanceData);
 
-        let debtAmount = 0;
-
-        if (balanceData && balanceData.fullText) {
-            // Parse amount like "$22.792,99" or "$ 22.792 99"
-            const cleanText = balanceData.fullText.replace(/\$/g, '').replace(/\s/g, '');
+        // Parse amounts
+        const parseCurrency = (text: string): number => {
+            const cleanText = text.replace(/\$/g, '').replace(/\s/g, '');
             const amountMatch = cleanText.match(/([\d.]+),?(\d{2})?/);
-
             if (amountMatch) {
-                const integerPart = amountMatch[1].replace(/\./g, ''); // Remove thousand separators
+                const integerPart = amountMatch[1].replace(/\./g, '');
                 const decimalPart = amountMatch[2] || '00';
-                debtAmount = parseFloat(`${integerPart}.${decimalPart}`);
+                return parseFloat(`${integerPart}.${decimalPart}`);
             }
-        }
+            return 0;
+        };
+
+        const saldoTotal = parseCurrency(balanceData.saldoTotal);
+        const facturaActual = parseCurrency(balanceData.facturaActual);
+
+        // If Saldo Total = Factura Actual, no overdue debt (only current bill)
+        const hasOverdueDebt = saldoTotal > facturaActual;
+        const debtAmount = hasOverdueDebt ? (saldoTotal - facturaActual) : 0;
+
+        console.log(`[Edenor] Saldo Total: $${saldoTotal}, Factura Actual: $${facturaActual}, Overdue: ${hasOverdueDebt}`);
 
         const result: EdenorResult = {
-            status: debtAmount > 0 ? 'OVERDUE' : 'UP_TO_DATE',
+            status: hasOverdueDebt ? 'OVERDUE' : 'UP_TO_DATE',
             debtAmount: debtAmount,
-            lastBillAmount: debtAmount > 0 ? debtAmount : null,
+            lastBillAmount: facturaActual > 0 ? facturaActual : null,
             lastBillDate: null,
             dueDate: null
         };
