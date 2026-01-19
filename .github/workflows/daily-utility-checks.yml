@@ -25,7 +25,8 @@ jobs:
 
       - name: Run utility scraping
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
+          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
         run: npx tsx scripts/scrape-utilities.ts
 
       - name: Notify on failure
