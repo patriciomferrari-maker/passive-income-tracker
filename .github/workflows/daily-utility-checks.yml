@@ -1,0 +1,51 @@
+name: Daily Utility Checks
+
+on:
+  schedule:
+    # Corre todos los días a las 8 AM Argentina (11 AM UTC)
+    - cron: '0 11 * * *'
+  workflow_dispatch: # Permite ejecutar manualmente
+
+jobs:
+  scrape-utilities:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libnss3 \
+            libnspr4 \
+            libatk1.0-0 \
+            libatk-bridge2.0-0 \
+            libcups2 \
+            libdrm2 \
+            libxkbcommon0 \
+            libxcomposite1 \
+            libxdamage1 \
+            libxfixes3 \
+            libxrandr2 \
+            libgbm1 \
+            libasound2
+
+      - name: Run utility scraping
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx tsx scripts/scrape-utilities.ts
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Utility scraping failed. Check logs."
