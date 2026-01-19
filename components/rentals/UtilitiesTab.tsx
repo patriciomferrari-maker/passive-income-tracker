@@ -43,7 +43,7 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
 
     const fetchProperties = async () => {
         try {
-            const res = await fetch('/api/properties');
+            const res = await fetch('/api/rentals/properties');
             const data = await res.json();
 
             // Filter properties with utility IDs
