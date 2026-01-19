@@ -36,7 +36,8 @@ export async function getUSDBlueData() {
         select: {
             date: true,
             value: true
-        });
+        }
+    });
 }
 
 /**
