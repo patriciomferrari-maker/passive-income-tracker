@@ -128,13 +128,12 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                             token.sub = dbUser.id;
                             token.role = dbUser.role;
                         } else {
-                            // Auto-create user for Google Sign Up
                             const newUser = await prisma.user.create({
                                 data: {
                                     email: user.email,
                                     name: user.name,
                                     password: '', // No password for OAuth
-                                    role: 'user'
+                                    role: 'USER' // Default role for new users
                                 },
                                 select: { id: true, role: true }
                             });
