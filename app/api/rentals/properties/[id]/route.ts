@@ -44,6 +44,7 @@ export async function PUT(
                 name,
                 address: address || null,
                 role: body.role,
+                jurisdiction: body.jurisdiction,
                 electricityId: electricityId || null,
                 gasId: gasId || null,
                 municipalId: municipalId || null,

@@ -51,6 +51,7 @@ export async function POST(request: Request) {
                 name,
                 address: address || null,
                 role: body.role || 'OWNER',
+                jurisdiction: body.jurisdiction || 'PROVINCIA',
                 electricityId: electricityId || null,
                 gasId: gasId || null,
                 municipalId: municipalId || null,

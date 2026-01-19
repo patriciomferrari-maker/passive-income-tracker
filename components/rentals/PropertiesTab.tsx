@@ -10,6 +10,7 @@ interface Property {
     name: string;
     address: string | null;
     role?: string; // OWNER, TENANT (optional for backward compatibility)
+    jurisdiction: 'CABA' | 'PROVINCIA';
     electricityId: string | null;
     gasId: string | null;
     municipalId: string | null;
@@ -35,6 +36,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
     const [name, setName] = useState('');
     const [address, setAddress] = useState('');
     const [role, setRole] = useState('OWNER');
+    const [jurisdiction, setJurisdiction] = useState<'CABA' | 'PROVINCIA'>('PROVINCIA');
     const [electricityId, setElectricityId] = useState('');
     const [gasId, setGasId] = useState('');
     const [municipalId, setMunicipalId] = useState('');
@@ -75,6 +77,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                     name,
                     address,
                     role,
+                    jurisdiction,
                     electricityId: electricityId || null,
                     gasId: gasId || null,
                     municipalId: municipalId || null,
@@ -99,6 +102,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
         setName(property.name);
         setAddress(property.address || '');
         setRole(property.role || 'OWNER');
+        setJurisdiction(property.jurisdiction || 'PROVINCIA');
         setElectricityId(property.electricityId || '');
         setGasId(property.gasId || '');
         setMunicipalId(property.municipalId || '');
@@ -125,6 +129,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
         setName('');
         setAddress('');
         setRole('OWNER');
+        setJurisdiction('PROVINCIA');
         setElectricityId('');
         setGasId('');
         setMunicipalId('');
@@ -268,6 +273,34 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                                             className={`px-4 py-2 rounded border transition-colors ${role === 'TENANT' ? 'bg-red-500/20 border-red-500 text-red-400' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
                                         >
                                             🏢 Inquilino (Egreso)
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">
+                                        Jurisdicción *
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setJurisdiction('CABA')}
+                                            className={`px-4 py-2 rounded border transition-colors ${jurisdiction === 'CABA' ? 'bg-purple-500/20 border-purple-500 text-purple-400' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
+                                        >
+                                            <div className="text-left">
+                                                <div className="font-medium">🏙️ CABA</div>
+                                                <div className="text-xs opacity-70">Metrogas + ABL CABA</div>
+                                            </div>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setJurisdiction('PROVINCIA')}
+                                            className={`px-4 py-2 rounded border transition-colors ${jurisdiction === 'PROVINCIA' ? 'bg-purple-500/20 border-purple-500 text-purple-400' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
+                                        >
+                                            <div className="text-left">
+                                                <div className="font-medium">🌳 Provincia</div>
+                                                <div className="text-xs opacity-70">Naturgy + ABL Provincia</div>
+                                            </div>
                                         </button>
                                     </div>
                                 </div>
