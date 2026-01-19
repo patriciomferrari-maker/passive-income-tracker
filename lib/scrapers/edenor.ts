@@ -31,71 +31,54 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
 
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Click "Realizá tu pago o recarga sin registrarte"
-        await page.waitForSelector('text/sin registrarte', { timeout: 10000 });
-        const payButtons = await page.$$('a, button');
-        for (const button of payButtons) {
-            const text = await page.evaluate(el => el.textContent, button);
-            if (text?.includes('sin registrarte')) {
-                await button.click();
-                break;
-            }
-        }
+        // Click "Realizá tu pago o recarga sin registrarte" using JavaScript
+        await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('div[role="button"]'));
+            const payButton = buttons.find(btn => btn.textContent?.includes('sin registrarte'));
+            if (payButton) (payButton as HTMLElement).click();
+        });
 
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Select "N° de cuenta"
-        const accountOptions = await page.$$('div[role="button"], button');
-        for (const option of accountOptions) {
-            const text = await page.evaluate(el => el.textContent, option);
-            if (text?.includes('N° de cuenta')) {
-                await option.click();
-                break;
+        // Select "N° de cuenta" and click "Siguiente" using JavaScript
+        await page.evaluate(() => {
+            const options = Array.from(document.querySelectorAll('div[role="button"]'));
+            const accountOption = options.find(opt => opt.textContent?.includes('N° de cuenta'));
+            if (accountOption) {
+                (accountOption as HTMLElement).click();
+                setTimeout(() => {
+                    const nextButton = Array.from(document.querySelectorAll('button'))
+                        .find(btn => btn.textContent?.includes('Siguiente'));
+                    if (nextButton) (nextButton as HTMLElement).click();
+                }, 500);
             }
-        }
+        });
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Click "Siguiente"
-        const nextButtons1 = await page.$$('button');
-        for (const button of nextButtons1) {
-            const text = await page.evaluate(el => el.textContent, button);
-            if (text?.includes('Siguiente')) {
-                await button.click();
-                break;
-            }
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
         // Enter account number
-        await page.waitForSelector('input[type="text"]', { timeout: 10000 });
-        await page.type('input[type="text"]', accountNumber);
+        const inputSelector = 'input[data-testid="procedimiento_de_pago.accountIdentifierInput.clientNumber.input"]';
+        await page.waitForSelector(inputSelector, { timeout: 10000 });
+        await page.type(inputSelector, accountNumber);
 
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Click "Siguiente" again
-        const nextButtons2 = await page.$$('button');
-        for (const button of nextButtons2) {
-            const text = await page.evaluate(el => el.textContent, button);
-            if (text?.includes('Siguiente')) {
-                await button.click();
-                break;
-            }
-        }
+        // Click "Siguiente" to submit account number
+        await page.evaluate(() => {
+            const nextButton = Array.from(document.querySelectorAll('button'))
+                .find(btn => btn.textContent?.includes('Siguiente'));
+            if (nextButton) (nextButton as HTMLElement).click();
+        });
 
         // Wait for address confirmation
         await new Promise(resolve => setTimeout(resolve, 5000));
 
         // Click "Siguiente" to confirm address
-        const nextButtons3 = await page.$$('button');
-        for (const button of nextButtons3) {
-            const text = await page.evaluate(el => el.textContent, button);
-            if (text?.includes('Siguiente')) {
-                await button.click();
-                break;
-            }
-        }
+        await page.evaluate(() => {
+            const nextButton = Array.from(document.querySelectorAll('button'))
+                .find(btn => btn.textContent?.includes('Siguiente'));
+            if (nextButton) (nextButton as HTMLElement).click();
+        });
 
         // Wait for balance page to load
         await new Promise(resolve => setTimeout(resolve, 10000));
@@ -134,14 +117,14 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
 
         // Parse amounts
         const parseCurrency = (text: string): number => {
+            if (!text) return 0;
+            // Remove $ and spaces
             const cleanText = text.replace(/\$/g, '').replace(/\s/g, '');
-            const amountMatch = cleanText.match(/([\d.]+),?(\d{2})?/);
-            if (amountMatch) {
-                const integerPart = amountMatch[1].replace(/\./g, '');
-                const decimalPart = amountMatch[2] || '00';
-                return parseFloat(`${integerPart}.${decimalPart}`);
-            }
-            return 0;
+            // Argentine format: 22.792,99 (dots for thousands, comma for decimals)
+            // Remove thousand separators (dots) and replace decimal comma with dot
+            const normalized = cleanText.replace(/\./g, '').replace(',', '.');
+            const amount = parseFloat(normalized);
+            return isNaN(amount) ? 0 : amount;
         };
 
         const saldoTotal = parseCurrency(balanceData.saldoTotal);
