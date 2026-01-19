@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
                 value: true,
                 interannualValue: true,
                 createdAt: true,
-                updatedAt: true
+                updatedAt: true,
+                isManual: true
             }
         });
 
