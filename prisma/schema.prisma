@@ -65,6 +65,11 @@ model User {
 // REAL ESTATE (ALQUILERES)
 // =================================================================
 
+enum Jurisdiction {
+  CABA
+  PROVINCIA
+}
+
 model Property {
   id        String     @id @default(cuid())
   userId    String     // Owner
@@ -73,6 +78,9 @@ model Property {
   name      String
   address   String?
   role      String    @default("OWNER") // OWNER, TENANT
+  
+  // Jurisdiction (CABA vs Provincia)
+  jurisdiction  Jurisdiction @default(PROVINCIA)
   
   // Utilities & Taxes IDs
   electricityId String?

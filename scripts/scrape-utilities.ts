@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { checkMetrogas } from '../lib/scrapers/metrogas';
+import { checkNaturgy } from '../lib/scrapers/naturgy';
 import { checkEdenor } from '../lib/scrapers/edenor';
 
 const prisma = new PrismaClient();
@@ -19,6 +20,7 @@ export async function scrapeAllUtilities() {
             select: {
                 id: true,
                 name: true,
+                jurisdiction: true,
                 gasId: true,
                 electricityId: true,
                 userId: true
@@ -33,11 +35,15 @@ export async function scrapeAllUtilities() {
         for (const property of properties) {
             console.log(`\n🏠 Processing: ${property.name}`);
 
-            // Check Metrogas
+            // Check Gas (Metrogas for CABA, Naturgy for PROVINCIA)
             if (property.gasId) {
                 try {
-                    console.log(`  🔥 Checking Metrogas (${property.gasId})...`);
-                    const result = await checkMetrogas(property.gasId);
+                    const gasProvider = property.jurisdiction === 'CABA' ? 'Metrogas' : 'Naturgy';
+                    console.log(`  🔥 Checking ${gasProvider} (${property.gasId})...`);
+
+                    const result = property.jurisdiction === 'CABA'
+                        ? await checkMetrogas(property.gasId)
+                        : await checkNaturgy(property.gasId);
 
                     await prisma.utilityCheck.create({
                         data: {
@@ -55,14 +61,15 @@ export async function scrapeAllUtilities() {
                     });
 
                     if (result.status === 'ERROR') {
-                        console.log(`  ❌ Metrogas check failed: ${result.errorMessage}`);
+                        console.log(`  ❌ ${gasProvider} check failed: ${result.errorMessage}`);
                         errorCount++;
                     } else {
-                        console.log(`  ✅ Metrogas: ${result.status} (Debt: $${result.debtAmount})`);
+                        console.log(`  ✅ ${gasProvider}: ${result.status} (Debt: $${result.debtAmount})`);
                         successCount++;
                     }
                 } catch (error: any) {
-                    console.error(`  ❌ Error checking Metrogas:`, error.message);
+                    const gasProvider = property.jurisdiction === 'CABA' ? 'Metrogas' : 'Naturgy';
+                    console.error(`  ❌ Error checking ${gasProvider}:`, error.message);
 
                     // Save error status
                     await prisma.utilityCheck.create({
