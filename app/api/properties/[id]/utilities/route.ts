@@ -8,7 +8,7 @@ import { getUserId } from '@/app/lib/auth-helper';
  */
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
     try {
         const userId = await getUserId();
@@ -16,7 +16,8 @@ export async function GET(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const propertyId = params.id;
+        const resolvedParams = await Promise.resolve(params);
+        const propertyId = resolvedParams.id;
 
         // Verify property belongs to user
         const property = await prisma.property.findFirst({
@@ -86,7 +87,7 @@ export async function GET(
  */
 export async function POST(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
     try {
         const userId = await getUserId();
@@ -94,7 +95,8 @@ export async function POST(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const propertyId = params.id;
+        const resolvedParams = await Promise.resolve(params);
+        const propertyId = resolvedParams.id;
         const body = await req.json();
         const { serviceType } = body; // 'GAS' or 'ELECTRICITY'
 
@@ -113,6 +115,16 @@ export async function POST(
 
         if (!property) {
             return NextResponse.json({ error: 'Property not found' }, { status: 404 });
+        }
+
+        // Check if running in production (Vercel)
+        const isProduction = process.env.VERCEL || process.env.NODE_ENV === 'production';
+
+        if (isProduction) {
+            return NextResponse.json({
+                error: 'Manual scraping is disabled in production',
+                message: 'Scraping only works in local development. Use scheduled checks instead.'
+            }, { status: 503 });
         }
 
         // Import scrapers dynamically to avoid serverless bundle issues

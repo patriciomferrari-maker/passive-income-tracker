@@ -90,12 +90,23 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                 body: JSON.stringify({ serviceType })
             });
 
+            const data = await res.json();
+
+            if (res.status === 503) {
+                // Production scraping disabled
+                alert('⚠️ Verificación manual no disponible en producción\n\nEl scraping solo funciona en desarrollo local debido a limitaciones de Vercel.\n\nPróximamente: Verificación automática programada.');
+                return;
+            }
+
             if (res.ok) {
                 // Refresh utilities for this property
                 await fetchUtilities(propertyId);
+            } else {
+                alert(`Error: ${data.error || 'No se pudo verificar el servicio'}`);
             }
         } catch (error) {
             console.error('Error checking utility:', error);
+            alert('Error de conexión. Por favor intenta de nuevo.');
         } finally {
             setChecking(prev => ({ ...prev, [key]: false }));
         }
