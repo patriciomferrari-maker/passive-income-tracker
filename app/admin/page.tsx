@@ -472,7 +472,7 @@ function IPCCard() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     date: newIPCDate,
-                    value: valueNum / 100 // Convert percentage to decimal
+                    value: valueNum // Already a percentage, no conversion needed
                 })
             });
 

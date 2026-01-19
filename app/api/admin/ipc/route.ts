@@ -64,9 +64,9 @@ export async function POST(req: NextRequest) {
         }
 
         // Validate value range (-50% to 50%)
-        if (value < -0.5 || value > 0.5) {
+        if (value < -50 || value > 50) {
             return NextResponse.json(
-                { error: 'IPC value must be between -50% and 50% (-0.5 to 0.5)' },
+                { error: 'IPC value must be between -50% and 50%' },
                 { status: 400 }
             );
         }
