@@ -462,14 +462,20 @@ function IPCCard() {
                 method: 'DELETE'
             });
 
+            const data = await res.json();
+
             if (res.ok) {
                 setInflationData(prev => prev.filter(item => item.id !== id));
+                setMessage(`IPC eliminado. Recalculados ${data.regeneratedContracts || 0} contratos automáticamente.`);
+                setMessageType('success');
             } else {
-                alert('Error al eliminar el registro');
+                setMessage(data.error || 'Error al eliminar el registro');
+                setMessageType('error');
             }
         } catch (error) {
             console.error('Error deleting IPC:', error);
-            alert('Error al eliminar el registro');
+            setMessage('Error al eliminar el registro');
+            setMessageType('error');
         }
     };
 
@@ -504,7 +510,7 @@ function IPCCard() {
             const data = await res.json();
 
             if (res.ok && data.success) {
-                setMessage(`${data.message}. ${data.affectedContracts} contratos afectados. ${data.reminder}`);
+                setMessage(`${data.message}. Recalculados ${data.regeneratedContracts || 0} contratos automáticamente.`);
                 setMessageType('success');
                 setNewIPCDate('');
                 setNewIPCValue('');

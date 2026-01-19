@@ -136,27 +136,30 @@ export async function runEconomicUpdates() {
 
     // 2. Update IPC
     try {
+        const { upsertIPC } = await import('@/lib/economic-data');
         const ipcData = await scrapeInflationData();
         let ipcCount = 0;
-        for (const item of ipcData) {
-            await prisma.inflationData.upsert({
-                where: { year_month: { year: item.year, month: item.month } },
-                update: { value: item.value },
-                create: { year: item.year, month: item.month, value: item.value }
-            });
-            ipcCount++;
-        }
 
-        // SYNC WITH EconomicIndicator
         for (const item of ipcData) {
             const date = new Date(item.year, item.month - 1, 1);
-            date.setUTCHours(12, 0, 0, 0);
 
-            await prisma.economicIndicator.upsert({
-                where: { type_date: { type: 'IPC', date } },
-                update: { value: item.value },
-                create: { type: 'IPC', date, value: item.value }
+            // Check if manual exists before overwriting? 
+            // The constraint @@unique([type, date]) handles uniqueness.
+            // But we need to respect "isManual" flag.
+            // Let's rely on upsertIPC or check explicitly.
+            // For now, to keep it simple and safe, we can check if it's manual.
+            const existing = await prisma.economicIndicator.findUnique({
+                where: { type_date: { type: 'IPC', date: new Date(Date.UTC(item.year, item.month - 1, 1)) } }
             });
+
+            if (existing && existing.isManual) {
+                console.log(`Skipping manual IPC for ${item.year}-${item.month}`);
+                continue;
+            }
+
+            // Using upsertIPC handles normalization.
+            await upsertIPC(date, item.value);
+            ipcCount++;
         }
 
         if (ipcCount > 0) {

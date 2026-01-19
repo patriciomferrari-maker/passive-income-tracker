@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { regenerateAllCashflows } from '@/lib/rentals';
 
 /**
  * GET /api/admin/ipc
@@ -115,12 +116,15 @@ export async function POST(req: NextRequest) {
             where: { adjustmentType: 'IPC' }
         });
 
+        // Regenerate rental cashflows automatically
+        const regeneratedCount = await regenerateAllCashflows();
+
         return NextResponse.json({
             success: true,
             indicator,
             message: `IPC value for ${normalizedDate.toISOString().slice(0, 7)} saved successfully`,
             affectedContracts,
-            reminder: 'Run "npx tsx scripts/separate-regenerate.ts" to recalculate rentals'
+            regeneratedContracts: regeneratedCount
         });
 
     } catch (error: any) {
@@ -172,9 +176,13 @@ export async function DELETE(req: NextRequest) {
             where: { id }
         });
 
+        // Regenerate rental cashflows automatically
+        const regeneratedCount = await regenerateAllCashflows();
+
         return NextResponse.json({
             success: true,
-            message: 'IPC record deleted successfully'
+            message: 'IPC record deleted successfully',
+            regeneratedContracts: regeneratedCount
         });
 
     } catch (error: any) {

@@ -25,13 +25,15 @@ function getMonthKey(date: Date): number {
 }
 
 async function loadEconomicData() {
-    const ipcRecords = await prisma.inflationData.findMany({
-        orderBy: [{ year: 'asc' }, { month: 'asc' }]
+    const ipcRecords = await prisma.economicIndicator.findMany({
+        where: { type: 'IPC' },
+        orderBy: { date: 'asc' }
     });
 
     const ipcMap = new Map<number, number>();
     ipcRecords.forEach(record => {
-        const date = new Date(Date.UTC(record.year, record.month - 1, 1));
+        // Use UTC Midnight on 1st of month for the key
+        const date = new Date(Date.UTC(record.date.getUTCFullYear(), record.date.getUTCMonth(), 1));
         const key = date.getTime();
         ipcMap.set(key, record.value / 100);
     });

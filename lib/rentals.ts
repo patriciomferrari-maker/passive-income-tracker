@@ -27,28 +27,26 @@ function getMonthKey(date: Date): number {
     return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)).getTime();
 }
 
+import { getIPCData, getUSDBlueData } from './economic-data';
+
 export async function loadEconomicData() {
-    const ipcRecords = await prisma.inflationData.findMany({
-        orderBy: [{ year: 'asc' }, { month: 'asc' }]
-    });
-
+    // 1. Load IPC Data (unified source)
+    const ipcData = await getIPCData();
     const ipcMap = new Map<number, number>();
-    ipcRecords.forEach(record => {
-        // Construct date from year/month (Month is 1-based in InflationData)
-        const date = new Date(Date.UTC(record.year, record.month - 1, 1));
-        const key = date.getTime(); // Midnight UTC on 1st of month
 
-        // Convert Percentage (2.5) to Decimal (0.025)
-        ipcMap.set(key, record.value / 100);
+    ipcData.forEach(record => {
+        // Date is already Date object from Prisma
+        // We use UTC Midnight on 1st of month for the key
+        const date = new Date(Date.UTC(record.date.getUTCFullYear(), record.date.getUTCMonth(), 1));
+        const key = date.getTime();
+        ipcMap.set(key, record.value); // Already converted to decimal in service
     });
 
-    const tcRecords = await prisma.economicIndicator.findMany({
-        where: { type: 'TC_USD_ARS' },
-        orderBy: { date: 'asc' }
-    });
-
+    // 2. Load TC Data
+    const tcData = await getUSDBlueData();
     const tcMap = new Map<number, number>();
-    tcRecords.forEach(record => {
+
+    tcData.forEach(record => {
         const timestamp = new Date(record.date).getTime();
         tcMap.set(timestamp, record.value);
     });
