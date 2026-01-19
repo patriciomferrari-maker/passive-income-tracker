@@ -14,125 +14,124 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast"; // Assuming you have this, otherwise we use local state alerts
 
 export default function AdminPage() {
-    // ... existing code ...
-}
 
 
 
 
 
 
-// ONs State
-const [onPrices, setOnPrices] = useState<any[]>([]);
-const [usEtfPrices, setUsEtfPrices] = useState<any[]>([]); // New state for US ETFs
-const [loadingONs, setLoadingONs] = useState(true);
 
-// Fetch ONs on mount
-useEffect(() => {
-    async function initAdmin() {
-        setLoadingONs(true);
-        try {
-            // 1. Trigger Updates (Auto-update requested by user)
-            // We fire both updates in parallel for efficiency
-            await Promise.all([
-                fetch('/api/admin/market-data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'UPDATE_ONS' })
-                }),
-                fetch('/api/admin/market-data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'UPDATE_TREASURIES' })
-                })
-            ]);
+    // ONs State
+    const [onPrices, setOnPrices] = useState<any[]>([]);
+    const [usEtfPrices, setUsEtfPrices] = useState<any[]>([]); // New state for US ETFs
+    const [loadingONs, setLoadingONs] = useState(true);
 
-            // 2. Fetch Latest Data
-            const resON = await fetch('/api/admin/market-data?category=ON');
-            const dataON = await resON.json();
-            if (dataON.success && dataON.prices) {
-                setOnPrices(dataON.prices.sort((a: any, b: any) => a.ticker.localeCompare(b.ticker)));
+    // Fetch ONs on mount
+    useEffect(() => {
+        async function initAdmin() {
+            setLoadingONs(true);
+            try {
+                // 1. Trigger Updates (Auto-update requested by user)
+                // We fire both updates in parallel for efficiency
+                await Promise.all([
+                    fetch('/api/admin/market-data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'UPDATE_ONS' })
+                    }),
+                    fetch('/api/admin/market-data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'UPDATE_TREASURIES' })
+                    })
+                ]);
+
+                // 2. Fetch Latest Data
+                const resON = await fetch('/api/admin/market-data?category=ON');
+                const dataON = await resON.json();
+                if (dataON.success && dataON.prices) {
+                    setOnPrices(dataON.prices.sort((a: any, b: any) => a.ticker.localeCompare(b.ticker)));
+                }
+
+                const resUS = await fetch('/api/admin/market-data?category=US_ETF');
+                const dataUS = await resUS.json();
+                if (dataUS.success && dataUS.prices) {
+                    setUsEtfPrices(dataUS.prices.sort((a: any, b: any) => a.ticker.localeCompare(b.ticker)));
+                }
+            } catch (e) {
+                console.error("Failed to update/load assets", e);
+            } finally {
+                setLoadingONs(false);
             }
-
-            const resUS = await fetch('/api/admin/market-data?category=US_ETF');
-            const dataUS = await resUS.json();
-            if (dataUS.success && dataUS.prices) {
-                setUsEtfPrices(dataUS.prices.sort((a: any, b: any) => a.ticker.localeCompare(b.ticker)));
-            }
-        } catch (e) {
-            console.error("Failed to update/load assets", e);
-        } finally {
-            setLoadingONs(false);
         }
-    }
-    initAdmin();
-}, []);
+        initAdmin();
+    }, []);
 
-return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
-        <h1 className="text-4xl font-bold mb-8 text-center text-slate-50">Panel de Administración</h1>
+    return (
+        <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
+            <h1 className="text-4xl font-bold mb-8 text-center text-slate-50">Panel de Administración</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-            {/* Users Management */}
-            <UsersCard />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+                {/* Users Management */}
+                <UsersCard />
 
-            {/* ONs Card */}
-            <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
-                <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <CardTitle className="text-slate-100 text-lg">Cotización ONs/Bonos</CardTitle>
-                        <Badge variant="secondary" className="bg-slate-800 text-slate-400">Multi-Market</Badge>
-                    </div>
-                    <CardDescription className="text-slate-400 text-xs">
-                        Cotización ONs (IOL)
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-hidden">
-                    {loadingONs ? (
-                        <div className="flex flex-col gap-2">
-                            <span className="text-xs text-yellow-500 animate-pulse">Actualizando cotizaciones...</span>
-                            <span className="text-[10px] text-slate-500">Esto puede demorar unos segundos.</span>
+                {/* ONs Card */}
+                <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
+                    <CardHeader>
+                        <div className="flex justify-between items-center">
+                            <CardTitle className="text-slate-100 text-lg">Cotización ONs/Bonos</CardTitle>
+                            <Badge variant="secondary" className="bg-slate-800 text-slate-400">Multi-Market</Badge>
                         </div>
-                    ) : (
-                        <ONListTable prices={onPrices} />
-                    )}
-                    {/* Manual update button removed as requested */}
-                </CardContent>
-            </Card>
+                        <CardDescription className="text-slate-400 text-xs">
+                            Cotización ONs (IOL)
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-hidden">
+                        {loadingONs ? (
+                            <div className="flex flex-col gap-2">
+                                <span className="text-xs text-yellow-500 animate-pulse">Actualizando cotizaciones...</span>
+                                <span className="text-[10px] text-slate-500">Esto puede demorar unos segundos.</span>
+                            </div>
+                        ) : (
+                            <ONListTable prices={onPrices} />
+                        )}
+                        {/* Manual update button removed as requested */}
+                    </CardContent>
+                </Card>
 
-            {/* US ETFs Card */}
-            <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
-                <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <CardTitle className="text-slate-100 text-lg">US ETFs/Treasuries</CardTitle>
-                        <Badge variant="secondary" className="bg-slate-800 text-slate-400">Yahoo Finance</Badge>
-                    </div>
-                    <CardDescription className="text-slate-400 text-xs">
-                        Cotización desde Yahoo Finance (Automático)
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-hidden">
-                    <PriceList prices={usEtfPrices} />
-                </CardContent>
-            </Card>
+                {/* US ETFs Card */}
+                <Card className="bg-slate-900 border-slate-800 h-[500px] flex flex-col">
+                    <CardHeader>
+                        <div className="flex justify-between items-center">
+                            <CardTitle className="text-slate-100 text-lg">US ETFs/Treasuries</CardTitle>
+                            <Badge variant="secondary" className="bg-slate-800 text-slate-400">Yahoo Finance</Badge>
+                        </div>
+                        <CardDescription className="text-slate-400 text-xs">
+                            Cotización desde Yahoo Finance (Automático)
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-hidden">
+                        <PriceList prices={usEtfPrices} />
+                    </CardContent>
+                </Card>
 
-            {/* CEDEARs Card */}
-            <CedearCard />
+                {/* CEDEARs Card */}
+                <CedearCard />
 
-            {/* IPC Card */}
-            <IPCCard />
+                {/* IPC Card */}
+                <IPCCard />
 
-            {/* UVA Card */}
-            <UVACard />
+                {/* UVA Card */}
+                <UVACard />
 
-            {/* TC Oficial Card */}
-            <TCOficialCard />
+                {/* TC Oficial Card */}
+                <TCOficialCard />
 
-            {/* Dolar Card */}
-            <DollarCard />
+                {/* Dolar Card */}
+                <DollarCard />
+            </div>
         </div>
-    </div>
-);
+    );
 }
 
 function BCRAControlCard() {
