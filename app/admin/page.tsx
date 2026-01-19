@@ -634,7 +634,7 @@ function IPCCard() {
                                                             }
                                                         }}
                                                         className="text-slate-600 hover:text-red-400 transition-colors"
-                                                        title="Eliminar registro manual"
+                                                        title="Eliminar IPC manual"
                                                     >
                                                         <Trash2 className="h-3 w-3" />
                                                     </button>
