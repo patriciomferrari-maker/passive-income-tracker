@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Zap, Flame, RefreshCw, ExternalLink, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Zap, Flame, ExternalLink, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface Property {
     id: string;
@@ -36,7 +36,6 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
     const [properties, setProperties] = useState<Property[]>([]);
     const [utilities, setUtilities] = useState<Record<string, PropertyUtilities>>({});
     const [loading, setLoading] = useState(true);
-    const [checking, setChecking] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         fetchProperties();
@@ -80,36 +79,7 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
         }
     };
 
-    const checkUtility = async (propertyId: string, serviceType: 'GAS' | 'ELECTRICITY') => {
-        const key = `${propertyId}-${serviceType}`;
-        setChecking(prev => ({ ...prev, [key]: true }));
 
-        try {
-            const res = await fetch(`/api/properties/${propertyId}/utilities`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ serviceType })
-            });
-
-            const data = await res.json();
-
-            if (res.status === 503) {
-                alert('⚠️ Verificación manual no disponible en producción\\n\\nEl scraping solo funciona en desarrollo local debido a limitaciones de Vercel.\\n\\nPróximamente: Verificación automática programada.');
-                return;
-            }
-
-            if (res.ok) {
-                await fetchUtilities(propertyId);
-            } else {
-                alert(`Error: ${data.error || 'No se pudo verificar el servicio'}`);
-            }
-        } catch (error) {
-            console.error('Error checking utility:', error);
-            alert('Error de conexión. Por favor intenta de nuevo.');
-        } finally {
-            setChecking(prev => ({ ...prev, [key]: false }));
-        }
-    };
 
     const getStatusBadge = (status: string, debtAmount: number | null) => {
         const baseClasses = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border";
@@ -229,34 +199,20 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                                                                 </div>
                                                             </div>
                                                         )}
-                                                        <div className="flex gap-1.5 mt-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => checkUtility(property.id, 'GAS')}
-                                                                disabled={checking[`${property.id}-GAS`]}
-                                                                className="h-7 px-2 border-slate-700 hover:bg-slate-800"
-                                                            >
-                                                                {checking[`${property.id}-GAS`] ? (
-                                                                    <Loader2 className="animate-spin" size={14} />
-                                                                ) : (
-                                                                    <RefreshCw size={14} />
-                                                                )}
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                onClick={() => window.open(
-                                                                    property.jurisdiction === 'CABA'
-                                                                        ? 'https://www.metrogas.com.ar/hogares/descarga-y-paga-tu-factura/'
-                                                                        : 'https://ov.naturgy.com.ar/Account/BotonDePago',
-                                                                    '_blank'
-                                                                )}
-                                                                className="h-7 px-2 text-slate-400 hover:text-white"
-                                                            >
-                                                                <ExternalLink size={14} />
-                                                            </Button>
-                                                        </div>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => window.open(
+                                                                property.jurisdiction === 'CABA'
+                                                                    ? 'https://www.metrogas.com.ar/hogares/descarga-y-paga-tu-factura/'
+                                                                    : 'https://ov.naturgy.com.ar/Account/BotonDePago',
+                                                                '_blank'
+                                                            )}
+                                                            className="h-7 px-2 text-slate-400 hover:text-white mt-2"
+                                                        >
+                                                            <ExternalLink size={14} className="mr-1" />
+                                                            Ver portal
+                                                        </Button>
                                                     </div>
                                                 ) : (
                                                     <span className="text-sm text-slate-500">-</span>
@@ -282,29 +238,15 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                                                                 </div>
                                                             </div>
                                                         )}
-                                                        <div className="flex gap-1.5 mt-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => checkUtility(property.id, 'ELECTRICITY')}
-                                                                disabled={checking[`${property.id}-ELECTRICITY`]}
-                                                                className="h-7 px-2 border-slate-700 hover:bg-slate-800"
-                                                            >
-                                                                {checking[`${property.id}-ELECTRICITY`] ? (
-                                                                    <Loader2 className="animate-spin" size={14} />
-                                                                ) : (
-                                                                    <RefreshCw size={14} />
-                                                                )}
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                onClick={() => window.open('https://edenordigital.com/ingreso/bienvenida', '_blank')}
-                                                                className="h-7 px-2 text-slate-400 hover:text-white"
-                                                            >
-                                                                <ExternalLink size={14} />
-                                                            </Button>
-                                                        </div>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => window.open('https://edenordigital.com/ingreso/bienvenida', '_blank')}
+                                                            className="h-7 px-2 text-slate-400 hover:text-white mt-2"
+                                                        >
+                                                            <ExternalLink size={14} className="mr-1" />
+                                                            Ver portal
+                                                        </Button>
                                                     </div>
                                                 ) : (
                                                     <span className="text-sm text-slate-500">-</span>
