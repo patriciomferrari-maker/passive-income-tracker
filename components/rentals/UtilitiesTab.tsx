@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Zap, Flame, RefreshCw, ExternalLink, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface Property {
     id: string;
     name: string;
+    jurisdiction: 'CABA' | 'PROVINCIA';
     gasId: string | null;
     electricityId: string | null;
 }
@@ -93,13 +94,11 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
             const data = await res.json();
 
             if (res.status === 503) {
-                // Production scraping disabled
-                alert('⚠️ Verificación manual no disponible en producción\n\nEl scraping solo funciona en desarrollo local debido a limitaciones de Vercel.\n\nPróximamente: Verificación automática programada.');
+                alert('⚠️ Verificación manual no disponible en producción\\n\\nEl scraping solo funciona en desarrollo local debido a limitaciones de Vercel.\\n\\nPróximamente: Verificación automática programada.');
                 return;
             }
 
             if (res.ok) {
-                // Refresh utilities for this property
                 await fetchUtilities(propertyId);
             } else {
                 alert(`Error: ${data.error || 'No se pudo verificar el servicio'}`);
@@ -112,43 +111,43 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
         }
     };
 
-    const getStatusIcon = (status: string) => {
+    const getStatusBadge = (status: string, debtAmount: number | null) => {
+        const baseClasses = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border";
+
         switch (status) {
             case 'UP_TO_DATE':
-                return <CheckCircle className="text-emerald-500" size={20} />;
+                return (
+                    <span className={`${baseClasses} bg-emerald-950 text-emerald-400 border-emerald-800`}>
+                        <CheckCircle size={14} />
+                        Al día
+                    </span>
+                );
             case 'OVERDUE':
-                return <AlertCircle className="text-rose-500" size={20} />;
+                return (
+                    <span className={`${baseClasses} bg-rose-950 text-rose-400 border-rose-800`}>
+                        <AlertCircle size={14} />
+                        Deuda {debtAmount && showValues ? `$${debtAmount.toLocaleString('es-AR')}` : ''}
+                    </span>
+                );
             case 'ERROR':
-                return <XCircle className="text-amber-500" size={20} />;
+                return (
+                    <span className={`${baseClasses} bg-amber-950 text-amber-400 border-amber-800`}>
+                        <XCircle size={14} />
+                        Error
+                    </span>
+                );
             default:
-                return <AlertCircle className="text-slate-500" size={20} />;
+                return (
+                    <span className={`${baseClasses} bg-slate-800 text-slate-400 border-slate-700`}>
+                        <AlertCircle size={14} />
+                        Sin verificar
+                    </span>
+                );
         }
     };
 
-    const getStatusText = (status: string) => {
-        switch (status) {
-            case 'UP_TO_DATE':
-                return 'Al día';
-            case 'OVERDUE':
-                return 'Deuda';
-            case 'ERROR':
-                return 'Error';
-            default:
-                return 'Sin verificar';
-        }
-    };
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'UP_TO_DATE':
-                return 'bg-emerald-950 text-emerald-400 border-emerald-800';
-            case 'OVERDUE':
-                return 'bg-rose-950 text-rose-400 border-rose-800';
-            case 'ERROR':
-                return 'bg-amber-950 text-amber-400 border-amber-800';
-            default:
-                return 'bg-slate-800 text-slate-400 border-slate-700';
-        }
+    const getGasProvider = (jurisdiction: 'CABA' | 'PROVINCIA') => {
+        return jurisdiction === 'CABA' ? 'Metrogas' : 'Naturgy';
     };
 
     if (loading) {
@@ -178,145 +177,147 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                 <div>
                     <h2 className="text-2xl font-bold text-white">Estado de Servicios</h2>
                     <p className="text-slate-400 text-sm mt-1">
-                        Monitoreo automático de Metrogas y Edenor
+                        Monitoreo automático de Metrogas, Naturgy y Edenor
                     </p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {properties.map(property => {
-                    const propertyUtilities = utilities[property.id];
-                    const gasCheck = propertyUtilities?.checks?.gas;
-                    const electricityCheck = propertyUtilities?.checks?.electricity;
+            <Card className="bg-slate-950 border-slate-800">
+                <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-slate-800">
+                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Propiedad</th>
+                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Gas</th>
+                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Electricidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {properties.map(property => {
+                                    const propertyUtilities = utilities[property.id];
+                                    const gasCheck = propertyUtilities?.checks?.gas;
+                                    const electricityCheck = propertyUtilities?.checks?.electricity;
+                                    const gasProvider = getGasProvider(property.jurisdiction);
 
-                    return (
-                        <Card key={property.id} className="bg-slate-950 border-slate-800">
-                            <CardHeader className="border-b border-slate-800/50">
-                                <CardTitle className="text-white flex items-center gap-2">
-                                    {property.name}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-6 space-y-4">
-                                {/* Metrogas */}
-                                {property.gasId && (
-                                    <div className="flex items-center justify-between p-4 bg-slate-900/50 rounded-lg border border-slate-800">
-                                        <div className="flex items-center gap-3 flex-1">
-                                            <Flame className="text-orange-500" size={24} />
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-medium text-white">Metrogas</span>
-                                                    {gasCheck && getStatusIcon(gasCheck.status)}
+                                    return (
+                                        <tr key={property.id} className="border-b border-slate-800 hover:bg-slate-900/50">
+                                            {/* Property Name */}
+                                            <td className="py-4 px-4">
+                                                <div className="font-medium text-white">{property.name}</div>
+                                                <div className="text-xs text-slate-500 mt-0.5">
+                                                    {property.jurisdiction === 'CABA' ? '🏙️ CABA' : '🌳 Provincia'}
                                                 </div>
-                                                <p className="text-xs text-slate-500 mt-0.5">
-                                                    {showValues ? property.gasId : '****'}
-                                                </p>
-                                                {gasCheck && (
-                                                    <div className="mt-2 space-y-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`text-xs px-2 py-0.5 rounded border ${getStatusColor(gasCheck.status)}`}>
-                                                                {getStatusText(gasCheck.status)}
-                                                            </span>
-                                                            {gasCheck.debtAmount && gasCheck.debtAmount > 0 && showValues && (
-                                                                <span className="text-sm font-mono text-rose-400">
-                                                                    ${gasCheck.debtAmount.toLocaleString('es-AR')}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-xs text-slate-500">
-                                                            Último check: {new Date(gasCheck.checkDate).toLocaleDateString('es-AR')} {new Date(gasCheck.checkDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => checkUtility(property.id, 'GAS')}
-                                                disabled={checking[`${property.id}-GAS`]}
-                                                className="border-slate-700 hover:bg-slate-800"
-                                            >
-                                                {checking[`${property.id}-GAS`] ? (
-                                                    <Loader2 className="animate-spin" size={16} />
-                                                ) : (
-                                                    <RefreshCw size={16} />
-                                                )}
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => window.open('https://www.metrogas.com.ar/hogares/descarga-y-paga-tu-factura/', '_blank')}
-                                                className="text-slate-400 hover:text-white"
-                                            >
-                                                <ExternalLink size={16} />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
+                                            </td>
 
-                                {/* Edenor */}
-                                {property.electricityId && (
-                                    <div className="flex items-center justify-between p-4 bg-slate-900/50 rounded-lg border border-slate-800">
-                                        <div className="flex items-center gap-3 flex-1">
-                                            <Zap className="text-yellow-500" size={24} />
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-medium text-white">Edenor</span>
-                                                    {electricityCheck && getStatusIcon(electricityCheck.status)}
-                                                </div>
-                                                <p className="text-xs text-slate-500 mt-0.5">
-                                                    {showValues ? property.electricityId : '****'}
-                                                </p>
-                                                {electricityCheck && (
-                                                    <div className="mt-2 space-y-1">
+                                            {/* Gas */}
+                                            <td className="py-4 px-4">
+                                                {property.gasId ? (
+                                                    <div className="space-y-2">
                                                         <div className="flex items-center gap-2">
-                                                            <span className={`text-xs px-2 py-0.5 rounded border ${getStatusColor(electricityCheck.status)}`}>
-                                                                {getStatusText(electricityCheck.status)}
-                                                            </span>
-                                                            {electricityCheck.debtAmount && electricityCheck.debtAmount > 0 && showValues && (
-                                                                <span className="text-sm font-mono text-rose-400">
-                                                                    ${electricityCheck.debtAmount.toLocaleString('es-AR')}
-                                                                </span>
-                                                            )}
+                                                            <Flame className="text-orange-500" size={18} />
+                                                            <span className="text-sm font-medium text-white">{gasProvider}</span>
                                                         </div>
-                                                        <p className="text-xs text-slate-500">
-                                                            Último check: {new Date(electricityCheck.checkDate).toLocaleDateString('es-AR')} {new Date(electricityCheck.checkDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-                                                        </p>
+                                                        <div className="text-xs text-slate-500 font-mono">
+                                                            {showValues ? property.gasId : '****'}
+                                                        </div>
+                                                        {gasCheck && (
+                                                            <div className="space-y-1.5">
+                                                                {getStatusBadge(gasCheck.status, gasCheck.debtAmount)}
+                                                                <div className="text-xs text-slate-500">
+                                                                    {new Date(gasCheck.checkDate).toLocaleDateString('es-AR')} {new Date(gasCheck.checkDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex gap-1.5 mt-2">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => checkUtility(property.id, 'GAS')}
+                                                                disabled={checking[`${property.id}-GAS`]}
+                                                                className="h-7 px-2 border-slate-700 hover:bg-slate-800"
+                                                            >
+                                                                {checking[`${property.id}-GAS`] ? (
+                                                                    <Loader2 className="animate-spin" size={14} />
+                                                                ) : (
+                                                                    <RefreshCw size={14} />
+                                                                )}
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => window.open(
+                                                                    property.jurisdiction === 'CABA'
+                                                                        ? 'https://www.metrogas.com.ar/hogares/descarga-y-paga-tu-factura/'
+                                                                        : 'https://ov.naturgy.com.ar/Account/BotonDePago',
+                                                                    '_blank'
+                                                                )}
+                                                                className="h-7 px-2 text-slate-400 hover:text-white"
+                                                            >
+                                                                <ExternalLink size={14} />
+                                                            </Button>
+                                                        </div>
                                                     </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => checkUtility(property.id, 'ELECTRICITY')}
-                                                disabled={checking[`${property.id}-ELECTRICITY`]}
-                                                className="border-slate-700 hover:bg-slate-800"
-                                            >
-                                                {checking[`${property.id}-ELECTRICITY`] ? (
-                                                    <Loader2 className="animate-spin" size={16} />
                                                 ) : (
-                                                    <RefreshCw size={16} />
+                                                    <span className="text-sm text-slate-500">-</span>
                                                 )}
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => window.open('https://edenordigital.com/ingreso/bienvenida', '_blank')}
-                                                className="text-slate-400 hover:text-white"
-                                            >
-                                                <ExternalLink size={16} />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    );
-                })}
-            </div>
+                                            </td>
+
+                                            {/* Electricity */}
+                                            <td className="py-4 px-4">
+                                                {property.electricityId ? (
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Zap className="text-yellow-500" size={18} />
+                                                            <span className="text-sm font-medium text-white">Edenor</span>
+                                                        </div>
+                                                        <div className="text-xs text-slate-500 font-mono">
+                                                            {showValues ? property.electricityId : '****'}
+                                                        </div>
+                                                        {electricityCheck && (
+                                                            <div className="space-y-1.5">
+                                                                {getStatusBadge(electricityCheck.status, electricityCheck.debtAmount)}
+                                                                <div className="text-xs text-slate-500">
+                                                                    {new Date(electricityCheck.checkDate).toLocaleDateString('es-AR')} {new Date(electricityCheck.checkDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex gap-1.5 mt-2">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => checkUtility(property.id, 'ELECTRICITY')}
+                                                                disabled={checking[`${property.id}-ELECTRICITY`]}
+                                                                className="h-7 px-2 border-slate-700 hover:bg-slate-800"
+                                                            >
+                                                                {checking[`${property.id}-ELECTRICITY`] ? (
+                                                                    <Loader2 className="animate-spin" size={14} />
+                                                                ) : (
+                                                                    <RefreshCw size={14} />
+                                                                )}
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => window.open('https://edenordigital.com/ingreso/bienvenida', '_blank')}
+                                                                className="h-7 px-2 text-slate-400 hover:text-white"
+                                                            >
+                                                                <ExternalLink size={14} />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm text-slate-500">-</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }
