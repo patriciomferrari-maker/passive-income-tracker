@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { checkMetrogas } from '../lib/scrapers/metrogas';
 import { checkNaturgy } from '../lib/scrapers/naturgy';
 import { checkEdenor } from '../lib/scrapers/edenor';
+import { checkABLProvincia } from '../lib/scrapers/abl-provincia';
 
 const prisma = new PrismaClient();
 
@@ -14,7 +15,8 @@ export async function scrapeAllUtilities() {
             where: {
                 OR: [
                     { gasId: { not: null } },
-                    { electricityId: { not: null } }
+                    { electricityId: { not: null } },
+                    { municipalId: { not: null } }
                 ]
             },
             select: {
@@ -23,6 +25,7 @@ export async function scrapeAllUtilities() {
                 jurisdiction: true,
                 gasId: true,
                 electricityId: true,
+                municipalId: true,
                 userId: true
             }
         });
@@ -124,6 +127,53 @@ export async function scrapeAllUtilities() {
                             propertyId: property.id,
                             serviceType: 'ELECTRICITY',
                             accountNumber: property.electricityId,
+                            status: 'ERROR',
+                            debtAmount: 0,
+                            isAutomatic: true,
+                            errorMessage: error.message
+                        }
+                    });
+                    errorCount++;
+                }
+            }
+
+            // Check ABL (only Provincia - CABA has reCAPTCHA)
+            if (property.municipalId && property.jurisdiction === 'PROVINCIA') {
+                try {
+                    console.log(`  🏛️  Checking ABL Provincia (${property.municipalId})...`);
+                    const result = await checkABLProvincia(property.municipalId);
+
+                    await prisma.utilityCheck.create({
+                        data: {
+                            propertyId: property.id,
+                            serviceType: 'MUNICIPAL',
+                            accountNumber: property.municipalId,
+                            status: result.status,
+                            debtAmount: result.debtAmount,
+                            lastBillAmount: result.lastBillAmount,
+                            lastBillDate: result.lastBillDate,
+                            dueDate: result.dueDate,
+                            isAutomatic: true,
+                            errorMessage: result.errorMessage
+                        }
+                    });
+
+                    if (result.status === 'ERROR') {
+                        console.log(`  ❌ ABL check failed: ${result.errorMessage}`);
+                        errorCount++;
+                    } else {
+                        console.log(`  ✅ ABL: ${result.status} (Debt: $${result.debtAmount})`);
+                        successCount++;
+                    }
+                } catch (error: any) {
+                    console.error(`  ❌ Error checking ABL:`, error.message);
+
+                    // Save error status
+                    await prisma.utilityCheck.create({
+                        data: {
+                            propertyId: property.id,
+                            serviceType: 'MUNICIPAL',
+                            accountNumber: property.municipalId,
                             status: 'ERROR',
                             debtAmount: 0,
                             isAutomatic: true,

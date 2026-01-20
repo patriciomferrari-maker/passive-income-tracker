@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Zap, Flame, ExternalLink, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Zap, Flame, Building2, ExternalLink, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface Property {
     id: string;
@@ -11,6 +11,7 @@ interface Property {
     jurisdiction: 'CABA' | 'PROVINCIA';
     gasId: string | null;
     electricityId: string | null;
+    municipalId: string | null;
 }
 
 interface UtilityCheck {
@@ -29,6 +30,7 @@ interface PropertyUtilities {
     checks: {
         gas: UtilityCheck | null;
         electricity: UtilityCheck | null;
+        municipal: UtilityCheck | null;
     };
 }
 
@@ -48,7 +50,7 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
 
             // Filter properties with utility IDs
             const propertiesWithUtilities = data.filter(
-                (p: Property) => p.gasId || p.electricityId
+                (p: Property) => p.gasId || p.electricityId || p.municipalId
             );
 
             setProperties(propertiesWithUtilities);
@@ -147,7 +149,7 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                 <div>
                     <h2 className="text-2xl font-bold text-white">Estado de Servicios</h2>
                     <p className="text-slate-400 text-sm mt-1">
-                        Monitoreo automático de Metrogas, Naturgy y Edenor
+                        Monitoreo automático de Gas, Electricidad y ABL
                     </p>
                 </div>
             </div>
@@ -161,6 +163,7 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Propiedad</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Gas</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Electricidad</th>
+                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">ABL</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -242,6 +245,47 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                                                             size="sm"
                                                             variant="ghost"
                                                             onClick={() => window.open('https://edenordigital.com/ingreso/bienvenida', '_blank')}
+                                                            className="h-7 px-2 text-slate-400 hover:text-white mt-2"
+                                                        >
+                                                            <ExternalLink size={14} className="mr-1" />
+                                                            Ver portal
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm text-slate-500">-</span>
+                                                )}
+                                            </td>
+
+                                            {/* ABL/Municipal */}
+                                            <td className="py-4 px-4">
+                                                {property.municipalId ? (
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Building2 className="text-blue-500" size={18} />
+                                                            <span className="text-sm font-medium text-white">
+                                                                {property.jurisdiction === 'CABA' ? 'ABL CABA' : 'ABL Provincia'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-xs text-slate-500 font-mono">
+                                                            {showValues ? property.municipalId : '****'}
+                                                        </div>
+                                                        {propertyUtilities?.checks?.municipal && (
+                                                            <div className="space-y-1.5">
+                                                                {getStatusBadge(propertyUtilities.checks.municipal.status, propertyUtilities.checks.municipal.debtAmount)}
+                                                                <div className="text-xs text-slate-500">
+                                                                    {new Date(propertyUtilities.checks.municipal.checkDate).toLocaleDateString('es-AR')} {new Date(propertyUtilities.checks.municipal.checkDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => window.open(
+                                                                property.jurisdiction === 'CABA'
+                                                                    ? 'https://lb.agip.gob.ar/ConsultaABL/'
+                                                                    : `https://boletadepago.gestionmsi.gob.ar/consultar/1/${property.municipalId}`,
+                                                                '_blank'
+                                                            )}
                                                             className="h-7 px-2 text-slate-400 hover:text-white mt-2"
                                                         >
                                                             <ExternalLink size={14} className="mr-1" />

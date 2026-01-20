@@ -29,7 +29,8 @@ export async function GET(
                 id: true,
                 name: true,
                 gasId: true,
-                electricityId: true
+                electricityId: true,
+                municipalId: true
             }
         });
 
@@ -54,21 +55,31 @@ export async function GET(
                     serviceType: 'ELECTRICITY'
                 },
                 orderBy: { checkDate: 'desc' }
+            }),
+            // Latest MUNICIPAL check
+            prisma.utilityCheck.findFirst({
+                where: {
+                    propertyId,
+                    serviceType: 'MUNICIPAL'
+                },
+                orderBy: { checkDate: 'desc' }
             })
         ]);
 
-        const [gasCheck, electricityCheck] = latestChecks;
+        const [gasCheck, electricityCheck, municipalCheck] = latestChecks;
 
         return NextResponse.json({
             property: {
                 id: property.id,
                 name: property.name,
                 gasId: property.gasId,
-                electricityId: property.electricityId
+                electricityId: property.electricityId,
+                municipalId: property.municipalId
             },
             checks: {
                 gas: gasCheck,
-                electricity: electricityCheck
+                electricity: electricityCheck,
+                municipal: municipalCheck
             }
         });
 
