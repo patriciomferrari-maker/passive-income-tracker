@@ -26,6 +26,8 @@ export async function scrapeAllUtilities() {
                 gasId: true,
                 electricityId: true,
                 municipalId: true,
+                hasGarage: true,
+                garageMunicipalId: true,
                 userId: true
             }
         });
@@ -174,6 +176,53 @@ export async function scrapeAllUtilities() {
                             propertyId: property.id,
                             serviceType: 'MUNICIPAL',
                             accountNumber: property.municipalId,
+                            status: 'ERROR',
+                            debtAmount: 0,
+                            isAutomatic: true,
+                            errorMessage: error.message
+                        }
+                    });
+                    errorCount++;
+                }
+            }
+
+            // Check Garage ABL (only Provincia - CABA has reCAPTCHA)
+            if (property.hasGarage && property.garageMunicipalId && property.jurisdiction === 'PROVINCIA') {
+                try {
+                    console.log(`  🅿️  Checking Garage ABL Provincia (${property.garageMunicipalId})...`);
+                    const result = await checkABLProvincia(property.garageMunicipalId);
+
+                    await prisma.utilityCheck.create({
+                        data: {
+                            propertyId: property.id,
+                            serviceType: 'MUNICIPAL',
+                            accountNumber: property.garageMunicipalId,
+                            status: result.status,
+                            debtAmount: result.debtAmount,
+                            lastBillAmount: result.lastBillAmount,
+                            lastBillDate: result.lastBillDate,
+                            dueDate: result.dueDate,
+                            isAutomatic: true,
+                            errorMessage: result.errorMessage
+                        }
+                    });
+
+                    if (result.status === 'ERROR') {
+                        console.log(`  ❌ Garage ABL check failed: ${result.errorMessage}`);
+                        errorCount++;
+                    } else {
+                        console.log(`  ✅ Garage ABL: ${result.status} (Debt: $${result.debtAmount})`);
+                        successCount++;
+                    }
+                } catch (error: any) {
+                    console.error(`  ❌ Error checking Garage ABL:`, error.message);
+
+                    // Save error status
+                    await prisma.utilityCheck.create({
+                        data: {
+                            propertyId: property.id,
+                            serviceType: 'MUNICIPAL',
+                            accountNumber: property.garageMunicipalId,
                             status: 'ERROR',
                             debtAmount: 0,
                             isAutomatic: true,
