@@ -23,28 +23,96 @@ export async function checkNaturgy(accountNumber: string): Promise<NaturgyResult
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 800 });
 
-        // Navigate to Naturgy payment page
-        await page.goto('https://ov.naturgy.com.ar/Account/BotonDePago', {
+        // Navigate to Naturgy public payment consultation page
+        const url = 'https://ov.naturgy.com.ar/publico/pagos/consulta';
+        await page.goto(url, {
             waitUntil: 'networkidle2',
             timeout: 30000
         });
 
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Wait longer for React SPA to hydrate (10-20 seconds)
+        console.log('[Naturgy] Waiting for React SPA to load...');
+        await new Promise(resolve => setTimeout(resolve, 15000));
 
-        // Enter account number (8 digits)
-        const inputSelector = 'input#nro_cliente, input[type="text"]';
-        await page.waitForSelector(inputSelector, { timeout: 10000 });
-        await page.type(inputSelector, accountNumber);
-
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Click search/submit button
-        await page.evaluate(() => {
-            const submitBtn = document.querySelector('button#Consultar, button[type="submit"]');
-            if (submitBtn) (submitBtn as HTMLElement).click();
+        // Check for maintenance page
+        const isMaintenancePage = await page.evaluate(() => {
+            const bodyText = document.body.textContent || '';
+            return bodyText.includes('estamos en mantenimiento') ||
+                bodyText.includes('Ups') ||
+                bodyText.includes('maintenance');
         });
 
-        // Wait for results
+        if (isMaintenancePage) {
+            console.log('[Naturgy] ⚠️  Portal is under maintenance');
+            return {
+                status: 'UNKNOWN',
+                debtAmount: 0,
+                lastBillAmount: null,
+                lastBillDate: null,
+                dueDate: null,
+                errorMessage: 'Portal en mantenimiento'
+            };
+        }
+
+        // Look for the supply number input field (React Material UI)
+        const inputSelector = 'input.MuiInputBase-input, input[name="suministro"]';
+
+        try {
+            await page.waitForSelector(inputSelector, { timeout: 10000 });
+        } catch (error) {
+            console.log('[Naturgy] ⚠️  Input field not found - portal may be loading or in maintenance');
+            return {
+                status: 'UNKNOWN',
+                debtAmount: 0,
+                lastBillAmount: null,
+                lastBillDate: null,
+                dueDate: null,
+                errorMessage: 'Campo de entrada no encontrado'
+            };
+        }
+
+        // Enter account number using React-compatible method
+        await page.evaluate((selector, value) => {
+            const input = document.querySelector(selector) as HTMLInputElement;
+            if (input) {
+                input.focus();
+                input.value = value;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                input.blur();
+            }
+        }, inputSelector, accountNumber);
+
+        console.log('[Naturgy] Account number entered');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Click submit button (look for "Acceder a pagar" text)
+        const buttonClicked = await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const submitButton = buttons.find(btn =>
+                btn.textContent?.toLowerCase().includes('acceder') ||
+                btn.textContent?.toLowerCase().includes('consultar')
+            );
+            if (submitButton) {
+                (submitButton as HTMLElement).click();
+                return true;
+            }
+            return false;
+        });
+
+        if (!buttonClicked) {
+            console.log('[Naturgy] ⚠️  Submit button not found');
+            return {
+                status: 'UNKNOWN',
+                debtAmount: 0,
+                lastBillAmount: null,
+                lastBillDate: null,
+                dueDate: null,
+                errorMessage: 'Botón de consulta no encontrado'
+            };
+        }
+
+        console.log('[Naturgy] Waiting for results...');
         await new Promise(resolve => setTimeout(resolve, 5000));
 
         // Check for "no debt" message
@@ -52,7 +120,8 @@ export async function checkNaturgy(accountNumber: string): Promise<NaturgyResult
             const bodyText = document.body.textContent || '';
             return bodyText.includes('no posee facturas pendientes') ||
                 bodyText.includes('No se registran deudas') ||
-                bodyText.includes('sin deuda');
+                bodyText.includes('sin deuda') ||
+                bodyText.includes('al día');
         });
 
         if (noDebtMessage) {
@@ -66,15 +135,18 @@ export async function checkNaturgy(accountNumber: string): Promise<NaturgyResult
             };
         }
 
-        // Extract debt information
+        // Extract debt information from results table
         const debtInfo = await page.evaluate(() => {
-            // Look for amount in table cells or spans
-            const amountElements = Array.from(document.querySelectorAll('td, span, div'))
-                .filter(el => el.textContent?.includes('$'));
+            // Look for "Importe" or "Total a pagar" in table
+            const cells = Array.from(document.querySelectorAll('td, .MuiTableCell-root, span'));
+            const amountCell = cells.find(cell => {
+                const text = cell.textContent || '';
+                return text.includes('$') && /\d/.test(text);
+            });
 
             let totalAmount = '';
-            if (amountElements.length > 0) {
-                totalAmount = amountElements[0].textContent || '';
+            if (amountCell) {
+                totalAmount = amountCell.textContent || '';
             }
 
             return { totalAmount };
@@ -104,13 +176,14 @@ export async function checkNaturgy(accountNumber: string): Promise<NaturgyResult
             };
         }
 
-        console.log('[Naturgy] ℹ️  Unknown status');
+        console.log('[Naturgy] ℹ️  Unknown status - no clear debt or no-debt message found');
         return {
             status: 'UNKNOWN',
             debtAmount: 0,
             lastBillAmount: null,
             lastBillDate: null,
-            dueDate: null
+            dueDate: null,
+            errorMessage: 'No se pudo determinar el estado'
         };
 
     } catch (error: any) {
