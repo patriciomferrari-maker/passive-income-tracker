@@ -30,7 +30,9 @@ export async function GET(
                 name: true,
                 gasId: true,
                 electricityId: true,
-                municipalId: true
+                municipalId: true,
+                hasGarage: true,
+                garageMunicipalId: true
             }
         });
 
@@ -56,17 +58,27 @@ export async function GET(
                 },
                 orderBy: { checkDate: 'desc' }
             }),
-            // Latest MUNICIPAL check
+            // Latest MUNICIPAL check (property)
             prisma.utilityCheck.findFirst({
                 where: {
                     propertyId,
-                    serviceType: 'MUNICIPAL'
+                    serviceType: 'MUNICIPAL',
+                    accountNumber: property.municipalId || undefined
+                },
+                orderBy: { checkDate: 'desc' }
+            }),
+            // Latest MUNICIPAL check (garage)
+            prisma.utilityCheck.findFirst({
+                where: {
+                    propertyId,
+                    serviceType: 'MUNICIPAL',
+                    accountNumber: property.garageMunicipalId || undefined
                 },
                 orderBy: { checkDate: 'desc' }
             })
         ]);
 
-        const [gasCheck, electricityCheck, municipalCheck] = latestChecks;
+        const [gasCheck, electricityCheck, municipalCheck, garageMunicipalCheck] = latestChecks;
 
         return NextResponse.json({
             property: {
@@ -74,12 +86,15 @@ export async function GET(
                 name: property.name,
                 gasId: property.gasId,
                 electricityId: property.electricityId,
-                municipalId: property.municipalId
+                municipalId: property.municipalId,
+                hasGarage: property.hasGarage,
+                garageMunicipalId: property.garageMunicipalId
             },
             checks: {
                 gas: gasCheck,
                 electricity: electricityCheck,
-                municipal: municipalCheck
+                municipal: municipalCheck,
+                garageMunicipal: garageMunicipalCheck
             }
         });
 

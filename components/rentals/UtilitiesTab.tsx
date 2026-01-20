@@ -12,6 +12,8 @@ interface Property {
     gasId: string | null;
     electricityId: string | null;
     municipalId: string | null;
+    hasGarage: boolean;
+    garageMunicipalId: string | null;
 }
 
 interface UtilityCheck {
@@ -31,6 +33,7 @@ interface PropertyUtilities {
         gas: UtilityCheck | null;
         electricity: UtilityCheck | null;
         municipal: UtilityCheck | null;
+        garageMunicipal: UtilityCheck | null;
     };
 }
 
@@ -164,6 +167,7 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Gas</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Electricidad</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">ABL</th>
+                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">ABL Cochera</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -284,6 +288,45 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                                                                 property.jurisdiction === 'CABA'
                                                                     ? 'https://lb.agip.gob.ar/ConsultaABL/'
                                                                     : `https://boletadepago.gestionmsi.gob.ar/consultar/1/${property.municipalId}`,
+                                                                '_blank'
+                                                            )}
+                                                            className="h-7 px-2 text-slate-400 hover:text-white mt-2"
+                                                        >
+                                                            <ExternalLink size={14} className="mr-1" />
+                                                            Ver portal
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm text-slate-500">-</span>
+                                                )}
+                                            </td>
+
+                                            {/* ABL Cochera */}
+                                            <td className="py-4 px-4">
+                                                {property.hasGarage && property.garageMunicipalId ? (
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Building2 className="text-purple-500" size={18} />
+                                                            <span className="text-sm font-medium text-white">
+                                                                Cochera
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-xs text-slate-500 font-mono">
+                                                            {showValues ? property.garageMunicipalId : '****'}
+                                                        </div>
+                                                        {propertyUtilities?.checks?.garageMunicipal && (
+                                                            <div className="space-y-1.5">
+                                                                {getStatusBadge(propertyUtilities.checks.garageMunicipal.status, propertyUtilities.checks.garageMunicipal.debtAmount)}
+                                                                <div className="text-xs text-slate-500">
+                                                                    {new Date(propertyUtilities.checks.garageMunicipal.checkDate).toLocaleDateString('es-AR')} {new Date(propertyUtilities.checks.garageMunicipal.checkDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => window.open(
+                                                                `https://boletadepago.gestionmsi.gob.ar/consultar/1/${property.garageMunicipalId}`,
                                                                 '_blank'
                                                             )}
                                                             className="h-7 px-2 text-slate-400 hover:text-white mt-2"
