@@ -261,18 +261,60 @@ export default function HomePage() {
                           </DashboardCard>
                         )}
 
-                        {shouldShow('debts') && (
-                          <DashboardCard
-                            title={(stats.debts?.totalPending || 0) >= 0 ? "Deudas a Cobrar" : "Deudas a Pagar"}
-                            description={(stats.debts?.totalPending || 0) >= 0 ? "Prestamos y cuentas" : "Saldo Neto Deudor"}
-                            icon="💸"
-                            href="/deudas"
-                            count={stats.debts?.count || 0}
-                            totalValue={stats.debts?.totalPending || 0}
-                            currency="USD"
-                            trendColor={(stats.debts?.totalPending || 0) < 0 ? "text-rose-400" : undefined}
-                          />
-                        )}
+                        {shouldShow('debts') && (() => {
+                          const owedToMe = stats.debts?.owedToMe || 0;
+                          const iOwe = stats.debts?.iOwe || 0;
+                          const hasBoth = owedToMe > 0 && iOwe > 0;
+                          const onlyOwedToMe = owedToMe > 0 && iOwe === 0;
+                          const onlyIOwe = iOwe > 0 && owedToMe === 0;
+
+                          let title = "Gestión de Deudas";
+                          let value = 0;
+                          let trendColor = undefined;
+
+                          if (onlyOwedToMe) {
+                            title = "Deudas a Cobrar";
+                            value = owedToMe;
+                          } else if (onlyIOwe) {
+                            title = "Deudas a Pagar";
+                            value = iOwe;
+                            trendColor = "text-rose-400";
+                          } else {
+                            title = "Gestión de Deudas";
+                          }
+
+                          return (
+                            <DashboardCard
+                              title={title}
+                              description="Estado de cuenta"
+                              icon="💸"
+                              href="/deudas"
+                              count={!hasBoth ? (stats.debts?.count || 0) : undefined}
+                              totalValue={!hasBoth ? value : undefined}
+                              currency="USD"
+                              trendColor={trendColor}
+                            >
+                              {hasBoth && (
+                                <div className="w-full border-t border-slate-700 pt-4 mt-auto">
+                                  <div className="grid grid-cols-2 gap-2 divide-x divide-slate-800">
+                                    <div className="flex flex-col items-center justify-center px-2">
+                                      <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">Me Deben</p>
+                                      <p className="text-lg font-bold text-blue-400 flex items-center gap-0.5">
+                                        ${owedToMe.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                      </p>
+                                    </div>
+                                    <div className="flex flex-col items-center justify-center px-2">
+                                      <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">Deuda</p>
+                                      <p className="text-lg font-bold text-red-400 flex items-center gap-0.5">
+                                        ${iOwe.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </DashboardCard>
+                          );
+                        })()}
 
                         {shouldShow('bank') && (
                           <DashboardCard

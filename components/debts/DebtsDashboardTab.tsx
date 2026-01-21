@@ -35,7 +35,8 @@ export function DebtsDashboardTab({ showValues = true }: TabProps) {
 
     // Define Colors
     const COLOR_REPAID = '#10b981'; // Emerald 500
-    const COLOR_PENDING = '#ff8787'; // Soft Red
+    const COLOR_PENDING_RED = '#ff8787'; // Soft Red
+    const COLOR_PENDING_BLUE = '#60a5fa'; // Blue 400
     const COLOR_EMPTY = '#1e293b'; // Slate 800
 
     const formatCurrency = (val: number, currency: string = 'USD') => {
@@ -49,7 +50,8 @@ export function DebtsDashboardTab({ showValues = true }: TabProps) {
         totals: any,
         list: any[],
         listTitle: string,
-        color: string
+        color: string,
+        pendingColor: string
     ) => {
         const totalData = totals['USD'] || totals['ARS'] || { lent: 0, repaid: 0, pending: 0 };
         const currency = totals['USD'] ? 'USD' : (totals['ARS'] ? 'ARS' : 'USD');
@@ -95,11 +97,11 @@ export function DebtsDashboardTab({ showValues = true }: TabProps) {
 
                     <Card className="bg-slate-950 border-slate-800">
                         <CardContent className="p-4 flex flex-col items-center text-center justify-center">
-                            <div className="flex items-center gap-2 mb-2" style={{ color: COLOR_PENDING }}>
+                            <div className="flex items-center gap-2 mb-2" style={{ color: pendingColor }}>
                                 <AlertCircle size={20} />
                                 <span className="text-sm font-semibold uppercase tracking-wider">Pendiente</span>
                             </div>
-                            <h3 className="text-2xl font-bold" style={{ color: COLOR_PENDING }}>{formatCurrency(totalData.pending, currency)}</h3>
+                            <h3 className="text-2xl font-bold" style={{ color: pendingColor }}>{formatCurrency(totalData.pending, currency)}</h3>
                         </CardContent>
                     </Card>
                 </div>
@@ -125,7 +127,7 @@ export function DebtsDashboardTab({ showValues = true }: TabProps) {
                                                 </p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="font-mono font-bold" style={{ color: COLOR_PENDING }}>
+                                                <p className="font-mono font-bold" style={{ color: pendingColor }}>
                                                     Restan: {formatCurrency(item.pending, item.currency)}
                                                 </p>
                                             </div>
@@ -134,8 +136,11 @@ export function DebtsDashboardTab({ showValues = true }: TabProps) {
                                         {/* Progress Bar */}
                                         <div className="w-full bg-slate-800 rounded-full h-2.5 mb-1">
                                             <div
-                                                className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500"
-                                                style={{ width: showValues ? `${item.progress}%` : '0%' }}
+                                                className="h-2.5 rounded-full transition-all duration-500"
+                                                style={{
+                                                    width: showValues ? `${item.progress}%` : '0%',
+                                                    backgroundColor: COLOR_REPAID
+                                                }}
                                             ></div>
                                         </div>
                                         <div className="flex justify-between text-xs text-slate-400">
@@ -176,7 +181,7 @@ export function DebtsDashboardTab({ showValues = true }: TabProps) {
                                             <Cell
                                                 key={`cell-${index}`}
                                                 fill={showValues
-                                                    ? (entry.name === 'Cobrado' ? COLOR_REPAID : COLOR_PENDING)
+                                                    ? (entry.name === 'Cobrado' ? COLOR_REPAID : pendingColor)
                                                     : COLOR_EMPTY
                                                 }
                                             />
@@ -216,7 +221,8 @@ export function DebtsDashboardTab({ showValues = true }: TabProps) {
                 data.owedToMe.totals,
                 data.owedToMe.debtors,
                 'Estado por Deudor',
-                'blue'
+                'blue',
+                COLOR_PENDING_BLUE
             )}
 
             {/* Divider */}
@@ -229,7 +235,8 @@ export function DebtsDashboardTab({ showValues = true }: TabProps) {
                 data.iOwe.totals,
                 data.iOwe.creditors,
                 'Estado por Acreedor',
-                'red'
+                'red',
+                COLOR_PENDING_RED
             )}
         </div>
     );

@@ -33,7 +33,7 @@ export async function getDashboardStats(userId: string) {
     // Initialize defaults to prevent one failure from crashing the entire dashboard
     let onData = { count: 0, totalInvested: 0 };
     let treasuryData = { count: 0, totalInvested: 0 };
-    let debtData = { count: 0, totalPending: 0 };
+    let debtData = { count: 0, totalPending: 0, owedToMe: 0, iOwe: 0 };
     let rentalData = { count: 0, totalValue: 0, totalIncome: 0, totalExpense: 0 };
     let bankData = { totalUSD: 0, nextMaturitiesPF: [] as any[] };
     let cryptoData = { count: 0, totalValue: 0 };
@@ -123,13 +123,23 @@ export async function getDashboardStats(userId: string) {
                 select: { initialAmount: true, type: true, payments: { select: { amount: true, type: true } } }
             });
 
-            const totalPending = debts.reduce((sum, d) => {
+            let totalOwedToMe = 0;
+            let totalIOwe = 0;
+
+            for (const d of debts) {
                 const paid = d.payments.filter(p => !p.type || p.type === 'PAYMENT').reduce((pSum, p) => pSum + p.amount, 0);
                 const increased = d.payments.filter(p => p.type === 'INCREASE').reduce((pSum, p) => pSum + p.amount, 0);
                 const pending = (d.initialAmount + increased) - paid;
-                return d.type === 'I_OWE' ? sum - pending : sum + pending;
-            }, 0);
-            debtData = { count: debts.length, totalPending };
+
+                if (d.type === 'I_OWE') {
+                    totalIOwe += pending;
+                } else {
+                    totalOwedToMe += pending;
+                }
+            }
+
+            const totalPending = totalOwedToMe - totalIOwe;
+            debtData = { count: debts.length, totalPending, owedToMe: totalOwedToMe, iOwe: totalIOwe };
         }),
 
         // 4. RENTALS
