@@ -212,11 +212,11 @@ export function DebtsDashboardTab({ showValues = true }: TabProps) {
             {/* Deudas a Cobrar (OWED_TO_ME) */}
             {renderSection(
                 '💰 Deudas a Cobrar (Me Deben)',
-                <HandCoins size={24} className="text-emerald-500" />,
+                <HandCoins size={24} className="text-blue-500" />,
                 data.owedToMe.totals,
                 data.owedToMe.debtors,
                 'Estado por Deudor',
-                'emerald'
+                'blue'
             )}
 
             {/* Divider */}
