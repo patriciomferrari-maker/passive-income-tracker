@@ -2,13 +2,13 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL") // uses connection pooling
   directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
 }
 
@@ -17,45 +17,47 @@ datasource db {
 // =================================================================
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String   // Hashed
-  name      String?
-  role      String   @default("USER") // USER, ADMIN
-  
+  id       String  @id @default(cuid())
+  email    String  @unique
+  password String // Hashed
+  name     String?
+  role     String  @default("USER") // USER, ADMIN
+
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
 
   // Data Sharing / Mirror Account
-  dataOwnerId      String?   // If set, this user acts as a viewer of THIS other user's data (Active Context)
-  dataOwner        User?     @relation("ActiveContext", fields: [dataOwnerId], references: [id])
-  dataViewers      User[]    @relation("ActiveContext")
-  
-  // Multi-Account Permissions
-  accessGiven      SharedAccess[] @relation("AccessGiven")    // Users I let view my data
-  accessReceived   SharedAccess[] @relation("AccessReceived") // Users I can view
+  dataOwnerId String? // If set, this user acts as a viewer of THIS other user's data (Active Context)
+  dataOwner   User?   @relation("ActiveContext", fields: [dataOwnerId], references: [id])
+  dataViewers User[]  @relation("ActiveContext")
 
-  
+  // Multi-Account Permissions
+  accessGiven    SharedAccess[] @relation("AccessGiven") // Users I let view my data
+  accessReceived SharedAccess[] @relation("AccessReceived") // Users I can view
+
   // Relations
-  properties      Property[]
-  investments     Investment[]
-  debts           Debt[]
-  bankOperations  BankOperation[]
-  costaCategories CostaCategory[]
+  properties        Property[]
+  investments       Investment[]
+  debts             Debt[]
+  bankOperations    BankOperation[]
+  costaCategories   CostaCategory[]
   costaTransactions CostaTransaction[]
-  costaNotes      CostaNote[]
-  
+  costaNotes        CostaNote[]
+
   // Barbosa Relations
-  barbosaCategories BarbosaCategory[]
-  barbosaTransactions BarbosaTransaction[]
-  barbosaCleaning BarbosaCleaning[]
-  barbosaRecurrences BarbosaRecurrence[]
+  barbosaCategories          BarbosaCategory[]
+  barbosaTransactions        BarbosaTransaction[]
+  barbosaCleaning            BarbosaCleaning[]
+  barbosaRecurrences         BarbosaRecurrence[]
   barbosaCategorizationRules BarbosaCategorizationRule[]
 
   monthlySummaries MonthlySummary[]
-  appSettings     AppSettings[]
-  
+  appSettings      AppSettings[]
+
   barbosaInstallmentPlans BarbosaInstallmentPlan[]
+
+  // Global Assets
+  userHoldings UserHolding[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -71,85 +73,85 @@ enum Jurisdiction {
 }
 
 model Property {
-  id        String     @id @default(cuid())
-  userId    String     // Owner
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  name      String
-  address   String?
-  role      String    @default("OWNER") // OWNER, TENANT
-  
+  id     String @id @default(cuid())
+  userId String // Owner
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name    String
+  address String?
+  role    String  @default("OWNER") // OWNER, TENANT
+
   // Jurisdiction (CABA vs Provincia)
-  jurisdiction  Jurisdiction @default(PROVINCIA)
-  
+  jurisdiction Jurisdiction @default(PROVINCIA)
+
   // Utilities & Taxes IDs
   electricityId String?
   gasId         String?
   municipalId   String?
-  
+
   // Garage
-  hasGarage     Boolean    @default(false)
+  hasGarage         Boolean @default(false)
   garageMunicipalId String?
 
-  isConsolidated Boolean   @default(true) // Whether to include in Global Dashboard
+  isConsolidated Boolean @default(true) // Whether to include in Global Dashboard
 
-  contracts Contract[]
+  contracts     Contract[]
   utilityChecks UtilityCheck[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
   @@index([userId])
 }
 
 model Contract {
-  id                  String           @id @default(cuid())
-  propertyId          String
-  property            Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  
-  tenantName          String?
-  startDate           DateTime         // Fecha de concertación
-  durationMonths      Int              @default(12) // Plazo en meses
-  
-  initialRent         Float            // Alquiler inicial
-  currency            String           @default("ARS") // ARS, USD
-  documentUrl         String?          // URL del contrato (Word/PDF)
-  
-  // Warranty
-  warrantyAmount      Float?
-  warrantyCurrency    String           @default("USD")
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
-  adjustmentType      String           @default("IPC") // IPC, NONE
-  adjustmentFrequency Int              @default(12) // Meses entre ajustes (6, 12, etc.)
-  
-  rentalCashflows     RentalCashflow[]
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
-  
+  tenantName     String?
+  startDate      DateTime // Fecha de concertación
+  durationMonths Int      @default(12) // Plazo en meses
+
+  initialRent Float // Alquiler inicial
+  currency    String  @default("ARS") // ARS, USD
+  documentUrl String? // URL del contrato (Word/PDF)
+
+  // Warranty
+  warrantyAmount   Float?
+  warrantyCurrency String @default("USD")
+
+  adjustmentType      String @default("IPC") // IPC, NONE
+  adjustmentFrequency Int    @default(12) // Meses entre ajustes (6, 12, etc.)
+
+  rentalCashflows RentalCashflow[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
   @@index([propertyId])
 }
 
 model RentalCashflow {
-  id                String    @id @default(cuid())
-  contractId        String
-  contract          Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  
-  date              DateTime  // Fecha de pago
-  monthIndex        Int       // Mes #1, #2, etc.
-  
-  amountARS         Float?    // Valor en ARS
-  amountUSD         Float?    // Valor en USD
-  
-  ipcMonthly        Float?    // IPC del mes
-  ipcAccumulated    Float?    // IPC acumulado período ajuste
-  tc                Float?    // Tipo de cambio del mes
-  tcBase            Float?    // TC base del contrato
-  tcClosingMonth    Float?    // TC cierre mes para cálculos
-  
-  inflationAccum    Float?    // Inflación acumulada total
-  devaluationAccum  Float?    // Devaluación acumulada total
-  
-  createdAt         DateTime  @default(now())
-  
+  id         String   @id @default(cuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  date       DateTime // Fecha de pago
+  monthIndex Int // Mes #1, #2, etc.
+
+  amountARS Float? // Valor en ARS
+  amountUSD Float? // Valor en USD
+
+  ipcMonthly     Float? // IPC del mes
+  ipcAccumulated Float? // IPC acumulado período ajuste
+  tc             Float? // Tipo de cambio del mes
+  tcBase         Float? // TC base del contrato
+  tcClosingMonth Float? // TC cierre mes para cálculos
+
+  inflationAccum   Float? // Inflación acumulada total
+  devaluationAccum Float? // Devaluación acumulada total
+
+  createdAt DateTime @default(now())
+
   @@index([contractId])
   @@index([date])
 }
@@ -159,52 +161,136 @@ model RentalCashflow {
 // =================================================================
 
 model Investment {
-  id           String        @id @default(cuid())
-  userId       String
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  ticker       String
-  name         String
-  type         String        // ON, TREASURY, CEDEAR, etc.
-  currency     String        @default("USD")
-  
+  ticker   String
+  name     String
+  type     String // ON, TREASURY, CEDEAR, etc.
+  currency String @default("USD")
+
   // Contractual details for ONs/Treasuries
-  emissionDate DateTime?     // Fecha de emisión
-  couponRate   Float?        // Annual interest rate (e.g. 0.08 for 8%)
-  frequency    Int?          // Payment frequency in months (e.g. 6 for semiannual)
+  emissionDate DateTime? // Fecha de emisión
+  couponRate   Float? // Annual interest rate (e.g. 0.08 for 8%)
+  frequency    Int? // Payment frequency in months (e.g. 6 for semiannual)
   maturityDate DateTime?
-  amortization String?       // BULLET, PERSONALIZADA
-  
-  transactions            Transaction[]
-  cashflows               Cashflow[]
-  amortizationSchedules   AmortizationSchedule[]
+  amortization String? // BULLET, PERSONALIZADA
 
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  transactions          Transaction[]
+  cashflows             Cashflow[]
+  amortizationSchedules AmortizationSchedule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Market Data (New)
-  lastPrice    Float?        // Ultimo precio de cierre conocido
-  lastPriceDate DateTime?    // Fecha del ultimo precio
+  lastPrice     Float? // Ultimo precio de cierre conocido
+  lastPriceDate DateTime? // Fecha del ultimo precio
 
-  assetPrices  AssetPrice[]
-  
-  market       String        @default("US") // US, ARG
-  
+  assetPrices AssetPrice[]
+
+  market String @default("US") // US, ARG
+
   @@unique([userId, ticker]) // Tickers unique per User, not global
   @@index([userId])
+}
+
+// =================================================================
+// GLOBAL ASSETS (CEDEARS & ETFs CATALOG)
+// =================================================================
+
+model GlobalAsset {
+  id       String @id @default(cuid())
+  ticker   String @unique
+  name     String
+  type     String // CEDEAR, ETF
+  currency String @default("ARS")
+  market   String @default("ARG") // ARG, US
+
+  // Market Data (shared across all users)
+  lastPrice     Float?
+  lastPriceDate DateTime?
+
+  // Relations
+  userHoldings UserHolding[]
+  assetPrices  GlobalAssetPrice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([ticker])
+}
+
+model UserHolding {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  assetId String
+  asset   GlobalAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  // User-specific transactions for this asset
+  transactions GlobalAssetTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, assetId])
+  @@index([userId])
+  @@index([assetId])
+}
+
+model GlobalAssetPrice {
+  id      String      @id @default(cuid())
+  assetId String
+  asset   GlobalAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  date     DateTime
+  price    Float
+  currency String   @default("ARS")
+
+  createdAt DateTime @default(now())
+
+  @@index([assetId])
+  @@index([date])
+}
+
+model GlobalAssetTransaction {
+  id        String      @id @default(cuid())
+  holdingId String
+  holding   UserHolding @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+
+  date DateTime
+  type String // BUY, SELL
+
+  quantity    Float
+  price       Float
+  commission  Float  @default(0)
+  totalAmount Float // quantity * price + commission
+  currency    String
+
+  notes String? // Optional notes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([holdingId])
+  @@index([date])
 }
 
 model AssetPrice {
   id           String     @id @default(cuid())
   investmentId String
   investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
-  
-  date         DateTime
-  price        Float
-  currency     String     @default("USD")
-  
-  createdAt    DateTime   @default(now())
-  
+
+  date     DateTime
+  price    Float
+  currency String   @default("USD")
+
+  createdAt DateTime @default(now())
+
   @@index([investmentId])
   @@index([date])
 }
@@ -213,13 +299,13 @@ model AmortizationSchedule {
   id           String     @id @default(cuid())
   investmentId String
   investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
-  
-  paymentDate  DateTime
-  percentage   Float      // Percentage of capital to amortize (0.0 to 1.0)
-  
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  
+
+  paymentDate DateTime
+  percentage  Float // Percentage of capital to amortize (0.0 to 1.0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([investmentId, paymentDate])
 }
 
@@ -227,20 +313,20 @@ model Transaction {
   id           String     @id @default(cuid())
   investmentId String
   investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
-  
-  date         DateTime
-  type         String     // BUY, SELL
-  
-  quantity     Float
-  price        Float
-  commission   Float      @default(0)
-  totalAmount  Float      // quantity * price + commission (usually negative for buys)
-  currency     String
-  
-  notes        String?    // Optional notes
 
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  date DateTime
+  type String // BUY, SELL
+
+  quantity    Float
+  price       Float
+  commission  Float  @default(0)
+  totalAmount Float // quantity * price + commission (usually negative for buys)
+  currency    String
+
+  notes String? // Optional notes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // =================================================================
@@ -248,25 +334,25 @@ model Transaction {
 // =================================================================
 
 model Cashflow {
-  id           String      @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // For investments only (ONs and Treasuries)
   investmentId String
-  investment   Investment  @relation(fields: [investmentId], references: [id], onDelete: Cascade)
-  
-  date         DateTime
-  amount       Float
-  currency     String
-  
-  type         String      // INTEREST, AMORTIZATION
-  status       String      @default("PROJECTED") // PROJECTED, PAID
-  
-  description  String?     // Extra details (e.g. "Cuota 1/12")
-  capitalResidual Float?    // Remaining capital after this cashflow
+  investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
 
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  
+  date     DateTime
+  amount   Float
+  currency String
+
+  type   String // INTEREST, AMORTIZATION
+  status String @default("PROJECTED") // PROJECTED, PAID
+
+  description     String? // Extra details (e.g. "Cuota 1/12")
+  capitalResidual Float? // Remaining capital after this cashflow
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([investmentId])
   @@index([date])
 }
@@ -277,18 +363,18 @@ model Cashflow {
 
 // ECONOMIC DATA IS GLOBAL (SHARED)
 model EconomicIndicator {
-  id        String   @id @default(cuid())
-  type      String   // IPC, TC_USD_ARS, etc.
-  date      DateTime
-  value     Float    // Monthly variation (for IPC)
-  
-  interannualValue Float?  // Interannual inflation (scraped from datosmacro)
-  
-  isManual  Boolean? @default(false)  // True if value was manually entered by admin
-  
-  buyRate   Float?   // Tipo de cambio comprador
-  sellRate  Float?   // Tipo de cambio vendedor
-  
+  id    String   @id @default(cuid())
+  type  String // IPC, TC_USD_ARS, etc.
+  date  DateTime
+  value Float // Monthly variation (for IPC)
+
+  interannualValue Float? // Interannual inflation (scraped from datosmacro)
+
+  isManual Boolean? @default(false) // True if value was manually entered by admin
+
+  buyRate  Float? // Tipo de cambio comprador
+  sellRate Float? // Tipo de cambio vendedor
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -300,30 +386,30 @@ model EconomicIndicator {
 // =================================================================
 
 model UtilityCheck {
-  id          String   @id @default(cuid())
-  propertyId  String
-  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  
-  serviceType String   // ELECTRICITY, GAS
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  serviceType String // ELECTRICITY, GAS
   checkDate   DateTime @default(now())
-  
+
   // Status
-  status      String   // UP_TO_DATE, OVERDUE, UNKNOWN, ERROR
-  debtAmount  Float?   // Amount owed (if any)
-  
+  status     String // UP_TO_DATE, OVERDUE, UNKNOWN, ERROR
+  debtAmount Float? // Amount owed (if any)
+
   // Bill details
   lastBillAmount Float?
   lastBillDate   DateTime?
   dueDate        DateTime?
-  
+
   // Metadata
-  accountNumber  String?  // For reference
-  notes          String?
-  isAutomatic    Boolean  @default(false) // true if scraped, false if manual
-  errorMessage   String?  // If scraping failed
-  
-  createdAt   DateTime @default(now())
-  
+  accountNumber String? // For reference
+  notes         String?
+  isAutomatic   Boolean @default(false) // true if scraped, false if manual
+  errorMessage  String? // If scraping failed
+
+  createdAt DateTime @default(now())
+
   @@index([propertyId, serviceType])
   @@index([checkDate])
 }
@@ -333,39 +419,38 @@ model UtilityCheck {
 // =================================================================
 
 model Debt {
-  id            String    @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  debtorName    String    // Nombre del deudor/acreedor
-  type          String    @default("OWED_TO_ME") // OWED_TO_ME, I_OWE
-  startDate     DateTime  // Fecha de inicio de la deuda
-  initialAmount Float     // Monto inicial
-  currency      String    @default("USD") // Moneda (USD, ARS)
-  status        String    @default("ACTIVE") // ACTIVE, PAID
-  details       String?   // Detalle / Concepto
+  debtorName    String // Nombre del deudor/acreedor
+  type          String   @default("OWED_TO_ME") // OWED_TO_ME, I_OWE
+  startDate     DateTime // Fecha de inicio de la deuda
+  initialAmount Float // Monto inicial
+  currency      String   @default("USD") // Moneda (USD, ARS)
+  status        String   @default("ACTIVE") // ACTIVE, PAID
+  details       String? // Detalle / Concepto
 
-
-  payments      DebtPayment[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  payments  DebtPayment[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   @@index([userId])
 }
 
 model DebtPayment {
-  id          String   @id @default(cuid())
-  debtId      String
-  debt        Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
-  
-  date        DateTime // Fecha del pago
-  amount      Float    // Monto pagado
-  type        String   @default("PAYMENT") // PAYMENT, INCREASE
-  description String?  // Concepto (e.g. "Pago parcial 1")
+  id     String @id @default(cuid())
+  debtId String
+  debt   Debt   @relation(fields: [debtId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  date        DateTime // Fecha del pago
+  amount      Float // Monto pagado
+  type        String   @default("PAYMENT") // PAYMENT, INCREASE
+  description String? // Concepto (e.g. "Pago parcial 1")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([debtId])
 }
 
@@ -374,23 +459,23 @@ model DebtPayment {
 // =================================================================
 
 model BankOperation {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  type          String   // 'FCI', 'PLAZO_FIJO', 'CAJA_SEGURIDAD'
-  alias         String?  // Alias (deprecated/old use?) or short name
-  
-  amount        Float    // Invested Amount or Current Value
-  currency      String   @default("ARS")
+  type  String // 'FCI', 'PLAZO_FIJO', 'CAJA_SEGURIDAD'
+  alias String? // Alias (deprecated/old use?) or short name
+
+  amount   Float // Invested Amount or Current Value
+  currency String @default("ARS")
 
   // Plazo Fijo Specifics
-  startDate     DateTime? // Fecha Constitución
-  durationDays  Int?      // Plazo (días)
-  tna           Float?    // Tasa Nominal Anual (%)
+  startDate    DateTime? // Fecha Constitución
+  durationDays Int? // Plazo (días)
+  tna          Float? // Tasa Nominal Anual (%)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }
@@ -400,36 +485,35 @@ model BankOperation {
 // =================================================================
 
 model CostaCategory {
-  id        String @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name      String // e.g. "Alquiler", "Mantenimiento", "Expensas"
-  type      String // INCOME, EXPENSE
-  
+  name String // e.g. "Alquiler", "Mantenimiento", "Expensas"
+  type String // INCOME, EXPENSE
+
   transactions CostaTransaction[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
 }
 
-
 model CostaTransaction {
-  id          String   @id @default(cuid())
-  userId      String?
-  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String  @id @default(cuid())
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   date        DateTime // Fecha del movimiento
-  type        String   // INCOME, EXPENSE
+  type        String // INCOME, EXPENSE
   description String?
   amount      Float
   currency    String   @default("USD")
 
   // Category Link
-  categoryId  String?
-  category    CostaCategory? @relation(fields: [categoryId], references: [id])
+  categoryId String?
+  category   CostaCategory? @relation(fields: [categoryId], references: [id])
 
   // Rental Specifics (Only for INCOME/RENTAL)
   rentalCheckIn  DateTime?
@@ -438,24 +522,24 @@ model CostaTransaction {
 
   linkedTransactionId String? // ID of the synced transaction in another module (e.g. Barbosa)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
 }
 
 model CostaNote {
-  id        String   @id @default(cuid())
-  userId    String?
-  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  content   String
-  category  String   // 'FIX', 'BRING'
-  status    String   @default("PENDING") // PENDING, DONE
+  id     String  @id @default(cuid())
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  content  String
+  category String // 'FIX', 'BRING'
+  status   String @default("PENDING") // PENDING, DONE
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([userId])
 }
 
@@ -464,20 +548,20 @@ model CostaNote {
 // =================================================================
 
 model MonthlySummary {
-  id               String   @id @default(cuid())
-  userId           String
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  month            Int
-  year             Int
-  
+  month Int
+  year  Int
+
   totalNetWorthUSD Float
-  totalIncomeUSD   Float    // Active Rental Income + Projected Interest
-  
-  snapshotData     Json     // Detailed breakdown (Bank, Rentals, Investments)
-  
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  totalIncomeUSD   Float // Active Rental Income + Projected Interest
+
+  snapshotData Json // Detailed breakdown (Bank, Rentals, Investments)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, month, year])
 }
@@ -487,17 +571,17 @@ model MonthlySummary {
 // =================================================================
 
 model AppSettings {
-  id                 String   @id @default(cuid()) 
-  userId             String   // Multi-user settings now!
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  notificationEmails String   @default("") // Comma separated emails
-  reportDay          Int      @default(1)  // Day of month to run report (1-28)
-  reportHour         Int      @default(10) // Hour of day (0-23) UTC. Default 10 UTC = 7 AM ART
-  enabledSections    String?  // Comma separated list of enabled sections
-  
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id     String @id @default(cuid())
+  userId String // Multi-user settings now!
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  notificationEmails String  @default("") // Comma separated emails
+  reportDay          Int     @default(1) // Day of month to run report (1-28)
+  reportHour         Int     @default(10) // Hour of day (0-23) UTC. Default 10 UTC = 7 AM ART
+  enabledSections    String? // Comma separated list of enabled sections
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId]) // One settings profile per user
 }
@@ -507,11 +591,11 @@ model AppSettings {
 // =================================================================
 
 model InflationData {
-  id        String   @id @default(cuid())
-  year      Int
-  month     Int
-  value     Float    // Monthly variation %
-  
+  id    String @id @default(cuid())
+  year  Int
+  month Int
+  value Float // Monthly variation %
+
   updatedAt DateTime @updatedAt
 
   @@unique([year, month])
@@ -522,18 +606,18 @@ model InflationData {
 // =================================================================
 
 model AccessLog {
-  id        String   @id @default(cuid())
-  userId    String?  // Nullable because failed attempts might not have a valid user ID
-  email     String?  // Log the email attempted
-  action    String   // 'LOGIN'
-  status    String   // 'SUCCESS', 'FAILURE'
+  id        String  @id @default(cuid())
+  userId    String? // Nullable because failed attempts might not have a valid user ID
+  email     String? // Log the email attempted
+  action    String // 'LOGIN'
+  status    String // 'SUCCESS', 'FAILURE'
   ip        String?
   userAgent String?
-  
-  details   String?  // Failure reason
+
+  details String? // Failure reason
 
   createdAt DateTime @default(now())
-  
+
   @@index([email])
   @@index([createdAt])
 }
@@ -543,19 +627,19 @@ model AccessLog {
 // =================================================================
 
 model BarbosaCategory {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  name      String   // e.g. "Auto"
-  type      String   // INCOME, EXPENSE
-  
-  subCategories BarbosaSubCategory[]
-  transactions  BarbosaTransaction[]
-  recurrences   BarbosaRecurrence[]
-  installmentPlans BarbosaInstallmentPlan[]
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name String // e.g. "Auto"
+  type String // INCOME, EXPENSE
+
+  subCategories       BarbosaSubCategory[]
+  transactions        BarbosaTransaction[]
+  recurrences         BarbosaRecurrence[]
+  installmentPlans    BarbosaInstallmentPlan[]
   categorizationRules BarbosaCategorizationRule[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -563,62 +647,62 @@ model BarbosaCategory {
 }
 
 model BarbosaSubCategory {
-  id         String   @id @default(cuid())
+  id         String          @id @default(cuid())
   categoryId String
   category   BarbosaCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  
-  name       String   // e.g. "Seguro"
-  
+
+  name String // e.g. "Seguro"
+
   transactions BarbosaTransaction[]
   recurrences  BarbosaRecurrence[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([categoryId])
 }
 
 model BarbosaTransaction {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  date           DateTime
-  type           String   // INCOME, EXPENSE
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date DateTime
+  type String // INCOME, EXPENSE
+
   // Amounts
-  amount         Float    // Value in original currency
-  currency       String   @default("ARS") // ARS, USD
-  
+  amount   Float // Value in original currency
+  currency String @default("ARS") // ARS, USD
+
   // Dollarized Value
-  exchangeRate   Float?   // TC USD at moment of transaction
-  amountUSD      Float?   // Calculated USD value
-  
+  exchangeRate Float? // TC USD at moment of transaction
+  amountUSD    Float? // Calculated USD value
+
   // Categorization
-  categoryId     String
-  category       BarbosaCategory @relation(fields: [categoryId], references: [id])
-  
-  subCategoryId  String?
-  subCategory    BarbosaSubCategory? @relation(fields: [subCategoryId], references: [id])
-  
-  description    String?
-  
+  categoryId String
+  category   BarbosaCategory @relation(fields: [categoryId], references: [id])
+
+  subCategoryId String?
+  subCategory   BarbosaSubCategory? @relation(fields: [subCategoryId], references: [id])
+
+  description String?
+
   linkedTransactionId String? // ID of the synced transaction in another module (e.g. Costa)
-  
-  status         String   @default("REAL") // REAL, PROJECTED
-  isStatistical  Boolean  @default(false)  // If true, excluded from Totals (e.g. Credit Card expenses)
+
+  status        String  @default("REAL") // REAL, PROJECTED
+  isStatistical Boolean @default(false) // If true, excluded from Totals (e.g. Credit Card expenses)
 
   // Installment Plan Relation
   installmentPlanId String?
   installmentPlan   BarbosaInstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: Cascade)
 
-  importSource      String? // e.g. "PDF_20240105_1234"
-  attachmentUrl     String? // URL to the uploaded PDF file
-  comprobante       String? // Receipt/Voucher number from PDF/Import
+  importSource  String? // e.g. "PDF_20240105_1234"
+  attachmentUrl String? // URL to the uploaded PDF file
+  comprobante   String? // Receipt/Voucher number from PDF/Import
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([date])
   @@index([installmentPlanId])
@@ -626,96 +710,96 @@ model BarbosaTransaction {
 }
 
 model BarbosaRecurrence {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  name           String   // e.g. "Seguro Auto"
-  dayOfMonth     Int      // 1-31
-  
-  amount         Float
-  currency       String   @default("ARS")
-  
-  type           String   // INCOME, EXPENSE
-  categoryId     String
-  category       BarbosaCategory @relation(fields: [categoryId], references: [id])
-  
-  subCategoryId  String?
-  subCategory    BarbosaSubCategory? @relation(fields: [subCategoryId], references: [id])
-  
-  active         Boolean  @default(true)
-  isStatistical  Boolean  @default(false)
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name       String // e.g. "Seguro Auto"
+  dayOfMonth Int // 1-31
+
+  amount   Float
+  currency String @default("ARS")
+
+  type       String // INCOME, EXPENSE
+  categoryId String
+  category   BarbosaCategory @relation(fields: [categoryId], references: [id])
+
+  subCategoryId String?
+  subCategory   BarbosaSubCategory? @relation(fields: [subCategoryId], references: [id])
+
+  active        Boolean @default(true)
+  isStatistical Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
 }
 
 model BarbosaCleaning {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  month          Int
-  year           Int
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  month Int
+  year  Int
+
   // Inputs
-  weeklyValue    Float    // Valor de la semana (Base)
-  hoursPerWeek   Int      // Horas por semana
-  
+  weeklyValue  Float // Valor de la semana (Base)
+  hoursPerWeek Int // Horas por semana
+
   // Calculated/Input
-  pricePerHour   Float    // Precio por hora
-  monthlyIncrease Float   // Aumento mensual (%) 
-  
-  paidValue      Float    // Valor pagado final
-  
+  pricePerHour    Float // Precio por hora
+  monthlyIncrease Float // Aumento mensual (%) 
+
+  paidValue Float // Valor pagado final
+
   // Comparison
-  legalHourlyRate Float?   // Precio por hora segun ley
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
+  legalHourlyRate Float? // Precio por hora segun ley
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([userId, month, year])
 }
 
 model BarbosaInstallmentPlan {
-  id                String   @id @default(cuid())
-  userId            String
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  description       String
-  totalAmount       Float    // Monto total original de la compra
-  currency          String   @default("ARS")
-  
-  installmentsCount Int      // Cantidad total de cuotas (ej. 12)
-  startDate         DateTime // Fecha primera cuota
-  
-  categoryId        String
-  category          BarbosaCategory @relation(fields: [categoryId], references: [id])
-  
-  subCategoryId     String?
-  
-  transactions      BarbosaTransaction[]
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  description String
+  totalAmount Float // Monto total original de la compra
+  currency    String @default("ARS")
+
+  installmentsCount Int // Cantidad total de cuotas (ej. 12)
+  startDate         DateTime // Fecha primera cuota
+
+  categoryId String
+  category   BarbosaCategory @relation(fields: [categoryId], references: [id])
+
+  subCategoryId String?
+
+  transactions BarbosaTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }
 
 model BarbosaCategorizationRule {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  pattern   String   // Text to match in description (case insensitive)
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  pattern String // Text to match in description (case insensitive)
+
   categoryId String
   category   BarbosaCategory @relation(fields: [categoryId], references: [id])
-  
+
   subCategoryId String?
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -728,14 +812,14 @@ model BarbosaCategorizationRule {
 // =================================================================
 
 model SharedAccess {
-  id        String   @id @default(cuid())
-  
-  ownerId   String
-  owner     User     @relation("AccessGiven", fields: [ownerId], references: [id], onDelete: Cascade)
-  
-  viewerId  String
-  viewer    User     @relation("AccessReceived", fields: [viewerId], references: [id], onDelete: Cascade)
-  
+  id String @id @default(cuid())
+
+  ownerId String
+  owner   User   @relation("AccessGiven", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  viewerId String
+  viewer   User   @relation("AccessReceived", fields: [viewerId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
 
   @@unique([ownerId, viewerId]) // Cannot grant same access twice
