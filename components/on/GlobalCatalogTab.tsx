@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Search, Globe, Plus, Check, Loader2, DollarSign, Briefcase } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/components/ui/use-toast';
 
 interface GlobalAsset {
     id: string;
@@ -24,7 +23,6 @@ export function GlobalCatalogTab() {
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [addingId, setAddingId] = useState<string | null>(null);
-    const { toast } = useToast();
 
     useEffect(() => {
         loadAssets();
@@ -66,10 +64,6 @@ export function GlobalCatalogTab() {
             });
 
             if (res.ok) {
-                toast({
-                    title: "Activo agregado",
-                    description: `${asset.ticker} se ha agregado a tu portfolio.`,
-                });
                 // Update local state
                 setAssets(prev => prev.map(a =>
                     a.id === asset.id ? { ...a, inPortfolio: true } : a
@@ -78,11 +72,8 @@ export function GlobalCatalogTab() {
                 throw new Error('Failed to add');
             }
         } catch (error) {
-            toast({
-                title: "Error",
-                description: "No se pudo agregar el activo.",
-                variant: "destructive"
-            });
+            console.error("Failed to add asset:", error);
+            alert("No se pudo agregar el activo. Intenta nuevamente.");
         } finally {
             setAddingId(null);
         }
