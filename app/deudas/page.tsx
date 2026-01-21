@@ -26,10 +26,10 @@ export default function DebtsPage() {
                             </Button>
                         </Link>
                         <h1 className="text-4xl font-bold text-white mb-2">
-                            💸 Deudas a Cobrar
+                            💰 Gestión de Deudas
                         </h1>
                         <p className="text-slate-400">
-                            Gestión de préstamos personales y cuentas por cobrar
+                            Préstamos personales y cuentas por cobrar/pagar
                         </p>
                     </div>
                     <button

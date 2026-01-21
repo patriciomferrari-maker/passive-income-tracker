@@ -117,7 +117,7 @@ export async function register(prevState: string | undefined, formData: FormData
                 userId: newUser.id,
                 reportDay: 1,
                 reportHour: 10,
-                enabledSections: '' // Default empty, waiting for onboarding
+                enabledSections: 'crypto' // Enable crypto by default
             }
         });
         console.log('[Register Action] Settings created. Redirecting...');

@@ -14,55 +14,74 @@ export async function GET() {
             }
         });
 
-        const totalsByCurrency: Record<string, { lent: number, repaid: number, pending: number }> = {};
+        // Separate debts by type
+        const debtsIOwe = allDebts.filter(d => d.type === 'I_OWE');
+        const debtsOwedToMe = allDebts.filter(d => d.type === 'OWED_TO_ME');
 
-        allDebts.forEach(debt => {
-            if (!totalsByCurrency[debt.currency]) {
-                totalsByCurrency[debt.currency] = { lent: 0, repaid: 0, pending: 0 };
-            }
+        // Calculate totals for each type
+        const calculateTotals = (debts: any[]) => {
+            const totalsByCurrency: Record<string, { lent: number, repaid: number, pending: number }> = {};
 
-            const totalPaid = debt.payments
-                .filter(p => p.type === 'PAYMENT' || !p.type)
-                .reduce((sum, p) => sum + p.amount, 0);
+            debts.forEach(debt => {
+                if (!totalsByCurrency[debt.currency]) {
+                    totalsByCurrency[debt.currency] = { lent: 0, repaid: 0, pending: 0 };
+                }
 
-            const totalIncreased = debt.payments
-                .filter(p => p.type === 'INCREASE')
-                .reduce((sum, p) => sum + p.amount, 0);
+                const totalPaid = debt.payments
+                    .filter((p: any) => p.type === 'PAYMENT' || !p.type)
+                    .reduce((sum: number, p: any) => sum + p.amount, 0);
 
-            const balance = (debt.initialAmount + totalIncreased) - totalPaid;
+                const totalIncreased = debt.payments
+                    .filter((p: any) => p.type === 'INCREASE')
+                    .reduce((sum: number, p: any) => sum + p.amount, 0);
 
-            totalsByCurrency[debt.currency].lent += (debt.initialAmount + totalIncreased);
-            totalsByCurrency[debt.currency].repaid += totalPaid;
-            totalsByCurrency[debt.currency].pending += balance;
-        });
+                const balance = (debt.initialAmount + totalIncreased) - totalPaid;
 
-        // Top Debtors
-        const debtors = allDebts.map(debt => {
-            const totalPaid = debt.payments
-                .filter(p => p.type === 'PAYMENT' || !p.type)
-                .reduce((sum, p) => sum + p.amount, 0);
+                totalsByCurrency[debt.currency].lent += (debt.initialAmount + totalIncreased);
+                totalsByCurrency[debt.currency].repaid += totalPaid;
+                totalsByCurrency[debt.currency].pending += balance;
+            });
 
-            const totalIncreased = debt.payments
-                .filter(p => p.type === 'INCREASE')
-                .reduce((sum, p) => sum + p.amount, 0);
+            return totalsByCurrency;
+        };
 
-            const balance = (debt.initialAmount + totalIncreased) - totalPaid;
-            const currentTotalDebt = debt.initialAmount + totalIncreased;
+        // Calculate debtors/creditors list
+        const calculateList = (debts: any[]) => {
+            return debts.map(debt => {
+                const totalPaid = debt.payments
+                    .filter((p: any) => p.type === 'PAYMENT' || !p.type)
+                    .reduce((sum: number, p: any) => sum + p.amount, 0);
 
-            return {
-                name: debt.debtorName,
-                debtId: debt.id,
-                amount: currentTotalDebt,
-                paid: totalPaid,
-                pending: balance,
-                progress: currentTotalDebt > 0 ? (totalPaid / currentTotalDebt) * 100 : 0,
-                currency: debt.currency
-            };
-        }).sort((a, b) => b.pending - a.pending);
+                const totalIncreased = debt.payments
+                    .filter((p: any) => p.type === 'INCREASE')
+                    .reduce((sum: number, p: any) => sum + p.amount, 0);
+
+                const balance = (debt.initialAmount + totalIncreased) - totalPaid;
+                const currentTotalDebt = debt.initialAmount + totalIncreased;
+
+                return {
+                    name: debt.debtorName,
+                    debtId: debt.id,
+                    amount: currentTotalDebt,
+                    paid: totalPaid,
+                    pending: balance,
+                    progress: currentTotalDebt > 0 ? (totalPaid / currentTotalDebt) * 100 : 0,
+                    currency: debt.currency
+                };
+            }).sort((a, b) => b.pending - a.pending);
+        };
 
         return NextResponse.json({
-            totals: totalsByCurrency,
-            debtors
+            // Deudas que tengo (I_OWE)
+            iOwe: {
+                totals: calculateTotals(debtsIOwe),
+                creditors: calculateList(debtsIOwe)
+            },
+            // Deudas a cobrar (OWED_TO_ME)
+            owedToMe: {
+                totals: calculateTotals(debtsOwedToMe),
+                debtors: calculateList(debtsOwedToMe)
+            }
         });
 
     } catch (error) {
