@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Settings, ShoppingCart, TrendingUp, BarChart3, LayoutDashboard, ArrowLeft, Briefcase } from 'lucide-react';
+import { Plus, Settings, ShoppingCart, TrendingUp, BarChart3, LayoutDashboard, ArrowLeft, Briefcase, Globe } from 'lucide-react';
 import { DashboardTab } from '@/components/on/DashboardTab';
 import { ConfigurationTab } from '@/components/on/ConfigurationTab';
 import { PurchasesTab } from '@/components/on/PurchasesTab';
 import { HoldingsTab } from '@/components/on/HoldingsTab';
 import { IndividualCashflowTab } from '@/components/on/IndividualCashflowTab';
 import { ConsolidatedCashflowTab } from '@/components/on/ConsolidatedCashflowTab';
+import { GlobalCatalogTab } from '@/components/on/GlobalCatalogTab';
 import Link from 'next/link';
 
 export default function ONManagementPage() {
@@ -18,6 +19,7 @@ export default function ONManagementPage() {
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'catalog', label: 'Explorar Catálogo', icon: Globe },
         { id: 'holdings', label: 'Tenencia', icon: Briefcase },
         { id: 'purchases', label: 'Operaciones', icon: ShoppingCart },
         { id: 'individual', label: 'Flujo por ON', icon: TrendingUp },
@@ -62,6 +64,7 @@ export default function ONManagementPage() {
                 {/* Tab Content */}
                 <div className="min-h-[600px]">
                     {activeTab === 'dashboard' && <DashboardTab showValues={showValues} onTogglePrivacy={() => setShowValues(!showValues)} />}
+                    {activeTab === 'catalog' && <GlobalCatalogTab />}
                     {activeTab === 'config' && <ConfigurationTab />}
                     {activeTab === 'holdings' && <HoldingsTab />}
                     {activeTab === 'purchases' && <PurchasesTab />}
