@@ -33,7 +33,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
             transactions: { some: {} }
         },
         include: {
-            transactions: true,
+            transactions: { orderBy: { date: 'asc' } },
             cashflows: { orderBy: { date: 'asc' } }
         }
     });
@@ -146,7 +146,14 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
         else {
             const p = Number(inv.lastPrice) || 0;
             if (inv.currency === 'ARS') {
-                currentPriceUSD = p / latestExchangeRate;
+                // Match Positions Route Logic: Use Rate at Price Date
+                const priceDate = inv.lastPriceDate ? new Date(inv.lastPriceDate) : new Date();
+                const rateAtPriceDate = getRate(priceDate);
+                // If rate is 0/missing, fallback to latest? Positions route might return 0 price if rate 0.
+                // We'll use latest as backup to avoid 0 value if possible, or stick to route logic.
+                // Route logic: currentPrice = basePrice / rate.
+                const r = rateAtPriceDate > 0 ? rateAtPriceDate : latestExchangeRate;
+                currentPriceUSD = p / r;
             } else {
                 currentPriceUSD = p;
             }
