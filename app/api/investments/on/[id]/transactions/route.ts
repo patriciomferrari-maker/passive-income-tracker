@@ -72,14 +72,30 @@ export async function POST(
             return NextResponse.json(transaction);
         }
 
-        // 2. Try Global Asset (UserHolding)
-        // The ID passed in URL matches `asset.id` from the GET list
-        const holding = await prisma.userHolding.findFirst({
+        // 2. Try Global Asset logic
+        // The ID passed in URL matches `asset.id` provided by the GET endpoint
+        let holding = await prisma.userHolding.findFirst({
             where: {
                 assetId: id,
                 userId
             }
         });
+
+        // If holding doesn't exist, check if it's a valid Global Asset and auto-subscribe (create holding)
+        if (!holding) {
+            const globalAsset = await prisma.globalAsset.findUnique({
+                where: { id }
+            });
+
+            if (globalAsset) {
+                holding = await prisma.userHolding.create({
+                    data: {
+                        userId,
+                        assetId: id
+                    }
+                });
+            }
+        }
 
         if (holding) {
             const body = await request.json();

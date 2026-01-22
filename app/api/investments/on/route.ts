@@ -26,37 +26,33 @@ export async function GET() {
             orderBy: { ticker: 'asc' }
         });
 
-        // 2. Fetch Global Assets (User Holdings)
-        const holdings = await prisma.userHolding.findMany({
+        // 2. Fetch ALL Global Assets (Catalog)
+        const allGlobalAssets = await prisma.globalAsset.findMany({
             where: {
-                userId,
-                asset: { market: 'ARG' }
-            },
-            include: {
-                asset: true
+                market: 'ARG'
             }
         });
 
         // 3. Map & Merge with Deduplication
         const existingTickers = new Set(investments.map(i => i.ticker));
 
-        const globalAssets = holdings
-            .filter(h => !existingTickers.has(h.asset.ticker)) // Deduplicate: Don't show Global Asset if Legacy Investment exists
-            .map(h => ({
-                id: h.asset.id,
-                ticker: h.asset.ticker,
-                name: h.asset.name,
-                type: h.asset.type,
-                currency: h.asset.currency,
-                market: h.asset.market,
-                userId,
+        const mappedGlobalAssets = allGlobalAssets
+            .filter(a => !existingTickers.has(a.ticker)) // Deduplicate: Don't show Global Asset if Legacy Investment exists
+            .map(a => ({
+                id: a.id,
+                ticker: a.ticker,
+                name: a.name,
+                type: a.type,
+                currency: a.currency,
+                market: a.market,
+                userId, // Virtual association
                 amortizationSchedules: [],
                 transactions: [],
                 _count: { transactions: 0 },
                 isGlobal: true
             }));
 
-        return NextResponse.json([...investments, ...globalAssets].sort((a, b) => a.ticker.localeCompare(b.ticker)));
+        return NextResponse.json([...investments, ...mappedGlobalAssets].sort((a, b) => a.ticker.localeCompare(b.ticker)));
     } catch (error) {
         console.error('Error fetching ONs:', error);
         return unauthorized();

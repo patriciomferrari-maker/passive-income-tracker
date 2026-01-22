@@ -27,7 +27,7 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
     const [assets, setAssets] = useState<GlobalAsset[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
-    const [addingId, setAddingId] = useState<string | null>(null);
+
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -78,30 +78,7 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
         }
     };
 
-    const addToPortfolio = async (asset: GlobalAsset) => {
-        setAddingId(asset.id);
-        try {
-            const res = await fetch('/api/user-holdings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ assetId: asset.id })
-            });
 
-            if (res.ok) {
-                // Update local state
-                setAssets(prev => prev.map(a =>
-                    a.id === asset.id ? { ...a, inPortfolio: true } : a
-                ));
-            } else {
-                throw new Error('Failed to add');
-            }
-        } catch (error) {
-            console.error("Failed to add asset:", error);
-            alert("No se pudo agregar el activo. Intenta nuevamente.");
-        } finally {
-            setAddingId(null);
-        }
-    };
 
     return (
         <div className="space-y-6">
@@ -163,7 +140,6 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
                                                     <th className="pb-3">Nombre</th>
                                                     <th className="pb-3 text-right">Precio</th>
                                                     <th className="pb-3 text-center">Moneda</th>
-                                                    <th className="pb-3 text-right pr-2">Acción</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-800/50">
@@ -184,26 +160,6 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
                                                             <Badge variant="outline" className={`border-none ${asset.currency === 'USD' ? 'text-green-400 bg-green-900/20' : 'text-blue-400 bg-blue-900/20'}`}>
                                                                 {asset.currency}
                                                             </Badge>
-                                                        </td>
-                                                        <td className="py-3 text-right pr-2">
-                                                            {asset.inPortfolio ? (
-                                                                <span className="text-xs font-medium text-emerald-500 flex items-center justify-end gap-1">
-                                                                    <Check className="h-3 w-3" /> En cartera
-                                                                </span>
-                                                            ) : (
-                                                                <Button
-                                                                    size="sm"
-                                                                    className="h-8 bg-blue-600 hover:bg-blue-700 text-white"
-                                                                    onClick={() => addToPortfolio(asset)}
-                                                                    disabled={addingId === asset.id}
-                                                                >
-                                                                    {addingId === asset.id ? (
-                                                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                                                    ) : (
-                                                                        <Plus className="h-3 w-3" />
-                                                                    )}
-                                                                </Button>
-                                                            )}
                                                         </td>
                                                     </tr>
                                                 ))}
