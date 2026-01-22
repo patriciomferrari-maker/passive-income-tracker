@@ -116,6 +116,12 @@ export function GlobalCatalogTab() {
                         </div>
                     </div>
 
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-900/50 border border-red-800 rounded-lg text-red-200">
+                            {error}
+                        </div>
+                    )}
+
                     {loading && !assets.length ? (
                         <div className="flex justify-center py-12">
                             <Loader2 className="animate-spin text-blue-400 h-8 w-8" />
