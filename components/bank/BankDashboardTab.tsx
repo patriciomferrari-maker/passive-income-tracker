@@ -65,14 +65,41 @@ export function BankDashboardTab({ stats, operations, showValues }: BankDashboar
         });
         return Object.entries(data).map(([name, value]) => ({ name, value }));
     };
-    // Group by Type for Detail View
-    const investmentsByType = operations.reduce((acc, op) => {
-        const type = op.alias || op.type.replace(/_/g, ' ');
-        if (!acc[type]) acc[type] = { count: 0, total: 0, currency: op.currency };
-        acc[type].count += 1;
-        acc[type].total += op.amount;
+    // Group by Type > Currency for Detail View
+    const groupedOperations = operations.reduce((acc, op) => {
+        const typeRaw = op.type || 'VARIOS';
+        // Normalize type label (e.g. PLAZO_FIJO -> Plazo Fijo)
+        const typeLabel = typeRaw.replace(/_/g, ' ');
+        const currency = op.currency || 'ARS';
+
+        // Composite key to separate currencies
+        const key = `${typeRaw}-${currency}`;
+
+        if (!acc[key]) {
+            acc[key] = {
+                id: key,
+                label: typeLabel,
+                currency: currency,
+                total: 0,
+                count: 0,
+                items: []
+            };
+        }
+
+        acc[key].total += op.amount;
+        acc[key].count += 1;
+        acc[key].items.push(op);
         return acc;
-    }, {} as Record<string, { count: number, total: number, currency: string }>);
+    }, {} as Record<string, { id: string, label: string, currency: string, total: number, count: number, items: any[] }>);
+
+    const sortedGroups = Object.values(groupedOperations).sort((a, b) => {
+        // Sort by currency first (USD top?), then total?
+        // Let's just sort by total converted to roughly USD for ordering?
+        // Or just Type alphabetical.
+        // Let's do: USD groups first, then ARS? 
+        if (a.currency !== b.currency) return a.currency === 'USD' ? -1 : 1;
+        return b.total - a.total; // Descending amount
+    });
 
     const compositionData = getCompositionData();
     const totalComposition = compositionData.reduce((sum, item) => sum + item.value, 0);
@@ -219,34 +246,56 @@ export function BankDashboardTab({ stats, operations, showValues }: BankDashboar
                     </CardContent>
                 </Card>
 
-                {/* Detail View (Formerly Last Operations) */}
+                {/* Detail View (Refactored Grouping) */}
                 <Card className="bg-slate-900 border-slate-800">
                     <CardHeader>
                         <CardTitle className="text-lg text-white">Detalle de Inversiones</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-4">
-                            {(Object.entries(investmentsByType) as [string, { count: number, total: number, currency: string }][]).map(([type, data]) => (
-                                <div key={type} className="flex justify-between items-center border-b border-slate-800 pb-3 last:border-0 last:pb-0">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-slate-800 rounded text-slate-300">
-                                            {/* Simple Icon Logic */}
-                                            {type.includes('PLAZO') ? <TrendingUp size={16} /> : <DollarSign size={16} />}
+                        <div className="space-y-6">
+                            {sortedGroups.map((group) => (
+                                <div key={group.id} className="space-y-2">
+                                    {/* Group Header */}
+                                    <div className="flex justify-between items-center bg-slate-800/60 p-3 rounded-lg border border-slate-700">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-slate-900 rounded text-blue-400">
+                                                {group.label.includes('PLAZO') ? <Clock size={16} /> : <DollarSign size={16} />}
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-white capitalize">{group.label.toLowerCase()}</div>
+                                                <div className="text-xs text-slate-500 uppercase">{group.currency} • {group.count} ops</div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <div className="font-medium text-white capitalize">{type.toLowerCase()}</div>
-                                            <div className="text-xs text-slate-500">{data.count} operaciones</div>
+                                        <div className="text-right">
+                                            <div className="font-bold text-emerald-400 text-lg">
+                                                {showValues ? formatMoney(group.total, group.currency) : '****'}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className="font-bold text-white text-lg">
-                                            {showValues ? formatMoney(data.total, 'USD') : '****'}
-                                        </div>
+
+                                    {/* Items List */}
+                                    <div className="pl-4 space-y-1">
+                                        {group.items.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-sm p-2 hover:bg-slate-800/30 rounded transition-colors border-l-2 border-slate-800 hover:border-blue-500">
+                                                <div className="flex flex-col">
+                                                    <span className="text-slate-300 font-medium">{item.alias || item.bank || 'Sin nombre'}</span>
+                                                    {item.endDate && (
+                                                        <span className="text-[10px] text-slate-500">
+                                                            Vence: {format(new Date(item.endDate), 'dd/MM/yyyy')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="font-medium text-slate-200 tabular-nums">
+                                                    {showValues ? formatMoney(item.amount, item.currency) : '****'}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             ))}
+
                             {operations.length === 0 && (
-                                <div className="text-center text-slate-500 py-4">No hay inversiones</div>
+                                <div className="text-center text-slate-500 py-4">No hay inversiones registradas</div>
                             )}
                         </div>
                     </CardContent>
