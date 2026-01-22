@@ -541,6 +541,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                     currency: 'ARS'
                 } : null}
                 assets={assets}
+                market={market}
             />
         </div>
     );

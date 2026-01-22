@@ -96,10 +96,11 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
         totalRealizedUSD += invRealizedUSD;
         totalCostRealizedUSD += invCostRealizedUSD;
 
+
         const invCostOpenUSD = fifoResult.openPositions.reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
         const invUnrealizedUSD = quantity > 0 ? marketValueUSD - invCostOpenUSD : 0;
 
-        if (quantity > 0) {
+        if (quantity > 0 && currentPrice > 0) {
             totalUnrealizedUSD += invUnrealizedUSD;
             accumulatedCapitalInvertidoUSD += invCostOpenUSD;
         }

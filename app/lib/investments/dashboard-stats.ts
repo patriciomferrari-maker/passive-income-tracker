@@ -179,11 +179,12 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
 
         // 2. Unrealized Results (USD)
         // Cost Basis of Open Positions (already in USD because input was USD)
+
         const invCostOpenUSD = fifoResult.openPositions.reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
 
         const invUnrealizedUSD = quantity > 0 ? marketValueUSD - invCostOpenUSD : 0;
 
-        if (quantity > 0) {
+        if (quantity > 0 && currentPriceUSD > 0) {
             totalUnrealizedUSD += invUnrealizedUSD;
             accumulatedCapitalInvertidoUSD += invCostOpenUSD;
         }

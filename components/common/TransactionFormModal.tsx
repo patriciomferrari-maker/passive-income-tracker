@@ -27,9 +27,10 @@ interface TransactionFormModalProps {
     onSuccess: () => void;
     initialData?: TransactionData | null;
     assets: InvestmentOption[];
+    market?: string; // NEW
 }
 
-export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, assets }: TransactionFormModalProps) {
+export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, assets, market = 'ARG' }: TransactionFormModalProps) {
     const [selectedON, setSelectedON] = useState('');
     const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [quantity, setQuantity] = useState('');
@@ -157,8 +158,17 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                                 value={filterType}
                             >
                                 <option value="ALL">Todos</option>
-                                <option value="ON">Obligaciones Negociables</option>
-                                <option value="CEDEAR">CEDEARs</option>
+                                {market === 'US' ? (
+                                    <>
+                                        <option value="TREASURY">Treasuries</option>
+                                        <option value="ETF">ETFs</option>
+                                    </>
+                                ) : (
+                                    <>
+                                        <option value="ON">Obligaciones Negociables</option>
+                                        <option value="CEDEAR">CEDEARs</option>
+                                    </>
+                                )}
                             </select>
 
                             <label className="text-sm font-medium text-slate-300">Activo / Ticker</label>
