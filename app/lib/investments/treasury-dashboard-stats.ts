@@ -47,6 +47,49 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
         orderBy: { date: 'desc' }
     });
 
+    // 3. Fetch Global Assets (UserHoldings)
+    const holdings = await prisma.userHolding.findMany({
+        where: {
+            userId,
+            asset: { market: 'US' },
+            transactions: { some: {} }
+        },
+        include: {
+            asset: true,
+            transactions: { orderBy: { date: 'asc' } }
+        }
+    });
+
+    // Merge Investments and Holdings into a unified structure
+    const unifiedInvestments = [
+        ...investments.map(i => ({
+            ...i,
+            isGlobal: false,
+            // Ensure transactions are typed correctly if needed, but they match structurally enough
+        })),
+        ...holdings.map(h => ({
+            id: h.id, // Use Holding ID as unique identifier for stats
+            ticker: h.asset.ticker,
+            name: h.asset.name,
+            type: h.asset.type,
+            currency: h.asset.currency,
+            market: h.asset.market,
+            transactions: h.transactions.map(t => ({
+                id: t.id,
+                date: t.date,
+                type: t.type,
+                quantity: t.quantity,
+                price: t.price,
+                commission: t.commission,
+                currency: t.currency
+            })),
+            cashflows: [], // Global Assets don't have generated cashflows yet
+            lastPrice: h.asset.lastPrice, // Global Asset has lastPrice on the asset model
+            isGlobal: true,
+            userId: h.userId
+        }))
+    ];
+
     const priceMap: Record<string, number> = {};
     recentPrices.forEach(p => {
         if (!priceMap[p.investmentId]) priceMap[p.investmentId] = p.price;
@@ -61,7 +104,7 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
     let totalUnrealizedUSD = 0;
     let accumulatedCapitalInvertidoUSD = 0; // Total Cost Basis of Open Positions
 
-    for (const inv of investments) {
+    for (const inv of unifiedInvestments) {
         // Transactions are already in USD for US Market usually.
         // But for safety, we assume they are USD.
         const fifoTxs = inv.transactions.map((t: any) => ({
@@ -268,9 +311,9 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
         proximoPago: upcomingPayments[0] || null,
         upcomingPayments,
         portfolioBreakdown,
-        totalONs: investments.length, // Mapping to totalONs for UI compatibility
-        totalInvestments: investments.length,
-        totalTransactions: investments.reduce((sum, inv) => sum + inv.transactions.length, 0),
+        totalONs: unifiedInvestments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(i.type || '')).length,
+        totalInvestments: unifiedInvestments.length,
+        totalTransactions: unifiedInvestments.reduce((sum, inv) => sum + inv.transactions.length, 0),
         totalCurrentValue: tenenciaTotalValorActual,
         pnl: {
             realized: totalRealizedUSD,
