@@ -49,72 +49,61 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
         return () => clearTimeout(timer);
     }, [search]);
 
-    // ... (rest of render uses filteredAssets)
-
-    // ... inside render:
-    <div className="space-y-8">
-        {Object.entries(filteredAssets.reduce((acc, asset) => {
-            const type = asset.type || 'Otros';
-            if (!acc[type]) acc[type] = [];
-            acc[type].push(asset);
-            return acc;
-        }, {} as Record<string, GlobalAsset[]>)).sort((a, b) => a[0].localeCompare(b[0])).map(([type, typeAssets]) => (
-
     const loadAssets = async (query: string = '') => {
-                setLoading(true);
-                setError(null);
-                try {
-                    const params = new URLSearchParams();
-                    if (query) params.append('search', query);
+        setLoading(true);
+        setError(null);
+        try {
+            const params = new URLSearchParams();
+            if (query) params.append('search', query);
 
-                    const res = await fetch(`/api/global-assets?${params.toString()}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        setAssets(data);
-                    } else {
-                        const text = await res.text();
-                        // Try to parse error json
-                        try {
-                            const json = JSON.parse(text);
-                            setError(`Error: ${json.error || res.statusText}`);
-                        } catch {
-                            setError(`Error ${res.status}: ${res.statusText}`);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error loading assets:', error);
-                    setError('Error de conexión al cargar activos.');
-                } finally {
-                    setLoading(false);
+            const res = await fetch(`/api/global-assets?${params.toString()}`);
+            if (res.ok) {
+                const data = await res.json();
+                setAssets(data);
+            } else {
+                const text = await res.text();
+                // Try to parse error json
+                try {
+                    const json = JSON.parse(text);
+                    setError(`Error: ${json.error || res.statusText}`);
+                } catch {
+                    setError(`Error ${res.status}: ${res.statusText}`);
                 }
-            };
+            }
+        } catch (error) {
+            console.error('Error loading assets:', error);
+            setError('Error de conexión al cargar activos.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const addToPortfolio = async (asset: GlobalAsset) => {
-            setAddingId(asset.id);
+        setAddingId(asset.id);
         try {
             const res = await fetch('/api/user-holdings', {
-            method: 'POST',
-        headers: {'Content-Type': 'application/json' },
-        body: JSON.stringify({assetId: asset.id })
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ assetId: asset.id })
             });
 
-        if (res.ok) {
-            // Update local state
-            setAssets(prev => prev.map(a =>
-                a.id === asset.id ? { ...a, inPortfolio: true } : a
-            ));
+            if (res.ok) {
+                // Update local state
+                setAssets(prev => prev.map(a =>
+                    a.id === asset.id ? { ...a, inPortfolio: true } : a
+                ));
             } else {
                 throw new Error('Failed to add');
             }
         } catch (error) {
             console.error("Failed to add asset:", error);
-        alert("No se pudo agregar el activo. Intenta nuevamente.");
+            alert("No se pudo agregar el activo. Intenta nuevamente.");
         } finally {
             setAddingId(null);
         }
     };
 
-        return (
+    return (
         <div className="space-y-6">
             <Card className="bg-slate-950 border-slate-800">
                 <CardContent className="p-6">
@@ -151,7 +140,7 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
                         </div>
                     ) : (
                         <div className="space-y-8">
-                            {Object.entries(assets.filter(a => a.market !== 'US').reduce((acc, asset) => {
+                            {Object.entries(filteredAssets.reduce((acc, asset) => {
                                 const type = asset.type || 'Otros';
                                 if (!acc[type]) acc[type] = [];
                                 acc[type].push(asset);
@@ -224,7 +213,7 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
                                 </div>
                             ))}
 
-                            {assets.length === 0 && !loading && (
+                            {filteredAssets.length === 0 && !loading && (
                                 <div className="text-center py-12 text-slate-500 italic">
                                     No se encontraron activos que coincidan con tu búsqueda.
                                 </div>
@@ -234,5 +223,5 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
                 </CardContent>
             </Card>
         </div>
-        );
+    );
 }
