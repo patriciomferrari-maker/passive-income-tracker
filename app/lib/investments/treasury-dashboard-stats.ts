@@ -82,15 +82,47 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
                 price: t.price,
                 commission: t.commission,
                 currency: t.currency
+                currency: t.currency
             })),
             cashflows: [], // Global Assets don't have generated cashflows yet
-            lastPrice: h.asset.lastPrice, // Global Asset has lastPrice on the asset model
+            lastPrice: h.asset.lastPrice ? Number(h.asset.lastPrice) : 0, // Global Asset has lastPrice on the asset model
             isGlobal: true,
             userId: h.userId
         }))
     ];
 
     const priceMap: Record<string, number> = {};
+    // ... (rest of code)
+
+    // ... loop ...
+
+    // Filter out "Ghost" assets (0 quantity and 0 realized/unrealized P&L)
+    // This handles cases where a user might have a "subscription" (UserHolding) but no actual transactions, or 0-sum transactions.
+    const activeInvestments = investmentsWithMetrics.filter(inv => {
+        const hasQty = inv.quantity > 0.000001;
+        const hasRealized = Math.abs(inv.realizedUSD || 0) > 0.01;
+        // const hasUpcoming = inv.cashflows.some((cf: any) => cf.status === 'PROJECTED' && new Date(cf.date) > new Date());
+        // For Global Assets, no cashflows yet.
+        return hasQty || hasRealized;
+    });
+
+    const tenenciaTotalValorActual = activeInvestments.reduce((sum, i) => sum + i.marketValue, 0);
+
+    // Breakdown
+    const portfolioBreakdown = activeInvestments.map(inv => {
+        // ... (rest of mapping)
+    }).filter(i => i.value > 0 || i.tir !== 0);
+
+    // ...
+
+    return {
+        investments: activeInvestments,
+        // ... use activeInvestments for counts
+        totalONs: activeInvestments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(i.type || '')).length,
+        totalInvestments: activeInvestments.length,
+        totalTransactions: activeInvestments.reduce((sum, inv) => sum + inv.transactions.length, 0),
+        // ...
+    };
     recentPrices.forEach(p => {
         if (!priceMap[p.investmentId]) priceMap[p.investmentId] = p.price;
     });
@@ -179,10 +211,18 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
         });
     }
 
-    const tenenciaTotalValorActual = investmentsWithMetrics.reduce((sum, i) => sum + i.marketValue, 0);
+    // Filter out "Ghost" assets (0 quantity and 0 realized P&L)
+    const activeInvestments = investmentsWithMetrics.filter(inv => {
+        const hasQty = Math.abs(inv.quantity) > 0.000001;
+        const hasRealized = Math.abs(inv.realizedUSD || 0) > 0.01;
+        // If a user has a holding but no transactions (or only cancelled ones resulting in 0 everywhere), hide it.
+        return hasQty || hasRealized;
+    });
+
+    const tenenciaTotalValorActual = activeInvestments.reduce((sum, i) => sum + i.marketValue, 0);
 
     // Breakdown
-    const portfolioBreakdown = investmentsWithMetrics.map(inv => {
+    const portfolioBreakdown = activeInvestments.map(inv => {
         const costBasis = inv.costBasisUSD || 0;
 
         // TIR (Personal Performance)
@@ -299,7 +339,7 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
     const realizedPercent = totalCostRealizedUSD > 0 ? (totalRealizedUSD / totalCostRealizedUSD) * 100 : 0;
 
     return {
-        investments: investmentsWithMetrics,
+        investments: activeInvestments,
         capitalInvertido: accumulatedCapitalInvertidoUSD,
         capitalCobrado,
         interesCobrado,
@@ -311,9 +351,9 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
         proximoPago: upcomingPayments[0] || null,
         upcomingPayments,
         portfolioBreakdown,
-        totalONs: unifiedInvestments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(i.type || '')).length,
-        totalInvestments: unifiedInvestments.length,
-        totalTransactions: unifiedInvestments.reduce((sum, inv) => sum + inv.transactions.length, 0),
+        totalONs: activeInvestments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(i.type || '')).length,
+        totalInvestments: activeInvestments.length,
+        totalTransactions: activeInvestments.reduce((sum, inv) => sum + inv.transactions.length, 0),
         totalCurrentValue: tenenciaTotalValorActual,
         pnl: {
             realized: totalRealizedUSD,
