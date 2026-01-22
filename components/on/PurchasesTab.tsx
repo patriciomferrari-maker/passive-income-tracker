@@ -41,7 +41,7 @@ interface GroupedAsset {
     transactions: Transaction[];
 }
 
-export function PurchasesTab() {
+export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -71,7 +71,7 @@ export function PurchasesTab() {
 
     // Fetch Assets
     useEffect(() => {
-        fetch('/api/investments/on?market=ARG')
+        fetch(`/api/investments/on?market=${market}`)
             .then(res => res.json())
             .then(data => {
                 const mapped = data.map((d: any) => ({
@@ -85,14 +85,14 @@ export function PurchasesTab() {
 
         const savedPrivacy = localStorage.getItem('privacy_mode');
         if (savedPrivacy !== null) setShowValues(savedPrivacy === 'true');
-    }, []);
+    }, [market]);
 
     const fetchTransactions = async () => {
         try {
             setLoading(true);
             const params = new URLSearchParams();
             if (viewType !== 'ALL') params.append('type', viewType);
-            params.append('market', 'ARG');
+            params.append('market', market);
 
             const res = await fetch(`/api/investments/transactions?${params.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch transactions');

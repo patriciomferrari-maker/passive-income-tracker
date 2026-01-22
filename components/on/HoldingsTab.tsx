@@ -14,7 +14,7 @@ interface ON {
     type?: string;
 }
 
-export function HoldingsTab() {
+export function HoldingsTab({ market = 'ARG' }: { market?: string }) {
     const [viewCurrency, setViewCurrency] = useState<'ARS' | 'USD'>('USD');
     const [viewType, setViewType] = useState<string>('ALL'); // ALL, ON, CEDEAR, ETF
     const [assets, setAssets] = useState<any[]>([]);
@@ -27,7 +27,7 @@ export function HoldingsTab() {
     // Fetch assets for the modal
     useEffect(() => {
         // Fetch Assets
-        fetch('/api/investments/on?market=ARG')
+        fetch(`/api/investments/on?market=${market}`)
             .then(res => res.json())
             .then(data => {
                 const formatted = data.map((item: any) => ({
@@ -116,7 +116,7 @@ export function HoldingsTab() {
                 <CardContent>
                     <PositionsTable
                         types={viewType === 'ALL' ? undefined : viewType}
-                        market="ARG"
+                        market={market}
                         currency={viewCurrency}
                         refreshTrigger={refreshTrigger}
                         onEdit={handleEditPosition}

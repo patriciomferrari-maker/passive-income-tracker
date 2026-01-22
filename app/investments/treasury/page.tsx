@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Settings, ShoppingCart, TrendingUp, BarChart3, LayoutDashboard, ArrowLeft } from 'lucide-react';
+import { Plus, Settings, ShoppingCart, TrendingUp, BarChart3, LayoutDashboard, ArrowLeft, Briefcase } from 'lucide-react';
 import { DashboardTab } from '@/components/treasury/DashboardTab';
 import { ConfigurationTab } from '@/components/treasury/ConfigurationTab';
-import { PurchasesTab } from '@/components/treasury/PurchasesTab';
+import { PurchasesTab } from '@/components/on/PurchasesTab'; // Reusing generic component
+import { HoldingsTab } from '@/components/on/HoldingsTab';   // Reusing generic component
 import { IndividualCashflowTab } from '@/components/treasury/IndividualCashflowTab';
 import { ConsolidatedCashflowTab } from '@/components/treasury/ConsolidatedCashflowTab';
 import Link from 'next/link';
@@ -16,7 +16,8 @@ export default function TreasuryManagementPage() {
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'purchases', label: 'Compras', icon: ShoppingCart },
+        { id: 'holdings', label: 'Tenencia', icon: Briefcase },
+        { id: 'purchases', label: 'Operaciones', icon: ShoppingCart },
         { id: 'individual', label: 'Flujo por Treasury', icon: TrendingUp },
         { id: 'consolidated', label: 'Flujo Consolidado', icon: BarChart3 },
         { id: 'config', label: 'Configuración', icon: Settings }
@@ -59,10 +60,11 @@ export default function TreasuryManagementPage() {
                 {/* Tab Content */}
                 <div className="min-h-[600px]">
                     {activeTab === 'dashboard' && <DashboardTab />}
-                    {activeTab === 'config' && <ConfigurationTab />}
-                    {activeTab === 'purchases' && <PurchasesTab />}
+                    {activeTab === 'holdings' && <HoldingsTab market="US" />}
+                    {activeTab === 'purchases' && <PurchasesTab market="US" />}
                     {activeTab === 'individual' && <IndividualCashflowTab />}
                     {activeTab === 'consolidated' && <ConsolidatedCashflowTab />}
+                    {activeTab === 'config' && <ConfigurationTab />}
                 </div>
             </div>
         </div>
