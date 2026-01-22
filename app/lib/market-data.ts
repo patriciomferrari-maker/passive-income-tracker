@@ -175,7 +175,7 @@ export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
 
         // Add delay between requests to avoid rate limiting (except for first request)
         if (i > 0) {
-            await delay(3000); // 3 second delay to avoid rate limiting
+            await delay(5000); // 5 second delay to avoid aggressive rate limiting
         }
 
         try {

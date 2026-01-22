@@ -27,6 +27,7 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
     const [assets, setAssets] = useState<GlobalAsset[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
+    const [updatingTicker, setUpdatingTicker] = useState<string | null>(null);
 
     const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +76,36 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
             setError('Error de conexión al cargar activos.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUpdatePrice = async (ticker: string) => {
+        setUpdatingTicker(ticker);
+        try {
+            const res = await fetch('/api/admin/update-single-price', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker })
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                // Update local state
+                setAssets(prev => prev.map(a =>
+                    a.ticker === ticker
+                        ? { ...a, lastPrice: data.price }
+                        : a
+                ));
+                // Show success message (you can add toast here)
+                alert(`✓ ${ticker}: $${data.price}`);
+            } else {
+                alert(`✗ ${ticker}: ${data.error}`);
+            }
+        } catch (e: any) {
+            alert(`✗ ${ticker}: Error de conexión`);
+        } finally {
+            setUpdatingTicker(null);
         }
     };
 
@@ -140,6 +171,7 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
                                                     <th className="pb-3">Nombre</th>
                                                     <th className="pb-3 text-right">Precio</th>
                                                     <th className="pb-3 text-center">Moneda</th>
+                                                    <th className="pb-3 text-center">Acciones</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-800/50">
@@ -160,6 +192,24 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
                                                             <Badge variant="outline" className={`border-none ${asset.currency === 'USD' ? 'text-green-400 bg-green-900/20' : 'text-blue-400 bg-blue-900/20'}`}>
                                                                 {asset.currency}
                                                             </Badge>
+                                                        </td>
+                                                        <td className="py-3 text-center">
+                                                            {asset.market === 'US' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-7 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                                                                    onClick={() => handleUpdatePrice(asset.ticker)}
+                                                                    disabled={updatingTicker === asset.ticker}
+                                                                >
+                                                                    {updatingTicker === asset.ticker ? (
+                                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                                    ) : (
+                                                                        <DollarSign className="h-3 w-3" />
+                                                                    )}
+                                                                    <span className="ml-1">Actualizar</span>
+                                                                </Button>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 ))}
