@@ -127,67 +127,82 @@ export function GlobalCatalogTab() {
                             <Loader2 className="animate-spin text-blue-400 h-8 w-8" />
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {assets.map((asset) => (
-                                <div
-                                    key={asset.id}
-                                    className="bg-slate-900/50 border border-slate-800 rounded-lg p-4 hover:border-blue-500/30 transition-all group"
-                                >
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <h3 className="text-lg font-bold text-white">{asset.ticker}</h3>
-                                                <Badge variant="outline" className="text-slate-400 border-slate-700">
-                                                    {asset.type}
-                                                </Badge>
-                                                {asset.currency === 'USD' && (
-                                                    <Badge className="bg-green-900/30 text-green-400 border-green-900 hover:bg-green-900/30">
-                                                        USD
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                            <p className="text-sm text-slate-400 line-clamp-1 mt-1" title={asset.name}>
-                                                {asset.name}
-                                            </p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-mono font-medium text-white">
-                                                {asset.lastPrice
-                                                    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: asset.currency }).format(asset.lastPrice)
-                                                    : '-'
-                                                }
-                                            </p>
-                                            <p className="text-xs text-slate-500">{asset.market}</p>
-                                        </div>
-                                    </div>
+                        <div className="space-y-8">
+                            {Object.entries(assets.reduce((acc, asset) => {
+                                const type = asset.type || 'Otros';
+                                if (!acc[type]) acc[type] = [];
+                                acc[type].push(asset);
+                                return acc;
+                            }, {} as Record<string, GlobalAsset[]>)).sort((a, b) => a[0].localeCompare(b[0])).map(([type, typeAssets]) => (
+                                <div key={type} className="bg-slate-900/30 rounded-lg p-4 border border-slate-800">
+                                    <h3 className="text-lg font-semibold text-blue-400 mb-4 flex items-center gap-2">
+                                        <Briefcase className="h-4 w-4" />
+                                        {type === 'CORPORATE_BOND' ? 'Obligaciones Negociables' : type}
+                                        <Badge variant="secondary" className="ml-2 bg-slate-800 text-slate-400 border-none">
+                                            {typeAssets.length}
+                                        </Badge>
+                                    </h3>
 
-                                    <div className="mt-4">
-                                        {asset.inPortfolio ? (
-                                            <Button
-                                                className="w-full bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 cursor-default"
-                                                variant="outline"
-                                            >
-                                                <Check className="mr-2 h-4 w-4" /> En Portfolio
-                                            </Button>
-                                        ) : (
-                                            <Button
-                                                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                                                onClick={() => addToPortfolio(asset)}
-                                                disabled={addingId === asset.id}
-                                            >
-                                                {addingId === asset.id ? (
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <Plus className="mr-2 h-4 w-4" />
-                                                )}
-                                                Agregar a Portfolio
-                                            </Button>
-                                        )}
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left">
+                                            <thead>
+                                                <tr className="border-b border-slate-800 text-xs uppercase text-slate-500 font-medium">
+                                                    <th className="pb-3 pl-2">Ticker</th>
+                                                    <th className="pb-3">Nombre</th>
+                                                    <th className="pb-3 text-right">Precio</th>
+                                                    <th className="pb-3 text-center">Moneda</th>
+                                                    <th className="pb-3 text-right pr-2">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-800/50">
+                                                {typeAssets.map((asset) => (
+                                                    <tr key={asset.id} className="group hover:bg-slate-800/30 transition-colors">
+                                                        <td className="py-3 pl-2 font-mono font-bold text-white">
+                                                            {asset.ticker}
+                                                        </td>
+                                                        <td className="py-3 text-slate-300 text-sm">
+                                                            {asset.name}
+                                                        </td>
+                                                        <td className="py-3 text-right text-slate-200 font-mono">
+                                                            {asset.lastPrice
+                                                                ? new Intl.NumberFormat('en-US', { style: 'currency', currency: asset.currency }).format(asset.lastPrice)
+                                                                : '-'}
+                                                        </td>
+                                                        <td className="py-3 text-center">
+                                                            <Badge variant="outline" className={`border-none ${asset.currency === 'USD' ? 'text-green-400 bg-green-900/20' : 'text-blue-400 bg-blue-900/20'}`}>
+                                                                {asset.currency}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className="py-3 text-right pr-2">
+                                                            {asset.inPortfolio ? (
+                                                                <span className="text-xs font-medium text-emerald-500 flex items-center justify-end gap-1">
+                                                                    <Check className="h-3 w-3" /> En cartera
+                                                                </span>
+                                                            ) : (
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="h-8 bg-blue-600 hover:bg-blue-700 text-white"
+                                                                    onClick={() => addToPortfolio(asset)}
+                                                                    disabled={addingId === asset.id}
+                                                                >
+                                                                    {addingId === asset.id ? (
+                                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                                    ) : (
+                                                                        <Plus className="h-3 w-3" />
+                                                                    )}
+                                                                </Button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             ))}
+
                             {assets.length === 0 && !loading && (
-                                <div className="col-span-full text-center py-12 text-slate-500">
+                                <div className="text-center py-12 text-slate-500 italic">
                                     No se encontraron activos que coincidan con tu búsqueda.
                                 </div>
                             )}
