@@ -128,7 +128,7 @@ export function GlobalCatalogTab() {
                         </div>
                     ) : (
                         <div className="space-y-8">
-                            {Object.entries(assets.reduce((acc, asset) => {
+                            {Object.entries(assets.filter(a => a.market !== 'US').reduce((acc, asset) => {
                                 const type = asset.type || 'Otros';
                                 if (!acc[type]) acc[type] = [];
                                 acc[type].push(asset);
