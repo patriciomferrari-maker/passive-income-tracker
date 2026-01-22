@@ -107,8 +107,8 @@ export function ConfigurationTab() {
                 <button
                     onClick={() => setSubTab('catalog')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${subTab === 'catalog'
-                            ? 'bg-blue-600 text-white shadow'
-                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        ? 'bg-blue-600 text-white shadow'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
                         }`}
                 >
                     <Globe size={16} />
@@ -117,8 +117,8 @@ export function ConfigurationTab() {
                 <button
                     onClick={() => setSubTab('manual')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${subTab === 'manual'
-                            ? 'bg-blue-600 text-white shadow'
-                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        ? 'bg-blue-600 text-white shadow'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
                         }`}
                 >
                     <Database size={16} />
@@ -127,7 +127,7 @@ export function ConfigurationTab() {
             </div>
 
             {subTab === 'catalog' ? (
-                <GlobalCatalogTab />
+                <GlobalCatalogTab excludeMarket="US" />
             ) : (
                 <>
                     <Card className="bg-slate-950 border-slate-800">
