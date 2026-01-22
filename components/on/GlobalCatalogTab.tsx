@@ -18,7 +18,12 @@ interface GlobalAsset {
     inPortfolio: boolean;
 }
 
-export function GlobalCatalogTab() {
+interface GlobalCatalogTabProps {
+    excludeMarket?: string;
+    includeMarket?: string;
+}
+
+export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalogTabProps) {
     const [assets, setAssets] = useState<GlobalAsset[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
@@ -29,6 +34,13 @@ export function GlobalCatalogTab() {
         loadAssets();
     }, []);
 
+    // Filter assets logic
+    const filteredAssets = assets.filter(asset => {
+        if (excludeMarket && asset.market === excludeMarket) return false;
+        if (includeMarket && asset.market !== includeMarket) return false;
+        return true;
+    });
+
     // Debounce search
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -37,61 +49,72 @@ export function GlobalCatalogTab() {
         return () => clearTimeout(timer);
     }, [search]);
 
-    const loadAssets = async (query: string = '') => {
-        setLoading(true);
-        setError(null);
-        try {
-            const params = new URLSearchParams();
-            if (query) params.append('search', query);
+    // ... (rest of render uses filteredAssets)
 
-            const res = await fetch(`/api/global-assets?${params.toString()}`);
-            if (res.ok) {
-                const data = await res.json();
-                setAssets(data);
-            } else {
-                const text = await res.text();
-                // Try to parse error json
+    // ... inside render:
+    <div className="space-y-8">
+        {Object.entries(filteredAssets.reduce((acc, asset) => {
+            const type = asset.type || 'Otros';
+            if (!acc[type]) acc[type] = [];
+            acc[type].push(asset);
+            return acc;
+        }, {} as Record<string, GlobalAsset[]>)).sort((a, b) => a[0].localeCompare(b[0])).map(([type, typeAssets]) => (
+
+    const loadAssets = async (query: string = '') => {
+                setLoading(true);
+                setError(null);
                 try {
-                    const json = JSON.parse(text);
-                    setError(`Error: ${json.error || res.statusText}`);
-                } catch {
-                    setError(`Error ${res.status}: ${res.statusText}`);
+                    const params = new URLSearchParams();
+                    if (query) params.append('search', query);
+
+                    const res = await fetch(`/api/global-assets?${params.toString()}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setAssets(data);
+                    } else {
+                        const text = await res.text();
+                        // Try to parse error json
+                        try {
+                            const json = JSON.parse(text);
+                            setError(`Error: ${json.error || res.statusText}`);
+                        } catch {
+                            setError(`Error ${res.status}: ${res.statusText}`);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading assets:', error);
+                    setError('Error de conexión al cargar activos.');
+                } finally {
+                    setLoading(false);
                 }
-            }
-        } catch (error) {
-            console.error('Error loading assets:', error);
-            setError('Error de conexión al cargar activos.');
-        } finally {
-            setLoading(false);
-        }
-    };
+            };
 
     const addToPortfolio = async (asset: GlobalAsset) => {
-        setAddingId(asset.id);
+            setAddingId(asset.id);
         try {
             const res = await fetch('/api/user-holdings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ assetId: asset.id })
+            method: 'POST',
+        headers: {'Content-Type': 'application/json' },
+        body: JSON.stringify({assetId: asset.id })
             });
 
-            if (res.ok) {
-                // Update local state
-                setAssets(prev => prev.map(a =>
-                    a.id === asset.id ? { ...a, inPortfolio: true } : a
-                ));
+        if (res.ok) {
+            // Update local state
+            setAssets(prev => prev.map(a =>
+                a.id === asset.id ? { ...a, inPortfolio: true } : a
+            ));
             } else {
                 throw new Error('Failed to add');
             }
         } catch (error) {
             console.error("Failed to add asset:", error);
-            alert("No se pudo agregar el activo. Intenta nuevamente.");
+        alert("No se pudo agregar el activo. Intenta nuevamente.");
         } finally {
             setAddingId(null);
         }
     };
 
-    return (
+        return (
         <div className="space-y-6">
             <Card className="bg-slate-950 border-slate-800">
                 <CardContent className="p-6">
@@ -211,5 +234,5 @@ export function GlobalCatalogTab() {
                 </CardContent>
             </Card>
         </div>
-    );
+        );
 }
