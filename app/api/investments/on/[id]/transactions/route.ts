@@ -67,7 +67,7 @@ export async function POST(
 
             // Generate and save cashflows
             const cashflows = await generateInvestmentCashflow(id);
-            await saveInvestmentCashflows(cashflows);
+            await saveInvestmentCashflows(id, cashflows);
 
             return NextResponse.json(transaction);
         }
