@@ -52,6 +52,22 @@ export async function GET(request: Request) {
             }
         });
 
+        // 1b. Fetch User Holdings (Global Assets) to ensure full catalog visibility
+        // We need to map `marketFilter` and `typeFilter` to GlobalAsset fields if present.
+        const gaWhere: any = {};
+        if (marketParam) gaWhere.market = marketParam;
+        if (typeParam) gaWhere.type = { in: typeParam.split(',') };
+
+        const userHoldings = await prisma.userHolding.findMany({
+            where: {
+                userId,
+                asset: gaWhere
+            },
+            include: {
+                asset: true
+            }
+        });
+
         // 2. Fetch Exchange Rates (TC_USD_ARS)
         let ratesMap: Record<string, number> = {};
         if (targetCurrency) {
@@ -329,6 +345,60 @@ export async function GET(request: Request) {
             });
 
             allPositions = [...allPositions, ...realizedEvents, ...openEvents];
+        }
+
+        // 6. Merge "Empty" User Holdings (Assets tracked but with 0 transactions)
+        const processedTickers = new Set(Object.keys(txByTicker));
+
+        for (const holding of userHoldings) {
+            if (!processedTickers.has(holding.asset.ticker)) {
+                // Determine current price for this empty asset
+                let currentPrice = 0;
+                let currentExchangeRate = 1;
+
+                const basePrice = holding.asset.lastPrice || 0;
+                const baseCurrency = holding.asset.currency || 'USD'; // GlobalAsset default is usually ARS but fields say USD/ARS
+
+                if (targetCurrency) {
+                    if (baseCurrency === targetCurrency) {
+                        currentPrice = basePrice;
+                    } else {
+                        const rateDate = holding.asset.lastPriceDate || new Date();
+                        const rate = getRate(rateDate);
+                        if (rate > 0) {
+                            if (baseCurrency === 'ARS' && targetCurrency === 'USD') currentPrice = basePrice / rate;
+                            else if (baseCurrency === 'USD' && targetCurrency === 'ARS') currentPrice = basePrice * rate;
+                        }
+                    }
+                } else {
+                    currentPrice = basePrice;
+                }
+
+                if (holding.asset.type === 'ON' || holding.asset.type === 'CORPORATE_BOND') {
+                    if (currentPrice > 2.0) currentPrice = currentPrice / 100;
+                }
+
+                allPositions.push({
+                    id: `empty-${holding.id}`,
+                    date: new Date().toISOString(),
+                    ticker: holding.asset.ticker,
+                    name: holding.asset.name,
+                    status: 'OPEN',
+                    quantity: 0,
+                    buyPrice: 0,
+                    buyCommission: 0,
+                    sellPrice: currentPrice,
+                    sellCommission: 0,
+                    resultAbs: 0,
+                    resultPercent: 0,
+                    currency: targetCurrency || holding.asset.currency,
+                    unrealized: true,
+                    fxResult: 0,
+                    priceResult: 0,
+                    type: holding.asset.type,
+                    theoreticalTir: null
+                });
+            }
         }
 
         allPositions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
