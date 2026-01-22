@@ -387,6 +387,8 @@ export async function GET(request: Request) {
             });
 
             // Map Open
+            const totalOpenQuantity = result.openPositions.reduce((acc, p) => acc + p.quantity, 0);
+
             const openEvents = result.openPositions.map(p => {
                 const totalCost = (p.quantity * p.buyPrice) + p.buyCommission;
                 const currentValue = p.quantity * currentPrice;
@@ -398,12 +400,30 @@ export async function GET(request: Request) {
                 let priceResult = 0;
 
                 if (targetCurrency === 'ARS' && p.buyExchangeRateAvg && p.buyExchangeRateAvg > 1 && resultAbs !== null) {
-                    // Formula: Nominales * (TC Actual - TC Compra)
                     const fxDiff = currentTC - p.buyExchangeRateAvg;
                     fxResult = p.quantity * fxDiff;
-
-                    // Performance Result = Total Result - FX Result
                     priceResult = resultAbs - fxResult;
+                }
+
+                // Calculate Original TIR (TIR de Compra)
+                let originalTir: number | null = null;
+                if ((investment.type === 'ON' || investment.type === 'CORPORATE_BOND' || investment.type === 'TREASURY') && totalOpenQuantity > 0 && investment.cashflows) {
+                    // Filter flows after purchase date
+                    const futureFlows = investment.cashflows.filter((cf: any) => new Date(cf.date) > new Date(p.date));
+
+                    if (futureFlows.length > 0) {
+                        const flowPerUnitScale = p.quantity / totalOpenQuantity;
+                        const flows = [-totalCost];
+                        const dates = [new Date(p.date)];
+
+                        futureFlows.forEach((cf: any) => {
+                            flows.push(cf.amount * flowPerUnitScale);
+                            dates.push(new Date(cf.date));
+                        });
+
+                        const tir = calculateXIRR(flows, dates);
+                        if (tir) originalTir = tir * 100;
+                    }
                 }
 
                 return {
@@ -425,10 +445,9 @@ export async function GET(request: Request) {
                     priceResult,
                     buyExchangeRate: p.buyExchangeRateAvg,
                     sellExchangeRate: currentTC,
-                    buyExchangeRate: p.buyExchangeRateAvg,
-                    sellExchangeRate: currentTC,
                     type: investment.type,
-                    theoreticalTir: theoreticalTir
+                    theoreticalTir: theoreticalTir,
+                    originalTir: originalTir
                 };
             });
 

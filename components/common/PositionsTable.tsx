@@ -22,6 +22,7 @@ interface PositionEvent {
     fxResult?: number;
     buyExchangeRate?: number;
     sellExchangeRate?: number;
+    originalTir?: number;
 }
 
 interface AssetGroup {
@@ -275,7 +276,9 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                         {sortConfig?.key === 'result' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                     </button>
                                 </th>
-                                <th className="px-4 py-3 text-right font-medium w-[18%]">% / Acción</th>
+                                <th className="px-4 py-3 text-right font-medium w-[8%]">% / Acción</th>
+                                <th className="px-4 py-3 text-right font-medium w-[8%] text-xs text-slate-500">TIR C.</th>
+                                <th className="px-4 py-3 text-right font-medium w-[8%] text-xs text-slate-500">TIR M.</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
@@ -334,6 +337,15 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                             <td className={`px-4 py-4 text-right font-medium tabular-nums ${displayPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                                 {displayPercent.toFixed(2)}%
                                             </td>
+                                            <td className="px-4 py-4 text-right text-slate-500 text-xs">
+                                                -
+                                            </td>
+                                            <td className="px-4 py-4 text-right text-slate-300 font-mono text-xs">
+                                                {/* Show Theoretical TIR from first open position if available */}
+                                                {group.positions.find(p => p.status === 'OPEN' && p.theoreticalTir)?.theoreticalTir
+                                                    ? `${group.positions.find(p => p.status === 'OPEN' && p.theoreticalTir)?.theoreticalTir?.toFixed(1)}%`
+                                                    : '-'}
+                                            </td>
                                         </tr>
 
                                         {/* CHILD ROWS (FLAT) */}
@@ -363,8 +375,15 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                                 <td className={`px-4 py-2 text-right text-xs tabular-nums ${pos.resultAbs >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                                     {formatMoney(pos.resultAbs, pos.currency)}
                                                 </td>
-                                                <td className="px-4 py-2 text-right">
-                                                    {/* Edit button removed as per request */}
+                                                <td className={`px-4 py-2 text-right text-xs tabular-nums ${pos.resultPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                    {pos.resultPercent ? `${pos.resultPercent.toFixed(2)}%` : '-'}
+                                                </td>
+                                                <td className="px-4 py-2 text-right text-slate-400 text-xs font-mono">
+                                                    {pos.originalTir ? `${pos.originalTir.toFixed(1)}%` : '-'}
+                                                </td>
+                                                <td className="px-4 py-2 text-right text-slate-500 text-xs font-mono">
+                                                    {/* Theoretical TIR is per-asset, usually shown on parent, but implies for holding. Repeat? or Blank? */}
+                                                    -
                                                 </td>
                                             </tr>
                                         ))}
@@ -385,6 +404,8 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                 <td className={`px-4 py-4 text-right tabular-nums ${totalResultAll >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                     {formatMoney(totalResultAll, currency || 'USD')}
                                 </td>
+                                <td className="px-4 py-4"></td>
+                                <td className="px-4 py-4"></td>
                                 <td className="px-4 py-4"></td>
                             </tr>
                         </tfoot>
