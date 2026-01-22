@@ -171,7 +171,8 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
 
         // 1. Realized Results (USD)
         const invRealizedUSD = fifoResult.realizedGains.reduce((sum, g) => sum + g.gainAbs, 0);
-        const invCostRealizedUSD = fifoResult.realizedGains.reduce((sum, g) => sum + g.basisCost, 0); // Cost of goods sold
+        // Cost Basis of Realized Gains = (Qty * BuyPriceAvg) + BuyCommissionPaid
+        const invCostRealizedUSD = fifoResult.realizedGains.reduce((sum, g) => sum + ((g.quantity * g.buyPriceAvg) + g.buyCommissionPaid), 0);
 
         totalRealizedUSD += invRealizedUSD;
         totalCostRealizedUSD += invCostRealizedUSD;
