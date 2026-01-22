@@ -95,36 +95,7 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
 
     // ... loop ...
 
-    // Filter out "Ghost" assets (0 quantity and 0 realized/unrealized P&L)
-    // This handles cases where a user might have a "subscription" (UserHolding) but no actual transactions, or 0-sum transactions.
-    const activeInvestments = investmentsWithMetrics.filter(inv => {
-        const hasQty = inv.quantity > 0.000001;
-        const hasRealized = Math.abs(inv.realizedUSD || 0) > 0.01;
-        // const hasUpcoming = inv.cashflows.some((cf: any) => cf.status === 'PROJECTED' && new Date(cf.date) > new Date());
-        // For Global Assets, no cashflows yet.
-        return hasQty || hasRealized;
-    });
 
-    const tenenciaTotalValorActual = activeInvestments.reduce((sum, i) => sum + i.marketValue, 0);
-
-    // Breakdown
-    const portfolioBreakdown = activeInvestments.map(inv => {
-        // ... (rest of mapping)
-    }).filter(i => i.value > 0 || i.tir !== 0);
-
-    // ...
-
-    return {
-        investments: activeInvestments,
-        // ... use activeInvestments for counts
-        totalONs: activeInvestments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(i.type || '')).length,
-        totalInvestments: activeInvestments.length,
-        totalTransactions: activeInvestments.reduce((sum, inv) => sum + inv.transactions.length, 0),
-        // ...
-    };
-    recentPrices.forEach(p => {
-        if (!priceMap[p.investmentId]) priceMap[p.investmentId] = p.price;
-    });
 
     // 4. Calculate Positions & Metrics (Enriching Investments)
     const investmentsWithMetrics: any[] = [];
