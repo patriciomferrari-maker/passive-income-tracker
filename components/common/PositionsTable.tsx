@@ -44,6 +44,7 @@ interface AssetGroup {
     totalResult: number; // Realized + Unrealized
 
     avgClosePrice?: number; // For fully closed positions context
+    avgOriginalTir?: number; // Consolidated Purchase TIR
 }
 
 interface PositionsTableProps {
@@ -167,6 +168,17 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
             if (group.totalNominals > 0) {
                 group.avgBuyPrice = group.totalInvestedOriginal / group.totalNominals;
             }
+
+            // Calculate Consolidated Purchase TIR (Weighted by Cost)
+            const openWithTir = group.positions.filter(p => p.status === 'OPEN' && p.originalTir);
+            if (openWithTir.length > 0) {
+                const totalCostBasis = openWithTir.reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
+                if (totalCostBasis > 0) {
+                    const weightedSum = openWithTir.reduce((sum, p) => sum + (p.originalTir! * ((p.quantity * p.buyPrice) + p.buyCommission)), 0);
+                    group.avgOriginalTir = weightedSum / totalCostBasis;
+                }
+            }
+
             // Sort positions chronologically
             group.positions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
             return group;
@@ -337,8 +349,8 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                             <td className={`px-4 py-4 text-right font-medium tabular-nums ${displayPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                                 {displayPercent.toFixed(2)}%
                                             </td>
-                                            <td className="px-4 py-4 text-right text-slate-500 text-xs">
-                                                -
+                                            <td className="px-4 py-4 text-right text-slate-300 font-mono text-xs">
+                                                {group.avgOriginalTir ? `${group.avgOriginalTir.toFixed(1)}%` : '-'}
                                             </td>
                                             <td className="px-4 py-4 text-right text-slate-300 font-mono text-xs">
                                                 {/* Show Theoretical TIR from first open position if available */}
