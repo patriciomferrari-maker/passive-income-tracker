@@ -79,7 +79,7 @@ export async function PUT(
 
         // Regenerate cashflows
         const cashflows = await generateInvestmentCashflow(id);
-        await saveInvestmentCashflows(cashflows);
+        await saveInvestmentCashflows(id, cashflows);
 
         return NextResponse.json(investment);
     } catch (error) {
