@@ -7,7 +7,6 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
     try {
         const userId = await getUserId();
-        const userId = await getUserId();
 
         // 1. Fetch Legacy Investments
         const investments = await prisma.investment.findMany({

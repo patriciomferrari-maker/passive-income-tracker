@@ -42,9 +42,6 @@ export async function POST(
         const userId = await getUserId();
         const { id } = await params;
 
-        const userId = await getUserId();
-        const { id } = await params;
-
         // 1. Try Legacy Investment
         const investment = await prisma.investment.findFirst({
             where: { id, userId }
