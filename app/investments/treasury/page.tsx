@@ -32,8 +32,8 @@ export default function TreasuryManagementPage() {
                             <ArrowLeft className="mr-2 h-4 w-4" /> Volver
                         </Button>
                     </Link>
-                    <h1 className="text-4xl font-bold text-white mb-2">US Treasuries</h1>
-                    <p className="text-slate-300">Gestiona tu cartera de bonos del tesoro estadounidense</p>
+                    <h1 className="text-4xl font-bold text-white mb-2">Cartera USA</h1>
+                    <p className="text-slate-300">Gestiona tu cartera de activos en Estados Unidos (ETFs, Treasuries)</p>
                 </div>
 
                 {/* Tabs */}
