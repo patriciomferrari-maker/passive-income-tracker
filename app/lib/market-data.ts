@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import yahooFinance from 'yahoo-finance2';
 
 // Types
 interface MarketDataResult {
@@ -158,8 +159,10 @@ async function savePrice(investmentId: string, price: number, currency: string, 
 // Update Global Assets (New Catalog System)
 export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
-    const YahooFinance = require('yahoo-finance2').default;
-    const yahooFinance = new YahooFinance();
+    // yahooFinance is imported at top, no instantiation needed in v2
+
+    // Helper to add delay between requests
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
     // 1. Fetch US Assets (ETFs, Treasuries, Stocks)
     const usAssets = await prisma.globalAsset.findMany({
@@ -167,7 +170,14 @@ export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
     });
 
     console.log(`Updating ${usAssets.length} US Global Assets...`);
-    for (const asset of usAssets) {
+    for (let i = 0; i < usAssets.length; i++) {
+        const asset = usAssets[i];
+
+        // Add delay between requests to avoid rate limiting (except for first request)
+        if (i > 0) {
+            await delay(3000); // 3 second delay to avoid rate limiting
+        }
+
         try {
             const quote = await yahooFinance.quote(asset.ticker);
             if (quote && quote.regularMarketPrice) {
@@ -184,6 +194,7 @@ export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
                     currency: quote.currency || 'USD',
                     source: 'YAHOO'
                 });
+                console.log(`  ✓ ${asset.ticker}: $${quote.regularMarketPrice}`);
             } else {
                 results.push({
                     ticker: asset.ticker,
@@ -192,9 +203,10 @@ export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
                     error: 'Not found on Yahoo',
                     source: 'YAHOO'
                 });
+                console.log(`  ✗ ${asset.ticker}: No price`);
             }
         } catch (e: any) {
-            console.error(`Yahoo Error for ${asset.ticker}:`, e.message);
+            console.error(`  ✗ ${asset.ticker}: ${e.message}`);
             results.push({
                 ticker: asset.ticker,
                 price: null,
@@ -264,7 +276,6 @@ export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
 
 export async function updateTreasuries(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
-    const YahooFinance = require('yahoo-finance2').default;
     const yahooFinance = new YahooFinance();
 
     // Find Treasuries/ETFs with Ticker
@@ -299,7 +310,6 @@ export async function updateTreasuries(userId?: string): Promise<MarketDataResul
 // 2. Update Argentina Assets (ON, CEDEAR) - Exclude ETF (now handled by updateTreasuries via Yahoo if US)
 export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
-    const YahooFinance = require('yahoo-finance2').default;
     const yahooFinance = new YahooFinance();
 
     // Find ONs/Cedears ONLY.
