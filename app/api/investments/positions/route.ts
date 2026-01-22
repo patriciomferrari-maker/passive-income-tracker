@@ -68,6 +68,22 @@ export async function GET(request: Request) {
             }
         });
 
+        // 1c. Fetch Global Asset Transactions
+        const globalTransactions = await prisma.globalAssetTransaction.findMany({
+            where: {
+                holding: {
+                    userId,
+                    asset: gaWhere
+                }
+            },
+            include: {
+                holding: {
+                    include: { asset: true }
+                }
+            },
+            orderBy: { date: 'asc' }
+        });
+
         // 2. Fetch Exchange Rates (TC_USD_ARS)
         let ratesMap: Record<string, number> = {};
         if (targetCurrency) {
@@ -164,6 +180,78 @@ export async function GET(request: Request) {
                 exchangeRate = rate;
                 originalPrice = tx.price;
                 price = tx.price / rate; // Cost in USD
+                commission = tx.commission / rate;
+                currency = 'USD';
+            }
+
+            txByTicker[ticker].push({
+                id: tx.id,
+                date: tx.date,
+                type: tx.type as 'BUY' | 'SELL',
+                quantity: tx.quantity,
+                price: price,
+                commission: commission,
+                currency: currency,
+                exchangeRate: exchangeRate,
+                originalPrice: originalPrice
+            });
+        }
+
+
+        // 4b. Process Global Transactions
+        for (const tx of globalTransactions) {
+            const asset = tx.holding.asset;
+            const ticker = asset.ticker;
+
+            if (!txByTicker[ticker]) {
+                txByTicker[ticker] = [];
+                investmentMap[ticker] = {
+                    id: asset.id,
+                    ticker: asset.ticker,
+                    name: asset.name,
+                    type: asset.type === 'CORPORATE_BOND' ? 'ON' : asset.type,
+                    currency: asset.currency,
+                    lastPrice: asset.lastPrice,
+                    lastPriceDate: asset.lastPriceDate,
+                    cashflows: []
+                };
+            }
+
+            let price = tx.price;
+            let commission = tx.commission;
+            let currency = tx.currency;
+            let exchangeRate = 1;
+            let originalPrice = tx.price;
+
+            // HISTORICAL COST CONVERSION
+            if (targetCurrency && targetCurrency !== currency) {
+                const rate = getRate(tx.date);
+                if (rate > 0) {
+                    if (currency === 'ARS' && targetCurrency === 'USD') {
+                        price = price / rate;
+                        commission = commission / rate;
+                        currency = 'USD';
+                    } else if (currency === 'USD' && targetCurrency === 'ARS') {
+                        price = price * rate;
+                        commission = commission * rate;
+                        currency = 'ARS';
+                    }
+                }
+            }
+
+            // P&L Attribution
+            if (targetCurrency === 'ARS' && tx.currency === 'USD') {
+                const rate = getRate(tx.date) || 1;
+                exchangeRate = rate;
+                originalPrice = tx.price;
+                price = tx.price * rate;
+                commission = tx.commission * rate;
+                currency = 'ARS';
+            } else if (targetCurrency === 'USD' && tx.currency === 'ARS') {
+                const rate = getRate(tx.date) || 1;
+                exchangeRate = rate;
+                originalPrice = tx.price;
+                price = tx.price / rate;
                 commission = tx.commission / rate;
                 currency = 'USD';
             }
