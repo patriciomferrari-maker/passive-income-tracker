@@ -174,9 +174,8 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess }: Regist
                         <div className="flex gap-4 pt-4">
                             <Button
                                 type="button"
-                                variant="outline"
                                 onClick={onClose}
-                                className="w-full border-slate-600 text-slate-300 hover:bg-slate-800"
+                                className="w-full bg-slate-700 hover:bg-slate-600 text-white border-none"
                             >
                                 Cancelar
                             </Button>

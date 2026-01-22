@@ -318,8 +318,7 @@ export function ONForm({ onClose, onSave, initialData }: ONFormProps) {
                             <Button
                                 type="button"
                                 onClick={onClose}
-                                variant="outline"
-                                className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
+                                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white border-none"
                             >
                                 Cancelar
                             </Button>
