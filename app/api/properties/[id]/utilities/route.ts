@@ -59,6 +59,14 @@ export async function GET(
                 },
                 orderBy: { checkDate: 'desc' }
             }),
+            // Latest AYSA check
+            prisma.utilityCheck.findFirst({
+                where: {
+                    propertyId,
+                    serviceType: 'AYSA'
+                },
+                orderBy: { checkDate: 'desc' }
+            }),
             // Latest MUNICIPAL check (property)
             prisma.utilityCheck.findFirst({
                 where: {
@@ -138,6 +146,7 @@ export async function POST(
             select: {
                 id: true,
                 gasId: true,
+                aysaId: true,
                 electricityId: true
             }
         });
@@ -188,6 +197,28 @@ export async function POST(
                     propertyId,
                     serviceType: 'ELECTRICITY',
                     accountNumber: property.electricityId,
+                    status: result.status,
+                    debtAmount: result.debtAmount,
+                    lastBillAmount: result.lastBillAmount,
+                    lastBillDate: result.lastBillDate,
+                    dueDate: result.dueDate,
+                    isAutomatic: false, // Manual trigger
+                    errorMessage: result.errorMessage
+                }
+            });
+
+            return NextResponse.json({ success: true, check });
+        }
+
+        if (serviceType === 'AYSA' && property.aysaId) {
+            const { checkAysaWhatsApp } = await import('@/lib/scrapers/aysa-whatsapp');
+            const result = await checkAysaWhatsApp(property.aysaId);
+
+            const check = await prisma.utilityCheck.create({
+                data: {
+                    propertyId,
+                    serviceType: 'AYSA',
+                    accountNumber: property.aysaId,
                     status: result.status,
                     debtAmount: result.debtAmount,
                     lastBillAmount: result.lastBillAmount,

@@ -155,7 +155,113 @@ async function savePrice(investmentId: string, price: number, currency: string, 
     }
 }
 
+// Update Global Assets (New Catalog System)
+export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
+    const results: MarketDataResult[] = [];
+    const YahooFinance = require('yahoo-finance2').default;
+    const yahooFinance = new YahooFinance();
+
+    // 1. Fetch US Assets (ETFs, Treasuries, Stocks)
+    const usAssets = await prisma.globalAsset.findMany({
+        where: { market: 'US' }
+    });
+
+    console.log(`Updating ${usAssets.length} US Global Assets...`);
+    for (const asset of usAssets) {
+        try {
+            const quote = await yahooFinance.quote(asset.ticker);
+            if (quote && quote.regularMarketPrice) {
+                await prisma.globalAsset.update({
+                    where: { id: asset.id },
+                    data: {
+                        lastPrice: quote.regularMarketPrice,
+                        lastPriceDate: new Date()
+                    }
+                });
+                results.push({
+                    ticker: asset.ticker,
+                    price: quote.regularMarketPrice,
+                    currency: quote.currency || 'USD',
+                    source: 'YAHOO'
+                });
+            } else {
+                results.push({
+                    ticker: asset.ticker,
+                    price: null,
+                    currency: null,
+                    error: 'Not found on Yahoo',
+                    source: 'YAHOO'
+                });
+            }
+        } catch (e: any) {
+            console.error(`Yahoo Error for ${asset.ticker}:`, e.message);
+            results.push({
+                ticker: asset.ticker,
+                price: null,
+                currency: null,
+                error: e.message,
+                source: 'YAHOO'
+            });
+        }
+    }
+
+    // 2. Fetch ARG Assets (CEDEARs)
+    const argAssets = await prisma.globalAsset.findMany({
+        where: { market: 'ARG', type: 'CEDEAR' }
+    });
+
+    console.log(`Updating ${argAssets.length} ARG Global Assets...`);
+    for (const asset of argAssets) {
+        // Use Rava for CEDEARs (same logic as updateONs)
+        const ravaData = await fetchRavaPrice(asset.ticker);
+        if (ravaData && ravaData.price) {
+            await prisma.globalAsset.update({
+                where: { id: asset.id },
+                data: {
+                    lastPrice: ravaData.price,
+                    lastPriceDate: new Date()
+                }
+            });
+            results.push({
+                ticker: asset.ticker,
+                price: ravaData.price,
+                currency: 'ARS',
+                source: 'RAVA'
+            });
+        } else {
+            // Fallback to IOL
+            const iolData = await fetchIOLPrice(asset.ticker);
+            if (iolData) {
+                await prisma.globalAsset.update({
+                    where: { id: asset.id },
+                    data: {
+                        lastPrice: iolData.price,
+                        lastPriceDate: new Date()
+                    }
+                });
+                results.push({
+                    ticker: asset.ticker,
+                    price: iolData.price,
+                    currency: iolData.currency,
+                    source: 'IOL'
+                });
+            } else {
+                results.push({
+                    ticker: asset.ticker,
+                    price: null,
+                    currency: null,
+                    error: 'Not found',
+                    source: 'RAVA'
+                });
+            }
+        }
+    }
+
+    return results;
+}
+
 // 1. Update Treasuries (Yahoo Finance Only)
+
 export async function updateTreasuries(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
     const YahooFinance = require('yahoo-finance2').default;

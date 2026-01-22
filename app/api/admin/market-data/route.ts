@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { updateTreasuries, updateONs, updateIPC } from '@/app/lib/market-data';
+import { updateTreasuries, updateONs, updateIPC, updateGlobalAssets } from '@/app/lib/market-data';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 
@@ -110,6 +110,11 @@ export async function POST(req: Request) {
         if (action === 'UPDATE_IPC') {
             const ipc = await updateIPC();
             return NextResponse.json({ success: true, ipc });
+        }
+
+        if (action === 'UPDATE_GLOBAL_ASSETS') {
+            const prices = await updateGlobalAssets();
+            return NextResponse.json({ success: true, prices });
         }
 
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

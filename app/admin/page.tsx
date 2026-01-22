@@ -43,6 +43,11 @@ export default function AdminPage() {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ action: 'UPDATE_TREASURIES' })
+                    }),
+                    fetch('/api/admin/market-data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'UPDATE_GLOBAL_ASSETS' })
                     })
                 ]);
 
