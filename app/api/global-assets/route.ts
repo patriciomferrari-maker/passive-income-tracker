@@ -7,17 +7,14 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
     try {
         const userId = await getUserId();
-        if (!userId) {
-            console.warn('[GlobalAssets API] No user ID found');
-            return unauthorized();
-        }
+        // If no user ID, we proceed as guest (read-only, no portfolio info)
 
         const { searchParams } = new URL(request.url);
         const search = searchParams.get('search')?.toLowerCase();
         const type = searchParams.get('type');
 
         // Debug log
-        console.log(`[GlobalAssets API] User: ${userId}, Search: "${search}", Type: "${type}"`);
+        console.log(`[GlobalAssets API] User: ${userId || 'GUEST'}, Search: "${search}", Type: "${type}"`);
 
         // Build filter query
         const where: any = {};
@@ -36,15 +33,15 @@ export async function GET(request: Request) {
         console.log('[GlobalAssets API] Where clause:', JSON.stringify(where));
 
         // Get assets
+        // Only include holders info if we have a logged in user
         const assets = await prisma.globalAsset.findMany({
             where,
             orderBy: { ticker: 'asc' },
             include: {
-                // Check if user holds this asset
-                holders: {
+                holders: userId ? {
                     where: { userId },
                     select: { id: true }
-                }
+                } : false
             }
         });
 
@@ -58,13 +55,14 @@ export async function GET(request: Request) {
             market: asset.market,
             lastPrice: asset.lastPrice,
             lastPriceDate: asset.lastPriceDate,
-            inPortfolio: asset.holders.length > 0
+            inPortfolio: userId && asset.holders ? asset.holders.length > 0 : false
         }));
 
         return NextResponse.json(formattedAssets);
 
     } catch (error) {
         console.error('Error fetching global assets:', error);
-        return unauthorized();
+        // Don't return 401 on error, try to return 500 so client sees it
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
