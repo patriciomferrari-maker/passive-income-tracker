@@ -54,6 +54,7 @@ export async function POST(request: Request) {
                 jurisdiction: body.jurisdiction || 'PROVINCIA',
                 electricityId: electricityId || null,
                 gasId: gasId || null,
+                aysaId: body.aysaId || null,
                 municipalId: municipalId || null,
                 hasGarage: hasGarage || false,
                 garageMunicipalId: garageMunicipalId || null,

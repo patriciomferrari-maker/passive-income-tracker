@@ -75,18 +75,6 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
         if (ga.lastPrice) globalPriceMap[ga.ticker] = Number(ga.lastPrice);
     });
 
-    // 3b. Fetch Global Asset Prices for Legacy Investments (Fallback)
-    // Extract tickers from legacy investments that look like Global Assets (not Treasuries basically, but checking all is safe)
-    const legacyTickers = investments.map(i => i.ticker);
-    const globalAssetsForLegacy = await prisma.globalAsset.findMany({
-        where: { ticker: { in: legacyTickers } },
-        select: { ticker: true, lastPrice: true }
-    });
-
-    const globalPriceMap: Record<string, number> = {};
-    globalAssetsForLegacy.forEach(ga => {
-        if (ga.lastPrice) globalPriceMap[ga.ticker] = Number(ga.lastPrice);
-    });
 
     // Merge Investments and Holdings into a unified structure
     const unifiedInvestments = [

@@ -30,6 +30,7 @@ export async function GET(
                 name: true,
                 gasId: true,
                 electricityId: true,
+                aysaId: true,
                 municipalId: true,
                 hasGarage: true,
                 garageMunicipalId: true
@@ -78,7 +79,7 @@ export async function GET(
             })
         ]);
 
-        const [gasCheck, electricityCheck, municipalCheck, garageMunicipalCheck] = latestChecks;
+        const [gasCheck, electricityCheck, aysaCheck, municipalCheck, garageMunicipalCheck] = latestChecks;
 
         return NextResponse.json({
             property: {
@@ -86,12 +87,14 @@ export async function GET(
                 name: property.name,
                 gasId: property.gasId,
                 electricityId: property.electricityId,
+                aysaId: property.aysaId,
                 municipalId: property.municipalId,
                 hasGarage: property.hasGarage,
                 garageMunicipalId: property.garageMunicipalId
             },
             checks: {
                 gas: gasCheck,
+                aysa: aysaCheck,
                 electricity: electricityCheck,
                 municipal: municipalCheck,
                 garageMunicipal: garageMunicipalCheck

@@ -10,6 +10,7 @@ interface Property {
     name: string;
     jurisdiction: 'CABA' | 'PROVINCIA';
     gasId: string | null;
+    aysaId: string | null;
     electricityId: string | null;
     municipalId: string | null;
     hasGarage: boolean;
@@ -31,6 +32,7 @@ interface PropertyUtilities {
     property: Property;
     checks: {
         gas: UtilityCheck | null;
+        aysa: UtilityCheck | null;
         electricity: UtilityCheck | null;
         municipal: UtilityCheck | null;
         garageMunicipal: UtilityCheck | null;
@@ -53,7 +55,7 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
 
             // Filter properties with utility IDs
             const propertiesWithUtilities = data.filter(
-                (p: Property) => p.gasId || p.electricityId || p.municipalId
+                (p: Property) => p.gasId || p.electricityId || p.aysaId || p.municipalId
             );
 
             setProperties(propertiesWithUtilities);
@@ -165,6 +167,7 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                                 <tr className="border-b border-slate-800">
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Propiedad</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Gas</th>
+                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">AYSA</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">Electricidad</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">ABL</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">ABL Cochera</th>
@@ -174,6 +177,7 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                                 {properties.map(property => {
                                     const propertyUtilities = utilities[property.id];
                                     const gasCheck = propertyUtilities?.checks?.gas;
+                                    const aysaCheck = propertyUtilities?.checks?.aysa;
                                     const electricityCheck = propertyUtilities?.checks?.electricity;
                                     const gasProvider = getGasProvider(property.jurisdiction);
 
@@ -213,6 +217,43 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                                                                 property.jurisdiction === 'CABA'
                                                                     ? 'https://www.metrogas.com.ar/hogares/descarga-y-paga-tu-factura/'
                                                                     : 'https://ov.naturgy.com.ar/Account/BotonDePago',
+                                                                '_blank'
+                                                            )}
+                                                            className="h-7 px-2 text-slate-400 hover:text-white mt-2"
+                                                        >
+                                                            <ExternalLink size={14} className="mr-1" />
+                                                            Ver portal
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm text-slate-500">-</span>
+                                                )}
+                                            </td>
+
+                                            {/* AYSA */}
+                                            <td className="py-4 px-4">
+                                                {property.aysaId ? (
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-[18px] text-center">💧</div>
+                                                            <span className="text-sm font-medium text-white">AYSA</span>
+                                                        </div>
+                                                        <div className="text-xs text-slate-500 font-mono">
+                                                            {showValues ? property.aysaId : '****'}
+                                                        </div>
+                                                        {aysaCheck && (
+                                                            <div className="space-y-1.5">
+                                                                {getStatusBadge(aysaCheck.status, aysaCheck.debtAmount)}
+                                                                <div className="text-xs text-slate-500">
+                                                                    {new Date(aysaCheck.checkDate).toLocaleDateString('es-AR')} {new Date(aysaCheck.checkDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => window.open(
+                                                                'https://oficinavirtual.web.aysa.com.ar/',
                                                                 '_blank'
                                                             )}
                                                             className="h-7 px-2 text-slate-400 hover:text-white mt-2"

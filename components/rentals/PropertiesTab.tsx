@@ -13,6 +13,7 @@ interface Property {
     jurisdiction: 'CABA' | 'PROVINCIA';
     electricityId: string | null;
     gasId: string | null;
+    aysaId: string | null;
     municipalId: string | null;
     hasGarage: boolean;
     garageMunicipalId: string | null;
@@ -39,6 +40,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
     const [jurisdiction, setJurisdiction] = useState<'CABA' | 'PROVINCIA'>('PROVINCIA');
     const [electricityId, setElectricityId] = useState('');
     const [gasId, setGasId] = useState('');
+    const [aysaId, setAysaId] = useState('');
     const [municipalId, setMunicipalId] = useState('');
     const [hasGarage, setHasGarage] = useState(false);
     const [garageMunicipalId, setGarageMunicipalId] = useState('');
@@ -80,6 +82,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                     jurisdiction,
                     electricityId: electricityId || null,
                     gasId: gasId || null,
+                    aysaId: aysaId || null,
                     municipalId: municipalId || null,
                     hasGarage,
                     garageMunicipalId: garageMunicipalId || null,
@@ -105,6 +108,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
         setJurisdiction(property.jurisdiction || 'PROVINCIA');
         setElectricityId(property.electricityId || '');
         setGasId(property.gasId || '');
+        setAysaId(property.aysaId || '');
         setMunicipalId(property.municipalId || '');
         setHasGarage(property.hasGarage || false);
         setGarageMunicipalId(property.garageMunicipalId || '');
@@ -132,6 +136,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
         setJurisdiction('PROVINCIA');
         setElectricityId('');
         setGasId('');
+        setAysaId('');
         setMunicipalId('');
         setHasGarage(false);
         setGarageMunicipalId('');
@@ -174,6 +179,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">ID Cochera</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">ID Luz</th>
                                     <th className="text-left py-3 px-4 text-slate-300 font-medium">ID Gas</th>
+                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">ID AYSA</th>
                                     <th className="text-center py-3 px-4 text-slate-300 font-medium">Contratos</th>
                                     <th className="text-right py-3 px-4 text-slate-300 font-medium">Acciones</th>
                                 </tr>
@@ -195,6 +201,7 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                                         <td className="py-3 px-4 text-slate-400 font-mono text-xs">{property.garageMunicipalId || '-'}</td>
                                         <td className="py-3 px-4 text-slate-400 font-mono text-xs">{property.electricityId || '-'}</td>
                                         <td className="py-3 px-4 text-slate-400 font-mono text-xs">{property.gasId || '-'}</td>
+                                        <td className="py-3 px-4 text-slate-400 font-mono text-xs">{property.aysaId || '-'}</td>
                                         <td className="py-3 px-4 text-center text-white">{property._count.contracts}</td>
                                         <td className="py-3 px-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
@@ -321,6 +328,15 @@ export function PropertiesTab({ showValues = true }: PropertiesTabProps) {
                                             type="text"
                                             value={gasId}
                                             onChange={e => setGasId(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-1">ID AYSA</label>
+                                        <input
+                                            type="text"
+                                            value={aysaId}
+                                            onChange={e => setAysaId(e.target.value)}
                                             className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
                                         />
                                     </div>

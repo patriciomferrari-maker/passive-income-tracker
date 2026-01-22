@@ -88,6 +88,7 @@ model Property {
   electricityId String?
   gasId         String?
   municipalId   String?
+  aysaId        String?
 
   // Garage
   hasGarage         Boolean @default(false)
