@@ -85,10 +85,10 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                 setQuantity('');
                 setPrice('');
                 setCommission('0');
-                setTxCurrency('ARS');
+                setTxCurrency(market === 'US' ? 'USD' : 'ARS');
             }
         }
-    }, [isOpen, initialData]);
+    }, [isOpen, initialData, market]);
 
     if (!isOpen) return null;
 
@@ -194,22 +194,28 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-300">Moneda Ope.</label>
-                                <div className="flex bg-slate-800 rounded-md border border-slate-700 p-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => setTxCurrency('ARS')}
-                                        className={`flex-1 text-xs py-1.5 rounded font-bold transition-colors ${txCurrency === 'ARS' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                                    >
-                                        ARS
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setTxCurrency('USD')}
-                                        className={`flex-1 text-xs py-1.5 rounded font-bold transition-colors ${txCurrency === 'USD' ? 'bg-green-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                                    >
-                                        USD
-                                    </button>
-                                </div>
+                                {market === 'US' ? (
+                                    <div className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-slate-400 font-medium">
+                                        USD (Dólares)
+                                    </div>
+                                ) : (
+                                    <div className="flex bg-slate-800 rounded-md border border-slate-700 p-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setTxCurrency('ARS')}
+                                            className={`flex-1 text-xs py-1.5 rounded font-bold transition-colors ${txCurrency === 'ARS' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                                        >
+                                            ARS
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setTxCurrency('USD')}
+                                            className={`flex-1 text-xs py-1.5 rounded font-bold transition-colors ${txCurrency === 'USD' ? 'bg-green-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                                        >
+                                            USD
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-300">Fecha</label>
