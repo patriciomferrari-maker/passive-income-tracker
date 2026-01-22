@@ -11,10 +11,13 @@ export async function GET(request: Request) {
         const search = searchParams.get('search')?.toLowerCase();
         const type = searchParams.get('type');
 
+        // Debug log
+        console.log(`[GlobalAssets API] User: ${userId}, Search: "${search}", Type: "${type}"`);
+
         // Build filter query
         const where: any = {};
 
-        if (search) {
+        if (search && search.trim() !== '') {
             where.OR = [
                 { ticker: { contains: search, mode: 'insensitive' } },
                 { name: { contains: search, mode: 'insensitive' } }
@@ -24,6 +27,8 @@ export async function GET(request: Request) {
         if (type && type !== 'ALL') {
             where.type = type;
         }
+
+        console.log('[GlobalAssets API] Where clause:', JSON.stringify(where));
 
         // Get assets
         const assets = await prisma.globalAsset.findMany({
