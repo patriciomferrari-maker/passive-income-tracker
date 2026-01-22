@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
-import { ArrowUpDown, ArrowUp, ArrowDown, Pencil } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Pencil, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface PositionEvent {
     id: string;
@@ -16,9 +16,33 @@ interface PositionEvent {
     resultAbs: number;
     resultPercent: number;
     currency: string;
-    currency: string;
     type?: string;
-    theoreticalTir?: number; // New field
+    theoreticalTir?: number;
+    priceResult?: number;
+    fxResult?: number;
+    buyExchangeRate?: number;
+    sellExchangeRate?: number;
+}
+
+interface AssetGroup {
+    ticker: string;
+    name: string;
+    type: string;
+    currency: string;
+    positions: PositionEvent[];
+
+    // Aggregated Data
+    totalNominals: number;
+    avgBuyPrice: number; // Weighted Average for Open positions
+    totalInvestedOriginal: number; // For Open positions (Cost Basis)
+    totalCurrentValue: number;
+
+    // Results
+    totalRealizedResult: number; // From CLOSED positions
+    totalUnrealizedResult: number; // From OPEN positions (Market Value - Cost)
+    totalResult: number; // Realized + Unrealized
+
+    avgClosePrice?: number; // For fully closed positions context
 }
 
 interface PositionsTableProps {
@@ -32,8 +56,9 @@ interface PositionsTableProps {
 export default function PositionsTable({ types, market, currency, refreshTrigger, onEdit }: PositionsTableProps) {
     const [positions, setPositions] = useState<PositionEvent[]>([]);
     const [loading, setLoading] = useState(true);
-    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'date', direction: 'desc' });
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'ticker', direction: 'asc' });
     const [showValues, setShowValues] = useState(true);
+    const [expandedTickers, setExpandedTickers] = useState<Set<string>>(new Set());
 
     const loadData = async () => {
         try {
@@ -88,51 +113,121 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
         setSortConfig({ key, direction });
     };
 
-    const getSortedPositions = () => {
-        if (!sortConfig) return positions;
+    const toggleExpand = (ticker: string) => {
+        const newSet = new Set(expandedTickers);
+        if (newSet.has(ticker)) {
+            newSet.delete(ticker);
+        } else {
+            newSet.add(ticker);
+        }
+        setExpandedTickers(newSet);
+    };
 
-        return [...positions].sort((a, b) => {
-            let aValue: any = a[sortConfig.key as keyof PositionEvent];
-            let bValue: any = b[sortConfig.key as keyof PositionEvent];
+    // Grouping Logic
+    const groupedAssets = useMemo(() => {
+        const groups = new Map<string, AssetGroup>();
+
+        positions.forEach(pos => {
+            if (!groups.has(pos.ticker)) {
+                groups.set(pos.ticker, {
+                    ticker: pos.ticker,
+                    name: pos.name,
+                    type: pos.type || '',
+                    currency: pos.currency,
+                    positions: [],
+                    totalNominals: 0,
+                    avgBuyPrice: 0,
+                    totalInvestedOriginal: 0,
+                    totalCurrentValue: 0,
+                    totalRealizedResult: 0,
+                    totalUnrealizedResult: 0,
+                    totalResult: 0
+                });
+            }
+
+            const group = groups.get(pos.ticker)!;
+            group.positions.push(pos);
+
+            // Aggregate Data
+            if (pos.status === 'OPEN') {
+                group.totalNominals += pos.quantity;
+                group.totalInvestedOriginal += (pos.quantity * pos.buyPrice) + pos.buyCommission;
+                group.totalCurrentValue += (pos.quantity * (pos.sellPrice || 0)); // sellPrice is currentPrice for OPEN
+                group.totalUnrealizedResult += pos.resultAbs;
+            } else {
+                group.totalRealizedResult += pos.resultAbs;
+            }
+
+            group.totalResult += pos.resultAbs;
+        });
+
+        // Calculate Averages and Finalize Groups
+        return Array.from(groups.values()).map(group => {
+            if (group.totalNominals > 0) {
+                // Avg Buy Price for OPEN positions (Weighted)
+                // We use totalInvestedOriginal (Cost Basis) / Total Nominals
+                // Note: buyCommission is included in cost basis, so avg price effectively includes commission impact if desired, 
+                // but visually users usually expect execution price. 
+                // Let's use pure Weighted Avg Price relative to Quantity for display?
+                // Standard: Cost Basis / Quantity => Break Even Price
+                group.avgBuyPrice = group.totalInvestedOriginal / group.totalNominals;
+            }
+
+            // Sort positions chronologically
+            group.positions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+            return group;
+        });
+
+    }, [positions]);
+
+    const sortedGroups = useMemo(() => {
+        if (!sortConfig) return groupedAssets;
+
+        return [...groupedAssets].sort((a, b) => {
+            let aValue: any = a[sortConfig.key as keyof AssetGroup];
+            let bValue: any = b[sortConfig.key as keyof AssetGroup];
+
+            // Handle specific sorting keys mapping
+            if (sortConfig.key === 'result') {
+                aValue = a.totalResult;
+                bValue = b.totalResult;
+            }
 
             if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
-    };
+    }, [groupedAssets, sortConfig]);
+
 
     if (loading) return <div className="text-slate-400 text-sm py-4">Cargando posiciones...</div>;
 
-    const totalRealized = positions
-        .filter(p => p.status === 'CLOSED')
-        .reduce((sum, p) => sum + (p.resultAbs || 0), 0);
+    // Totals for Cards
+    const totalUnrealized = groupedAssets.reduce((sum, g) => sum + g.totalUnrealizedResult, 0);
+    const totalRealized = groupedAssets.reduce((sum, g) => sum + g.totalRealizedResult, 0);
 
+    // To calculate % we need total costs
+    const totalCostUnrealized = groupedAssets.reduce((sum, g) => sum + g.totalInvestedOriginal, 0);
+    const unrealizedPercent = totalCostUnrealized !== 0 ? (totalUnrealized / totalCostUnrealized) * 100 : 0;
+
+    // For Realized %, it's harder to get agg cost from group structure without storing it, but let's calc from positions
     const totalCostRealized = positions
         .filter(p => p.status === 'CLOSED')
         .reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
-
     const realizedPercent = totalCostRealized !== 0 ? (totalRealized / totalCostRealized) * 100 : 0;
 
-    const totalUnrealized = positions
-        .filter(p => p.status === 'OPEN')
-        .reduce((sum, p) => sum + (p.resultAbs || 0), 0);
-
-    const totalCostUnrealized = positions
-        .filter(p => p.status === 'OPEN' && p.sellPrice > 0)
-        .reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
-
-    const unrealizedPercent = totalCostUnrealized !== 0 ? (totalUnrealized / totalCostUnrealized) * 100 : 0;
-
-    // Only show P&L cards if there are Equity assets (CEDEAR, ETF, etc.)
-    // Logic inverted: Show if there is ANY asset that is NOT a Bond (ON/TREASURY)
-    const hasEquityAssets = positions.some(p => {
-        const t = (p.type || '').toUpperCase();
+    const hasEquityAssets = groupedAssets.some(g => {
+        const t = (g.type || '').toUpperCase();
         return !['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(t);
     });
 
-    const totalValorActual = positions.reduce((sum, p) => sum + (p.quantity * (p.sellPrice || 0) || 0), 0);
-    const totalPrecioCompra = positions.reduce((sum, p) => sum + (p.quantity * p.buyPrice + p.buyCommission), 0);
-    const totalResultado = positions.reduce((sum, p) => sum + p.resultAbs, 0);
+    // Totals Footer
+    const totalInvestedGlobal = positions.reduce((sum, p) => sum + (p.quantity * p.buyPrice + p.buyCommission), 0); // All time invested? Or just current? Usually dashboard shows current value.
+    // The footer in original code summed ALL buy prices (Open + Closed). Let's keep consistency.
+    const totalPrecioCompraAll = positions.reduce((sum, p) => sum + (p.quantity * p.buyPrice + p.buyCommission), 0);
+    const totalValorActualAll = groupedAssets.reduce((sum, g) => sum + g.totalCurrentValue, 0);
+    const totalResultAll = groupedAssets.reduce((sum, g) => sum + g.totalResult, 0);
 
     return (
         <div className="mt-8 space-y-4">
@@ -168,168 +263,165 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                     <table className="w-full text-sm">
                         <thead className="bg-slate-900 text-slate-400">
                             <tr>
+                                <th className="px-4 py-3 text-left w-8"></th>
                                 <th className="px-4 py-3 text-left font-medium">
                                     <button onClick={() => handleSort('ticker')} className="flex items-center gap-1 hover:text-white">
                                         Activo
                                         {sortConfig?.key === 'ticker' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
-                                        {sortConfig?.key !== 'ticker' && <ArrowUpDown size={14} className="opacity-50" />}
                                     </button>
                                 </th>
-                                <th className="px-4 py-3 text-left font-medium">Estado</th>
-                                <th className="px-4 py-3 text-left font-medium">
-                                    <button onClick={() => handleSort('date')} className="flex items-center gap-1 hover:text-white">
-                                        Fecha Compra
-                                        {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
-                                    </button>
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium">Fecha Venta</th>
                                 <th className="px-4 py-3 text-right font-medium">Nominales</th>
-                                <th className="px-4 py-3 text-right font-medium">Precio Compra</th>
-                                <th className="px-4 py-3 text-right font-medium">Com. Compra</th>
-                                <th className="px-4 py-3 text-right font-medium text-blue-300">Valor Compra</th>
-                                <th className="px-4 py-3 text-right font-medium">Precio Venta</th>
-                                <th className="px-4 py-3 text-right font-medium">Com. Venta</th>
+                                <th className="px-4 py-3 text-right font-medium">PPC / Precio</th>
                                 <th className="px-4 py-3 text-right font-medium text-emerald-400">Valor Actual</th>
-                                <th className="px-4 py-3 text-right font-medium">Resultado</th>
-                                <th className="px-4 py-3 text-right font-medium">%</th>
-                                <th className="px-4 py-3 text-right font-medium text-xs text-purple-400">TIR Esp.</th>
-                                {currency === 'ARS' && (
-                                    <>
-                                        <th className="px-4 py-3 text-right font-medium text-xs text-yellow-500">Res. TC</th>
-                                        <th className="px-4 py-3 text-right font-medium text-xs text-blue-400">Res. Perf.</th>
-                                    </>
-                                )}
-                                <th className="px-4 py-3 text-right font-medium">Acción</th>
+                                <th className="px-4 py-3 text-right font-medium">
+                                    <button onClick={() => handleSort('result')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                        Resultado Total
+                                        {sortConfig?.key === 'result' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                    </button>
+                                </th>
+                                <th className="px-4 py-3 text-right font-medium">% Total</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
-                            {getSortedPositions().map((pos) => {
-                                const totalCost = (pos.quantity * pos.buyPrice) + pos.buyCommission;
-                                const priceResultPercent = totalCost !== 0 && (pos as any).priceResult ? ((pos as any).priceResult / totalCost) * 100 : 0;
-                                const fxResultPercent = totalCost !== 0 && (pos as any).fxResult ? ((pos as any).fxResult / totalCost) * 100 : 0;
+                            {sortedGroups.map((group) => {
+                                const isExpanded = expandedTickers.has(group.ticker);
+                                // Total Result % = Total Result / (Total Invested of Open + Cost of Closed)
+                                // Simplified for Display: Unrealized % if Open, Realized % if Closed?
+                                // Let's show: (Total Result / Total Invested Ever) if possible, or (Current Result / Current Invested)
+                                // Standard: If has Open, show Unrealized % on Current Holdings. If fully closed, show Realized %.
+
+                                let displayPercent = 0;
+                                if (group.totalNominals > 0) {
+                                    displayPercent = group.totalInvestedOriginal !== 0
+                                        ? (group.totalUnrealizedResult / group.totalInvestedOriginal) * 100
+                                        : 0;
+                                } else {
+                                    // Fully closed aggregation
+                                    // We need cost of closed positions for this group
+                                    const closedCost = group.positions.reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
+                                    displayPercent = closedCost !== 0 ? (group.totalRealizedResult / closedCost) * 100 : 0;
+                                }
 
                                 return (
-                                    <tr key={pos.id} className="hover:bg-slate-800/50 transition-colors">
-                                        <td className="px-4 py-3">
-                                            <div className="font-medium text-white">{pos.ticker}</div>
-                                            <div className="text-xs text-slate-500">{pos.name}</div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${pos.status === 'OPEN'
-                                                ? 'bg-green-900/30 text-green-400 border-green-900'
-                                                : 'bg-red-900/30 text-red-400 border-red-900'
-                                                }`}>
-                                                {pos.status === 'OPEN' ? 'ABIERTA' : 'CERRADA'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-300">
-                                            <div className="flex flex-col">
-                                                <span>{pos.status === 'OPEN' ? format(new Date(pos.date), 'dd/MM/yyyy') : '-'}</span>
-                                                {currency === 'ARS' && pos.status === 'OPEN' && (pos as any).buyExchangeRate && (
-                                                    <span className="text-[10px] text-slate-500">
-                                                        TC {Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format((pos as any).buyExchangeRate)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-300">
-                                            <div className="flex flex-col">
-                                                <span>{pos.status === 'CLOSED' ? format(new Date(pos.date), 'dd/MM/yyyy') : '-'}</span>
-                                                {currency === 'ARS' && (pos as any).sellExchangeRate && (
-                                                    <span className="text-[10px] text-slate-500">
-                                                        TC {Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format((pos as any).sellExchangeRate)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-white tabular-nums">
-                                            {pos.quantity}
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
-                                            {formatMoney(pos.buyPrice, pos.currency)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-slate-400 tabular-nums text-xs">
-                                            {formatMoney(pos.buyCommission, pos.currency)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-slate-300 tabular-nums font-medium text-blue-300">
-                                            {formatMoney((pos.quantity * pos.buyPrice) + pos.buyCommission, pos.currency)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
-                                            {pos.sellPrice > 0 ? formatMoney(pos.sellPrice, pos.currency) : '-'}
-                                            {pos.status === 'OPEN' && <span className="text-[10px] text-slate-500 ml-1">(Actual)</span>}
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-slate-400 tabular-nums text-xs">
-                                            {pos.status === 'CLOSED' ? formatMoney(pos.sellCommission, pos.currency) : '-'}
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-emerald-400 font-medium tabular-nums border-l border-slate-800 bg-emerald-950/10">
-                                            {/* VALOR ACTUAL COLUMN */}
-                                            {formatMoney(pos.quantity * (pos.sellPrice || 0), pos.currency)}
-                                        </td>
-                                        <td className={`px-4 py-3 text-right font-medium tabular-nums ${pos.resultAbs >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                            {(pos.sellPrice > 0 || pos.status === 'CLOSED') ? formatMoney(pos.resultAbs, pos.currency) : '-'}
-                                        </td>
-                                        <td className={`px-4 py-3 text-right font-medium tabular-nums ${pos.resultPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                            {(pos.sellPrice > 0 || pos.status === 'CLOSED') && pos.resultPercent !== undefined ? `${pos.resultPercent?.toFixed(2)}%` : '-'}
-                                        </td>
+                                    <>
+                                        {/* PARENT ROW */}
+                                        <tr
+                                            key={group.ticker}
+                                            className={`hover:bg-slate-800/50 transition-colors cursor-pointer ${isExpanded ? 'bg-slate-800/30' : ''}`}
+                                            onClick={() => toggleExpand(group.ticker)}
+                                        >
+                                            <td className="px-4 py-4 text-slate-500">
+                                                {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <div className="font-medium text-white text-base">{group.ticker}</div>
+                                                <div className="text-xs text-slate-500">{group.name}</div>
+                                            </td>
+                                            <td className="px-4 py-4 text-right text-white tabular-nums font-medium">
+                                                {group.totalNominals > 0 ? group.totalNominals : <span className="text-slate-600">0</span>}
+                                            </td>
+                                            <td className="px-4 py-4 text-right text-slate-300 tabular-nums">
+                                                {group.totalNominals > 0 ? (
+                                                    <div className="flex flex-col items-end gap-0.5">
+                                                        <span>{formatMoney(group.avgBuyPrice, group.currency)}</span>
+                                                        <span className="text-[10px] text-slate-500">PPC</span>
+                                                    </div>
+                                                ) : '-'}
 
-                                        <td className="px-4 py-3 text-right font-medium tabular-nums text-purple-400">
-                                            {(pos as any).theoreticalTir ? `${(pos as any).theoreticalTir.toFixed(2)}%` : '-'}
-                                        </td>
+                                            </td>
+                                            <td className="px-4 py-4 text-right text-emerald-400 font-bold tabular-nums">
+                                                {group.totalNominals > 0 ? formatMoney(group.totalCurrentValue, group.currency) : '-'}
+                                            </td>
+                                            <td className={`px-4 py-4 text-right font-bold tabular-nums ${group.totalResult >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                {formatMoney(group.totalResult, group.currency)}
+                                            </td>
+                                            <td className={`px-4 py-4 text-right font-medium tabular-nums ${displayPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                {displayPercent.toFixed(2)}%
+                                            </td>
+                                        </tr>
 
-                                        {currency === 'ARS' && (
-                                            <>
-                                                <td className="px-4 py-3 text-right font-medium tabular-nums text-yellow-500">
-                                                    <div className="flex flex-col items-end">
-                                                        <span>{(pos as any).fxResult ? formatMoney((pos as any).fxResult, currency) : '-'}</span>
-                                                        <span className="text-[10px] opacity-70">
-                                                            {(pos as any).fxResult ? `${fxResultPercent.toFixed(2)}%` : ''}
-                                                        </span>
+                                        {/* CHILD ROWS (EXPANDED) */}
+                                        {isExpanded && (
+                                            <tr>
+                                                <td colSpan={7} className="bg-slate-900/40 p-0 border-b border-slate-800">
+                                                    <div className="border-l-2 border-slate-700 ml-8 my-2">
+                                                        <table className="w-full text-xs">
+                                                            <thead className="text-slate-500 bg-slate-900/20">
+                                                                <tr>
+                                                                    <th className="px-4 py-2 text-left">Fecha</th>
+                                                                    <th className="px-4 py-2 text-left">Estado</th>
+                                                                    <th className="px-4 py-2 text-right">Nominales</th>
+                                                                    <th className="px-4 py-2 text-right">Precio Compra</th>
+                                                                    <th className="px-4 py-2 text-right">Precio Venta</th>
+                                                                    <th className="px-4 py-2 text-right">Resultado</th>
+                                                                    <th className="px-4 py-2 text-right">Acción</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-slate-800/50">
+                                                                {group.positions.map(pos => (
+                                                                    <tr key={pos.id} className="hover:bg-slate-800/30">
+                                                                        <td className="px-4 py-2 text-slate-300">
+                                                                            {format(new Date(pos.date), 'dd/MM/yyyy')}
+                                                                        </td>
+                                                                        <td className="px-4 py-2">
+                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase border ${pos.status === 'OPEN'
+                                                                                    ? 'border-green-900 text-green-500 bg-green-900/10'
+                                                                                    : 'border-red-900 text-red-500 bg-red-900/10'
+                                                                                }`}>
+                                                                                {pos.status === 'OPEN' ? 'Abierta' : 'Cerrada'}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-right text-slate-300">
+                                                                            {pos.quantity}
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-right text-slate-400">
+                                                                            {formatMoney(pos.buyPrice, pos.currency)}
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-right text-slate-400">
+                                                                            {pos.sellPrice > 0 ? formatMoney(pos.sellPrice, pos.currency) : '-'}
+                                                                        </td>
+                                                                        <td className={`px-4 py-2 text-right ${pos.resultAbs >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                                            {formatMoney(pos.resultAbs, pos.currency)}
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-right">
+                                                                            {onEdit && pos.status === 'OPEN' && (
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        onEdit(pos.id);
+                                                                                    }}
+                                                                                    className="p-1 text-slate-500 hover:text-blue-400 transition-colors"
+                                                                                >
+                                                                                    <Pencil size={12} />
+                                                                                </button>
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
                                                     </div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right font-medium tabular-nums text-blue-400">
-                                                    <div className="flex flex-col items-end">
-                                                        <span>{(pos as any).priceResult ? formatMoney((pos as any).priceResult, currency) : '-'}</span>
-                                                        <span className="text-[10px] opacity-70">
-                                                            {(pos as any).priceResult ? `${priceResultPercent.toFixed(2)}%` : ''}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                            </>
+                                            </tr>
                                         )}
-
-                                        <td className="px-4 py-3 text-right">
-                                            {onEdit && pos.status === 'OPEN' && (
-                                                <button
-                                                    onClick={() => onEdit(pos.id)}
-                                                    className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded transition-colors"
-                                                >
-                                                    <Pencil size={14} />
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                )
+                                    </>
+                                );
                             })}
                         </tbody>
                         <tfoot className="bg-slate-900/80 border-t border-slate-700 font-bold text-white">
                             <tr>
-                                <td colSpan={5} className="px-4 py-3 text-right text-slate-400">TOTALES</td>
-                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums"></td>
-                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums"></td>
-                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums font-bold text-blue-300">
-                                    {formatMoney(totalPrecioCompra, currency || 'USD')}
+                                <td colSpan={2} className="px-4 py-4 text-right text-slate-400">TOTALES GLOBAL</td>
+                                <td className="px-4 py-4"></td>
+                                <td className="px-4 py-4 text-right text-slate-300 tabular-nums">
+                                    {/* Cost skipped or summarized? */}
                                 </td>
-                                <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
-                                    {/* Avg Sell Price meaningless, skip */}
+                                <td className="px-4 py-4 text-right text-emerald-400 tabular-nums border-l border-slate-800 bg-emerald-950/20">
+                                    {formatMoney(totalValorActualAll, currency || 'USD')}
                                 </td>
-                                <td className="px-4 py-3"></td>
-                                <td className="px-4 py-3 text-right text-emerald-400 tabular-nums border-l border-slate-800 bg-emerald-950/20">
-                                    {formatMoney(totalValorActual, currency || 'USD')}
+                                <td className={`px-4 py-4 text-right tabular-nums ${totalResultAll >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {formatMoney(totalResultAll, currency || 'USD')}
                                 </td>
-                                <td className={`px-4 py-3 text-right tabular-nums ${totalResultado >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {formatMoney(totalResultado, currency || 'USD')}
-                                </td>
-                                <td colSpan={10}></td>
+                                <td className="px-4 py-4"></td>
                             </tr>
                         </tfoot>
                     </table>
