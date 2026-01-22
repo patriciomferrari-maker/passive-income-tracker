@@ -136,3 +136,26 @@ Found Soldado: 40000041500
 ✅ Check saved to database
 
 🎉 Manual check completed
+[jue 22/01/2026 16:00:01,84] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: "No registra deuda"
+[Metrogas] Has "No registra deuda": true
+[Metrogas] Amount elements found: 3
+[Metrogas] ✅ No debt found
+
+📊 Scraper result:
+{
+  "status": "UP_TO_DATE",
+  "debtAmount": 0,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed

@@ -507,7 +507,7 @@ export function PurchasesTab() {
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <Card className="w-full max-w-md bg-slate-900 border-slate-700">
                         <CardHeader>
-                            <CardTitle className="text-white">{editingTransaction ? 'Editar Compra' : 'Nueva Compra'}</CardTitle>
+                            <CardTitle className="text-white">{editingTransaction ? `Editar ${transactionType === 'SELL' ? 'Venta' : 'Compra'}` : 'Nueva Compra'}</CardTitle>
                             <CardDescription className="text-slate-400">
                                 {editingTransaction ? 'Modifica los datos de la compra' : 'Registra una nueva operaciÃ³n de compra'}
                             </CardDescription>
