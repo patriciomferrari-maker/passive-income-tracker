@@ -60,9 +60,11 @@ export async function GET(request: Request) {
 
         return NextResponse.json(formattedAssets);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error fetching global assets:', error);
-        // Don't return 401 on error, try to return 500 so client sees it
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({
+            error: error.message || 'Internal Server Error',
+            details: error.toString()
+        }, { status: 500 });
     }
 }
