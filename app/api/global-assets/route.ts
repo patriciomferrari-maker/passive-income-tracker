@@ -7,6 +7,11 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
     try {
         const userId = await getUserId();
+        if (!userId) {
+            console.warn('[GlobalAssets API] No user ID found');
+            return unauthorized();
+        }
+
         const { searchParams } = new URL(request.url);
         const search = searchParams.get('search')?.toLowerCase();
         const type = searchParams.get('type');
