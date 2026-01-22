@@ -38,7 +38,7 @@ export async function GET(request: Request) {
             where,
             orderBy: { ticker: 'asc' },
             include: {
-                holders: userId ? {
+                userHoldings: userId ? {
                     where: { userId },
                     select: { id: true }
                 } : false
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
             market: asset.market,
             lastPrice: asset.lastPrice,
             lastPriceDate: asset.lastPriceDate,
-            inPortfolio: userId && asset.holders ? asset.holders.length > 0 : false
+            inPortfolio: userId && asset.userHoldings ? asset.userHoldings.length > 0 : false
         }));
 
         return NextResponse.json(formattedAssets);
