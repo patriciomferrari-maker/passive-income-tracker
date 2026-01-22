@@ -46,10 +46,6 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
 
     // Helper to find historical rate
     const getExchangeRate = (date: Date): number => {
-        // rates are DESC (newest first). 
-        // We want the newest rate that is <= date.
-        // Array.find returns first match.
-        // find(r => r.date <= date) works.
         const rate = rates.find(r => r.date <= date);
         if (rate) return rate.value;
         if (rates.length > 0) return rates[rates.length - 1].value;
@@ -58,7 +54,6 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
     const latestExchangeRate = rates[0]?.value || 1160;
 
     // 3. Asset Prices (Latest) - for Open Positions Valuation
-    // Optimization: Fetch prices in batch
     const invIds = investments.map(i => i.id);
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
@@ -72,10 +67,11 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
 
     // 4. Calculate Positions & Metrics (Enriching Investments)
     const investmentsWithMetrics: any[] = [];
+
     // Init Consolidated P&L Tracking
     let totalRealized = 0;
     let totalUnrealized = 0;
-    let hasEquity = false;
+    let capitalInvertido = 0;
 
     // Use a loop to calculate FIFO and enrich each investment
     for (const inv of investments) {
@@ -110,18 +106,44 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
 
         const currentValue = quantity * priceUSD;
 
-        // P&L Agregation
-        // Realized (Note: realizedGains are in original currency often, but assuming USD for ONs or handled)
-        // Ideally we should normalize per transaction. For now we sum what FIFO gives.
-        const realizedGain = fifoResult.realizedGains.reduce((sum, g) => sum + g.gainAbs, 0);
+        // P&L Aggregation
+        // 1. Realized Results
+        let invRealizedUSD = 0;
+        let invCostRealizedUSD = 0;
 
-        // Unrealized
-        const costOpen = fifoResult.openPositions.reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
-        // We need costOpen in USD. 
-        // If FIFO inputs were raw, costOpen is raw. 
-        // FIX: For robust P&L, relying on "Tenencia" loop later might be better, OR normalize inputs to FIFO.
-        // Given complexity, let's keep basic sum but acknowledge currency risk.
-        // However, for PDF "Holdings Table", we need Quantity and Current Value. We have that.
+        fifoResult.realizedGains.forEach(g => {
+            let gain = g.gainAbs;
+            let cost = g.basisCost;
+            if (g.currency === 'ARS') {
+                const rate = getExchangeRate(new Date(g.sellDate));
+                gain /= rate;
+                // Standardize cost realized
+                cost /= rate;
+            }
+            invRealizedUSD += gain;
+            invCostRealizedUSD += cost;
+        });
+        totalRealized += invRealizedUSD;
+
+        // 2. Unrealized Results
+        // Cost Basis of Open Positions in USD
+        let invCostOpenUSD = 0;
+        fifoResult.openPositions.forEach(p => {
+            let cost = (p.quantity * p.buyPrice) + p.buyCommission;
+            if (p.currency === 'ARS') {
+                // We need rate at purchase date.
+                const rate = getExchangeRate(new Date(p.date));
+                cost /= rate;
+            }
+            invCostOpenUSD += cost;
+        });
+
+        const invUnrealizedUSD = currentValue - invCostOpenUSD;
+
+        if (quantity > 0) {
+            totalUnrealized += invUnrealizedUSD;
+            capitalInvertido += invCostOpenUSD;
+        }
 
         // Theoretical TIR (Yield)
         let theoreticalTir: number | null = null;
@@ -148,49 +170,21 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
             currentPrice: priceUSD,
             marketValue: currentValue,
             theoreticalTir,
-            // Keep original lists
+            costBasisUSD: invCostOpenUSD,
+            realizedUSD: invRealizedUSD,
+            costRealizedUSD: invCostRealizedUSD
         });
-
-        if (quantity > 0) hasEquity = true;
     }
 
-    // A. Tenencia & Valuation (Consolidated Loop)
-    let capitalInvertido = 0;
-    let tenenciaTotalValorActual = 0;
-    // Variables realized/unrealized/hasEquity already initialized above
+    // A. Tenencia & Valuation
+    const tenenciaTotalValorActual = investmentsWithMetrics.reduce((sum, i) => sum + i.marketValue, 0);
+    const totalCostRealized = investmentsWithMetrics.reduce((sum, i) => sum + (i.costRealizedUSD || 0), 0);
 
-    // We use the enriched array which already has FIFO, Price, and TheoreticalTir
+    // B. Breakdown Map (With TIR calculation)
     const portfolioBreakdown = investmentsWithMetrics.map(inv => {
-
-        // Cost Basis from FIFO logic? 
-        // We didn't save "totalCost" in metrics loop, only "quantity". 
-        // But we need "invested" for the Breakdown.
-        // Let's recalculate simplified Cost Basis or look back at what we need.
-        // We really just need { ticker, name, invested, percentage, tir, theoreticalTir, type }.
-
-        // Cost Basis: Avg Price * Quantity (Safe approx)
-        let totalBuyQty = 0;
-        let totalBuyCostUSD = 0;
-        inv.transactions.forEach((tx: any) => {
-            if (tx.type === 'BUY') {
-                let cost = Math.abs(tx.totalAmount);
-                if (tx.currency === 'ARS') cost /= getExchangeRate(new Date(tx.date));
-                totalBuyCostUSD += cost;
-                totalBuyQty += Number(tx.quantity);
-            }
-        });
-        const avgBuyPrice = totalBuyQty > 0 ? totalBuyCostUSD / totalBuyQty : 0;
-        const costBasis = avgBuyPrice * inv.quantity; // Matches "Capital Invertido" contribution
-
-        // Sum to global totals (redundant if we did it in first loop, but safe here)
-        if (inv.quantity > 0) {
-            capitalInvertido += costBasis;
-            tenenciaTotalValorActual += inv.marketValue;
-        }
+        const costBasis = inv.costBasisUSD || 0;
 
         // TIR (Personal Performance - Held to Maturity)
-        // User requested "Purchase Yield" which is fixed at moment of purchase.
-        // We calculate this as XIRR(Transactions + All Future/Paid Cashflows), ignoring Current Market Value.
         const amounts: number[] = [];
         const dates: Date[] = [];
 
@@ -204,11 +198,16 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
 
         // Add ALL cashflows (Paid and Projected)
         inv.cashflows.forEach((cf: any) => {
-            amounts.push(cf.amount);
+            let val = cf.amount;
+            if (cf.currency === 'ARS') {
+                const isPast = new Date(cf.date) <= new Date();
+                const r = isPast ? getExchangeRate(new Date(cf.date)) : latestExchangeRate;
+                if (r > 0) val /= r;
+            }
+            amounts.push(val);
             dates.push(new Date(cf.date));
         });
 
-        // Calculate Purchase Yield (XIRR of Buys + All Future Flows, no Market Value)
         let calculatedTir = null;
         if (amounts.length > 1) {
             const t = calculateXIRR(amounts, dates);
@@ -227,36 +226,27 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
         };
     }).filter(i => i.value > 0 || i.tir !== 0);
 
+    // Calculate Percentages
+    const totalBreakdownValue = portfolioBreakdown.reduce((sum, i) => sum + i.value, 0);
+    if (totalBreakdownValue > 0) {
+        portfolioBreakdown.forEach(i => i.percentage = (i.value / totalBreakdownValue) * 100);
+    }
 
-    // B. Consolidated Flow & TIR
+    // C. Consolidated Flow & TIR
     const allAmounts: number[] = [];
     const allDates: Date[] = [];
 
-    // Using filtered "investmentsWithMetrics" (enriched) or original?
-    // Original "investments" has all transactions, which we need for historical TIR.
-    // "investmentsWithMetrics" has them too (spread).
-    // Let's use investmentsWithMetrics for consistency.
     investmentsWithMetrics.forEach(inv => {
-        inv.transactions.forEach(tx => {
+        inv.transactions.forEach((tx: any) => {
             if (tx.type === 'BUY') {
                 let val = -Math.abs(tx.totalAmount);
                 if (tx.currency === 'ARS') val /= getExchangeRate(new Date(tx.date));
                 allAmounts.push(val);
                 allDates.push(new Date(tx.date));
             }
-            // Logic in route.ts only adds BUYs to `allAmounts`? 
-            // Line 213: "Add all BUY transactions as negative".
-            // It IGNORES Sells? 
-            // If I sell, I get money back. It should be a positive flow. 
-            // Route.ts Line 213 check: `if (tx.type === 'BUY')`.
-            // It DOES ignore sells in the Consolidated loop. 
-            // This assumes "Buy and Hold" or "Sells are handled via Cashflows"? 
-            // If Sells are not in Cashflows, and ignored here, the TIR is wrong for traded assets.
-            // But for ONs (Buy & Hold), it works.
-            // I will replicate route.ts logic for consistency (Match Dashboard).
         });
 
-        inv.cashflows.forEach(cf => {
+        inv.cashflows.forEach((cf: any) => {
             let val = cf.amount;
             if (cf.currency === 'ARS') {
                 const r = new Date(cf.date) <= new Date() ? getExchangeRate(new Date(cf.date)) : latestExchangeRate;
@@ -269,7 +259,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
 
     const tirConsolidada = calculateXIRR(allAmounts, allDates);
 
-    // C. Cards Data (Cobrado / A Cobrar)
+    // D. Cards Data (Cobrado / A Cobrar)
     let capitalCobrado = 0;
     let interesCobrado = 0;
     let capitalACobrar = 0;
@@ -277,19 +267,9 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
     const today = new Date();
 
     investmentsWithMetrics.forEach(inv => {
-        inv.cashflows.forEach(cf => {
-            // Include PAID and PROJECTED. 
-            // PAID implies it was collected. PROJECTED implies it will be (or was if date < now).
-            // So we allow both.
+        inv.cashflows.forEach((cf: any) => {
             if (cf.status !== 'PROJECTED' && cf.status !== 'PAID') return;
-
             const isPast = new Date(cf.date) <= today;
-            // If PAID, it's definitely past/collected.
-            // If PROJECTED and Past -> Assumed collected? Or Pending?
-            // Usually "Pending" implies "Projected" status regardless of date?
-            // Dashboard logic usually treats Past as Collected.
-
-            // Normalize
             let amt = cf.amount;
             if (cf.currency === 'ARS') amt /= (isPast ? getExchangeRate(new Date(cf.date)) : latestExchangeRate);
 
@@ -327,7 +307,10 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
         type: cf.type
     }));
 
-    // Return plain object, let the caller handle Response wrapping
+    // Calculate Percentages for P&L
+    const unrealizedPercent = capitalInvertido > 0 ? (totalUnrealized / capitalInvertido) * 100 : 0;
+    const realizedPercent = totalCostRealized > 0 ? (totalRealized / totalCostRealized) * 100 : 0;
+
     return {
         investments: investmentsWithMetrics,
         capitalInvertido,
@@ -345,6 +328,12 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
         totalInvestments: investments.length,
         totalTransactions: investments.reduce((sum, inv) => sum + inv.transactions.length, 0),
         totalCurrentValue: tenenciaTotalValorActual,
-        pnl: null // Placeholder, assuming pnl calculation is done elsewhere or not needed here.
+        pnl: {
+            realized: totalRealized,
+            realizedPercent,
+            unrealized: totalUnrealized,
+            unrealizedPercent,
+            hasEquity: true // Always valid now
+        }
     };
 }
