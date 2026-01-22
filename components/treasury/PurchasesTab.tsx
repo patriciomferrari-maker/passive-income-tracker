@@ -58,6 +58,7 @@ export function PurchasesTab() {
     const [quantity, setQuantity] = useState('');
     const [price, setPrice] = useState('');
     const [commission, setCommission] = useState('0');
+    const [transactionType, setTransactionType] = useState<'BUY' | 'SELL'>('BUY');
     const [submitting, setSubmitting] = useState(false);
 
     // Sorting State
@@ -176,7 +177,8 @@ export function PurchasesTab() {
                         date,
                         quantity,
                         price,
-                        commission
+                        commission,
+                        type: transactionType
                     })
                 });
 
@@ -232,6 +234,7 @@ export function PurchasesTab() {
         setQuantity(transaction.quantity.toString());
         setPrice(transaction.price.toString());
         setCommission(transaction.commission.toString());
+        setTransactionType((transaction.type || 'BUY') as 'BUY' | 'SELL');
         setShowForm(true);
     };
 
@@ -534,6 +537,20 @@ export function PurchasesTab() {
                                         </select>
                                     )}
                                 </div>
+
+                                {editingTransaction && (
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Tipo de Operación</label>
+                                        <select
+                                            value={transactionType}
+                                            onChange={(e) => setTransactionType(e.target.value as 'BUY' | 'SELL')}
+                                            className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
+                                        >
+                                            <option value="BUY">Compra</option>
+                                            <option value="SELL">Venta</option>
+                                        </select>
+                                    </div>
+                                )}
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-2">
