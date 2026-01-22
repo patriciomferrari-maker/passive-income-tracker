@@ -38,6 +38,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
     const [commission, setCommission] = useState('0');
     const [txCurrency, setTxCurrency] = useState<'ARS' | 'USD'>('ARS');
     const [filterType, setFilterType] = useState('ALL');
+    const [transactionType, setTransactionType] = useState<'BUY' | 'SELL'>('BUY');
     const [submitting, setSubmitting] = useState(false);
 
     const [loading, setLoading] = useState(false);
@@ -62,6 +63,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                         setPrice(String(data.price));
                         setCommission(String(data.commission));
                         setTxCurrency(data.currency || 'ARS');
+                        setTransactionType((data.type || 'BUY') as 'BUY' | 'SELL');
                     })
                     .catch(err => {
                         console.error("Error fetching transaction:", err);
@@ -113,7 +115,8 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                     quantity,
                     price,
                     commission,
-                    currency: txCurrency
+                    currency: txCurrency,
+                    type: transactionType
                 })
             });
 
@@ -136,7 +139,12 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <Card className="w-full max-w-md bg-slate-900 border-slate-700">
                 <CardHeader>
-                    <CardTitle className="text-white">{initialData ? 'Editar Compra' : 'Nueva Compra'}</CardTitle>
+                    <CardTitle className="text-white">
+                        {initialData
+                            ? `Editar ${transactionType === 'SELL' ? 'Venta' : 'Compra'}`
+                            : 'Nueva Compra'
+                        }
+                    </CardTitle>
                     <CardDescription className="text-slate-400">
                         {initialData ? 'Modifica los detalles de la operación' : 'Registra una nueva operación de compra'}
                     </CardDescription>
@@ -190,6 +198,20 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                                     ))}
                             </select>
                         </div>
+
+                        {initialData && (
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-300">Tipo de Operación</label>
+                                <select
+                                    value={transactionType}
+                                    onChange={(e) => setTransactionType(e.target.value as 'BUY' | 'SELL')}
+                                    className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
+                                >
+                                    <option value="BUY">Compra</option>
+                                    <option value="SELL">Venta</option>
+                                </select>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
