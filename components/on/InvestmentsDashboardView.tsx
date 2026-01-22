@@ -471,8 +471,7 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
                                             itemStyle={{ color: '#e2e8f0' }}
                                             formatter={(value: number, name: string) => {
                                                 if (!showValues) return ['****', name];
-                                                const label = name === 'purchaseTir' ? 'Tu TIR' : 'TIR Mercado';
-                                                return [`${value.toFixed(2)}%`, label];
+                                                return [`${value.toFixed(2)}%`, name];
                                             }}
                                             cursor={{ fill: '#ffffff10' }}
                                         />

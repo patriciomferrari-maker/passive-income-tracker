@@ -407,9 +407,18 @@ export async function GET(request: Request) {
 
                 // Calculate Original TIR (TIR de Compra)
                 let originalTir: number | null = null;
-                if ((investment.type === 'ON' || investment.type === 'CORPORATE_BOND' || investment.type === 'TREASURY') && totalOpenQuantity > 0 && investment.cashflows) {
+                if ((investment.type === 'ON' || investment.type === 'CORPORATE_BOND' || investment.type === 'TREASURY' || investment.type === 'BONO') && totalOpenQuantity > 0 && investment.cashflows) {
                     // Filter flows after purchase date
-                    const futureFlows = investment.cashflows.filter((cf: any) => new Date(cf.date) > new Date(p.date));
+                    // Filter flows on or after purchase date
+                    // Use start of day for comparison to avoid time issues
+                    const buyDate = new Date(p.date);
+                    buyDate.setHours(0, 0, 0, 0);
+
+                    const futureFlows = investment.cashflows.filter((cf: any) => {
+                        const cfDate = new Date(cf.date);
+                        cfDate.setHours(0, 0, 0, 0);
+                        return cfDate >= buyDate;
+                    });
 
                     if (futureFlows.length > 0) {
                         const flowPerUnitScale = p.quantity / totalOpenQuantity;
@@ -417,7 +426,17 @@ export async function GET(request: Request) {
                         const dates = [new Date(p.date)];
 
                         futureFlows.forEach((cf: any) => {
-                            flows.push(cf.amount * flowPerUnitScale);
+                            let amount = cf.amount;
+                            // Convert CF Currency if needed
+                            if (targetCurrency === 'USD' && cf.currency === 'ARS') {
+                                const rate = getRate(cf.date) || 1;
+                                amount /= rate;
+                            } else if (targetCurrency === 'ARS' && cf.currency === 'USD') {
+                                const rate = getRate(cf.date) || 1;
+                                amount *= rate;
+                            }
+
+                            flows.push(amount * flowPerUnitScale);
                             dates.push(new Date(cf.date));
                         });
 
