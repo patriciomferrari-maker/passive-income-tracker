@@ -42,35 +42,69 @@ export async function POST(
         const userId = await getUserId();
         const { id } = await params;
 
-        // Verify ownership
+        const userId = await getUserId();
+        const { id } = await params;
+
+        // 1. Try Legacy Investment
         const investment = await prisma.investment.findFirst({
             where: { id, userId }
         });
-        if (!investment) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-        const body = await request.json();
-        const { date, quantity, price, commission } = body;
+        if (investment) {
+            const body = await request.json();
+            const { date, quantity, price, commission } = body;
+            const totalAmount = -(parseFloat(quantity) * parseFloat(price) + parseFloat(commission || 0));
 
-        const totalAmount = -(parseFloat(quantity) * parseFloat(price) + parseFloat(commission || 0));
+            const transaction = await prisma.transaction.create({
+                data: {
+                    investmentId: id,
+                    date: new Date(date),
+                    type: 'BUY',
+                    quantity: parseFloat(quantity),
+                    price: parseFloat(price),
+                    commission: parseFloat(commission || 0),
+                    totalAmount,
+                    currency: body.currency || 'ARS'
+                }
+            });
 
-        const transaction = await prisma.transaction.create({
-            data: {
-                investmentId: id,
-                date: new Date(date),
-                type: 'BUY',
-                quantity: parseFloat(quantity),
-                price: parseFloat(price),
-                commission: parseFloat(commission || 0),
-                totalAmount,
-                currency: body.currency || 'ARS'
+            // Generate and save cashflows
+            const cashflows = await generateInvestmentCashflow(id);
+            await saveInvestmentCashflows(cashflows);
+
+            return NextResponse.json(transaction);
+        }
+
+        // 2. Try Global Asset (UserHolding)
+        // The ID passed in URL matches `asset.id` from the GET list
+        const holding = await prisma.userHolding.findFirst({
+            where: {
+                assetId: id,
+                userId
             }
         });
 
-        // Generate and save cashflows
-        const cashflows = await generateInvestmentCashflow(id);
-        await saveInvestmentCashflows(cashflows);
+        if (holding) {
+            const body = await request.json();
+            const { date, quantity, price, commission } = body;
+            const totalAmount = -(parseFloat(quantity) * parseFloat(price) + parseFloat(commission || 0));
 
-        return NextResponse.json(transaction);
+            const gaTx = await prisma.globalAssetTransaction.create({
+                data: {
+                    holdingId: holding.id,
+                    date: new Date(date),
+                    type: 'BUY',
+                    quantity: parseFloat(quantity),
+                    price: parseFloat(price),
+                    commission: parseFloat(commission || 0),
+                    totalAmount,
+                    currency: body.currency || 'ARS'
+                }
+            });
+            return NextResponse.json(gaTx);
+        }
+
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
     } catch (error) {
         console.error('Error creating transaction:', error);
         return unauthorized();

@@ -36,11 +36,13 @@
     "pdf2json": "^4.0.1",
     "puppeteer": "^24.35.0",
     "puppeteer-core": "^22.4.1",
+    "qrcode-terminal": "^0.12.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "recharts": "^3.6.0",
     "resend": "^6.5.2",
     "tailwind-merge": "^3.4.0",
+    "whatsapp-web.js": "^1.34.4",
     "yahoo-finance2": "^3.10.2",
     "zod": "^4.1.13"
   },

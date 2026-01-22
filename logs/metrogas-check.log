@@ -1,0 +1,115 @@
+[mar 20/01/2026 16:00:01,14] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: ""
+[Metrogas] Has "No registra deuda": false
+[Metrogas] Amount elements found: 3
+[Metrogas] ❓ Unknown status. Body preview: "Línea de mensajes de advertencia para cerrarValores disponiblesLínea de mensajes de error para cerrarLínea de mensajes de éxito para cerrarLínea de mensajes informativos para cerrarLínea de mensajes i"
+
+📊 Scraper result:
+{
+  "status": "UNKNOWN",
+  "debtAmount": 0,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[mar 20/01/2026 23:00:01,16] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: "No registra deuda"
+[Metrogas] Has "No registra deuda": true
+[Metrogas] Amount elements found: 3
+[Metrogas] ✅ No debt found
+
+📊 Scraper result:
+{
+  "status": "UP_TO_DATE",
+  "debtAmount": 0,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[mi� 21/01/2026 11:00:02,15] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: ""
+[Metrogas] Has "No registra deuda": false
+[Metrogas] Amount elements found: 3
+[Metrogas] ❓ Unknown status. Body preview: "Línea de mensajes de advertencia para cerrarValores disponiblesLínea de mensajes de error para cerrarLínea de mensajes de éxito para cerrarLínea de mensajes informativos para cerrarLínea de mensajes i"
+
+📊 Scraper result:
+{
+  "status": "UNKNOWN",
+  "debtAmount": 0,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[mi� 21/01/2026 16:00:02,29] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: "No registra deuda"
+[Metrogas] Has "No registra deuda": true
+[Metrogas] Amount elements found: 3
+[Metrogas] ✅ No debt found
+
+📊 Scraper result:
+{
+  "status": "UP_TO_DATE",
+  "debtAmount": 0,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[mi� 21/01/2026 23:00:02,43] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: "No registra deuda"
+[Metrogas] Has "No registra deuda": true
+[Metrogas] Amount elements found: 3
+[Metrogas] ✅ No debt found
+
+📊 Scraper result:
+{
+  "status": "UP_TO_DATE",
+  "debtAmount": 0,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
