@@ -82,7 +82,6 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
                 price: t.price,
                 commission: t.commission,
                 currency: t.currency
-                currency: t.currency
             })),
             cashflows: [], // Global Assets don't have generated cashflows yet
             lastPrice: h.asset.lastPrice ? Number(h.asset.lastPrice) : 0, // Global Asset has lastPrice on the asset model
