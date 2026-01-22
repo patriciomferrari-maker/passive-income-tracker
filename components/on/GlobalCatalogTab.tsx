@@ -23,6 +23,7 @@ export function GlobalCatalogTab() {
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [addingId, setAddingId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         loadAssets();
@@ -38,6 +39,7 @@ export function GlobalCatalogTab() {
 
     const loadAssets = async (query: string = '') => {
         setLoading(true);
+        setError(null);
         try {
             const params = new URLSearchParams();
             if (query) params.append('search', query);
@@ -46,9 +48,19 @@ export function GlobalCatalogTab() {
             if (res.ok) {
                 const data = await res.json();
                 setAssets(data);
+            } else {
+                const text = await res.text();
+                // Try to parse error json
+                try {
+                    const json = JSON.parse(text);
+                    setError(`Error: ${json.error || res.statusText}`);
+                } catch {
+                    setError(`Error ${res.status}: ${res.statusText}`);
+                }
             }
         } catch (error) {
             console.error('Error loading assets:', error);
+            setError('Error de conexión al cargar activos.');
         } finally {
             setLoading(false);
         }
