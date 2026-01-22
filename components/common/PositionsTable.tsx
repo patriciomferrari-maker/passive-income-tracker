@@ -344,8 +344,8 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                                     <div className="flex items-center gap-2">
                                                         <span>{format(new Date(pos.date), 'dd/MM/yyyy')}</span>
                                                         <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase border ${pos.status === 'OPEN'
-                                                                ? 'border-green-900 text-green-500 bg-green-900/10'
-                                                                : 'border-red-900 text-red-500 bg-red-900/10'
+                                                            ? 'border-green-900 text-green-500 bg-green-900/10'
+                                                            : 'border-red-900 text-red-500 bg-red-900/10'
                                                             }`}>
                                                             {pos.status === 'OPEN' ? 'ABIERTA' : 'CERRADA'}
                                                         </span>
@@ -364,18 +364,7 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                                     {formatMoney(pos.resultAbs, pos.currency)}
                                                 </td>
                                                 <td className="px-4 py-2 text-right">
-                                                    {onEdit && pos.status === 'OPEN' && (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                onEdit(pos.id);
-                                                            }}
-                                                            className="p-1 text-slate-500 hover:text-blue-400 transition-colors"
-                                                            title="Editar transacción"
-                                                        >
-                                                            <Pencil size={12} />
-                                                        </button>
-                                                    )}
+                                                    {/* Edit button removed as per request */}
                                                 </td>
                                             </tr>
                                         ))}

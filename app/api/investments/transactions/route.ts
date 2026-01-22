@@ -45,7 +45,53 @@ export async function GET(request: Request) {
             orderBy: { date: 'desc' }
         });
 
-        return NextResponse.json(transactions);
+        // 2. Fetch Global Asset Transactions
+        const globalTransactions = await prisma.globalAssetTransaction.findMany({
+            where: {
+                holding: {
+                    userId,
+                    asset: {
+                        ...(marketParam ? { market: marketParam } : {})
+                    }
+                }
+            },
+            include: {
+                holding: {
+                    include: { asset: true }
+                }
+            },
+            orderBy: { date: 'desc' }
+        });
+
+        const mappedGlobal = globalTransactions.map(tx => ({
+            id: tx.id,
+            date: tx.date,
+            quantity: tx.quantity,
+            price: tx.price,
+            commission: tx.commission,
+            totalAmount: tx.totalAmount,
+            currency: tx.currency,
+            type: tx.type,
+            investment: {
+                ticker: tx.holding.asset.ticker,
+                name: tx.holding.asset.name,
+                type: tx.holding.asset.type === 'CORPORATE_BOND' ? 'ON' : tx.holding.asset.type,
+                lastPrice: tx.holding.asset.lastPrice
+            }
+        }));
+
+        // Filter mappedGlobal by type if needed (client side filtering for global as types might vary)
+        const filteredGlobal = typeParam
+            ? mappedGlobal.filter(t => {
+                // If typeParam is comma separated "ON,CEDEAR"
+                const allowed = typeParam.split(',');
+                return allowed.includes(t.investment.type || '') || (t.investment.type === 'ON' && allowed.includes('ON'));
+            })
+            : mappedGlobal;
+
+        const combined = [...transactions, ...filteredGlobal].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return NextResponse.json(combined);
     } catch (error) {
         console.error('Error fetching transactions:', error);
         return unauthorized();
