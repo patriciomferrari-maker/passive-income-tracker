@@ -164,18 +164,10 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
         // Calculate Averages and Finalize Groups
         return Array.from(groups.values()).map(group => {
             if (group.totalNominals > 0) {
-                // Avg Buy Price for OPEN positions (Weighted)
-                // We use totalInvestedOriginal (Cost Basis) / Total Nominals
-                // Note: buyCommission is included in cost basis, so avg price effectively includes commission impact if desired, 
-                // but visually users usually expect execution price. 
-                // Let's use pure Weighted Avg Price relative to Quantity for display?
-                // Standard: Cost Basis / Quantity => Break Even Price
                 group.avgBuyPrice = group.totalInvestedOriginal / group.totalNominals;
             }
-
             // Sort positions chronologically
             group.positions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
             return group;
         });
 
@@ -188,7 +180,6 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
             let aValue: any = a[sortConfig.key as keyof AssetGroup];
             let bValue: any = b[sortConfig.key as keyof AssetGroup];
 
-            // Handle specific sorting keys mapping
             if (sortConfig.key === 'result') {
                 aValue = a.totalResult;
                 bValue = b.totalResult;
@@ -200,6 +191,14 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
         });
     }, [groupedAssets, sortConfig]);
 
+    // Auto-expand all by default when groups change
+    useEffect(() => {
+        if (groupedAssets.length > 0) {
+            const allTickers = new Set(groupedAssets.map(g => g.ticker));
+            setExpandedTickers(allTickers);
+        }
+    }, [groupedAssets]);
+
 
     if (loading) return <div className="text-slate-400 text-sm py-4">Cargando posiciones...</div>;
 
@@ -207,11 +206,9 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
     const totalUnrealized = groupedAssets.reduce((sum, g) => sum + g.totalUnrealizedResult, 0);
     const totalRealized = groupedAssets.reduce((sum, g) => sum + g.totalRealizedResult, 0);
 
-    // To calculate % we need total costs
     const totalCostUnrealized = groupedAssets.reduce((sum, g) => sum + g.totalInvestedOriginal, 0);
     const unrealizedPercent = totalCostUnrealized !== 0 ? (totalUnrealized / totalCostUnrealized) * 100 : 0;
 
-    // For Realized %, it's harder to get agg cost from group structure without storing it, but let's calc from positions
     const totalCostRealized = positions
         .filter(p => p.status === 'CLOSED')
         .reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
@@ -223,8 +220,6 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
     });
 
     // Totals Footer
-    const totalInvestedGlobal = positions.reduce((sum, p) => sum + (p.quantity * p.buyPrice + p.buyCommission), 0); // All time invested? Or just current? Usually dashboard shows current value.
-    // The footer in original code summed ALL buy prices (Open + Closed). Let's keep consistency.
     const totalPrecioCompraAll = positions.reduce((sum, p) => sum + (p.quantity * p.buyPrice + p.buyCommission), 0);
     const totalValorActualAll = groupedAssets.reduce((sum, g) => sum + g.totalCurrentValue, 0);
     const totalResultAll = groupedAssets.reduce((sum, g) => sum + g.totalResult, 0);
@@ -264,40 +259,34 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                         <thead className="bg-slate-900 text-slate-400">
                             <tr>
                                 <th className="px-4 py-3 text-left w-8"></th>
-                                <th className="px-4 py-3 text-left font-medium">
+                                <th className="px-4 py-3 text-left font-medium w-[25%]">
                                     <button onClick={() => handleSort('ticker')} className="flex items-center gap-1 hover:text-white">
-                                        Activo
+                                        Activo / Fecha
                                         {sortConfig?.key === 'ticker' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                        {sortConfig?.key !== 'ticker' && <ArrowUpDown size={14} className="opacity-50" />}
                                     </button>
                                 </th>
-                                <th className="px-4 py-3 text-right font-medium">Nominales</th>
-                                <th className="px-4 py-3 text-right font-medium">PPC / Precio</th>
-                                <th className="px-4 py-3 text-right font-medium text-emerald-400">Valor Actual</th>
-                                <th className="px-4 py-3 text-right font-medium">
+                                <th className="px-4 py-3 text-right font-medium w-[12%]">Nominales</th>
+                                <th className="px-4 py-3 text-right font-medium w-[15%]">PPC / Precio Compra</th>
+                                <th className="px-4 py-3 text-right font-medium text-emerald-400 w-[15%]">Valor / Precio Venta</th>
+                                <th className="px-4 py-3 text-right font-medium w-[15%]">
                                     <button onClick={() => handleSort('result')} className="flex items-center gap-1 hover:text-white ml-auto">
-                                        Resultado Total
+                                        Resultado
                                         {sortConfig?.key === 'result' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                     </button>
                                 </th>
-                                <th className="px-4 py-3 text-right font-medium">% Total</th>
+                                <th className="px-4 py-3 text-right font-medium w-[18%]">% / Acción</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
                             {sortedGroups.map((group) => {
                                 const isExpanded = expandedTickers.has(group.ticker);
-                                // Total Result % = Total Result / (Total Invested of Open + Cost of Closed)
-                                // Simplified for Display: Unrealized % if Open, Realized % if Closed?
-                                // Let's show: (Total Result / Total Invested Ever) if possible, or (Current Result / Current Invested)
-                                // Standard: If has Open, show Unrealized % on Current Holdings. If fully closed, show Realized %.
-
                                 let displayPercent = 0;
                                 if (group.totalNominals > 0) {
                                     displayPercent = group.totalInvestedOriginal !== 0
                                         ? (group.totalUnrealizedResult / group.totalInvestedOriginal) * 100
                                         : 0;
                                 } else {
-                                    // Fully closed aggregation
-                                    // We need cost of closed positions for this group
                                     const closedCost = group.positions.reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
                                     displayPercent = closedCost !== 0 ? (group.totalRealizedResult / closedCost) * 100 : 0;
                                 }
@@ -307,15 +296,17 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                         {/* PARENT ROW */}
                                         <tr
                                             key={group.ticker}
-                                            className={`hover:bg-slate-800/50 transition-colors cursor-pointer ${isExpanded ? 'bg-slate-800/30' : ''}`}
+                                            className={`hover:bg-slate-800/50 transition-colors cursor-pointer border-t border-slate-800 ${isExpanded ? 'bg-slate-800/40' : ''}`}
                                             onClick={() => toggleExpand(group.ticker)}
                                         >
                                             <td className="px-4 py-4 text-slate-500">
                                                 {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                             </td>
                                             <td className="px-4 py-4">
-                                                <div className="font-medium text-white text-base">{group.ticker}</div>
-                                                <div className="text-xs text-slate-500">{group.name}</div>
+                                                <div>
+                                                    <div className="font-medium text-white text-base">{group.ticker}</div>
+                                                    <div className="text-xs text-slate-500">{group.name}</div>
+                                                </div>
                                             </td>
                                             <td className="px-4 py-4 text-right text-white tabular-nums font-medium">
                                                 {group.totalNominals > 0 ? group.totalNominals : <span className="text-slate-600">0</span>}
@@ -327,10 +318,15 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                                         <span className="text-[10px] text-slate-500">PPC</span>
                                                     </div>
                                                 ) : '-'}
-
                                             </td>
                                             <td className="px-4 py-4 text-right text-emerald-400 font-bold tabular-nums">
-                                                {group.totalNominals > 0 ? formatMoney(group.totalCurrentValue, group.currency) : '-'}
+                                                {group.totalNominals > 0 ? (
+                                                    <div className="flex flex-col items-end gap-0.5">
+                                                        <span>{formatMoney(group.totalCurrentValue, group.currency)}</span>
+                                                        <span className="text-[10px] opacity-70">Total</span>
+                                                    </div>
+                                                ) : '-'}
+
                                             </td>
                                             <td className={`px-4 py-4 text-right font-bold tabular-nums ${group.totalResult >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                                 {formatMoney(group.totalResult, group.currency)}
@@ -340,70 +336,49 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                             </td>
                                         </tr>
 
-                                        {/* CHILD ROWS (EXPANDED) */}
-                                        {isExpanded && (
-                                            <tr>
-                                                <td colSpan={7} className="bg-slate-900/40 p-0 border-b border-slate-800">
-                                                    <div className="border-l-2 border-slate-700 ml-8 my-2">
-                                                        <table className="w-full text-xs">
-                                                            <thead className="text-slate-500 bg-slate-900/20">
-                                                                <tr>
-                                                                    <th className="px-4 py-2 text-left">Fecha</th>
-                                                                    <th className="px-4 py-2 text-left">Estado</th>
-                                                                    <th className="px-4 py-2 text-right">Nominales</th>
-                                                                    <th className="px-4 py-2 text-right">Precio Compra</th>
-                                                                    <th className="px-4 py-2 text-right">Precio Venta</th>
-                                                                    <th className="px-4 py-2 text-right">Resultado</th>
-                                                                    <th className="px-4 py-2 text-right">Acción</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody className="divide-y divide-slate-800/50">
-                                                                {group.positions.map(pos => (
-                                                                    <tr key={pos.id} className="hover:bg-slate-800/30">
-                                                                        <td className="px-4 py-2 text-slate-300">
-                                                                            {format(new Date(pos.date), 'dd/MM/yyyy')}
-                                                                        </td>
-                                                                        <td className="px-4 py-2">
-                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase border ${pos.status === 'OPEN'
-                                                                                    ? 'border-green-900 text-green-500 bg-green-900/10'
-                                                                                    : 'border-red-900 text-red-500 bg-red-900/10'
-                                                                                }`}>
-                                                                                {pos.status === 'OPEN' ? 'Abierta' : 'Cerrada'}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className="px-4 py-2 text-right text-slate-300">
-                                                                            {pos.quantity}
-                                                                        </td>
-                                                                        <td className="px-4 py-2 text-right text-slate-400">
-                                                                            {formatMoney(pos.buyPrice, pos.currency)}
-                                                                        </td>
-                                                                        <td className="px-4 py-2 text-right text-slate-400">
-                                                                            {pos.sellPrice > 0 ? formatMoney(pos.sellPrice, pos.currency) : '-'}
-                                                                        </td>
-                                                                        <td className={`px-4 py-2 text-right ${pos.resultAbs >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                                                            {formatMoney(pos.resultAbs, pos.currency)}
-                                                                        </td>
-                                                                        <td className="px-4 py-2 text-right">
-                                                                            {onEdit && pos.status === 'OPEN' && (
-                                                                                <button
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        onEdit(pos.id);
-                                                                                    }}
-                                                                                    className="p-1 text-slate-500 hover:text-blue-400 transition-colors"
-                                                                                >
-                                                                                    <Pencil size={12} />
-                                                                                </button>
-                                                                            )}
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
+                                        {/* CHILD ROWS (FLAT) */}
+                                        {isExpanded && group.positions.map((pos, idx) => (
+                                            <tr key={pos.id} className="bg-slate-900/20 hover:bg-slate-800/10">
+                                                <td className="px-4 py-2 border-l-2 border-slate-700"></td> {/* Empty for Chevron Col */}
+                                                <td className="px-4 py-2 text-slate-400 text-xs">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{format(new Date(pos.date), 'dd/MM/yyyy')}</span>
+                                                        <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase border ${pos.status === 'OPEN'
+                                                                ? 'border-green-900 text-green-500 bg-green-900/10'
+                                                                : 'border-red-900 text-red-500 bg-red-900/10'
+                                                            }`}>
+                                                            {pos.status === 'OPEN' ? 'ABIERTA' : 'CERRADA'}
+                                                        </span>
                                                     </div>
                                                 </td>
+                                                <td className="px-4 py-2 text-right text-slate-400 text-xs tabular-nums">
+                                                    {pos.quantity}
+                                                </td>
+                                                <td className="px-4 py-2 text-right text-slate-400 text-xs tabular-nums">
+                                                    {formatMoney(pos.buyPrice, pos.currency)}
+                                                </td>
+                                                <td className="px-4 py-2 text-right text-slate-400 text-xs tabular-nums">
+                                                    {pos.sellPrice > 0 ? formatMoney(pos.sellPrice, pos.currency) : '-'}
+                                                </td>
+                                                <td className={`px-4 py-2 text-right text-xs tabular-nums ${pos.resultAbs >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                    {formatMoney(pos.resultAbs, pos.currency)}
+                                                </td>
+                                                <td className="px-4 py-2 text-right">
+                                                    {onEdit && pos.status === 'OPEN' && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onEdit(pos.id);
+                                                            }}
+                                                            className="p-1 text-slate-500 hover:text-blue-400 transition-colors"
+                                                            title="Editar transacción"
+                                                        >
+                                                            <Pencil size={12} />
+                                                        </button>
+                                                    )}
+                                                </td>
                                             </tr>
-                                        )}
+                                        ))}
                                     </>
                                 );
                             })}
@@ -413,7 +388,7 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                 <td colSpan={2} className="px-4 py-4 text-right text-slate-400">TOTALES GLOBAL</td>
                                 <td className="px-4 py-4"></td>
                                 <td className="px-4 py-4 text-right text-slate-300 tabular-nums">
-                                    {/* Cost skipped or summarized? */}
+                                    {/* Cost skipped */}
                                 </td>
                                 <td className="px-4 py-4 text-right text-emerald-400 tabular-nums border-l border-slate-800 bg-emerald-950/20">
                                     {formatMoney(totalValorActualAll, currency || 'USD')}
