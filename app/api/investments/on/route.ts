@@ -37,24 +37,24 @@ export async function GET() {
             }
         });
 
-        // 3. Map & Merge
-        const globalAssets = holdings.map(h => ({
-            id: h.asset.id, // Using Asset ID for selection. The Transaction API must handle this.
-            ticker: h.asset.ticker,
-            name: h.asset.name,
-            type: h.asset.type,
-            currency: h.asset.currency,
-            market: h.asset.market,
-            userId,
-            amortizationSchedules: [],
-            transactions: [], // We could fetch GlobalAssetTransactions here?
-            _count: { transactions: 0 },
-            isGlobal: true // Flag to help frontend or debugging
-        }));
+        // 3. Map & Merge with Deduplication
+        const existingTickers = new Set(investments.map(i => i.ticker));
 
-        // Filter out duplicates if any (though they shouldn't overlap by ID, but maybe by ticker?)
-        // If a user has "AAPL" as Investment AND as GlobalAsset, we might show both.
-        // For now, let's just merge.
+        const globalAssets = holdings
+            .filter(h => !existingTickers.has(h.asset.ticker)) // Deduplicate: Don't show Global Asset if Legacy Investment exists
+            .map(h => ({
+                id: h.asset.id,
+                ticker: h.asset.ticker,
+                name: h.asset.name,
+                type: h.asset.type,
+                currency: h.asset.currency,
+                market: h.asset.market,
+                userId,
+                amortizationSchedules: [],
+                transactions: [],
+                _count: { transactions: 0 },
+                isGlobal: true
+            }));
 
         return NextResponse.json([...investments, ...globalAssets].sort((a, b) => a.ticker.localeCompare(b.ticker)));
     } catch (error) {
@@ -69,6 +69,18 @@ export async function POST(request: Request) {
         const userId = await getUserId();
         const body = await request.json();
         const { type, ticker, name, emissionDate, couponRate, frequency, maturityDate, amortization, amortizationSchedules } = body;
+
+        // Check if exists in Global Catalog
+        const globalCheck = await prisma.globalAsset.findFirst({
+            where: { ticker }
+        });
+
+        if (globalCheck) {
+            return NextResponse.json(
+                { error: `El activo ${ticker} ya existe en el Catálogo Global. Úsalo directamente desde la lista.` },
+                { status: 400 }
+            );
+        }
 
         const investment = await prisma.investment.create({
             data: {
