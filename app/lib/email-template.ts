@@ -368,9 +368,6 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
         <!-- Main Content -->
         <div style="padding: 0 32px 32px;">
             
-            <!-- NEW: Services Summary -->
-            ${renderServicesTable()}
-            
             <!-- NEW: Previous Month Passive Income Details -->
             ${renderPassiveIncome()}
 
@@ -389,10 +386,6 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
 
                 const days = getDaysUntilNextRelease();
                 const dateObj = new Date(indecDateStr);
-                // Move to UTC/Local normalization if needed, but the date string is YYYY-MM-DD
-                // Simple parse:
-                // We use the same format as above: MMM yyyy or dd/MM?
-                // User wants "Próxima publicación".
 
                 return `
                         <tr>
@@ -411,6 +404,9 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 </table>
             </div>
             ` : ''}
+            
+            <!-- NEW: Services Summary (moved here after rentals) -->
+            ${renderServicesTable()}
 
             <!-- Cashflow Table -->
             <div>
