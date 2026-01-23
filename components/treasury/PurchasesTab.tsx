@@ -13,6 +13,7 @@ interface Treasury {
     id: string;
     ticker: string;
     name: string;
+    quantity?: number;
 }
 
 interface Transaction {
@@ -108,16 +109,30 @@ export function PurchasesTab() {
     const loadData = async () => {
         try {
             // Fetch with specific types: TREASURY and ETF
-            const [treasuriesRes, txRes] = await Promise.all([
+            const [treasuriesRes, txRes, positionsRes] = await Promise.all([
                 fetch('/api/investments/treasury', { cache: 'no-store' }),
-                fetch('/api/investments/transactions?type=TREASURY,ETF', { cache: 'no-store' })
+                fetch('/api/investments/transactions?type=TREASURY,ETF', { cache: 'no-store' }),
+                fetch('/api/investments/positions?type=TREASURY,ETF', { cache: 'no-store' })
             ]);
 
             const treasuriesData = await treasuriesRes.json();
             const txData = await txRes.json();
+            const positionsData = await positionsRes.json();
 
-            // No client-side filtering needed anymore
-            setTreasuries(treasuriesData);
+            // Map quantities
+            const qtyMap = new Map<string, number>();
+            if (Array.isArray(positionsData)) {
+                positionsData.forEach((p: any) => {
+                    qtyMap.set(p.investmentId, p.quantity);
+                });
+            }
+
+            const treasuriesWithQty = treasuriesData.map((t: any) => ({
+                ...t,
+                quantity: qtyMap.get(t.id) || 0
+            }));
+
+            setTreasuries(treasuriesWithQty);
             setTransactions(txData);
             setSelectedIds([]); // Reset selection on reload
         } catch (error) {

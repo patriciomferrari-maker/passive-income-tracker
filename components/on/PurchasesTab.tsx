@@ -19,6 +19,7 @@ interface ON {
     currency?: string;
     type?: string;
     lastPrice?: number;
+    quantity?: number;
 }
 
 interface Transaction {
@@ -69,23 +70,32 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [showValues, setShowValues] = useState(true);
 
-    // Fetch Assets
+    // Fetch Assets and Positions
     useEffect(() => {
-        fetch(`/api/investments/on?market=${market}`)
-            .then(res => res.json())
-            .then(data => {
-                const mapped = data.map((d: any) => ({
-                    ...d,
-                    description: d.description || d.name,
-                    name: d.name || d.description
-                }));
-                setAssets(mapped);
-            })
-            .catch(err => console.error('Error fetching assets:', err));
+        Promise.all([
+            fetch(`/api/investments/on?market=${market}`).then(res => res.json()),
+            fetch(`/api/investments/positions?type=ON,CORPORATE_BOND,ETF&market=${market}`).then(res => res.json())
+        ]).then(([assetsData, positionsData]) => {
+            // Create a map of quantities from positions
+            const qtyMap = new Map<string, number>();
+            if (Array.isArray(positionsData)) {
+                positionsData.forEach((p: any) => {
+                    qtyMap.set(p.investmentId, p.quantity);
+                });
+            }
+
+            const mapped = assetsData.map((d: any) => ({
+                ...d,
+                description: d.description || d.name,
+                name: d.name || d.description,
+                quantity: qtyMap.get(d.id) || 0 // Add quantity
+            }));
+            setAssets(mapped);
+        }).catch(err => console.error('Error fetching assets/positions:', err));
 
         const savedPrivacy = localStorage.getItem('privacy_mode');
         if (savedPrivacy !== null) setShowValues(savedPrivacy === 'true');
-    }, [market]);
+    }, [market, refreshTrigger]); // Added refreshTrigger to reload on updates
 
     const fetchTransactions = async () => {
         try {

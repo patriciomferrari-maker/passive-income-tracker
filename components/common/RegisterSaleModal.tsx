@@ -11,6 +11,7 @@ interface InvestmentOption {
     ticker: string;
     name: string;
     type?: string;
+    quantity?: number;
 }
 
 interface RegisterSaleModalProps {
@@ -91,12 +92,19 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess }: Regist
                                 className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white focus:ring-2 focus:ring-red-500/50 outline-none"
                             >
                                 <option value="">Seleccionar Activo...</option>
-                                {assets.map(asset => (
-                                    <option key={asset.id} value={asset.id}>
-                                        {asset.ticker} - {asset.name}
-                                    </option>
-                                ))}
+                                {assets
+                                    .filter(asset => (asset.quantity || 0) > 0)
+                                    .map(asset => (
+                                        <option key={asset.id} value={asset.id}>
+                                            {asset.ticker} - {asset.name} (Disp: {asset.quantity})
+                                        </option>
+                                    ))}
                             </select>
+                            {selectedAsset && (
+                                <div className="text-xs text-slate-400 text-right">
+                                    Disponible: <span className="font-bold text-emerald-400">{assets.find(a => a.id === selectedAsset)?.quantity || 0}</span>
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -138,11 +146,15 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess }: Regist
                                     type="number"
                                     required
                                     min="1"
+                                    max={assets.find(a => a.id === selectedAsset)?.quantity || undefined}
                                     step="1"
                                     value={quantity}
                                     onChange={(e) => setQuantity(e.target.value)}
                                     className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
                                 />
+                                {quantity && selectedAsset && Number(quantity) > (assets.find(a => a.id === selectedAsset)?.quantity || 0) && (
+                                    <p className="text-xs text-red-400">Excede la cantidad disponible</p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-300">Precio ({currency})</label>

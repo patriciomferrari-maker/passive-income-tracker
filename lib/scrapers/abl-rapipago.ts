@@ -84,57 +84,66 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         console.log('[ABL Rapipago] Company selected from dropdown');
         await new Promise(r => setTimeout(r, 5000)); // Wait for service page to load
 
-        // Step 5: Wait for radio buttons and select second one
-        console.log('[ABL Rapipago] Waiting for service radio buttons...');
+        // Step 5: Select service type by clicking on text (SPA-friendly approach)
+        console.log('[ABL Rapipago] Looking for service option by text...');
 
-        console.log('[ABL Rapipago] Waiting for service page...');
-        await new Promise(r => setTimeout(r, 2000)); // Page loads in ~2s per user
+        try {
+            // Wait for the service option text to appear
+            const serviceText = 'COBRANZA SIN FACTURA - PLAN DE FACILIDADES';
+            console.log(`[ABL Rapipago] Waiting for text: "${serviceText}"`);
 
-        const serviceSelected = await page.evaluate(() => {
-            const radios = document.querySelectorAll('input[type="radio"]');
-            console.log(`Found ${radios.length} radio buttons`);
-            if (radios.length >= 2) {
-                (radios[1] as HTMLInputElement).click(); // Second: COBRANZA SIN FACTURA - PLAN DE FACILIDADES
-                return true;
+            // Use text selector to find and click the option
+            const serviceOption = await page.waitForSelector(`::-p-text(${serviceText})`, {
+                timeout: 10000,
+                visible: true
+            });
+
+            if (serviceOption) {
+                await serviceOption.evaluate(el => el.scrollIntoView());
+                await serviceOption.click();
+                console.log('[ABL Rapipago] Service option clicked successfully');
+                await new Promise(r => setTimeout(r, 2000)); // Wait for UI to react
             }
-            return false;
-        });
-
-        console.log(`[ABL Rapipago] Service radio selected: ${serviceSelected}`);
-
-        if (!serviceSelected) {
+        } catch (e: any) {
+            console.log('[ABL Rapipago] ⚠️  Could not find service option by text:', e.message);
+            // Take screenshot for debugging
+            await page.screenshot({ path: 'abl-rapipago-error.png' });
             return {
                 status: 'ERROR',
                 debtAmount: 0,
                 lastBillAmount: null,
                 lastBillDate: null,
                 dueDate: null,
-                errorMessage: 'Could not select service type radio button'
+                errorMessage: 'Could not select service type option'
             };
         }
 
-        await new Promise(r => setTimeout(r, 2000));
-
         // Step 6: Enter partida number
         console.log('[ABL Rapipago] Looking for partida input...');
-        const partidaInputs = await page.$$('input');
-        let partidaEntered = false;
 
-        for (const input of partidaInputs) {
-            const isVisible = await input.isIntersectingViewport();
-            const placeholder = await input.evaluate(el => el.getAttribute('placeholder'));
+        try {
+            // Find input by placeholder - using case insensitive partial match
+            // Wait for it to be visible
+            const partidaInput = await page.waitForSelector('input[placeholder*="partida" i]', {
+                timeout: 5000,
+                visible: true
+            });
 
-            if (isVisible && placeholder && placeholder.toLowerCase().includes('partida')) {
-                await input.click();
+            if (partidaInput) {
+                // Ensure it's in view
+                await partidaInput.evaluate(el => el.scrollIntoView());
+                await partidaInput.click();
                 await new Promise(r => setTimeout(r, 500));
-                await input.type(partida, { delay: 100 });
-                partidaEntered = true;
+                await partidaInput.type(partida, { delay: 100 });
                 console.log(`[ABL Rapipago] Entered partida: ${partida}`);
-                break;
+            } else {
+                throw new Error('Partida input not found');
             }
-        }
+        } catch (e: any) {
+            console.log('[ABL Rapipago] ⚠️  Could not find partida input:', e.message);
+            // DEBUG: Screenshot if fails
+            await page.screenshot({ path: 'abl-rapipago-partida-error.png' });
 
-        if (!partidaEntered) {
             return {
                 status: 'ERROR',
                 debtAmount: 0,

@@ -118,6 +118,29 @@ export async function POST(request: Request) {
             return unauthorized();
         }
 
+        // Validate SELL quantity
+        if (type === 'SELL') {
+            // Fetch current quantity from positions (we need to recalculate or rely on fifo logic)
+            // Ideally we should use the same logic as positions endpoint, but for now specific check:
+            // Let's use simpler check: sum of all previous transactions
+            const txs = await prisma.transaction.findMany({
+                where: { investmentId: investment.id }
+            });
+
+            let currentQty = 0;
+            txs.forEach(tx => {
+                if (tx.type === 'BUY') currentQty += tx.quantity;
+                else if (tx.type === 'SELL') currentQty -= tx.quantity;
+            });
+
+            if (Number(quantity) > currentQty) {
+                return NextResponse.json({
+                    error: `No puedes vender ${quantity}. Tenencia actual: ${currentQty}`,
+                    currentHoldings: currentQty
+                }, { status: 400 });
+            }
+        }
+
         // For SELL transactions, we might want to store quantity as positive in the DB
         // but the current logic in PurchasesTab seems to assume positive quantity for display
         // and usually we handle the sign logic in the application.
