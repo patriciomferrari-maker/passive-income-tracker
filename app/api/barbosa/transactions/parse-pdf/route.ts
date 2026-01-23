@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
             // If we force dates, "DateMatch" becomes tricky. 
             // But we rely on Comprobante mostly.
 
-            return { ...tx, date: finalDate, isDuplicate, skip: isDuplicate };
+            return { ...tx, originalDate: tx.date, date: finalDate, isDuplicate, skip: isDuplicate };
         });
 
         return NextResponse.json({

@@ -18,7 +18,7 @@ export async function checkABLWhatsApp(partida: string): Promise<ABLWhatsAppResu
 
         const client = new Client({
             authStrategy: new LocalAuth({
-                clientId: 'boti-client' // Unique session for Boti
+                clientId: 'boti-client-v2' // Changed to bypass potential locks
             }),
             puppeteer: {
                 headless: false, // Visible for debugging/QR scan initially
