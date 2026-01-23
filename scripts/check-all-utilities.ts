@@ -32,6 +32,7 @@ async function checkAllUtilities() {
                 name: true,
                 gasId: true,
                 aysaId: true,
+                municipalId: true,
                 jurisdiction: true
             }
         });
@@ -131,6 +132,61 @@ async function checkAllUtilities() {
                 } catch (error: any) {
                     // Don't error out loudly, just log
                     console.error(`   ❌ Naturgy Error: ${error.message}`);
+                }
+            }
+
+            // Check ABL (Municipal) - NEW RAPIPAGO SCRAPER
+            if (property.municipalId) {
+                console.log(`\n🏛️ Checking ABL CABA (${property.municipalId})...`);
+                try {
+                    // Lazy load to avoid issues if module has missing deps
+                    const { checkABLRapipago } = require('../lib/scrapers/abl-rapipago');
+                    const result = await checkABLRapipago(property.municipalId);
+
+                    // Save to database
+                    if (result.status !== 'UNKNOWN' && result.status !== 'ERROR') {
+                        await prisma.utilityCheck.create({
+                            data: {
+                                propertyId: property.id,
+                                serviceType: 'ABL',
+                                accountNumber: property.municipalId,
+                                status: result.status,
+                                debtAmount: result.debtAmount,
+                                lastBillAmount: result.lastBillAmount,
+                                lastBillDate: result.lastBillDate,
+                                dueDate: result.dueDate,
+                                isAutomatic: true,
+                                errorMessage: result.errorMessage
+                            }
+                        });
+
+                        results.push({
+                            propertyId: property.id,
+                            propertyName: property.name,
+                            service: 'ABL',
+                            status: result.status,
+                            debtAmount: result.debtAmount,
+                            error: result.errorMessage
+                        });
+
+                        console.log(`   ✅ Status: ${result.status}`);
+                        if (result.debtAmount > 0) {
+                            console.log(`   💰 Debt: $${result.debtAmount.toLocaleString('es-AR')}`);
+                        }
+                    } else if (result.status === 'ERROR') {
+                        console.error(`   ❌ ABL Error: ${result.errorMessage}`);
+                        results.push({
+                            propertyId: property.id,
+                            propertyName: property.name,
+                            service: 'ABL',
+                            status: 'ERROR',
+                            debtAmount: 0,
+                            error: result.errorMessage
+                        });
+                    }
+
+                } catch (error: any) {
+                    console.error(`   ❌ Error loading/running ABL scraper: ${error.message}`);
                 }
             }
 

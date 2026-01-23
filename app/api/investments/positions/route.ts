@@ -384,7 +384,8 @@ export async function GET(request: Request) {
                     priceResult,
                     buyExchangeRate: g.buyExchangeRateAvg,
                     sellExchangeRate: getRate(g.date),
-                    type: investment.type
+                    type: investment.type,
+                    investmentId: investment.id
                 };
             });
 
@@ -468,7 +469,8 @@ export async function GET(request: Request) {
                     sellExchangeRate: currentTC,
                     type: investment.type,
                     theoreticalTir: theoreticalTir,
-                    originalTir: originalTir
+                    originalTir: originalTir,
+                    investmentId: investment.id
                 };
             });
 

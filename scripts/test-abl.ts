@@ -1,27 +1,20 @@
-import { checkABLCABA } from '../lib/scrapers/abl-caba';
-import { checkABLProvincia } from '../lib/scrapers/abl-provincia';
 
-async function testABL() {
-    console.log('🏛️  Testing ABL scrapers...\n');
+import { checkABLRapipago } from '../lib/scrapers/abl-rapipago';
 
-    // Test CABA (Soldado)
-    console.log('=== CABA (Soldado) ===');
-    const cabaResult = await checkABLCABA('3786683');
-    console.log('Result:', JSON.stringify(cabaResult, null, 2));
-    console.log('');
+async function main() {
+    const partida = process.argv[2];
+    if (!partida) {
+        console.error('Please provide a partida number as argument');
+        process.exit(1);
+    }
 
-    // Test Provincia (N2 3D)
-    console.log('=== Provincia (N2 3D) ===');
-    const provinciaResult = await checkABLProvincia('852844');
-    console.log('Result:', JSON.stringify(provinciaResult, null, 2));
-    console.log('');
-
-    console.log('✅ Tests completed');
+    console.log(`Running ABL check for ${partida}...`);
+    try {
+        const result = await checkABLRapipago(partida);
+        console.log('Result:', result);
+    } catch (error) {
+        console.error('Test failed:', error);
+    }
 }
 
-testABL()
-    .then(() => process.exit(0))
-    .catch(error => {
-        console.error('❌ Error:', error);
-        process.exit(1);
-    });
+main();
