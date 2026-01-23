@@ -299,7 +299,7 @@ export default function HomePage() {
                                   <div className="grid grid-cols-2 gap-2 divide-x divide-slate-800">
                                     <div className="flex flex-col items-center justify-center px-2">
                                       <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">Me Deben</p>
-                                      <p className="text-lg font-bold text-blue-400 flex items-center gap-0.5">
+                                      <p className="text-lg font-bold text-emerald-400 flex items-center gap-0.5">
                                         ${owedToMe.toLocaleString('en-US', { maximumFractionDigits: 0 })}
                                       </p>
                                     </div>
