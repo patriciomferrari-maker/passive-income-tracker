@@ -32,27 +32,18 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         console.log('[ABL Rapipago] Page loaded');
         await new Promise(r => setTimeout(r, 3000));
 
-        // Step 2: Select location - Type and click BUENOS AIRES from dropdown
+        // Step 2: Select location - Type BUENOS AIRES and click dropdown option
         await page.waitForSelector('input', { timeout: 10000 });
         await page.type('input', 'BUENOS AIRES', { delay: 100 });
         console.log('[ABL Rapipago] Typed "BUENOS AIRES"');
         await new Promise(r => setTimeout(r, 2000));
 
-        // Click on BUENOS AIRES option from dropdown
-        const locationClicked = await page.evaluate(() => {
-            const elements = Array.from(document.querySelectorAll('*'));
-            const buenosAires = elements.find(el => {
-                const text = el.textContent?.trim();
-                return text === 'BUENOS AIRES';
-            });
-            if (buenosAires) {
-                (buenosAires as HTMLElement).click();
-                return true;
-            }
-            return false;
-        });
+        // Click BUENOS AIRES from dropdown using keyboard
+        await page.keyboard.press('ArrowDown');
+        await new Promise(r => setTimeout(r, 500));
+        await page.keyboard.press('Enter');
 
-        console.log(`[ABL Rapipago] Location clicked: ${locationClicked}`);
+        console.log('[ABL Rapipago] Location selected');
         await new Promise(r => setTimeout(r, 3000));
 
         // Step 3: Click "Pago de Facturas"
@@ -69,11 +60,10 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         console.log('[ABL Rapipago] Clicked Pago de Facturas');
         await new Promise(r => setTimeout(r, 4000));
 
-        // Step 4: Search for company - wait for search input
+        // Step 4: Search for company - type IIBB PATENTES
         await page.waitForSelector('input', { timeout: 10000 });
         const inputs = await page.$$('input');
 
-        // Find the search input (usually the visible one after location)
         for (const input of inputs) {
             const isVisible = await input.isIntersectingViewport();
             if (isVisible) {
@@ -86,63 +76,60 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         console.log('[ABL Rapipago] Typed IIBB PATENTES');
         await new Promise(r => setTimeout(r, 2000));
 
-        // Select first option from dropdown using keyboard
+        // Select from dropdown using keyboard
         await page.keyboard.press('ArrowDown');
         await new Promise(r => setTimeout(r, 500));
         await page.keyboard.press('Enter');
 
         console.log('[ABL Rapipago] Company selected from dropdown');
-        await new Promise(r => setTimeout(r, 8000)); // Increased wait for service page with partida field to load
+        await new Promise(r => setTimeout(r, 5000)); // Wait for service page to load
 
-        // Step 5: Select service type - click second radio button
-        console.log('[ABL Rapipago] Looking for service type radio buttons...');
-        await new Promise(r => setTimeout(r, 2000));
+        // Step 5: Wait for radio buttons and select second one
+        console.log('[ABL Rapipago] Waiting for service radio buttons...');
+
+        try {
+            await page.waitForSelector('input[type="radio"]', { timeout: 10000 });
+            console.log('[ABL Rapipago] Radio buttons appeared');
+        } catch (e) {
+            console.log('[ABL Rapipago] ⚠️  Radio buttons timeout');
+        }
+
+        await new Promise(r => setTimeout(r, 1000));
 
         const serviceSelected = await page.evaluate(() => {
             const radios = document.querySelectorAll('input[type="radio"]');
+            console.log(`Found ${radios.length} radio buttons`);
             if (radios.length >= 2) {
-                (radios[1] as HTMLInputElement).click(); // Second option: COBRANZA SIN FACTURA - PLAN DE FACILIDADES
+                (radios[1] as HTMLInputElement).click(); // Second: COBRANZA SIN FACTURA - PLAN DE FACILIDADES
                 return true;
             }
             return false;
         });
 
         console.log(`[ABL Rapipago] Service radio selected: ${serviceSelected}`);
-        await new Promise(r => setTimeout(r, 1500));
 
-        // Click Continuar button
-        const serviceContinuarClicked = await page.evaluate(() => {
-            const buttons = Array.from(document.querySelectorAll('button'));
-            const continuar = buttons.find(btn =>
-                btn.textContent?.toLowerCase().includes('continuar')
-            );
-            if (continuar) {
-                (continuar as HTMLElement).click();
-                return true;
-            }
-            return false;
-        });
+        if (!serviceSelected) {
+            return {
+                status: 'ERROR',
+                debtAmount: 0,
+                lastBillAmount: null,
+                lastBillDate: null,
+                dueDate: null,
+                errorMessage: 'Could not select service type radio button'
+            };
+        }
 
-        console.log(`[ABL Rapipago] Continuar clicked: ${serviceContinuarClicked}`);
-        await new Promise(r => setTimeout(r, 5000)); // Wait for partida page to load
-
-        // Step 6: Enter partida - wait for and find the partida input field
-        console.log('[ABL Rapipago] Looking for partida input field...');
         await new Promise(r => setTimeout(r, 2000));
 
-        const allInputs = await page.$$('input');
-        console.log(`[ABL Rapipago] Found ${allInputs.length} input fields`);
+        // Step 6: Enter partida number
+        console.log('[ABL Rapipago] Looking for partida input...');
+        const partidaInputs = await page.$$('input');
         let partidaEntered = false;
 
-        for (let i = 0; i < allInputs.length; i++) {
-            const input = allInputs[i];
+        for (const input of partidaInputs) {
             const isVisible = await input.isIntersectingViewport();
-            const type = await input.evaluate(el => el.getAttribute('type'));
             const placeholder = await input.evaluate(el => el.getAttribute('placeholder'));
 
-            console.log(`[ABL Rapipago] Input ${i}: visible=${isVisible}, type=${type}, placeholder=${placeholder}`);
-
-            // Look specifically for the partida input field
             if (isVisible && placeholder && placeholder.toLowerCase().includes('partida')) {
                 await input.click();
                 await new Promise(r => setTimeout(r, 500));
@@ -151,21 +138,9 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
                 console.log(`[ABL Rapipago] Entered partida: ${partida}`);
                 break;
             }
-            // Fallback: if no placeholder, check if it's a text/number input
-            else if (isVisible && (type === 'text' || type === 'number' || !type) && !placeholder) {
-                if (type === 'text' || type === 'number' || !type) {
-                    await input.click();
-                    await new Promise(r => setTimeout(r, 500));
-                    await input.type(partida, { delay: 100 });
-                    partidaEntered = true;
-                    console.log(`[ABL Rapipago] Entered partida: ${partida}`);
-                    break;
-                }
-            }
         }
 
         if (!partidaEntered) {
-            console.log('[ABL Rapipago] ⚠️  Could not find partida input');
             return {
                 status: 'ERROR',
                 debtAmount: 0,
@@ -176,22 +151,9 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             };
         }
 
-        // Step 7: Wait for invoices list and select first invoice
-        await new Promise(r => setTimeout(r, 3000));
-
-        const invoiceSelected = await page.evaluate(() => {
-            const radios = document.querySelectorAll('input[type="radio"]');
-            if (radios.length > 0) {
-                (radios[0] as HTMLInputElement).click();
-                return true;
-            }
-            return false;
-        });
-
-        console.log(`[ABL Rapipago] Invoice selected: ${invoiceSelected}`);
         await new Promise(r => setTimeout(r, 1500));
 
-        // Click Continuar button
+        // Step 7: Click Continuar button
         const continuarClicked = await page.evaluate(() => {
             const buttons = Array.from(document.querySelectorAll('button'));
             const continuar = buttons.find(btn =>
@@ -205,32 +167,24 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         });
 
         console.log(`[ABL Rapipago] Continuar clicked: ${continuarClicked}`);
-        await new Promise(r => setTimeout(r, 5000));
+        await new Promise(r => setTimeout(r, 5000)); // Wait for results
 
         // Step 8: Parse results
         const resultData = await page.evaluate(() => {
             const bodyText = document.body.innerText;
-
-            // Look for various debt indicators
             const amountMatches = bodyText.match(/\$\s*([\d,.]+)/g);
-            const hasTotal = bodyText.toLowerCase().includes('total');
-            const hasImporte = bodyText.toLowerCase().includes('importe');
             const noDebt = bodyText.toLowerCase().includes('no registra deuda') ||
-                bodyText.toLowerCase().includes('sin deuda') ||
-                bodyText.toLowerCase().includes('no posee deuda');
+                bodyText.toLowerCase().includes('sin deuda');
 
             return {
                 bodyText: bodyText.substring(0, 800),
                 amounts: amountMatches || [],
-                hasTotal,
-                hasImporte,
                 noDebt,
                 url: window.location.href
             };
         });
 
         console.log('[ABL Rapipago] Current URL:', resultData.url);
-        console.log('[ABL Rapipago] Result preview:', resultData.bodyText.substring(0, 300));
         console.log('[ABL Rapipago] Amounts found:', resultData.amounts);
 
         let result: ABLRapipagoResult = {
@@ -244,27 +198,19 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         if (resultData.noDebt) {
             result.status = 'UP_TO_DATE';
         } else if (resultData.amounts.length > 0) {
-            // Parse amounts - handle both formats: "$ 1.234,56" and "$ 29181.2"
             const amounts = resultData.amounts.map(a => {
-                // Remove $ and spaces
                 let numStr = a.replace('$', '').trim();
 
-                // If it has both dot and comma, it's Argentine format: dot=thousands, comma=decimal
                 if (numStr.includes('.') && numStr.includes(',')) {
                     numStr = numStr.replace(/\./g, '').replace(',', '.');
-                }
-                // If it only has a dot and the part after dot has 1-2 digits, it's decimal
-                else if (numStr.includes('.')) {
+                } else if (numStr.includes('.')) {
                     const parts = numStr.split('.');
                     if (parts[1] && parts[1].length <= 2) {
-                        // It's already in correct format (decimal point)
+                        // Decimal point
                     } else {
-                        // It's thousands separator, remove it
                         numStr = numStr.replace(/\./g, '');
                     }
-                }
-                // If it only has comma, it's decimal separator
-                else if (numStr.includes(',')) {
+                } else if (numStr.includes(',')) {
                     numStr = numStr.replace(',', '.');
                 }
 

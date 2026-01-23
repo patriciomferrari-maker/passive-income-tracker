@@ -170,7 +170,7 @@ export default function SettingsPage() {
     if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-slate-500" /></div>;
 
     return (
-        <div className="container mx-auto p-4 md:p-8 max-w-4xl space-y-8">
+        <div className="min-h-screen bg-slate-950 container mx-auto p-4 md:p-8 max-w-4xl space-y-8">
             <div className="flex items-center gap-4 mb-6">
                 <Link href="/" className="text-slate-500 hover:text-white transition-colors">
                     <ArrowLeft size={24} />
