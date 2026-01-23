@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
         const currentQuota = installments.current || 1;
 
         // Calculate THE REAL Start Date of the plan (Month 1)
-        const trueStartDate = new Date(date);
+        const trueStartDate = toArgNoon(new Date(date), 'keep-day');
         trueStartDate.setMonth(trueStartDate.getMonth() - (currentQuota - 1));
 
         console.log('[API] Installment Plan: Main Date = ' + date + ', Quota = ' + currentQuota + '/' + installments.total + ', Calculated StartDate=' + trueStartDate.toISOString());

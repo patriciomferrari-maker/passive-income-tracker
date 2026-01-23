@@ -78,13 +78,26 @@ export function TransactionsTab() {
     useEffect(() => {
         if (showParsedDialog && parsedResults) {
             const updated = parsedResults.map(tx => {
-                if (tx.isInstallmentPlan) return tx; // Keep original date for installments
+                const isInstallment = tx.isInstallmentPlan || /cuota\s*\d+\/\d+/i.test(tx.description) || /\d{1,2}\/\d{1,2}/.test(tx.description);
 
-                // Only move date to 1st of month if target is specified
-                const targetDay = 1;
-                const newDate = new Date(parseInt(importTargetYear), parseInt(importTargetMonth) - 1, targetDay, 15, 0, 0);
-                const dateStr = newDate.toISOString().split('T')[0];
+                // USER REQUEST: For installments, keep the date from the resumen (originalDate)
+                if (isInstallment && tx.originalDate) {
+                    return { ...tx, date: tx.originalDate };
+                }
 
+                if (isInstallment) return tx; // Fallback
+
+                // USER REQUEST: Impute to target month/year, but let's preserve the day like in the API
+                const d = new Date(tx.originalDate || tx.date);
+                const tYear = parseInt(importTargetYear);
+                const tMonth = parseInt(importTargetMonth) - 1;
+
+                const candidate = new Date(tYear, tMonth, d.getDate(), 15, 0, 0);
+                if (candidate.getMonth() !== tMonth) {
+                    candidate.setDate(0); // End of month safety
+                }
+
+                const dateStr = candidate.toISOString().split('T')[0];
                 return { ...tx, date: dateStr };
             });
 
@@ -1238,9 +1251,16 @@ export function TransactionsTab() {
                                                                 type="checkbox"
                                                                 checked={tx.isInstallmentPlan}
                                                                 onChange={(e) => {
+                                                                    const checked = e.target.checked;
                                                                     const newResults = [...parsedResults];
-                                                                    newResults[idx].isInstallmentPlan = e.target.checked;
-                                                                    if (e.target.checked && !newResults[idx].installments) {
+                                                                    newResults[idx].isInstallmentPlan = checked;
+
+                                                                    // If marked as installment, recover the original date from resumen
+                                                                    if (checked && newResults[idx].originalDate) {
+                                                                        newResults[idx].date = newResults[idx].originalDate;
+                                                                    }
+
+                                                                    if (checked && !newResults[idx].installments) {
                                                                         newResults[idx].installments = { current: 1, total: 12 };
                                                                     }
                                                                     setParsedResults(newResults);

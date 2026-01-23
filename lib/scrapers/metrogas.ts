@@ -16,7 +16,8 @@ export async function checkMetrogas(clientNumber: string): Promise<MetrogasResul
         console.log(`[Metrogas] Checking account: ${clientNumber}`);
 
         browser = await puppeteer.launch({
-            headless: true,
+            headless: true, // Metrogas usually works in headless
+            executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
         });
 

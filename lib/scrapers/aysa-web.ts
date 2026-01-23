@@ -15,6 +15,7 @@ export async function checkAysaWeb(accountNumber: string): Promise<AysaWebResult
     // Launch browser (visible for reliability)
     const browser = await puppeteer.launch({
         headless: false,
+        executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
         defaultViewport: null,
         args: ['--start-maximized', '--no-sandbox']
     });

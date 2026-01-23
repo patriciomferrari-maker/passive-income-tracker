@@ -74,12 +74,21 @@ export async function POST(req: NextRequest) {
 
         transactions = transactions.map((tx: any) => {
             let finalDate = tx.date;
-            const isInstallment = /cuota\s*\d+\/\d+/i.test(tx.description) || /\b\d{1,2}\/\d{1,2}\b$/.test(tx.description);
+            const isInstallment = tx.isInstallmentPlan || /cuota\s*\d+\/\d+/i.test(tx.description) || /\d{1,2}\/\d{1,2}/.test(tx.description);
 
-            // LOGIC: If Target Month selected AND NOT Installment -> Force Target Date (1st of Month)
+            // LOGIC: If Target Month selected AND NOT Installment -> Force Target Date (Keep DAY if possible)
             if (targetDate && !isInstallment) {
-                const d = new Date(targetDate);
-                finalDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const d = new Date(tx.date); // Original extracted day
+                const t = new Date(targetDate);
+                // Create candidate date in target month/year with original day
+                const candidate = new Date(t.getFullYear(), t.getMonth(), d.getDate(), 15, 0, 0);
+
+                // Handle year/month wrap if day 31 doesn't exist in target month
+                if (candidate.getMonth() !== t.getMonth()) {
+                    candidate.setDate(0); // Back to last day of target month
+                }
+
+                finalDate = candidate.toISOString().split('T')[0];
             }
 
             let isDuplicate = false;
@@ -297,7 +306,10 @@ async function parseWithGemini(text: string, categories: any[], rules: any[], cu
             INSTRUCCIONES CRÍTICAS:
             1. **Fecha**: Formato YYYY-MM-DD.
             2. **Descripción**: Limpia prefijos "K", "*", códigos raros.
-            3. **Cuota**: Si ves "01/12", agrégalo a la descripción como " (Cuota 01/12)".
+            3. **Cuota**: Si ves algo como "01/12" o "12 de 12":
+            - Agrégalo a la descripción como " (Cuota 01/12)".
+            - Establece "isInstallmentPlan": true.
+            - Incluye "installments": { "current": 1, "total": 12 }.
             4. **Comprobante**: 
             - Es un número de 6 dígitos (ej: 004590).
             - NO es el importe. NO tiene decimales.
@@ -309,7 +321,7 @@ async function parseWithGemini(text: string, categories: any[], rules: any[], cu
             OUTPUT JSON:
             {
             "transactions": [
-                { "date": "2025-12-24", "description": "SUPERMERCADO DIA (Cuota 01/01)", "amount": 15000.50, "comprobante": "001234", "currency": "ARS", "categoryId": "ID_SI_SABES_O_NULL" }
+                { "date": "2025-12-24", "description": "SUPERMERCADO DIA (Cuota 01/01)", "amount": 15000.50, "comprobante": "001234", "currency": "ARS", "categoryId": "ID_SI_SABES_O_NULL", "isInstallmentPlan": false, "installments": null }
             ]
             }
 
@@ -387,16 +399,23 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
         if (match) {
             // Found a clear Galicia row!
             const rawDate = match[1];
-            // const rawCuota = match[2]; // Optional
             const rawVoucher = match[3];
-            const rawCurrency = match[4]; // New capture group
+            const rawCurrency = match[4];
             const rawAmount = match[5];
 
             const parsedDate = normalizeDate(rawDate, yearContext, isJanuaryStatement);
             const parsedAmount = parseArgAmount(rawAmount);
             const currency = rawCurrency && ['U$S', 'USD'].includes(rawCurrency) ? 'USD' : 'ARS';
 
-            const record = { date: parsedDate, amount: parsedAmount, voucher: rawVoucher, currency };
+            const [cCurrent, cTotal] = match[2] ? match[2].split('/').map(Number) : [null, null];
+
+            const record = {
+                date: parsedDate,
+                amount: parsedAmount,
+                voucher: rawVoucher,
+                currency,
+                installments: cCurrent ? { current: cCurrent, total: cTotal } : null
+            };
 
             if (!auditMap.has(rawVoucher)) {
                 auditMap.set(rawVoucher, [record]);
@@ -422,6 +441,8 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
                         date: truth.date,
                         amount: truth.amount, // Override AI amount with Regex extraction
                         currency: truth.currency, // Override AI currency containing strictly detected value
+                        installments: truth.installments || tx.installments,
+                        isInstallmentPlan: !!(truth.installments || tx.isInstallmentPlan),
                         grade: 'A+' // Audit Passed
                     };
                 }
