@@ -17,7 +17,15 @@ export async function checkNaturgy(accountNumber: string): Promise<NaturgyResult
 
         browser = await puppeteer.launch({
             headless: false,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+            userDataDir: 'C:\\temp\\ChromeProfile',
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-blink-features=AutomationControlled'
+            ],
+            ignoreDefaultArgs: ['--enable-automation']
         });
 
         const page = await browser.newPage();

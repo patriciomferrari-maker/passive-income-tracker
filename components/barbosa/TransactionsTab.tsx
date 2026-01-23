@@ -582,7 +582,7 @@ export function TransactionsTab() {
 
                         {/* Month Filter */}
                         <Select value={filterMonth} onValueChange={setFilterMonth}>
-                            <SelectTrigger className="w-auto min-w-[150px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                            <SelectTrigger className="w-auto min-w-[160px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
                                 <SelectValue placeholder="Mes" />
                             </SelectTrigger>
                             <SelectContent className="bg-slate-900 border-slate-800 text-slate-300 z-50">
@@ -595,7 +595,7 @@ export function TransactionsTab() {
 
                         {/* Year Filter */}
                         <Select value={filterYear} onValueChange={setFilterYear}>
-                            <SelectTrigger className="w-auto min-w-[150px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                            <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
                                 <SelectValue placeholder="Año" />
                             </SelectTrigger>
                             <SelectContent className="bg-slate-900 border-slate-800 text-slate-300 z-50">
@@ -606,7 +606,7 @@ export function TransactionsTab() {
 
                         {/* Source Filter */}
                         <Select value={filterSource} onValueChange={setFilterSource}>
-                            <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                            <SelectTrigger className="w-auto min-w-[200px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
                                 <SelectValue placeholder="Origen" />
                             </SelectTrigger>
                             <SelectContent className="bg-slate-900 border-slate-800 text-slate-300 z-50">
@@ -1123,20 +1123,20 @@ export function TransactionsTab() {
                         <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded border border-slate-700 mx-4">
                             <span className="text-[10px] text-slate-500 font-bold uppercase mr-1">Imputar en:</span>
                             <Select value={importTargetMonth} onValueChange={setImportTargetMonth}>
-                                <SelectTrigger className="w-[110px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                                <SelectTrigger className="w-[130px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-slate-900 border-slate-800 text-white z-[100]">
+                                <SelectContent className="bg-slate-900 border-slate-800 text-white z-[100] min-w-[130px]">
                                     {Array.from({ length: 12 }).map((_, i) => (
                                         <SelectItem key={i} value={(i + 1).toString()}>{format(new Date(2024, i, 1), 'MMMM', { locale: es })}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                             <Select value={importTargetYear} onValueChange={setImportTargetYear}>
-                                <SelectTrigger className="w-[70px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                                <SelectTrigger className="w-[85px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-slate-900 border-slate-800 text-white z-[100]">
+                                <SelectContent className="bg-slate-900 border-slate-800 text-white z-[100] min-w-[85px]">
                                     {['2024', '2025', '2026', '2027'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                                 </SelectContent>
                             </Select>

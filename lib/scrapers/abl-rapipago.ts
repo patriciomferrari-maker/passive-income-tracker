@@ -23,9 +23,17 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
 
     try {
         browser = await puppeteer.launch({
-            headless: false, // Keep visible for reliability
+            headless: false,
+            executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+            userDataDir: 'C:\\temp\\ChromeProfile',
             defaultViewport: null,
-            args: ['--start-maximized', '--no-sandbox', '--disable-setuid-sandbox']
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--start-maximized',
+                '--disable-blink-features=AutomationControlled'
+            ],
+            ignoreDefaultArgs: ['--enable-automation']
         }) as unknown as Browser;
 
         page = await browser.newPage();
