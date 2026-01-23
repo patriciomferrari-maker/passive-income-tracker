@@ -28,8 +28,6 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             userDataDir: 'C:\\temp\\ChromeProfile',
             defaultViewport: null,
             args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
                 '--start-maximized',
                 '--disable-blink-features=AutomationControlled'
             ],
@@ -75,8 +73,6 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             const elements = Array.from(document.querySelectorAll('*'));
             const pagoFacturas = (elements.find(el => el.textContent?.trim().toLowerCase() === 'pago de facturas') as HTMLElement);
             if (pagoFacturas) {
-                const box = pagoFacturas.getBoundingClientRect();
-                // Create a fake click event or use mouse
                 pagoFacturas.click();
             }
         });
@@ -164,7 +160,7 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         });
 
         if (inputPartida) {
-            // A. Asegurar foco y limpiar (MODO HUMANO SUGERIDO POR USER)
+            // A. Asegurar foco y limpiar (MODO HUMANO SUGERIDO BY USER)
             await inputPartida.click();
             await page.evaluate((sel) => {
                 const el = document.querySelector(sel) as HTMLInputElement;
@@ -181,12 +177,10 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             await page.mouse.move(Math.floor(Math.random() * 500), Math.floor(Math.random() * 500));
 
             // D. Sacar el foco del input (simula que el usuario terminó de escribir)
-            // Esto dispara los eventos de validación del framework
             await page.evaluate((sel) => {
                 const el = document.querySelector(sel) as HTMLInputElement;
                 if (el) {
                     el.blur();
-                    // Explicitly dispatch events as React sometimes misses standard keyboard events in headless
                     el.dispatchEvent(new Event('input', { bubbles: true }));
                     el.dispatchEvent(new Event('change', { bubbles: true }));
                 }

@@ -90,17 +90,18 @@ async function checkAllUtilities() {
                     });
                 }
 
-                // Check Naturgy (Gas) - Run for same ID, assuming it might be Naturgy if Metrogas fails or just to support both
-                console.log(`\n🔥 Checking Naturgy (${property.gasId})...`);
+                // Check Naturgy (Gas) - Rapipago Method
+                console.log(`\n🔥 Checking Naturgy via Rapipago (${property.gasId})...`);
                 try {
-                    const result = await checkNaturgy(property.gasId);
+                    const { checkNaturgyRapipago } = require('../lib/scrapers/naturgy-rapipago');
+                    const result = await checkNaturgyRapipago(property.gasId);
 
                     // Only save if status is known/valid to avoid cluttering DB with "User not found" from wrong provider
                     if (result.status !== 'UNKNOWN' && result.status !== 'ERROR') {
                         await prisma.utilityCheck.create({
                             data: {
                                 propertyId: property.id,
-                                serviceType: 'GAS', // Uses same type 'GAS'
+                                serviceType: 'GAS',
                                 accountNumber: property.gasId,
                                 status: result.status,
                                 debtAmount: result.debtAmount,
@@ -126,11 +127,10 @@ async function checkAllUtilities() {
                             console.log(`   💰 Debt: $${result.debtAmount.toLocaleString('es-AR')}`);
                         }
                     } else {
-                        console.log(`   ℹ️  Skipping Naturgy result: ${result.status} (likely not a Naturgy account)`);
+                        console.log(`   ℹ️  Skipping Naturgy result: ${result.status} (likely not a Naturgy account or no debt found)`);
                     }
 
                 } catch (error: any) {
-                    // Don't error out loudly, just log
                     console.error(`   ❌ Naturgy Error: ${error.message}`);
                 }
             }

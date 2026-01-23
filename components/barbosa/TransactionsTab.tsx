@@ -14,6 +14,7 @@ import { Plus, Save, Search, Calendar, DollarSign, FileText, Loader2, Check, X, 
 import { upload } from '@vercel/blob/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
 
 export function TransactionsTab() {
     const [transactions, setTransactions] = useState<any[]>([]);
@@ -46,6 +47,7 @@ export function TransactionsTab() {
     const [pendingFile, setPendingFile] = useState<File | null>(null); // NEW: Track file to upload after review
     const [currentImportSource, setCurrentImportSource] = useState<string | null>(null);
     const [showParsedDialog, setShowParsedDialog] = useState(false);
+    const [importStatus, setImportStatus] = useState<{ message: string; type: 'success' | 'error' | 'loading' } | null>(null);
     const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null);
     const [rowEditData, setRowEditData] = useState<any>(null);
 
@@ -363,17 +365,23 @@ export function TransactionsTab() {
             }
 
             let msg = `Se importaron ${successCount} transacciones correctamente.`;
-            if (duplicateCount > 0) msg += `\n(${duplicateCount} ya existían y fueron omitidas)`;
+            if (duplicateCount > 0) msg += ` (${duplicateCount} omitidas por duplicidad)`;
 
-            alert(msg);
-            setShowParsedDialog(false);
-            setParsedResults(null);
-            setCurrentImportSource(null);
-            setPendingFile(null);
-            loadData();
+            setImportStatus({ message: msg, type: 'success' });
+
+            // Wait 2 seconds then close
+            setTimeout(() => {
+                setShowParsedDialog(false);
+                setParsedResults(null);
+                setCurrentImportSource(null);
+                setPendingFile(null);
+                setImportStatus(null);
+                loadData();
+            }, 2500);
+
         } catch (error) {
             console.error(error);
-            alert('Error al guardar las transacciones.');
+            setImportStatus({ message: 'Error al salvar las transacciones.', type: 'error' });
         } finally {
             setIsParsing(false);
         }
@@ -609,7 +617,7 @@ export function TransactionsTab() {
                             <SelectTrigger className="w-auto min-w-[200px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
                                 <SelectValue placeholder="Origen" />
                             </SelectTrigger>
-                            <SelectContent className="bg-slate-900 border-slate-800 text-slate-300 z-50">
+                            <SelectContent className="bg-slate-900 border-slate-800 text-slate-300 z-50 min-w-[250px]">
                                 <SelectItem value="ALL">Todos los Orígenes</SelectItem>
                                 <SelectItem value="MANUAL">Carga Manual</SelectItem>
                                 {Array.from(new Set(transactions.map(tx => tx.importSource).filter(Boolean))).map((s: any) => (
@@ -1203,7 +1211,14 @@ export function TransactionsTab() {
                                                             className="h-8 text-xs bg-slate-950 border-slate-800"
                                                         />
                                                     ) : (
-                                                        <div className="font-medium text-slate-200 mb-1">{tx.description}</div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <div className="font-medium text-slate-200">{tx.description}</div>
+                                                            {tx.isDuplicate && (
+                                                                <Badge variant="outline" className="bg-amber-950/30 text-amber-500 border-amber-900/50 text-[10px] h-5 py-0">
+                                                                    DUPLICADO
+                                                                </Badge>
+                                                            )}
+                                                        </div>
                                                     )}
 
                                                     <div className="flex flex-col gap-1 mb-2">
@@ -1417,6 +1432,27 @@ export function TransactionsTab() {
                                 Confirmar ({parsedResults?.filter(tx => !tx.skip).length})
                             </Button>
                         </div>
+
+                        {importStatus && (
+                            <div className={`absolute bottom-20 right-6 p-4 rounded-xl border shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-300 z-[110] max-w-md ${importStatus.type === 'success'
+                                ? 'bg-emerald-950 border-emerald-500/50 text-emerald-200'
+                                : importStatus.type === 'error'
+                                    ? 'bg-red-950 border-red-500/50 text-red-200'
+                                    : 'bg-slate-900 border-slate-700 text-slate-200'
+                                }`}>
+                                <div className={`p-2 rounded-full ${importStatus.type === 'success' ? 'bg-emerald-900/50' : importStatus.type === 'error' ? 'bg-red-900/50' : 'bg-slate-800'}`}>
+                                    {importStatus.type === 'success' && <Check className="w-5 h-5 text-emerald-400" />}
+                                    {importStatus.type === 'error' && <AlertTriangle className="w-5 h-5 text-red-400" />}
+                                    {importStatus.type === 'loading' && <Loader2 className="w-5 h-5 animate-spin text-blue-400" />}
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-bold">
+                                        {importStatus.type === 'success' ? 'Éxito' : importStatus.type === 'error' ? 'Error' : 'Procesando'}
+                                    </span>
+                                    <span className="text-xs opacity-80">{importStatus.message}</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>

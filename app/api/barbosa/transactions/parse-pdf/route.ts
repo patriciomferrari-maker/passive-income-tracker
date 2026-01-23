@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         // 6. Duplicate Detection AND Target Month Re-allocation
         const existingTransactions = await (prisma as any).barbosaTransaction.findMany({
             where: { userId },
-            select: { date: true, amount: true, comprobante: true }
+            select: { date: true, amount: true, comprobante: true, description: true }
         });
 
         const targetDate = (targetMonth && targetYear)
@@ -70,26 +70,30 @@ export async function POST(req: NextRequest) {
 
             // LOGIC: If Target Month selected AND NOT Installment -> Force Target Date (1st of Month)
             if (targetDate && !isInstallment) {
-                finalDate = targetDate.toISOString().split('T')[0]; // Return YYYY-MM-DD
-                // Or keep as formatted string if that's what the frontend expects?
-                // The frontend expects YYYY-MM-DD usually from this API? 
-                // Gemini returns YYYY-MM-DD. normalizeDate returns YYYY-MM-DD.
-                // toArgNoon returns Date object.
-                // Let's ensure string format.
                 const d = new Date(targetDate);
                 finalDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             }
 
             let isDuplicate = false;
-            // Strong match by Comprobante
-            if (tx.comprobante && tx.comprobante.length >= 6) {
+            // Strong match by Comprobante (Voucher)
+            // Follow logic from main transactions/route.ts: length > 2 and no '$'
+            const isVoucherValid = tx.comprobante && String(tx.comprobante).length > 2 && !String(tx.comprobante).includes('$');
+
+            if (isVoucherValid) {
                 isDuplicate = existingTransactions.some((etx: any) =>
-                    etx.comprobante === tx.comprobante && Math.abs(etx.amount - tx.amount) < 1.0
+                    etx.comprobante === String(tx.comprobante)
                 );
+            } else {
+                // FALLBACK: If no voucher, use composite key (Date + Amount + Description)
+                // Use original date for comparison if we are re-allocating
+                const compareDate = new Date(tx.date).toISOString().split('T')[0];
+                isDuplicate = existingTransactions.some((etx: any) => {
+                    const ctxDate = new Date(etx.date).toISOString().split('T')[0];
+                    return ctxDate === compareDate &&
+                        Math.abs(etx.amount - tx.amount) < 0.01 &&
+                        etx.description === tx.description;
+                });
             }
-            // Fallback duplicate check by Date/Amount for forced dates? 
-            // If we force dates, "DateMatch" becomes tricky. 
-            // But we rely on Comprobante mostly.
 
             return { ...tx, originalDate: tx.date, date: finalDate, isDuplicate, skip: isDuplicate };
         });
