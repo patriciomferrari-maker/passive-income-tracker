@@ -30,17 +30,6 @@ export interface PassiveIncomeStats {
     debtCollected: number;
 }
 
-interface ServiceCheck {
-    name: string; // e.g., "Expensas", "ABL", "Gas", "Luz"
-    status: 'UP_TO_DATE' | 'OVERDUE';
-    debtAmount: number | null;
-}
-
-interface PropertyServices {
-    propertyName: string;
-    services: ServiceCheck[];
-}
-
 interface MonthlyReportData {
     userName: string;
     month: string;
@@ -77,10 +66,9 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
     const {
         userName, month, year, dashboardUrl,
         totalDebtPending, totalBank, totalArg, totalUSA,
-        maturities, previousMonthPassiveIncome, // New
+        maturities, previousMonthPassiveIncome,
         rentalEvents,
-        hasRentals, hasArg, hasUSA, hasBank, hasDebts,
-        propertyServices // New
+        hasRentals, hasArg, hasUSA, hasBank, hasDebts
     } = data;
 
     // Metrics for Executive Summary
@@ -404,9 +392,6 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                 </table>
             </div>
             ` : ''}
-            
-            <!-- NEW: Services Summary (moved here after rentals) -->
-            ${renderServicesTable()}
 
             <!-- Cashflow Table -->
             <div>

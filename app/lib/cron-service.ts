@@ -451,7 +451,6 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                             maturities: maturities,
                             rentalEvents: rentalEventsList,
                             previousMonthPassiveIncome: passiveIncomeStats,
-                            propertyServices: propertyServices.length > 0 ? propertyServices : undefined, // NEW
                             hasRentals,
                             hasArg,
                             hasUSA,
@@ -548,9 +547,31 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                                 try {
                                     console.log(`Generating Rentals PDF for user ${user.id} (Active Contracts: ${activeContractsCount})...`);
                                     const pdf = await generateDashboardPdf(user.id, 'rentals', appUrl, process.env.CRON_SECRET);
-                                    // Use clearer filename as per request? "Resumen_Alquileres" sounds good.
                                     attachments.push({ filename: `Resumen_Alquileres_${monthName}_${year}.pdf`, content: pdf });
                                 } catch (e) { console.error('Error generating Rentals PDF:', e); }
+                            }
+
+                            // 6. Services (NEW)
+                            // Check if user has properties with utility checks
+                            const propertiesWithServices = await prisma.property.findMany({
+                                where: {
+                                    userId: user.id,
+                                    OR: [
+                                        { gasId: { not: null } },
+                                        { electricityId: { not: null } },
+                                        { aysaId: { not: null } },
+                                        { municipalId: { not: null } },
+                                        { garageMunicipalId: { not: null } }
+                                    ]
+                                }
+                            });
+
+                            if (propertiesWithServices.length > 0) {
+                                try {
+                                    console.log(`Generating Services PDF for user ${user.id} (Properties with services: ${propertiesWithServices.length})...`);
+                                    const pdf = await generateDashboardPdf(user.id, 'services', appUrl, process.env.CRON_SECRET);
+                                    attachments.push({ filename: `Estado_Servicios_${monthName}_${year}.pdf`, content: pdf });
+                                } catch (e) { console.error('Error generating Services PDF:', e); }
                             }
 
                             /*
