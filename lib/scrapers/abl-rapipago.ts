@@ -34,8 +34,8 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
 
         // Step 2: Select location - Type and click BUENOS AIRES from dropdown
         await page.waitForSelector('input', { timeout: 10000 });
-        await page.type('input', 'buenos', { delay: 100 });
-        console.log('[ABL Rapipago] Typed "buenos"');
+        await page.type('input', 'BUENOS AIRES', { delay: 100 });
+        console.log('[ABL Rapipago] Typed "BUENOS AIRES"');
         await new Promise(r => setTimeout(r, 2000));
 
         // Click on BUENOS AIRES option from dropdown
@@ -78,16 +78,16 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             const isVisible = await input.isIntersectingViewport();
             if (isVisible) {
                 await input.click();
-                await input.type('AGIP', { delay: 100 });
+                await input.type('ABL', { delay: 100 });
                 break;
             }
         }
 
-        console.log('[ABL Rapipago] Typed AGIP');
+        console.log('[ABL Rapipago] Typed ABL');
         await new Promise(r => setTimeout(r, 3000));
 
-        // Click on AGIP GCBA option
-        await page.evaluate(() => {
+        // Click on first option that appears (AGIP GCBA - ABL IIBB PATENTES)
+        const companyClicked = await page.evaluate(() => {
             const elements = Array.from(document.querySelectorAll('*'));
             const agip = elements.find(el => {
                 const text = el.textContent || '';
@@ -95,14 +95,16 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             });
             if (agip) {
                 (agip as HTMLElement).click();
+                return true;
             }
+            return false;
         });
 
-        console.log('[ABL Rapipago] Selected AGIP GCBA');
+        console.log(`[ABL Rapipago] Company selected: ${companyClicked}`);
         await new Promise(r => setTimeout(r, 3000));
 
         // Step 5: Select service type
-        await page.evaluate(() => {
+        const serviceSelected = await page.evaluate(() => {
             const elements = Array.from(document.querySelectorAll('*'));
             const cobranza = elements.find(el => {
                 const text = el.textContent || '';
@@ -110,11 +112,13 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             });
             if (cobranza) {
                 (cobranza as HTMLElement).click();
+                return true;
             }
+            return false;
         });
 
-        console.log('[ABL Rapipago] Selected service type');
-        await new Promise(r => setTimeout(r, 5000)); // Increased wait for page to load
+        console.log(`[ABL Rapipago] Service type selected: ${serviceSelected}`);
+        await new Promise(r => setTimeout(r, 8000)); // Increased wait for page to load
 
         // Step 6: Enter partida - wait for and find the partida input field
         console.log('[ABL Rapipago] Looking for partida input field...');
@@ -131,8 +135,18 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             const placeholder = await input.evaluate(el => el.getAttribute('placeholder'));
 
             console.log(`[ABL Rapipago] Input ${i}: visible=${isVisible}, type=${type}, placeholder=${placeholder}`);
-            if (isVisible) {
-                const type = await input.evaluate(el => el.getAttribute('type'));
+
+            // Look specifically for the partida input field
+            if (isVisible && placeholder && placeholder.toLowerCase().includes('partida')) {
+                await input.click();
+                await new Promise(r => setTimeout(r, 500));
+                await input.type(partida, { delay: 100 });
+                partidaEntered = true;
+                console.log(`[ABL Rapipago] Entered partida: ${partida}`);
+                break;
+            }
+            // Fallback: if no placeholder, check if it's a text/number input
+            else if (isVisible && (type === 'text' || type === 'number' || !type) && !placeholder) {
                 if (type === 'text' || type === 'number' || !type) {
                     await input.click();
                     await new Promise(r => setTimeout(r, 500));

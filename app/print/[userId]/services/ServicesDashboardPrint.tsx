@@ -74,17 +74,6 @@ export default function ServicesDashboardPrint({ servicesData }: Props) {
         return jurisdiction === 'CABA' ? 'Metrogas' : 'Naturgy';
     };
 
-    // Calculate total debt
-    const totalDebt = servicesData.reduce((sum, prop) => {
-        let propDebt = 0;
-        Object.values(prop.checks).forEach(check => {
-            if (check && check.status === 'OVERDUE' && check.debtAmount) {
-                propDebt += check.debtAmount;
-            }
-        });
-        return sum + propDebt;
-    }, 0);
-
     return (
         <div className="min-h-screen bg-slate-950 text-white p-8">
             <div className="max-w-7xl mx-auto">
@@ -186,16 +175,6 @@ export default function ServicesDashboardPrint({ servicesData }: Props) {
                         </tbody>
                     </table>
                 </div>
-
-                {/* Total Debt Summary */}
-                {totalDebt > 0 && (
-                    <div className="mt-6 bg-rose-950/30 border-l-4 border-rose-500 rounded-lg p-4">
-                        <div className="flex justify-between items-center">
-                            <span className="text-slate-300 font-medium">Total Deuda Pendiente:</span>
-                            <span className="text-2xl font-bold text-rose-400">{formatCurrency(totalDebt)}</span>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );
