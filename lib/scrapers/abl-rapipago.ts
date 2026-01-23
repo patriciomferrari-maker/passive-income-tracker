@@ -1,3 +1,4 @@
+
 import puppeteer from 'puppeteer';
 
 export interface ABLRapipagoResult {
@@ -84,30 +85,50 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         console.log('[ABL Rapipago] Company selected from dropdown');
         await new Promise(r => setTimeout(r, 5000)); // Wait for service page to load
 
-        // Step 5: Select service type by clicking on text (SPA-friendly approach)
-        console.log('[ABL Rapipago] Looking for service option by text...');
+        // Step 5: Select service type using physical mouse click (ROBUST STRATEGY)
+        console.log('[ABL Rapipago] Looking for service option for mouse click...');
 
         try {
-            // Wait for the service option text to appear
-            const serviceText = 'COBRANZA SIN FACTURA - PLAN DE FACILIDADES';
-            console.log(`[ABL Rapipago] Waiting for text: "${serviceText}"`);
+            await new Promise(r => setTimeout(r, 2000));
 
-            // Use text selector to find and click the option
-            const serviceOption = await page.waitForSelector(`::-p-text(${serviceText})`, {
-                timeout: 10000,
-                visible: true
+            const elementInfo = await page.evaluate(() => {
+                const searchText = 'COBRANZA SIN FACTURA - PLAN DE FACILIDADES';
+                const candidates = Array.from(document.querySelectorAll('label, div, span, mat-radio-button, p'));
+
+                for (const el of candidates) {
+                    if (el.textContent && el.textContent.includes(searchText)) {
+                        const rect = el.getBoundingClientRect();
+                        // Ensure element has size and is likely visible
+                        if (rect.width > 0 && rect.height > 0) {
+                            return {
+                                x: rect.x + rect.width / 2,
+                                y: rect.y + rect.height / 2,
+                                tag: el.tagName,
+                                text: el.textContent.trim().substring(0, 50)
+                            };
+                        }
+                    }
+                }
+                return null;
             });
 
-            if (serviceOption) {
-                await serviceOption.evaluate(el => el.scrollIntoView());
-                await serviceOption.click();
-                console.log('[ABL Rapipago] Service option clicked successfully');
-                await new Promise(r => setTimeout(r, 2000)); // Wait for UI to react
+            if (elementInfo) {
+                console.log(`[ABL Rapipago] Clicking element ${elementInfo.tag} at (${elementInfo.x}, ${elementInfo.y})`);
+                await page.mouse.click(elementInfo.x, elementInfo.y, { button: 'left', delay: 100 });
+                await new Promise(r => setTimeout(r, 1000));
+
+                // Click again just to be sure (common fix for some UI frameworks)
+                await page.mouse.click(elementInfo.x, elementInfo.y, { button: 'left', delay: 100 });
+                console.log('[ABL Rapipago] Double click executed');
+
+                await new Promise(r => setTimeout(r, 3000)); // Wait for UI
+                await page.screenshot({ path: 'abl-rapipago-click-debug.png' });
+            } else {
+                throw new Error('Could not find visible element with service text');
             }
         } catch (e: any) {
-            console.log('[ABL Rapipago] ⚠️  Could not find service option by text:', e.message);
-            // Take screenshot for debugging
-            await page.screenshot({ path: 'abl-rapipago-error.png' });
+            console.log('[ABL Rapipago] ⚠️  Click error:', e.message);
+            await page.screenshot({ path: 'abl-rapipago-click-error.png' });
             return {
                 status: 'ERROR',
                 debtAmount: 0,
@@ -123,14 +144,12 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
 
         try {
             // Find input by placeholder - using case insensitive partial match
-            // Wait for it to be visible
             const partidaInput = await page.waitForSelector('input[placeholder*="partida" i]', {
                 timeout: 5000,
                 visible: true
             });
 
             if (partidaInput) {
-                // Ensure it's in view
                 await partidaInput.evaluate(el => el.scrollIntoView());
                 await partidaInput.click();
                 await new Promise(r => setTimeout(r, 500));
@@ -141,9 +160,7 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             }
         } catch (e: any) {
             console.log('[ABL Rapipago] ⚠️  Could not find partida input:', e.message);
-            // DEBUG: Screenshot if fails
             await page.screenshot({ path: 'abl-rapipago-partida-error.png' });
-
             return {
                 status: 'ERROR',
                 debtAmount: 0,
@@ -241,6 +258,9 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         if (browser) {
             console.log('[ABL Rapipago] Closing browser in 10 seconds...');
             await new Promise(r => setTimeout(r, 10000));
+            // await browser.close();
+            // Using browser.disconnect() or simply not closing if successful in debugging
+            // For now closing to keep it clean
             await browser.close();
         }
     }
