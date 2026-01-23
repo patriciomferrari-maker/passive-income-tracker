@@ -288,7 +288,7 @@ export async function POST(req: NextRequest) {
                         description: description + ' (Cuota ' + i + '/' + installments.total + ')',
                         categoryId: validCategoryId,
                         subCategoryId: validSubCategoryId,
-                        status: 'PROJECTED',
+                        status: i < currentQuota ? 'REAL' : 'PROJECTED',
                         isStatistical: isStatistical || false,
                         installmentPlanId: plan.id
                     }

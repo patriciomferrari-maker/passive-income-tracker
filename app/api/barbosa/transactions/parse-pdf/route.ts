@@ -441,6 +441,11 @@ function normalizeDate(raw: string, yearContext: number, isJan: boolean): string
         else year = yearContext;
     } else if (year < 100) {
         year += 2000;
+        // Correction: If we are in Jan 2026, and PDF says Jan 25, 
+        // it's highly likely it means Jan 2026 (some banks use start-of-cycle year or just have typos).
+        if (isJan && month === 1 && year === yearContext - 1) {
+            year = yearContext;
+        }
     }
 
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;

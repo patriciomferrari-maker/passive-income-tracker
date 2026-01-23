@@ -37,7 +37,9 @@ export async function GET(req: NextRequest) {
 
             const progress = (paidCount / p.installmentsCount) * 100;
 
-            const nextDue = p.transactions.find(t => t.status === 'PROJECTED');
+            const now = new Date();
+            const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const nextDue = p.transactions.find(t => t.status === 'PROJECTED' && new Date(t.date) >= startOfCurrentMonth);
 
             return {
                 ...p,
