@@ -236,6 +236,19 @@ export async function POST(req: NextRequest) {
                 await prisma.barbosaTransaction.delete({ where: { id: existingProjected.id } });
             }
 
+            // ALSO: Promote all PAST PROJECTED installments to REAL to fix progress bar
+            const pastProjected = await prisma.barbosaTransaction.updateMany({
+                where: {
+                    installmentPlanId: foundPlan.id,
+                    status: 'PROJECTED',
+                    date: { lt: toArgNoon(date, 'keep-day') }
+                },
+                data: { status: 'REAL' }
+            });
+            if (pastProjected.count > 0) {
+                console.log(`[API] Promoted ${pastProjected.count} past installments to REAL for plan ${foundPlan.id}`);
+            }
+
         } else {
             // Create NEW Plan
             console.log('[API] Creating NEW Installment Plan (Total: ' + installments.total + '). Start: ' + trueStartDate.toISOString());
