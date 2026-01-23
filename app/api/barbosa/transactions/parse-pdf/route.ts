@@ -34,9 +34,23 @@ export async function POST(req: NextRequest) {
         const rawLines = await parsePdfCoordinates(buffer);
         console.log(`[PDF] Extracted ${rawLines.length} lines.`);
 
-        // ... (existing segmentation and context fetching) ...
+        // 2. Segment text (Remove noise, headers/footers)
+        const relevantText = segmentText(rawLines);
 
-        // ... (existing Parsing blocks) ...
+        // 3. Fetch User Context for Gemini (Categories & Rules)
+        const [categories, rules] = await Promise.all([
+            prisma.barbosaCategory.findMany({ where: { userId } }),
+            prisma.barbosaCategorizationRule.findMany({ where: { userId } })
+        ]);
+
+        // 4. Parse with Gemini
+        const geminiResult = await parseWithGemini(relevantText, categories, rules, currentYear, file.name);
+
+        let transactions = geminiResult.transactions;
+        const parserUsed = "Gemini + Regex Audit";
+
+        // 5. Audit/Validation with Local Regex (Truth)
+        transactions = validateAndCorrectTransactions(transactions, relevantText, currentYear, file.name);
 
         // 6. Duplicate Detection AND Target Month Re-allocation
         const existingTransactions = await (prisma as any).barbosaTransaction.findMany({

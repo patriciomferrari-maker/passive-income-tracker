@@ -23,7 +23,7 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
 
     try {
         browser = await puppeteer.launch({
-            headless: false, // Keep visible for reliability/debugging as per suggestion
+            headless: false, // Keep visible for reliability
             defaultViewport: null,
             args: ['--start-maximized', '--no-sandbox', '--disable-setuid-sandbox']
         }) as unknown as Browser;
@@ -39,11 +39,13 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         console.log('[ABL Rapipago] Page loaded, looking for search input...');
 
         // Use 'CAPITAL FEDERAL' as per manual inspection
-        await page.waitForSelector('input', { timeout: 10000 });
-        await page.type('input', 'CAPITAL FEDERAL', { delay: 100 });
-        await new Promise(r => setTimeout(r, 1000));
-        await page.keyboard.press('ArrowDown');
-        await page.keyboard.press('Enter');
+        const inputLoc = await page.waitForSelector('input', { visible: true });
+        if (inputLoc) {
+            await inputLoc.type('CAPITAL FEDERAL', { delay: 100 });
+            await new Promise(r => setTimeout(r, 1000));
+            await page.keyboard.press('ArrowDown');
+            await page.keyboard.press('Enter');
+        }
 
         await new Promise(r => setTimeout(r, 2000));
 
@@ -79,20 +81,23 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
 
         await page.waitForFunction(() => document.body.innerText.includes('COBRANZA SIN FACTURA'), { timeout: 20000 });
 
+        // Select Service Option logic - INPUT SEARCH (Proven to reveal Partida input)
+        console.log('[ABL Rapipago] searching for service option (Input Search)...');
+
         const selectionResult = await page.evaluate(() => {
             const textToFind = 'COBRANZA SIN FACTURA';
-            // Based on debug HTML, these are checkboxes, not radios
             const inputs = Array.from(document.querySelectorAll('input[type="checkbox"], input[type="radio"]'));
 
             const targetInput = inputs.find(input => {
-                // Structure in Rapipago: <li> <div><input></div> <label>TEXT</label> </li>
                 const parentSibling = input.parentElement?.nextElementSibling;
                 if (parentSibling && parentSibling.textContent?.includes(textToFind)) return true;
 
-                // Fallback checks
-                const p = input.parentElement?.innerText || '';
-                const gp = input.parentElement?.parentElement?.innerText || '';
-                return p.includes(textToFind) || gp.includes(textToFind);
+                let parent = input.parentElement;
+                while (parent && parent.tagName !== 'LI' && parent.tagName !== 'BODY') {
+                    if (parent.innerText && parent.innerText.includes(textToFind)) return true;
+                    parent = parent.parentElement;
+                }
+                return false;
             });
 
             if (targetInput) {
@@ -103,17 +108,15 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         });
 
         if (selectionResult.found) {
-            console.log('[ABL Rapipago] ✅ Service option selected (checkbox/radio)');
+            console.log('[ABL Rapipago] ✅ Service option selected (via Input click)');
         } else {
             console.log('[ABL Rapipago] ⚠️ Input not found, falling back to text click...');
-            const labelSinFactura = await page.waitForSelector('::-p-text(COBRANZA SIN FACTURA - PLAN DE FACILIDADES)', {
-                timeout: 5000,
-                visible: true
-            });
-            if (labelSinFactura) {
-                await labelSinFactura.click();
+            const labelText = 'COBRANZA SIN FACTURA';
+            const serviceOption = await page.waitForSelector(`::-p-text(${labelText})`, { visible: true, timeout: 5000 }).catch(() => null);
+            if (serviceOption) {
+                await serviceOption.click();
             } else {
-                throw new Error('Could not find service option "COBRANZA SIN FACTURA"');
+                throw new Error('Could not find service option');
             }
         }
 
@@ -133,41 +136,63 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             await inputPartida.click();
             await new Promise(r => setTimeout(r, 500));
             await inputPartida.type(partida, { delay: 100 });
-            // trigger blur
-            await page.keyboard.press('Tab');
+
+            // Dispatch React events explicit
+            await inputPartida.evaluate(el => {
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.dispatchEvent(new Event('blur', { bubbles: true }));
+            });
+
             await new Promise(r => setTimeout(r, 1000));
             console.log(`[ABL Rapipago] Entered partida: ${partida}`);
         } else {
             throw new Error('Partida input not found');
         }
 
-        // Continuar via ENTER
-        console.log('[ABL Rapipago] Pressing Enter to continue...');
-        await page.keyboard.press('Enter');
+        // Continuar - Coordinate Click (Robust for React Buttons)
+        console.log('[ABL Rapipago] Looking for Continuar button...');
+
+        let btnContinuar = await page.evaluateHandle(() => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+            return buttons.find(b => b.textContent?.includes('Continuar'));
+        });
+
+        if (btnContinuar) {
+            const box = await btnContinuar.boundingBox();
+            if (box) {
+                console.log(`[ABL Rapipago] Clicking Continuar at ${box.x}, ${box.y}`);
+                await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+            } else {
+                // Fallback
+                await btnContinuar.click();
+                console.log('[ABL Rapipago] Clicked Continuar (Element Click Fallback)');
+            }
+        } else {
+            // Fallback
+            await page.keyboard.press('Enter');
+            console.log('[ABL Rapipago] Button not found, pressed Enter fallback');
+        }
 
         // ---------------------------------------------------------
         // 5. Read Results
         // ---------------------------------------------------------
         console.log('[ABL Rapipago] Waiting for results...');
-        await new Promise(r => setTimeout(r, 5000)); // Wait for generic load
+        await new Promise(r => setTimeout(r, 8000));
 
         const result = await page.evaluate(() => {
             const bodyText = document.body.innerText;
             const lowerBody = bodyText.toLowerCase();
 
-            // Check for validation error (only if it has text)
+            // Check for validation error
             const errorContainer = document.querySelector('.invoice-validation-error-container');
             if (errorContainer) {
                 const desc = document.querySelector('.invoice-validation-error-description')?.textContent?.trim();
-                // If description is empty, it might be the default hidden state. Ignore it or proceed.
+                // Ignore empty descriptions
                 if (desc && desc.length > 0) {
                     return { noDebt: false, maxAmount: 0, error: desc, totalAmount: 0 };
                 }
             }
-
-            // Check for success (List of bills)
-            // Look for "Tus Facturas" or list items
-            const successHeader = Array.from(document.querySelectorAll('h2, div')).find(el => el.textContent?.includes('Tus Facturas'));
 
             // Check for no debt
             const noDebt = lowerBody.includes('no registra deuda') ||
@@ -175,31 +200,25 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
                 lowerBody.includes('no posee deuda') ||
                 lowerBody.includes('saldo cancelado');
 
-            // Check for amounts (parse all visible amounts)
-            // Strategy: Look for currency format
+            // Check for amounts 
             const amountMatches = bodyText.match(/\$\s*([\d,.]+)/g);
             let totalAmount = 0;
             let maxAmount = 0;
 
             if (amountMatches) {
                 const parsed = amountMatches.map(str => {
-                    // Normalize Argentine format ($ 1.234,56 -> 1234.56) or international ($ 1234.56)
                     let clean = str.replace('$', '').trim();
                     let val = 0;
-
                     if (clean.includes(',') && clean.includes('.')) {
-                        // 1.234,56 -> remove dots, replace comma
                         clean = clean.replace(/\./g, '').replace(',', '.');
                     } else if (clean.includes(',')) {
-                        // 1234,56
                         clean = clean.replace(',', '.');
                     }
-
                     val = parseFloat(clean);
                     return isNaN(val) ? 0 : val;
                 });
                 totalAmount = parsed.reduce((a, b) => a + b, 0);
-                maxAmount = Math.max(...parsed); // Max individual bill
+                maxAmount = Math.max(...parsed);
             }
 
             return { noDebt, maxAmount, totalAmount, error: undefined };
@@ -218,6 +237,14 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
                 dueDate: null,
                 errorMessage: (result as any).error
             };
+        } else if ((result as any).totalAmount > 0) {
+            finalResult = {
+                status: 'OVERDUE',
+                debtAmount: (result as any).totalAmount,
+                lastBillAmount: null,
+                lastBillDate: null,
+                dueDate: null
+            };
         } else if (result.noDebt) {
             finalResult = {
                 status: 'UP_TO_DATE',
@@ -226,26 +253,14 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
                 lastBillDate: null,
                 dueDate: null
             };
-        } else if ((result as any).totalAmount > 0) {
-            finalResult = {
-                status: 'OVERDUE',
-                debtAmount: (result as any).totalAmount, // Use total debt
-                lastBillAmount: null,
-                lastBillDate: null,
-                dueDate: null
-            };
         } else {
-            // Debug: Dump page content if unknown
             console.log('[ABL Rapipago] ❓ Status UNKNOWN. Saving debug info...');
-            // Check if page session is still valid
             try {
                 await page.screenshot({ path: 'abl-unknown-status.png', fullPage: true });
                 const finalHtml = await page.content();
                 const fs = require('fs');
                 fs.writeFileSync('abl-unknown-status.html', finalHtml);
-            } catch (e) {
-                console.error('[ABL Rapipago] Failed to save debug info:', e);
-            }
+            } catch (e) { }
 
             finalResult = {
                 status: 'UNKNOWN',

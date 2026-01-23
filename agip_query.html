@@ -1,0 +1,807 @@
+<!DOCTYPE html><!--[if lt IE 7 ]><html class="ie ie6" lang="es"> <![endif]--><!--[if IE 7 ]><html class="ie ie7" lang="es"> <![endif]--><!--[if IE 8 ]><html class="ie ie8" lang="es"> <![endif]--><!--[if (gte IE 9)|!(IE)]><!--><html lang="es" class="csstransforms csstransforms3d csstransitions win chrome chrome1 webkit webkit5"><!--<![endif]--><head><meta http-equiv="origin-trial" content="A7vZI3v+Gz7JfuRolKNM4Aff6zaGuT7X0mf3wtoZTnKv6497cVMnhy03KDqX7kBz/q/iidW7srW31oQbBt4VhgoAAACUeyJvcmlnaW4iOiJodHRwczovL3d3dy5nb29nbGUuY29tOjQ0MyIsImZlYXR1cmUiOiJEaXNhYmxlVGhpcmRQYXJ0eVN0b3JhZ2VQYXJ0aXRpb25pbmczIiwiZXhwaXJ5IjoxNzU3OTgwODAwLCJpc1N1YmRvbWFpbiI6dHJ1ZSwiaXNUaGlyZFBhcnR5Ijp0cnVlfQ==">
+<!-- Meta -->
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="Sitio del la Administración Gubernamental de Ingresos Públicos.">
+<meta name="author" content="AGIP - Gobierno de la Ciudad de Buenos Aires">
+<!-- Title -->
+<title>AGIP - ABL - Consulta de boletas, saldos y deuda</title>
+<!-- CSS Stylesheet -->
+<link rel="stylesheet" href="/libFe/css/bootstrap.min.css" type="text/css">
+<link rel="stylesheet" href="/libFe/css_bs/bs-agip7.css" type="text/css">
+<link rel="stylesheet" href="/libFe/css_bs/estilos-agip7.css" type="text/css">
+<link rel="stylesheet" href="/libFe/css/popup.css" type="text/css">
+<link rel="stylesheet" href="/libFe/css/ladda-themeless.min.css" type="text/css">
+<link rel="stylesheet" href="/libFe/css/jquery.reject.css" type="text/css">
+<link rel="stylesheet" href="/libFe/css/datepicker.css" type="text/css" media="screen">
+<link rel="stylesheet" href="css/consulta.css" type="text/css" media="screen">
+<style>
+#map, #pano {
+	width: 250px;
+	height: 250px;
+	margin: 10px;
+}
+</style>
+<!--[if lt IE 9]>
+        <script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script>
+        <script src="/libFe/jsbootstrap/respond.min.js" type="text/javascript"></script>
+    <![endif]-->
+<!-- Favicons -->
+<link href="/libFe/images/icon/favicon.ico" rel="shortcut icon">
+<!-- Scripts -->
+<script type="text/javascript" async="" charset="utf-8" src="https://www.gstatic.com/recaptcha/releases/PoyoqOPhxBO7pBk68S4YbpHZ/recaptcha__en.js" crossorigin="anonymous" integrity="sha384-CsMESSmpdyXn2oSFisDd6UA6lT/9DlfGd77o9JZlC2/zeLHxhb5UOwKTAkz7dFBg"></script><script src="/libFe/jsbootstrap/jquery-1.8.3.min.js" type="text/javascript"></script>
+<script src="/libFe/jsbootstrap/bootstrap.min.js"></script>
+<script src="/libFe/jsbootstrap/jquery.prettyPhoto.js" type="text/javascript"></script>
+<script src="/libFe/jsbootstrap/jquery.flexslider.js" type="text/javascript"></script>
+<script src="/libFe/jsbootstrap/selectnav.js" type="text/javascript"></script>
+<script src="/libFe/jsbootstrap/jquery.isotope.min.js" type="text/javascript"></script>
+<script src="/libFe/jsbootstrap/jquery.easing.1.3.js" type="text/javascript"></script>
+<script src="/libFe/jsbootstrap/spin.min.js"></script><style type="text/css"></style>
+<script src="/libFe/jsbootstrap/ladda.min.js"></script>
+<script src="/libFe/jsbootstrap/jflickrfeed.js" type="text/javascript"></script>
+<script src="/libFe/jsbootstrap/custom.js" type="text/javascript"></script>
+<script src="/libFe/jsbootstrap/bootstrap-datepicker.js" type="text/javascript"></script>
+<!-- Scripts del aplicativo ABL -->
+<script src="js/views.js" type="text/javascript"></script>
+<script src="js/historicoBoletas.js" type="text/javascript"></script>
+<script src="js/consultaDatos.js" type="text/javascript"></script>
+<script src="js/ajax.js" type="text/javascript"></script>
+<script src="js/tree.js" type="text/javascript"></script>
+<script src="js/pdf.js" type="text/javascript"></script>
+<script src="js/index.js" type="text/javascript"></script>
+
+<script src="js/cuotas.js" type="text/javascript"></script>
+<script src="js/CuotasController.js" type="text/javascript"></script>
+
+<!-- script src="/libFe/js/cuotas_especiales/cuotas.js" type="text/javascript"></script>
+<script src="/libFe/js/cuotas_especiales/CuotasController.js" type="text/javascript"></script  -->
+
+<script src="/libFe/js/dv.js" type="text/javascript"></script>
+<script src="/libFe/js/gridSelect.js" type="text/javascript"></script>
+<script src="/libFe/js/ajaxDev.js" type="text/javascript"></script>
+<script src="/libFe/js/iFrameLoad.js" type="text/javascript"></script>
+<!--  <script src="js/html4Compatible.js" type="text/javascript"></script>-->
+<script src="/libFe/js/patente.js" type="text/javascript"></script>
+<script src="/libFe/js/iFrameLoad.js" type="text/javascript"></script>
+<script src="/libFe/js/Date.js" type="text/javascript"></script>
+<script src="/libFe/js/getParams.js" type="text/javascript"></script>
+<script src="/libFe/js/auxiliares.js" type="text/javascript"></script>
+<script src="/libFe/js/moment.js" type="text/javascript"></script>
+<script src="/libFe/js/parser.js" type="text/javascript"></script>
+<!-- Script mapa -->
+<script async="" defer="" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAYCgyn-fHSljU-GDI4Ozwej5E230McRn4&amp;language=es"></script>
+<!-- Reconoce la versión del navegador -->
+<script src="/libFe/js/jquery.reject.js" type="text/javascript"></script>
+<script src="/libFe/js/valida_navegador.js" type="text/javascript"></script>
+<script src="/libFe/js/agipCaptcha.js" type="text/javascript"></script>
+<script type="text/javascript">
+
+    	function agipInitCaptcha(){
+    		agipCaptcha.init('ConsultaABL/json');
+    	}
+    </script>
+</head>
+<body style="display: flex; flex-direction: column; min-height: 100vh; margin: 0;">
+    <main style="flex: 1; padding-bottom: 100px;">
+<!-- POP UP ALERTA -->
+<div class="modal fade" id="modalAlerta" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true"> <i class="fa fa-times-circle fa-lg" title="Cerrar ventana"></i> </button>
+				<h4 class="modal-title titulo"> titulo </h4>
+			</div>
+			<div class="modal-body mensaje"> ... </div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-primary contact-form-button btnCerrar" data-dismiss="modal"> Cerrar </button>
+			</div>
+		</div>
+		<!-- /.modal-content --> 
+	</div>
+	<!-- /.modal-dialog --> 
+</div>
+<!-- FIN POP UP ALERTA --> 
+<!-- POP UP CONFIRMAR -->
+<div class="modal fade" id="modalConfirmar" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true"> <i class="fa fa-times-circle fa-lg" title="Cerrar ventana"></i> </button>
+				<h4 class="modal-title titulo"> titulo </h4>
+			</div>
+			<div class="modal-body mensaje"> ... </div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-primary contact-form-button btnCancelar" data-dismiss="modal"> Cancelar </button>
+				<button type="button" class="btn btn-primary contact-form-button btnContinuar" data-dismiss="modal"> Continuar </button>
+			</div>
+		</div>
+		<!-- /.modal-content --> 
+	</div>
+	<!-- /.modal-dialog --> 
+</div>
+<!-- FIN POP UP CONFIRMAR --> 
+<!-- POP UP CUIT generico -->
+<div class="modal fade" id="modalCUITgenerico" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true"> <i class="fa fa-times-circle fa-lg" title="Cerrar ventana"></i> </button>
+				<h3 class="modal-title titulo"> Información importante </h3>
+			</div>
+			<div class="modal-body mensaje">
+
+			 <h4>Contribuyente de la Ciudad:</h4>
+
+			 	<p>Su partida no se encuentra correctamente titularizada.</p>
+
+<p>Registre su CUIT de manera simple y ágil ingresando <a href="https://www.agip.gob.ar/tramites/3" target="_blank"><strong>aquí</strong></a>.</p>
+
+<p>Recuerde que para acceder a los beneficios y bonificaciones que brinda la AGIP, es requisito obligatorio cumplir con esta condición.</p>
+ </div>
+
+			<div class="modal-footer">
+				<button type="button" class="btn btn-primary contact-form-button btnContinuar" data-dismiss="modal"> Continuar </button>
+			</div>
+		</div>
+		<!-- /.modal-content --> 
+	</div>
+	<!-- /.modal-dialog --> 
+</div>
+<!-- FIN POP UP CUIT generico--> 
+<!-- POP UP PDF -->
+<form id="frmPdf" method="GET" target="pdf">
+	<input type="hidden" name="token" id="bolElecToken" value="">
+	<input type="hidden" name="sign" id="bolElecSign" value="">
+	<input type="hidden" name="partida" id="bolElecPartida" value="">
+	<input type="hidden" name="boletasSeleccionadas" id="boletasSeleccionadasPDF" value="">
+	<input type="hidden" name="identificadorPDF" id="identificadorPDF" value="">
+	<input type="hidden" name="dvPDF" id="dvPDF" value="">
+	<input type="hidden" name="fechaInicioPDF" id="fechaInicioPDF" value="">
+</form>
+<div id="popupPdf" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content" style="width: 700px;">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true"> <i class="fa fa-times-circle fa-lg" rel="tooltip" title="Cerrar ventana"></i> </button>
+				<h4 class="modal-title boleta"> Boletas Seleccionadas </h4>
+				<h4 class="modal-title deuda"> Constancia de Deuda </h4>
+			</div>
+			<div class="modal-body">
+				<iframe id="pdf" name="pdf" style="width: 650px; height: 500px;"></iframe>
+			</div>
+		</div>
+	</div>
+</div>
+<div id="popupQR" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+	    <div class="modal-content" style="width: 100%; max-width: 450px; padding: 20px;">
+	        <div class="modal-header">
+	            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+	                <i class="fa fa-times-circle fa-lg" title="Cerrar ventana"></i>
+	            </button>
+	            <div style="text-align: center;">
+	            	<h4 class="modal-title qr partida"></h4>
+	                <h4 class="modal-title qr posicion">Código QR</h4>
+	                <h4 class="modal-title qr importeActualizado"></h4>
+	                <button class="download-qr btn btn-info btn-sm" type="button" style="margin-top: 10px;">
+	                    <i class="fa fa-download fa-lg" aria-hidden="true"></i> Descargar
+	                </button>
+	            </div>
+	        </div>
+	        <div class="modal-body">
+	        	<img id="qr" name="qr" style="display: block;width: 100%;margin: auto;">
+	        </div>
+	    </div>
+	</div>
+</div>
+<!-- FIN POP UP PDF -->
+<header class="navbar navbar-primary navbar-top">
+	<div class="container">
+		<div class="row">
+			<div class="col-md-6 col-sm-6"> <a class="navbar-brand bac-header" href="http://www.agip.gob.ar/" target="_blank"> AGIP </a> </div>
+			<div class="col-md-6 col-sm-6 text-right"> <a href="http://www.buenosaires.gob.ar/" target="_blank"><img src="/libFe/images/ba.png" alt="Buenos Aires Ciudad"> </a> </div>
+		</div>
+	</div>
+</header>
+<!-- NAVEGACIÓN PRINCIPAL -->
+<nav class="navbar navbar-default">
+	<div class="container">
+		<div class="row">
+			<div class="navbar-header">
+				<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#main-nav"> <span class="sr-only"> Cambiar navegación </span> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span> </button>
+				<a class="navbar-brand volverInicio" href="javascript:void(0)" title="Inmobiliario/ABL"> Inmobiliario/ABL </a> </div>
+			<div class="collapse navbar-collapse" id="main-nav">
+				<ul class="nav navbar-nav navbar-right" id="nav-head">
+					
+					<li class="nav-item-consulta liConsultar oculto" id="liConsultar"> <a href="/ConsultaABL/"> Volver a consultar </a> </li>
+					<li class="nav-item-adhesiones" id="liAdhesiones" style="display: none;"> <a href="javascript:void(0)"> Adhesiones </a> </li>
+				</ul>
+			</div>
+		</div>
+	</div>
+</nav>
+<!-- Fin navegacion princiapl --> 
+<!-- Contenido general -->
+<main class="main-container no-padding-top">
+	<section> 
+		<div id="consultaBoletaElectronica" class="container" style="display: none">
+			<h1 class="text-center"> Consulta de boleta electrónica </h1>
+			<div class="col-xs-12 text-center cuerpo_consultaweb">
+				<form class="form-horizontal">
+					<div class="form-group">
+						<div class="col-xs-12">
+							<button id="btnBoletaElectronica" name="btnBoletaElectronica" type="button" class="btn btn-primary btn-lg ladda-button" data-style="zoom-out" data-size="l"> <span class="ladda-label"> Ver Boleta </span> </button>
+						</div>
+					</div>
+				</form>
+			</div>
+		</div>
+		<!-- Div login  -->
+		<div id="containerLogin" class="container">
+
+			<h1 class="text-center" style="margin-bottom: 0px;"> Consulta de boletas, saldos y deuda </h1>
+
+
+
+
+<!-- Div Alerta pago anual -->
+			<!--<div class="col-md-8 col-md-offset-2 ">
+			<h3> <i class="popover-abl fa fa-exclamation-circle"></i> Aviso Importante sobre el Pago Anual:</h3>
+				<div id="" class="row">
+          <div class="alert alert-primary msgError ">
+            - En esta ocasión y de manera excepcional, la cuota anual estará disponible a partir del mes de abril y cubrirá un periodo de 9 meses, desde abril hasta diciembre.<br> 
+- Aquellos que elijan esta modalidad de pago deberán abonar las cuotas 1, 2 y 3, correspondientes a enero, febrero y marzo, y luego realizar el pago de la cuota anual para saldar el año completo.<br>
+- Además, se ofrecerá un beneficio del 10% de descuento al optar por este método de pago, que se reflejará en el importe de la cuota anual en abril.
+
+          </div>
+        </div></div>-->
+<!-- FIN Div Alerta pago anual -->
+
+
+
+
+			<div class="col-md-8 col-md-offset-4 cuerpo_consultaweb">
+				<form class="form-horizontal">
+					<!-- Ingrese Partida -->
+					<div class="form-group">
+						<div class="col-md-5">
+							<label for="fldPartida" class="control-label"> Partida </label>
+							<a href="javascript:void(0)"> <i class="popover-abl fa fa-question-circle" data-original-title="" title=""></i> </a>
+							<input type="text" class="form-control input-lg" name="inputDom" id="fldPartida" maxlength="7">
+						</div>
+					</div>
+					<!-- Reingresar Partida -->
+					<div class="form-group" id="divPartida2">
+						<div class="col-md-5">
+							<label for="fldPartida2" class="control-label"> Reingrese partida </label>
+							<input type="text" class="form-control input-lg" name="inputDom2" id="fldPartida2" maxlength="7">
+						</div>
+					</div>
+					<!-- Digito verificador -->
+					<div id="divDv" class="form-group oculto">
+						<div class="col-md-5">
+							<label for="fldDv" class="control-label" id="lblDigito"> Ingrese dígito verificador </label>
+							<input type="text" name="DV" id="fldDv" class="form-control input-lg disablecopypaste" maxlength="2">
+						</div>
+					</div>
+
+					<!-- Aclaraciones extras -->
+					<div class="form-group">
+						<div class="col-md-5">
+							<div class="checkbox">
+								<label>
+									<input id="chkPartida2Dv" type="checkbox" class="checkboxGrande"> 
+									<span class="dv">Cuento con el dígito verificador <!--y quiero una boleta con nombre, apellido y domicilio. --> </span> </label>
+							</div>
+							<br>
+							
+							<div class="recuadro recuadro-info-card"> <i class="fa fa-info-circle"></i> Por resguardo del secreto fiscal, las boletas obtenidas sin dígito verificador no contendrán los datos del contribuyente (nombre y dirección), ni la ubicación física del inmueble. Al ingresar dígito verificador, se obtiene la
+boleta con la ubicación física del inmueble. <br>En caso de requerir boleta con los datos completos del titular y del inmueble, ingrese con Clave Ciudad (MiBA).
+
+</div>
+							
+							
+							
+						</div>
+					</div>
+
+					<div class="form-group">
+						<div class="col-md-5"> 
+							
+							<!-- Captcha -->
+							
+							<div id="" class="form-group">
+								<div class="col-md-5">
+									<div id="recaptcha_widget" data-theme="light" class="g-recaptcha" style="transform:scale(0.95);-webkit-transform:scale(0.95);margin-top: 20px;transform-origin:0 0;-webkit-transform-origin:0 0;"><div style="width: 304px; height: 78px;"><div><iframe title="reCAPTCHA" width="304" height="78" role="presentation" name="a-pxc2rhf24bqu" frameborder="0" scrolling="no" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation allow-modals allow-popups-to-escape-sandbox allow-storage-access-by-user-activation" src="https://www.google.com/recaptcha/api2/anchor?ar=1&amp;k=6Lex5EkUAAAAAIGTKhHNPHpn7G6l4CHdTuhyidrP&amp;co=aHR0cHM6Ly9sYi5hZ2lwLmdvYi5hcjo0NDM.&amp;hl=en&amp;v=PoyoqOPhxBO7pBk68S4YbpHZ&amp;theme=light&amp;size=normal&amp;anchor-ms=20000&amp;execute-ms=30000&amp;cb=vuweu3ydq2km"></iframe></div><textarea id="g-recaptcha-response" name="g-recaptcha-response" class="g-recaptcha-response" style="width: 250px; height: 40px; border: 1px solid rgb(193, 193, 193); margin: 10px 25px; padding: 0px; resize: none; display: none;"></textarea></div><iframe style="display: none;"></iframe></div>
+									<script src="https://www.google.com/recaptcha/api.js?onload=agipInitCaptcha&amp;render=explicit" async="" defer="">
+											</script> 
+								</div>
+							</div>
+						</div>
+						<!-- end col-md-5 --> 
+					</div>
+					<!-- end form-group --> 
+					<!-- Botón Consultar -->
+					<div class="form-group">
+						<div class="col-md-4">
+							<button id="btnConsultar" name="botonConsultar" type="button" class="btn btn-primary btn-lg ladda-button" data-style="zoom-out" data-size="l"> <span class="ladda-label"> Consultar </span> </button>
+						</div>
+					</div>
+					<!-- Fin Botón Consultar -->
+				</form>
+				<!-- Fin form --> 
+			</div>
+			<!-- Fin contenedor col-md-8 col-md-offset-2--> 
+		
+
+		</div>
+		<!-- Fin login  --> 
+		<!-- DIV partida consultada, datos de padrón-->
+		<div id="containerDatos" class="container oculto">
+			<h1 class="pantalla-uno">Consulta de boletas, saldos y deuda </h1>
+			 
+			<h1 class="pantalla-dos"> Adhesión a débito automático </h1>
+			<div class="row">
+                <div class="well well-abl">
+					<h4><i class="fa fa-home" aria-hidden="true"></i> Partida: <strong id="nroPartida"></strong> </h4>
+				</div>		
+                <button id="btnHistorico" type="button" class="btn btn-primary pull-right ladda-button" data-style="zoom-out" data-size="l"> <span class="ladda-label"> <i class="fa fa-history" aria-hidden="true"></i> Histórico de boletas</span> </button>
+			</div>
+			<div class="row pantalla-dos cuotas_disponibles">
+				<div class="col-md-12">
+					<h4>Cuotas disponibles
+						<button type="button" class="btn btn-xs btn-primary" title="Adherir cuota" id="nueva_adhesion"><i class="fa fa-plus" aria-hidden="true"></i></button>
+					</h4>
+				</div>
+				<div class="col-md-12">
+					<div class="table-responsive">
+						<table id="" class="table table-striped table-bordered table-condensed">
+							<thead class="theadborderTop">
+								<tr>
+									<th> Año </th>
+									<th> Cuota </th>
+									<th> Vencimiento </th>
+									<th> Concepto </th>
+									<th> Importe </th>
+									<th> Importe Act. </th>
+									<th> Pago con QR </th>
+								</tr>
+							</thead>
+							<tbody>
+							</tbody>
+						</table>
+					</div>                    
+				</div>
+			</div>
+			
+			<div class="row pantalla-dos nueva_adhesion">
+				<div class="col-md-4">
+					<label class="control-label">Seleccione entidad bancaria o tarjeta</label>
+					<select id="entidad_alta" class="form-control disabled" disabled="" readonly="">
+						<option value=""> - </option>
+					</select>
+				</div>
+				<div class="col-md-4 datos">
+					<label class="control-label">Número (últimos 6 digitos)</label>
+					<input id="cuenta_alta" type="text" class="form-control cuenta" placeholder="" autocomplete="off">
+				</div>
+				<div class="col-md-4 datos">
+					<label class="control-label">E-mail</label>
+					<input id="email_alta" type="email" class="form-control mail" autocomplete="off">
+				</div>
+				<div class="col-md-12">&nbsp;</div>
+				<div class="col-md-12">
+					<button type="button" class="btn btn-primary pull-right adherir" disabled="">Adherir</button>
+				</div>
+			</div>
+			<!--<hr class="pantalla-dos nueva_adhesion historico_adhesion">-->
+			<div class="row pantalla-dos cuotas_adheridas">
+				<div class="row">
+					<div class="col-md-12">
+						<h4>Histórico de adhesiones</h4>
+					</div>
+					<div class="col-md-12">
+						<div class="table-responsive">
+							<table id="tabla_cuotas_adheridas" class="table table-striped table-bordered table-condensed">
+								<thead class="theadborderTop">
+									<tr>
+										<th> Año </th>
+										<th> Cuota </th>
+										<th> Fecha de adhesión </th>
+										<th>&nbsp;  </th>
+									</tr>
+								</thead>
+								<tbody>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="row pantalla-dos baja_adhesion">
+				<div class="col-md-4">
+					<label class="control-label">Seleccione forma de pago</label>
+					<select id="entidad_baja" class="form-control disabled" disabled="" readonly="">
+						<option value=""> - </option>
+					</select>
+				</div>
+				<div class="col-md-4 datos">
+					<label class="control-label">Número (últimos 6 digitos)</label>
+					<input id="cuenta_baja" type="text" class="form-control cuenta" placeholder="" autocomplete="off">
+				</div>
+				<div class="col-md-4 datos">
+					<label class="control-label">Correo electrónico</label>
+					<input id="email_baja" type="email" class="form-control" autocomplete="off">
+				</div>
+				<div class="col-md-12">&nbsp;</div>
+				<div class="col-md-12 boton">
+				</div>
+			</div>
+			<div id="" class="row ok_alta" style="display: none">
+				<div class="alert alert-primary"><span class="fa fa-check-circle"></span><strong> ¡Adhesión exitosa! </strong>La adhesión de la cuota resumen al débito automático se ha efectuado satisfactoriamente.</div>
+			</div>
+			<div id="" class="row ok_baja" style="display: none">
+				<div class="alert alert-primary"><span class="fa fa-check-circle"></span><strong> ¡Baja exitosa! </strong>La baja de la adhesión de la cuota resumen al débito automático se ha efectuado satisfactoriamente.</div>
+			</div>
+			<div class="row pantalla-uno">
+				<div class="col-md-4">
+					<div class="imagenes">
+						<ul class="nav nav-tabs oculto">
+							<li class="tab active" data-tab="foto" role="presentation"> <a href="javascript:void(0)"> Ver Imagen </a> </li>
+							<li class="tab" data-tab="mapa" role="presentation"> <a href="javascript:void(0)"> Ver Mapa </a> </li>
+						</ul>
+						<!-- Foto -->
+						<div class="foto"> 
+							<!-- Img --> 
+							<img src="/" class="img img-responsive oculto" alt="Foto Vivienda" style="width:350px; height:250px;"> 
+							<!-- Cargando -->
+							<div class="cargando oculto">
+								<div class="col-md-11"> <br>
+									<h5> Cargando imagen. Aguarde por favor. </h5>
+									<div class="progress progress-striped active">
+										<div class="progress-bar progress-bar-primary" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%"></div>
+									</div>
+								</div>
+							</div>
+							<!-- Error -->
+							<div class="error oculto">
+								<div class="col-md-11 text-center"> <br>
+									<i class="fa fa-home icono-sin-imagen"></i>
+									<h5> No existe imagen disponible. </h5>
+								</div>
+							</div>
+						</div>
+						<!-- Mapa -->
+						<div class="mapa oculto"> 
+							<!-- Img --> 
+							<img src="/" class="img img-responsive oculto" alt="Mapa Vivienda" style="height:250px;"> 
+							<!-- Cargando -->
+							<div class="cargando oculto">
+								<div class="col-md-11"> <br>
+									<h5> Cargando mapa. Aguarde por favor. </h5>
+									<div class="progress progress-striped active">
+										<div class="progress-bar progress-bar-primary" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%"></div>
+									</div>
+								</div>
+							</div>
+							<!-- Error -->
+							<div class="error oculto">
+								<div class="col-md-11 text-center"> <br>
+									<i class="fa fa-home icono-sin-imagen"></i>
+									<h5> No existe mapa disponible. </h5>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-3 col-xs-7"> <br>
+					<br>
+					<br>
+					<ul class="list">
+						<li id="liRazonSocial" class="oculto"> Razón social: </li>
+						<li id="liDomicilio" class="oculto"> Domicilio: </li>
+						<li> Exención: </li>
+						<li> Características: </li>
+						<li id="liMatriz" class="oculto"> Partida matriz: </li>
+						<li> <a href="#" data-toggle="tooltip" title="Es la valuación que se utiliza por Ley, se obtiene del cálculo que se realiza considerando el valor económico e incidencia del terreno según ubicación geográfica, la incidencia comercial del Distrito y el valor real de edificación según la categoría, destino, calidad y características.">Valuación fiscal homogénea:</a> </li>
+						<li> Adherido a boleta electrónica: </li>
+						<li> Adherido a débito automático: </li>
+						<li> Gran contribuyente: </li>
+						<li> Código de pago LINK / BANELCO: </li>
+					</ul>
+				</div>
+				<div class="col-md-5 col-xs-5"> <br>
+					<br>
+					<br>
+					<ul class="list">
+						<li class="oculto"> <strong id="lblRazonSocial"></strong> </li>
+						<li class="oculto"> <strong id="lblDomicilio"></strong> </li>
+						<li> <strong id="lblExencion"></strong> </li>
+						<li> <strong id="lblCaracteristicas"></strong> </li>
+						<li class="oculto"> <strong id="lblMatriz"></strong> </li>
+						<li> <strong id="lblVfh"></strong> </li>
+						<li> <strong id="lblAdheridoBoletaElectronica"></strong> </li>
+						<li> <strong id="lblAdheridoDebitoAutomatico"></strong> </li>
+						<li> <strong id="lblGrandesContribuyentes"></strong> </li>
+						<li> <strong id="lblCodLinkBanelco"></strong> </li>
+					</ul>
+				</div>
+			</div>
+			<!-- Fin DIV Partida, Datos Padron --> 
+			<!--inicio div cuerpo deuda-->
+<div class="alert alert-primary msgError">
+            <strong> <i class="fa fa-info-circle"></i>  Adherite a la moratoria y regularizá tus deudas!</strong>
+Es para todos los impuestos y tiene amplias facilidades de pago.
+
+
+            <a href="https://www.agip.gob.ar/campanas/nueva-moratoria-para-regularizar-deudas-de-todos-los-impuestos " target="_blank" class="alert-link" data-original-title="" title="Link moratoria">
+              Conoce más.
+            </a>
+            
+          </div>
+
+
+			<div class="row cuerpoDeuda pantalla-uno">
+				<hr class="space">
+				<!-- Div estado de cuenta -->
+				<div class="row">
+					<h3> Impresión de boletas </h3><div class="col-md-4 col-md-offset-8" id="registraDeuda" hidden=""><b>Esta partida registra deuda en juicio. Para más información ingrese a <a href="#divTablaDeuda">Deuda registrada</a></b></div>
+
+				</div>
+				<!-- Tabla Vertical -->
+				<div id="divTablaEstadoCuenta" class="row">
+					<div class="table-responsive">
+						<table id="tablaPaginada" class="table checkable">
+							<thead class="theadborderTop">
+								<tr>
+									<th class="col-md-2">&nbsp;</th>
+									<th> Año </th>
+									<th> Cuota </th>
+									<th> Vencimiento </th>
+									<th> Concepto </th>
+									<th> Importe </th>
+									<th> Importe Act. </th>
+									<th> Seleccionar <input type="checkbox" title="Seleccionar todo" class="masterCheck checkTodos">
+									</th>
+									<th> Pago con QR </th>
+								</tr>
+							</thead>
+							<tbody id="tbody">
+							</tbody>
+						</table>
+					</div>
+					<div class="col-md-4 col-md-offset-8">
+						<button id="btnPagar" type="button" class="btn btn-primary pull-right ladda-button" data-style="zoom-out" data-size="l"> <span class="ladda-label"> Obtener boletas / Pagos </span> </button>
+					</div>
+				</div>
+				<!-- Fin Tabla Vertical --> 
+				<!-- Barra cargando -->
+				<div id="estadoCuentaCargando" class="oculto">
+					<div class="row">
+						<div class="col-md-6 col-md-offset-3 text-center">
+							<h4> Cargando información. Aguarde por favor. </h4>
+							<div class="progress progress-striped active">
+								<div class="progress-bar progress-bar-primary" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<!-- Fin Barra cargando --> 
+			</div>
+			<!-- fin div cuerpo deuda-->
+			<hr class="space pantalla-uno">
+			<!-- Div ver deuda -->
+			<div class="row pantalla-uno" id="divTablaDeuda">
+				<h3> Deuda Registrada
+					&nbsp;&nbsp;&nbsp; <a id="btnVerDeuda" class="btn btn-primary  ladda-button" data-toggle="collapse" data-parent="#accordion2" href="#collapseOne"> Consultar
+						 </a> </h3>
+			</div>
+			<div class="row pantalla-uno"> 
+				<!-- Acordion con los datos de la deuda buscados -->
+				<div id="collapseOne" class="accordion-body collapse">
+					<div class="accordion-inner"> 
+						<!-- Barra cargando -->
+						<div id="deudaCargando">
+							<div class="row">
+								<div class="col-md-6 col-md-offset-3">
+									<h4> Cargando información. Aguarde por favor. </h4>
+									<div class="progress progress-striped active">
+										<div class="progress-bar progress-bar-primary" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%"></div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<!-- Fin barra cargando --> 
+						<!-- Div deuda error -->
+						<div class="row oculto" id="deudaError">
+							<div class="alert alert-primary msgError"> <strong> Ha ocurrido un error! </strong> Por favor <a href="javascript:void(0)" class="alert-link" id="linkDeudaError" data-original-title="" title=""> intente nuevamente </a> </div>
+						</div>
+						<!-- Fin div deida error -->
+						<div class="row oculto" id="deudaDatos">
+							<div class="table-responsive">
+								<table id="tablaDeuda" class="table">
+									<thead>
+										<tr>
+											<th colspan="2" scope="colgroup" class="color-abl text-center border-r"> Detalle </th>
+											<th colspan="2" scope="colgroup" class="color-abl text-center border-r"> Administrativa </th>
+											<th colspan="3" scope="colgroup" class="color-abl text-center"> Judicial </th>
+										</tr>
+										<tr>
+											<th id="tipo"> Tipo </th>
+											<th> Período </th>
+											<th class="theadborder"> Nominal </th>
+											<th class="theadborder"> Actualizado </th>
+											<th class="theadborder"> Nominal </th>
+											<th class="theadborder"> Actualizado </th>
+											<th> Nº Mandatario </th>
+										</tr>
+									</thead>
+									<tbody id="cuerpoTabla" class="tree">
+									</tbody>
+								</table>
+							</div>
+							<div class="row">
+								<div class="col-md-4 col-md-offset-8">
+									<table class="table table-bordered">
+										<tbody>
+											<tr>
+												<td class="vertical col-md-2 color-abl"> Total adeudado </td>
+												<td class="col-md-2"><strong id="totalDeudas"></strong></td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+							<div class="row">
+								<div class="col-md-4 col-md-offset-8">
+									<button type="button" id="botonImprimirDeuda" class="btn btn-primary pull-right ladda-button" data-style="zoom-out" data-size="l"> <span class="ladda-label"> Imprimir Deuda
+									&nbsp; </span> </button>
+								</div>
+							</div>
+						</div>
+					</div>
+					<!-- Acordion con los datos de la deuda buscados --> 
+				</div>
+				<!-- Fin DIV Ver Deuda --> 
+			</div>
+			<hr class="space pantalla-uno">
+			<!-- DIV Terminos Legales -->
+			<div class="row pantalla-uno">
+				<h3> Términos legales </h3>
+			</div>
+			<div class="row pantalla-uno">
+				<p class="text-justify"> Este servicio de impresión de boletas fue creado para facilitarle el cumplimiento de sus obligaciones tributarias permitiéndole obtener por este medio los instrumentos necesarios para el pago de sus contribuciones. En consecuencia, queda expresamente prohibido todo uso con fines ilícitos o que perjudiquen, impidan, puedan dañar y/o sobrecargar, de cualquier forma, la utilización y normal funcionamiento del servicio, o que directa o indirectamente atenten contra el mismo o contra cualquier derecho de un tercero. </p>
+				<p class="text-justify"> Cualquier importe que, por diferencias, reajustes, deudas pendientes de liquidación u otros conceptos, pudiere corresponder y no esté informado en el presente instrumento estará a cargo de quien a la fecha respectiva haya estado en posesión del bien. </p>
+				<p class="text-justify"> Subasta judicial de inmuebles: </p>
+				<p class="text-justify"> Sin perjuicio de que en el presente instrumento se informe la totalidad de las obligaciones existentes, el adquirente del inmueble solo es  responsable  del pago de las obligaciones tributarias que disponga el tribunal en resolución firme y fehacientemente notificada a esta AGIP, debiéndose obtener la constancia de liberación correspondiente en la AGIP. </p>
+				<p class="text-justify"> Certificados de escribanos: para acreditar el pago de deuda informada que hubiera sido cancelada con anterioridad a la emisión del presente, presentarse con las boletas originales y copia del certificado en la AGIP - dpto. Rendición e imputación, Viamonte 900, 2do. Piso cuerpo b. </p>
+				<p class="text-justify"> Deberes de los escribanos intervinientes. Al momento de autorizar cualquier acto de transferencia de inmuebles el escribano interviniente tiene la carga de recaudar para el fisco, tanto el impuesto de sellos que el acto deba tributar, como la deuda tributaria que existiera sobre el inmueble, quedando liberado de esta ultima carga solo en caso de certificarse por la AGIP la inexistencia de deuda.
+					No será oponible a la AGIP la ley nacional Nro. 22.427. </p>
+				<p class="text-justify"> Asimismo ningún escribano ha de otorgar escrituras y ninguna oficina pública, incluido el registro nacional de la propiedad automotor, ha de realizar tramitación alguna con respecto a negocios, bienes o actos relacionados con las obligaciones tributarias cuyo cumplimiento no se compruebe con "constancias de deuda"; con excepción de los previstos para el impuesto sobre los ingresos brutos. (Arts 85 y 86 código fiscal 2004). </p>
+				<p class="text-justify"> La inscripción de las declaratorias de herederos en los registros respectivos requerirá respecto de inmuebles una certificación de inexistencias de deudas. Tributarias expedida por la AGIP al momento de la inscripción (Art. 85 código fiscal 2004). </p>
+				<p class="text-justify"> Recuerde comunicar a la AGIP cualquier cambio en la situación fiscal del inmueble dentro de los 45 días, por ej. Exenciones, cambios de titularidad, etc. </p>
+			</div>
+			<!-- Fin DIV Terminos Legales --> 
+		</div>
+		<!-- DIV pantalla de Error -->
+		<div class="container oculto" id="containerError">
+			<div class="row">
+				<h1> <i class="fa fa-times-circle color-danger"></i> Ha ocurrido un error </h1>
+			</div>
+			<div class="row">
+				<h4 id="mensajeError"> - </h4>
+			</div>
+			<br>
+			<br>
+			<div class="row"> <a href="javascript:void(0)" class="btn btn-default btn-lg volverInicio"> Volver a consultar </a> </div>
+		</div>		
+		<!-- Fin div pantalla de Error -->
+		<!-- DIV CONTAINER HISTORICO DE BOLETAS -->
+		<div class="container" id="containerHistorico" style="display:none;">
+				<div class="row">
+                    <div class="row">
+                    <div>
+                        <h1>
+                        <span class="ladda-label"> <i class="fa fa-history" aria-hidden="true"></i> Histórico de boletas</span> 
+                        </h1>
+                        <button id="btnVolver" type="button" class="pull-right" style="background-color: transparent; color: #2ebc98; border: none;"> <i class="fa fa-arrow-left" aria-hidden="true"></i> Volver </button>
+                    </div>
+    
+                    </div>
+					<div class="well well-abl">
+						<h4><i class="fa fa-home" aria-hidden="true"></i> Partida: <span id="nroPartidaHistorico"></span>
+                        <div class="dropdown pull-right dropdown_year">
+                            <button class="btn btn-secondary dropdown-toggle dropdown-transparente" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="display: none;">
+                                Año
+                            </button>
+                            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton" id="yearDropdownMenu">
+                            </div>
+                        </div>    
+						<!--<div class="pull-right dropdown_year">                            
+                            <select id="yearDropdownHistorico" class="form-control dropdown-transparente" style="display: inline-block; width: auto;"></select>
+                        </div>-->
+						</h4>
+					</div>
+                    <hr>
+                    <div class="well well-abl" style="background-color: rgba(208, 241, 231, 1);">
+						<b style="color: black; font-weight: bold; font-size: 16px; padding: 5px;">Boletas Vencidas</b>
+					</div>
+
+				</div>
+				<div class="row" style="margin-top:15px;">
+					<div class="col-md-12 table-responsive">
+						<table class="table table-bordered table-hover">
+							<thead>
+								<tr>
+									<th class="text-center" style="font-weight: bolder;">Año</th>
+									<th class="text-center" style="font-weight: bolder;">Cuota</th>
+									<th class="text-center" style="font-weight: bolder;">Vencimiento</th>
+									<th width="50" class="text-center" style="width: 60px; font-weight: bolder;">Seleccionar</th>
+									<th width="40" class="text-center" style="width: 60px; font-weight: bolder;">PDF</th>
+									<th width="40" class="text-center" style="width: 60px; font-weight: bolder;"></th>
+								</tr>
+							</thead>
+							<tbody id="tablaHistorico">
+							</tbody>
+						</table>
+					</div>
+				</div>		
+		 	
+                <div class="row">
+					<div class="col-md-11" id="loadingHistorico">									
+									<div class="progress progress-striped active">
+										<div class="progress-bar progress-bar-primary" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%"></div>
+									</div>
+								</div>
+                    <div class="col-md-12" style="text-align: center; align-items: center; width: 100%;  justify-content: center;">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center" id="paginationHistorico">
+                                </ul>
+                        </nav>
+                    </div>
+                </div>
+				<div class="row">
+					<div class="col-md-12">
+						<button type="button" class="btn btn-primary pull-right" id="btnDescargarLoteHistorico">Descargar Boletas Seleccionadas</button>
+					</div>
+				</div>
+				<!--<div class="row" style="margin-top:20px;">
+					<a href="javascript:void(0)" class="btn btn-default volverInicio"> Volver a consultar </a>
+				</div>-->
+		</div>
+		<!-- Fin div CONTAINER HISTORICO DE BOLETAS -->
+        
+        <!-- Div cargando --> 
+		<div id="divCargando" class="overlay" style="display:none;">
+			<div id="light">
+				<div class="fa fa-spinner fa-spin fa-5x modal-loading"></div>
+			</div>
+		</div>
+	</section>
+</main>
+<!-- Pie de página -->
+
+<footer style="background-color: #ffffff; height: 100px; display: flex; align-items: center; justify-content: center; width: 100%;">
+	<div class="footer">
+		<div class="container">
+			<div class="row">
+				<div class="col-md-3 col-sm-3"> <a href="http://www.agip.gob.ar/" target="_blank"> <img src="/libFe/images/logo_agip_blanco.png" alt="AGIP"> </a> </div>
+				<div class="col-md-6 col-sm-6">
+					<div class="sub-brand">
+						<p class="text-center"> Administración Gubernamental de Ingresos Públicos <br>
+							Viamonte 900 (esquina Suipacha) </p>
+					</div>
+				</div>
+				<div class="col-md-3 col-sm-3 w3c text-right"> <a href="http://validator.w3.org/check?uri=https://lb.agip.gob.ar/ConsultaABL/" target="_blank"> <img src="/libFe/images/w3c-valid-html5.png" alt="¡HTML5 Válido!"></a> </div>
+			</div>
+		</div>
+	</div>
+</footer>
+<!-- Fin Pie de página -->
+ 
+</main>
+
+
+
+<div style="background-color: rgb(255, 255, 255); border: 1px solid rgb(204, 204, 204); box-shadow: rgba(0, 0, 0, 0.2) 2px 2px 3px; position: absolute; transition: visibility linear 0.3s, opacity 0.3s linear; opacity: 0; visibility: hidden; z-index: 2000000000; left: 0px; top: -10000px;"><div style="width: 100%; height: 100%; position: fixed; top: 0px; left: 0px; z-index: 2000000000; background-color: rgb(255, 255, 255); opacity: 0.05;"></div><div class="g-recaptcha-bubble-arrow" style="border: 11px solid transparent; width: 0px; height: 0px; position: absolute; pointer-events: none; margin-top: -11px; z-index: 2000000000;"></div><div class="g-recaptcha-bubble-arrow" style="border: 10px solid transparent; width: 0px; height: 0px; position: absolute; pointer-events: none; margin-top: -10px; z-index: 2000000000;"></div><div style="z-index: 2000000000; position: relative;"><iframe title="recaptcha challenge expires in two minutes" name="c-pxc2rhf24bqu" frameborder="0" scrolling="no" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation allow-modals allow-popups-to-escape-sandbox allow-storage-access-by-user-activation" src="https://www.google.com/recaptcha/api2/bframe?hl=en&amp;v=PoyoqOPhxBO7pBk68S4YbpHZ&amp;k=6Lex5EkUAAAAAIGTKhHNPHpn7G6l4CHdTuhyidrP&amp;bft=0dAFcWeA4Zh-cJhb8BT6oRMHv7We1DKB-bIPqnvu7Rkxr6HJIGTq3qL9boS7zRpE30UhzcxI-HdKjUoz2hSe-kx9q8l31NWqWJ4Q" style="width: 100%; height: 100%;"></iframe></div></div></body></html>
