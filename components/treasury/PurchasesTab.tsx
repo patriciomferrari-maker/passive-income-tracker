@@ -123,7 +123,10 @@ export function PurchasesTab() {
             const qtyMap = new Map<string, number>();
             if (Array.isArray(positionsData)) {
                 positionsData.forEach((p: any) => {
-                    qtyMap.set(p.investmentId, p.quantity);
+                    if (p.status === 'OPEN' && p.investmentId) {
+                        const current = qtyMap.get(p.investmentId) || 0;
+                        qtyMap.set(p.investmentId, current + p.quantity);
+                    }
                 });
             }
 
