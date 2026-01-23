@@ -133,17 +133,17 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             await inputPartida.click();
             await new Promise(r => setTimeout(r, 500));
             await inputPartida.type(partida, { delay: 100 });
+            // trigger blur
+            await page.keyboard.press('Tab');
+            await new Promise(r => setTimeout(r, 1000));
             console.log(`[ABL Rapipago] Entered partida: ${partida}`);
         } else {
             throw new Error('Partida input not found');
         }
 
-        // Continuar
-        const btnContinuar = await page.waitForSelector('::-p-text(Continuar)', { visible: true });
-        if (btnContinuar) {
-            await btnContinuar.click();
-            console.log('[ABL Rapipago] Clicked Continuar');
-        }
+        // Continuar via ENTER
+        console.log('[ABL Rapipago] Pressing Enter to continue...');
+        await page.keyboard.press('Enter');
 
         // ---------------------------------------------------------
         // 5. Read Results
@@ -155,32 +155,70 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             const bodyText = document.body.innerText;
             const lowerBody = bodyText.toLowerCase();
 
+            // Check for validation error (only if it has text)
+            const errorContainer = document.querySelector('.invoice-validation-error-container');
+            if (errorContainer) {
+                const desc = document.querySelector('.invoice-validation-error-description')?.textContent?.trim();
+                // If description is empty, it might be the default hidden state. Ignore it or proceed.
+                if (desc && desc.length > 0) {
+                    return { noDebt: false, maxAmount: 0, error: desc, totalAmount: 0 };
+                }
+            }
+
+            // Check for success (List of bills)
+            // Look for "Tus Facturas" or list items
+            const successHeader = Array.from(document.querySelectorAll('h2, div')).find(el => el.textContent?.includes('Tus Facturas'));
+
             // Check for no debt
             const noDebt = lowerBody.includes('no registra deuda') ||
                 lowerBody.includes('sin deuda') ||
                 lowerBody.includes('no posee deuda') ||
                 lowerBody.includes('saldo cancelado');
 
-            // Check for amounts
+            // Check for amounts (parse all visible amounts)
+            // Strategy: Look for currency format
             const amountMatches = bodyText.match(/\$\s*([\d,.]+)/g);
+            let totalAmount = 0;
             let maxAmount = 0;
 
             if (amountMatches) {
                 const parsed = amountMatches.map(str => {
-                    const num = str.replace('$', '').replace(/\./g, '').replace(',', '.').trim();
-                    return parseFloat(num);
+                    // Normalize Argentine format ($ 1.234,56 -> 1234.56) or international ($ 1234.56)
+                    let clean = str.replace('$', '').trim();
+                    let val = 0;
+
+                    if (clean.includes(',') && clean.includes('.')) {
+                        // 1.234,56 -> remove dots, replace comma
+                        clean = clean.replace(/\./g, '').replace(',', '.');
+                    } else if (clean.includes(',')) {
+                        // 1234,56
+                        clean = clean.replace(',', '.');
+                    }
+
+                    val = parseFloat(clean);
+                    return isNaN(val) ? 0 : val;
                 });
-                maxAmount = Math.max(...parsed);
+                totalAmount = parsed.reduce((a, b) => a + b, 0);
+                maxAmount = Math.max(...parsed); // Max individual bill
             }
 
-            return { noDebt, maxAmount };
+            return { noDebt, maxAmount, totalAmount, error: undefined };
         });
 
-        console.log(`[ABL Rapipago] Result: NoDebt=${result.noDebt}, Amount=${result.maxAmount}`);
+        console.log(`[ABL Rapipago] Result: NoDebt=${(result as any).noDebt}, MaxAmount=${(result as any).maxAmount}, Total=${(result as any).totalAmount}, Error=${(result as any).error}`);
 
         let finalResult: ABLRapipagoResult;
 
-        if (result.noDebt) {
+        if ((result as any).error) {
+            finalResult = {
+                status: 'ERROR',
+                debtAmount: 0,
+                lastBillAmount: null,
+                lastBillDate: null,
+                dueDate: null,
+                errorMessage: (result as any).error
+            };
+        } else if (result.noDebt) {
             finalResult = {
                 status: 'UP_TO_DATE',
                 debtAmount: 0,
@@ -188,10 +226,10 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
                 lastBillDate: null,
                 dueDate: null
             };
-        } else if (result.maxAmount > 0) {
+        } else if ((result as any).totalAmount > 0) {
             finalResult = {
                 status: 'OVERDUE',
-                debtAmount: result.maxAmount,
+                debtAmount: (result as any).totalAmount, // Use total debt
                 lastBillAmount: null,
                 lastBillDate: null,
                 dueDate: null

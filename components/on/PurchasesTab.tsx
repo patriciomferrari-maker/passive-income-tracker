@@ -74,7 +74,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
     useEffect(() => {
         Promise.all([
             fetch(`/api/investments/on?market=${market}`).then(res => res.json()),
-            fetch(`/api/investments/positions?type=ON,CORPORATE_BOND,ETF&market=${market}`).then(res => res.json())
+            fetch(`/api/investments/positions?type=ON,CORPORATE_BOND,ETF,CEDEAR&market=${market}`).then(res => res.json())
         ]).then(([assetsData, positionsData]) => {
             // Create a map of quantities from positions
             const qtyMap = new Map<string, number>();
