@@ -4,6 +4,14 @@ import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/app/lib/auth-helper';
 import { toArgNoon } from '@/app/lib/date-utils';
 
+function cleanDescription(desc: string | null | undefined): string {
+    if (!desc) return '';
+    return desc
+        .replace(/\s*\(?Cuota\s*\d+\/\d+\)?/i, '')
+        .replace(/\s*\d+\/\d+$/, '')
+        .trim();
+}
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
@@ -78,15 +86,22 @@ export async function POST(req: NextRequest) {
         if (existing) console.log('[API] Duplicate detected by VOUCHER:', comprobante);
     } else if (date && amount) {
         // FALLBACK: If no voucher, use composite key (Date + Amount + Description)
-        existing = await prisma.barbosaTransaction.findFirst({
+        // Match with clean description, case-insensitive
+        const cleanBodyDesc = cleanDescription(description).toLowerCase();
+
+        const possibleDuplicates = await prisma.barbosaTransaction.findMany({
             where: {
                 userId,
                 date: new Date(date),
                 amount: parseFloat(amount),
-                description: description // Use name as tie-breaker for non-voucher transactions
             }
         });
-        if (existing) console.log('[API] Duplicate detected by DATE / AMOUNT / DESC:', description);
+
+        existing = possibleDuplicates.find(ext =>
+            cleanDescription(ext.description).toLowerCase() === cleanBodyDesc
+        );
+
+        if (existing) console.log('[API] Duplicate detected by DATE / AMOUNT / DESC (Cleaned):', description);
     }
 
     if (existing) {

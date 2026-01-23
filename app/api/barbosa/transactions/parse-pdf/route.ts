@@ -5,6 +5,14 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import PDFParser from 'pdf2json';
 import { toArgNoon } from '@/app/lib/date-utils';
 
+function cleanDescription(desc: string | null | undefined): string {
+    if (!desc) return '';
+    return desc
+        .replace(/\s*\(?Cuota\s*\d+\/\d+\)?/i, '')
+        .replace(/\s*\d+\/\d+$/, '')
+        .trim();
+}
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
@@ -91,11 +99,24 @@ export async function POST(req: NextRequest) {
                     const ctxDate = new Date(etx.date).toISOString().split('T')[0];
                     return ctxDate === compareDate &&
                         Math.abs(etx.amount - tx.amount) < 0.01 &&
-                        etx.description === tx.description;
+                        cleanDescription(etx.description).toLowerCase() === cleanDescription(tx.description).toLowerCase();
                 });
             }
 
             return { ...tx, originalDate: tx.date, date: finalDate, isDuplicate, skip: isDuplicate };
+        });
+
+        // 7. INTERNAL DEDUPLICATION (Special case: Gemini hallucinations OR legitimate repeats in same PDF)
+        // If we have two IDENTICAL rows in the same PDF (Date/Amount/Desc/Voucher), 
+        // we keep the first as is, and the second should NOT be flagged as 'DB Duplicate' 
+        // but maybe we should avoid counting it as "Already Existed" if the DB is empty.
+        // Actually, let's just ensure we return unique results to the frontend if they are exactly the same.
+        const seen = new Set();
+        transactions = transactions.filter((tx: any) => {
+            const key = `${tx.date}-${tx.amount}-${tx.comprobante}-${cleanDescription(tx.description).toLowerCase()}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
         });
 
         return NextResponse.json({
