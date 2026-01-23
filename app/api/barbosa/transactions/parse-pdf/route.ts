@@ -87,9 +87,12 @@ export async function POST(req: NextRequest) {
             // Follow logic from main transactions/route.ts: length > 2 and no '$'
             const isVoucherValid = tx.comprobante && String(tx.comprobante).length > 2 && !String(tx.comprobante).includes('$');
 
+            const cleanTxDesc = cleanDescription(tx.description).toLowerCase();
+
             if (isVoucherValid) {
                 isDuplicate = existingTransactions.some((etx: any) =>
-                    etx.comprobante === String(tx.comprobante)
+                    etx.comprobante === String(tx.comprobante) &&
+                    cleanDescription(etx.description).toLowerCase() === cleanTxDesc
                 );
             } else {
                 // FALLBACK: If no voucher, use composite key (Date + Amount + Description)
@@ -99,7 +102,7 @@ export async function POST(req: NextRequest) {
                     const ctxDate = new Date(etx.date).toISOString().split('T')[0];
                     return ctxDate === compareDate &&
                         Math.abs(etx.amount - tx.amount) < 0.01 &&
-                        cleanDescription(etx.description).toLowerCase() === cleanDescription(tx.description).toLowerCase();
+                        cleanDescription(etx.description).toLowerCase() === cleanTxDesc
                 });
             }
 

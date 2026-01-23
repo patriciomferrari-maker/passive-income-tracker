@@ -75,20 +75,24 @@ export async function POST(req: NextRequest) {
     const isVoucherValid = comprobante && String(comprobante).length > 2 && !String(comprobante).includes('$');
 
     let existing = null;
+    const cleanBodyDesc = cleanDescription(description).toLowerCase();
+
     if (isVoucherValid) {
-        // PRIORITY: If we have a voucher, it's the unique ID for this user.
-        existing = await prisma.barbosaTransaction.findFirst({
+        // PRIORITY: Composite key (description + comprobante) if available
+        const sameVoucher = await prisma.barbosaTransaction.findMany({
             where: {
                 userId,
                 comprobante: String(comprobante)
             }
         });
-        if (existing) console.log('[API] Duplicate detected by VOUCHER:', comprobante);
-    } else if (date && amount) {
-        // FALLBACK: If no voucher, use composite key (Date + Amount + Description)
-        // Match with clean description, case-insensitive
-        const cleanBodyDesc = cleanDescription(description).toLowerCase();
+        existing = sameVoucher.find(ext =>
+            cleanDescription(ext.description).toLowerCase() === cleanBodyDesc
+        );
+        if (existing) console.log('[API] Duplicate detected by VOUCHER + DESC:', comprobante, cleanBodyDesc);
+    }
 
+    if (!existing && date && amount) {
+        // FALLBACK: If no voucher, or no match, use composite key (Date + Amount + Description)
         const possibleDuplicates = await prisma.barbosaTransaction.findMany({
             where: {
                 userId,

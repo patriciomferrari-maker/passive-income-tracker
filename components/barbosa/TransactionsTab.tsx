@@ -177,15 +177,25 @@ export function TransactionsTab() {
                 });
                 setEditingId(null);
                 loadData();
-                alert(editingId ? 'Transacción actualizada correctamente.' : 'Transacción guardada correctamente.');
+                setImportStatus({
+                    message: editingId ? 'Transacción actualizada correctamente.' : 'Transacción guardada correctamente.',
+                    type: 'success'
+                });
+                setTimeout(() => setImportStatus(null), 3000);
             } else {
                 const errorData = await res.json();
                 console.error("Save Error", errorData);
-                alert(`Error al guardar: ${errorData.error || res.statusText}`);
+                setImportStatus({
+                    message: `Error al guardar: ${errorData.error || res.statusText}`,
+                    type: 'error'
+                });
             }
         } catch (error) {
             console.error(error);
-            alert(`Error de conexión al guardar: ${error}`);
+            setImportStatus({
+                message: `Error de conexión al guardar: ${error}`,
+                type: 'error'
+            });
         }
     };
 
@@ -522,11 +532,12 @@ export function TransactionsTab() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids: idsToDelete })
             });
-            alert(`Se eliminaron ${idsToDelete.length} transacciones.`);
+            setImportStatus({ message: `Se eliminaron ${idsToDelete.length} transacciones.`, type: 'success' });
+            setTimeout(() => setImportStatus(null), 3000);
             loadData();
         } catch (error) {
             console.error(error);
-            alert('Error al eliminar');
+            setImportStatus({ message: 'Error al eliminar', type: 'error' });
         }
     };
 
@@ -1432,27 +1443,6 @@ export function TransactionsTab() {
                                 Confirmar ({parsedResults?.filter(tx => !tx.skip).length})
                             </Button>
                         </div>
-
-                        {importStatus && (
-                            <div className={`absolute bottom-20 right-6 p-4 rounded-xl border shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-300 z-[110] max-w-md ${importStatus.type === 'success'
-                                ? 'bg-emerald-950 border-emerald-500/50 text-emerald-200'
-                                : importStatus.type === 'error'
-                                    ? 'bg-red-950 border-red-500/50 text-red-200'
-                                    : 'bg-slate-900 border-slate-700 text-slate-200'
-                                }`}>
-                                <div className={`p-2 rounded-full ${importStatus.type === 'success' ? 'bg-emerald-900/50' : importStatus.type === 'error' ? 'bg-red-900/50' : 'bg-slate-800'}`}>
-                                    {importStatus.type === 'success' && <Check className="w-5 h-5 text-emerald-400" />}
-                                    {importStatus.type === 'error' && <AlertTriangle className="w-5 h-5 text-red-400" />}
-                                    {importStatus.type === 'loading' && <Loader2 className="w-5 h-5 animate-spin text-blue-400" />}
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-sm font-bold">
-                                        {importStatus.type === 'success' ? 'Éxito' : importStatus.type === 'error' ? 'Error' : 'Procesando'}
-                                    </span>
-                                    <span className="text-xs opacity-80">{importStatus.message}</span>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </DialogContent>
             </Dialog>
@@ -1484,7 +1474,28 @@ export function TransactionsTab() {
                     </div>
                 </DialogContent>
             </Dialog>
-        </div>
+
+            {importStatus && (
+                <div className={`fixed bottom-6 right-6 p-4 rounded-xl border shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-300 z-[1000] max-w-md ${importStatus.type === 'success'
+                    ? 'bg-emerald-950 border-emerald-500/50 text-emerald-200'
+                    : importStatus.type === 'error'
+                        ? 'bg-red-950 border-red-500/50 text-red-200'
+                        : 'bg-slate-900 border-slate-700 text-slate-200'
+                    }`}>
+                    <div className={`p-2 rounded-full ${importStatus.type === 'success' ? 'bg-emerald-900/50' : importStatus.type === 'error' ? 'bg-red-900/50' : 'bg-slate-800'}`}>
+                        {importStatus.type === 'success' && <Check className="w-5 h-5 text-emerald-400" />}
+                        {importStatus.type === 'error' && <AlertTriangle className="w-5 h-5 text-red-400" />}
+                        {importStatus.type === 'loading' && <Loader2 className="w-5 h-5 animate-spin text-blue-400" />}
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-sm font-bold">
+                            {importStatus.type === 'success' ? 'Éxito' : importStatus.type === 'error' ? 'Error' : 'Procesando'}
+                        </span>
+                        <span className="text-xs opacity-80">{importStatus.message}</span>
+                    </div>
+                </div>
+            )}
+        </div >
     );
 }
 
