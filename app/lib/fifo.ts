@@ -8,6 +8,7 @@ export interface FIFOTransaction {
     price: number;
     currency: string;
     commission?: number;
+    createdAt?: Date; // Secondary sort key
     // New fields for P&L Attribution
     exchangeRate?: number; // TC at moment of transaction
     originalPrice?: number; // Original price in original currency (if converted)
@@ -59,7 +60,7 @@ export interface FIFOResult {
  * Assumes transactions are for a SINGLE asset (ticker).
  */
 export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): FIFOResult {
-    // 1. Sort by date ASC
+    // 1. Sort by date ASC, then by createdAt ASC
     const sorted = [...transactions]
         .map(tx => ({
             ...tx,
@@ -68,7 +69,16 @@ export function calculateFIFO(transactions: FIFOTransaction[], ticker: string): 
             commission: Number(tx.commission || 0)
         }))
         .filter(tx => !isNaN(tx.price) && !isNaN(tx.quantity) && tx.quantity > 0)
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        .sort((a, b) => {
+            const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+            if (dateDiff !== 0) return dateDiff;
+
+            // Secondary sort: createdAt
+            if (a.createdAt && b.createdAt) {
+                return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            }
+            return 0;
+        });
 
     // Inventory items now need to track their specific commission paid AND exchange rates
     interface InventoryItem extends FIFOTransaction {

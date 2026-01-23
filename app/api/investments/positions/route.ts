@@ -193,7 +193,8 @@ export async function GET(request: Request) {
                 commission: commission,
                 currency: currency,
                 exchangeRate: exchangeRate,
-                originalPrice: originalPrice
+                originalPrice: originalPrice,
+                createdAt: tx.createdAt
             });
         }
 
@@ -265,7 +266,8 @@ export async function GET(request: Request) {
                 commission: commission,
                 currency: currency,
                 exchangeRate: exchangeRate,
-                originalPrice: originalPrice
+                originalPrice: originalPrice,
+                createdAt: tx.createdAt
             });
         }
 

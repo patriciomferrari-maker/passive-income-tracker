@@ -93,9 +93,10 @@ export default function RegisterSaleModal({ assets, onClose, onSuccess }: Regist
                             >
                                 <option value="">Seleccionar Activo...</option>
                                 {assets
+                                    .filter(asset => (asset.quantity || 0) > 0)
                                     .map(asset => (
-                                        <option key={asset.id} value={asset.id} disabled={(asset.quantity || 0) <= 0}>
-                                            {asset.ticker} - {asset.name} (Disp: {asset.quantity || 0})
+                                        <option key={asset.id} value={asset.id}>
+                                            {asset.ticker} - {asset.name} (Disp: {asset.quantity})
                                         </option>
                                     ))}
                             </select>
