@@ -87,14 +87,8 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         // Step 5: Wait for radio buttons and select second one
         console.log('[ABL Rapipago] Waiting for service radio buttons...');
 
-        try {
-            await page.waitForSelector('input[type="radio"]', { timeout: 10000 });
-            console.log('[ABL Rapipago] Radio buttons appeared');
-        } catch (e) {
-            console.log('[ABL Rapipago] ⚠️  Radio buttons timeout');
-        }
-
-        await new Promise(r => setTimeout(r, 1000));
+        console.log('[ABL Rapipago] Waiting for service page...');
+        await new Promise(r => setTimeout(r, 2000)); // Page loads in ~2s per user
 
         const serviceSelected = await page.evaluate(() => {
             const radios = document.querySelectorAll('input[type="radio"]');
