@@ -32,17 +32,27 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         console.log('[ABL Rapipago] Page loaded');
         await new Promise(r => setTimeout(r, 3000));
 
-        // Step 2: Select location - Type and select BUENOS AIRES
+        // Step 2: Select location - Type and click BUENOS AIRES from dropdown
         await page.waitForSelector('input', { timeout: 10000 });
-        await page.type('input', 'BUENOS', { delay: 100 });
+        await page.type('input', 'buenos', { delay: 100 });
+        console.log('[ABL Rapipago] Typed "buenos"');
         await new Promise(r => setTimeout(r, 2000));
 
-        // Click BUENOS AIRES from dropdown
-        await page.keyboard.press('ArrowDown');
-        await new Promise(r => setTimeout(r, 500));
-        await page.keyboard.press('Enter');
+        // Click on BUENOS AIRES option from dropdown
+        const locationClicked = await page.evaluate(() => {
+            const elements = Array.from(document.querySelectorAll('*'));
+            const buenosAires = elements.find(el => {
+                const text = el.textContent?.trim();
+                return text === 'BUENOS AIRES';
+            });
+            if (buenosAires) {
+                (buenosAires as HTMLElement).click();
+                return true;
+            }
+            return false;
+        });
 
-        console.log('[ABL Rapipago] Selected location');
+        console.log(`[ABL Rapipago] Location clicked: ${locationClicked}`);
         await new Promise(r => setTimeout(r, 3000));
 
         // Step 3: Click "Pago de Facturas"
@@ -104,14 +114,23 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         });
 
         console.log('[ABL Rapipago] Selected service type');
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 5000)); // Increased wait for page to load
 
-        // Step 6: Enter partida - find the partida input field
+        // Step 6: Enter partida - wait for and find the partida input field
+        console.log('[ABL Rapipago] Looking for partida input field...');
+        await new Promise(r => setTimeout(r, 2000));
+
         const allInputs = await page.$$('input');
+        console.log(`[ABL Rapipago] Found ${allInputs.length} input fields`);
         let partidaEntered = false;
 
-        for (const input of allInputs) {
+        for (let i = 0; i < allInputs.length; i++) {
+            const input = allInputs[i];
             const isVisible = await input.isIntersectingViewport();
+            const type = await input.evaluate(el => el.getAttribute('type'));
+            const placeholder = await input.evaluate(el => el.getAttribute('placeholder'));
+
+            console.log(`[ABL Rapipago] Input ${i}: visible=${isVisible}, type=${type}, placeholder=${placeholder}`);
             if (isVisible) {
                 const type = await input.evaluate(el => el.getAttribute('type'));
                 if (type === 'text' || type === 'number' || !type) {
@@ -205,10 +224,33 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         if (resultData.noDebt) {
             result.status = 'UP_TO_DATE';
         } else if (resultData.amounts.length > 0) {
-            // Take the largest amount found (likely the total)
-            const amounts = resultData.amounts.map(a =>
-                parseFloat(a.replace('$', '').replace(/\./g, '').replace(',', '.'))
-            );
+            // Parse amounts - handle both formats: "$ 1.234,56" and "$ 29181.2"
+            const amounts = resultData.amounts.map(a => {
+                // Remove $ and spaces
+                let numStr = a.replace('$', '').trim();
+
+                // If it has both dot and comma, it's Argentine format: dot=thousands, comma=decimal
+                if (numStr.includes('.') && numStr.includes(',')) {
+                    numStr = numStr.replace(/\./g, '').replace(',', '.');
+                }
+                // If it only has a dot and the part after dot has 1-2 digits, it's decimal
+                else if (numStr.includes('.')) {
+                    const parts = numStr.split('.');
+                    if (parts[1] && parts[1].length <= 2) {
+                        // It's already in correct format (decimal point)
+                    } else {
+                        // It's thousands separator, remove it
+                        numStr = numStr.replace(/\./g, '');
+                    }
+                }
+                // If it only has comma, it's decimal separator
+                else if (numStr.includes(',')) {
+                    numStr = numStr.replace(',', '.');
+                }
+
+                return parseFloat(numStr);
+            });
+
             result.debtAmount = Math.max(...amounts);
             result.status = result.debtAmount > 0 ? 'OVERDUE' : 'UP_TO_DATE';
         }
