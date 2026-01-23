@@ -388,53 +388,6 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     // NEW: Calculate Previous Month Passive Income
                     const passiveIncomeStats = await getPreviousMonthPassiveIncome(user.id, now);
 
-                    // NEW: Fetch Property Services Status
-                    const properties = await prisma.property.findMany({
-                        where: { userId: user.id },
-                        include: {
-                            utilityChecks: {
-                                orderBy: { checkDate: 'desc' },
-                                take: 5 // Get latest check for each service type
-                            }
-                        }
-                    });
-
-                    const propertyServices = properties.map(prop => {
-                        // Get latest check for each service type
-                        const getLatestCheck = (serviceType: string) => {
-                            return prop.utilityChecks.find(c => c.serviceType === serviceType);
-                        };
-
-                        const services = [];
-
-                        // Map service types to display names
-                        const serviceMapping = [
-                            { type: 'GAS', name: 'Gas', id: prop.gasId },
-                            { type: 'ELECTRICITY', name: 'Luz', id: prop.electricityId },
-                            { type: 'AYSA', name: 'AYSA', id: prop.aysaId },
-                            { type: 'MUNICIPAL', name: 'ABL', id: prop.municipalId },
-                            { type: 'GARAGE_MUNICIPAL', name: 'ABL Cochera', id: prop.garageMunicipalId }
-                        ];
-
-                        serviceMapping.forEach(({ type, name, id }) => {
-                            if (!id) return; // Skip if service not configured
-
-                            const check = getLatestCheck(type);
-                            if (check) {
-                                services.push({
-                                    name,
-                                    status: check.status as 'UP_TO_DATE' | 'OVERDUE',
-                                    debtAmount: check.debtAmount
-                                });
-                            }
-                        });
-
-                        return {
-                            propertyName: prop.name,
-                            services
-                        };
-                    }).filter(p => p.services.length > 0); // Only include properties with services
-
                     // Send HTML Email
 
 

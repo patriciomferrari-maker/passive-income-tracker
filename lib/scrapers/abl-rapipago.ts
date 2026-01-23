@@ -137,14 +137,38 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             };
         }
 
-        // Wait for form submission/navigation
-        await new Promise(r => setTimeout(r, 2000));
-        await page.keyboard.press('Enter');
+        // Step 7: Wait for invoices list and select first invoice
+        await new Promise(r => setTimeout(r, 3000));
 
-        console.log('[ABL Rapipago] Submitted, waiting for results...');
-        await new Promise(r => setTimeout(r, 8000)); // Wait longer for results
+        const invoiceSelected = await page.evaluate(() => {
+            const radios = document.querySelectorAll('input[type="radio"]');
+            if (radios.length > 0) {
+                (radios[0] as HTMLInputElement).click();
+                return true;
+            }
+            return false;
+        });
 
-        // Step 7: Parse results
+        console.log(`[ABL Rapipago] Invoice selected: ${invoiceSelected}`);
+        await new Promise(r => setTimeout(r, 1500));
+
+        // Click Continuar button
+        const continuarClicked = await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const continuar = buttons.find(btn =>
+                btn.textContent?.toLowerCase().includes('continuar')
+            );
+            if (continuar) {
+                (continuar as HTMLElement).click();
+                return true;
+            }
+            return false;
+        });
+
+        console.log(`[ABL Rapipago] Continuar clicked: ${continuarClicked}`);
+        await new Promise(r => setTimeout(r, 5000));
+
+        // Step 8: Parse results
         const resultData = await page.evaluate(() => {
             const bodyText = document.body.innerText;
 

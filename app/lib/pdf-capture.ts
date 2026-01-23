@@ -4,7 +4,7 @@ import chromium from '@sparticuz/chromium';
 // Cache browser instance check
 let isLocal = process.env.NODE_ENV === 'development';
 
-export async function generateDashboardPdf(userId: string, type: 'rentals' | 'investments' | 'dashboard' | 'finance' | 'bank' | 'debts', baseUrl: string, secret: string, queryParams?: Record<string, string>): Promise<Buffer> {
+export async function generateDashboardPdf(userId: string, type: 'rentals' | 'investments' | 'dashboard' | 'finance' | 'bank' | 'debts' | 'services', baseUrl: string, secret: string, queryParams?: Record<string, string>): Promise<Buffer> {
     const isRentals = type === 'rentals';
 
     // Hybrid Strategy: Remote in Prod (Browserless), Local in Dev
