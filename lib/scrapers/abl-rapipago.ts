@@ -111,7 +111,7 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         await new Promise(r => setTimeout(r, 1500));
 
         // Click Continuar button
-        const continuarClicked = await page.evaluate(() => {
+        const serviceContinuarClicked = await page.evaluate(() => {
             const buttons = Array.from(document.querySelectorAll('button'));
             const continuar = buttons.find(btn =>
                 btn.textContent?.toLowerCase().includes('continuar')
@@ -123,7 +123,7 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             return false;
         });
 
-        console.log(`[ABL Rapipago] Continuar clicked: ${continuarClicked}`);
+        console.log(`[ABL Rapipago] Continuar clicked: ${serviceContinuarClicked}`);
         await new Promise(r => setTimeout(r, 5000)); // Wait for partida page to load
 
         // Step 6: Enter partida - wait for and find the partida input field

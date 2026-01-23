@@ -33,8 +33,12 @@ async function getServicesData(userId: string) {
 
     return properties.map(prop => {
         // Get latest check for each service type
-        const getLatestCheck = (serviceType: string) => {
-            return prop.utilityChecks.find(c => c.serviceType === serviceType);
+        const getLatestCheck = (serviceType: string, accountNumber?: string | null) => {
+            return prop.utilityChecks.find(c => {
+                if (c.serviceType !== serviceType) return false;
+                if (accountNumber) return c.accountNumber === accountNumber;
+                return true;
+            });
         };
 
         return {
@@ -51,8 +55,8 @@ async function getServicesData(userId: string) {
                 gas: getLatestCheck('GAS'),
                 electricity: getLatestCheck('ELECTRICITY'),
                 aysa: getLatestCheck('AYSA'),
-                municipal: getLatestCheck('MUNICIPAL'),
-                garageMunicipal: getLatestCheck('GARAGE_MUNICIPAL')
+                municipal: getLatestCheck('MUNICIPAL', prop.municipalId),
+                garageMunicipal: getLatestCheck('MUNICIPAL', prop.garageMunicipalId)
             }
         };
     });
