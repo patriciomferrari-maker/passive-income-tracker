@@ -36,34 +36,54 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             timeout: 60000
         });
 
-        console.log('[ABL Rapipago] Page loaded, looking for search input...');
+        console.log('[ABL Rapipago] Page loaded. Starting human behavior...');
+
+        // Initial "reading" pause and mouse jitter
+        await new Promise(r => setTimeout(r, 1000 + Math.random() * 2000));
+        await page.mouse.move(Math.random() * 500, Math.random() * 500, { steps: 20 });
+        await page.evaluate(() => window.scrollBy(0, 300));
+        await new Promise(r => setTimeout(r, 500));
+        await page.evaluate(() => window.scrollBy(0, -300));
 
         // Use 'CAPITAL FEDERAL' as per manual inspection
         const inputLoc = await page.waitForSelector('input', { visible: true });
         if (inputLoc) {
-            await inputLoc.type('CAPITAL FEDERAL', { delay: 100 });
-            await new Promise(r => setTimeout(r, 1000));
+            await inputLoc.click();
+            await new Promise(r => setTimeout(r, 500));
+            // Type like a human
+            for (const char of 'CAPITAL FEDERAL') {
+                await page.keyboard.type(char, { delay: 100 + Math.random() * 150 });
+            }
+            await new Promise(r => setTimeout(r, 1000 + Math.random() * 500));
             await page.keyboard.press('ArrowDown');
+            await new Promise(r => setTimeout(r, 300 + Math.random() * 200));
             await page.keyboard.press('Enter');
         }
 
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
 
         // Click "Pago de Facturas"
         await page.evaluate(() => {
             const elements = Array.from(document.querySelectorAll('*'));
-            const pagoFacturas = elements.find(el => el.textContent?.trim().toLowerCase() === 'pago de facturas');
-            if (pagoFacturas) (pagoFacturas as HTMLElement).click();
+            const pagoFacturas = (elements.find(el => el.textContent?.trim().toLowerCase() === 'pago de facturas') as HTMLElement);
+            if (pagoFacturas) {
+                const box = pagoFacturas.getBoundingClientRect();
+                // Create a fake click event or use mouse
+                pagoFacturas.click();
+            }
         });
 
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 3000 + Math.random() * 1000));
 
         // Search for company
         const companyInput = await page.waitForSelector('input[placeholder*="empresa" i], input[type="text"]', { visible: true });
         if (companyInput) {
             await companyInput.click();
-            await companyInput.type('AGIP'); // User suggested AGIP
-            await new Promise(r => setTimeout(r, 2000));
+            await new Promise(r => setTimeout(r, 400));
+            for (const char of 'AGIP') {
+                await page.keyboard.type(char, { delay: 150 + Math.random() * 100 });
+            }
+            await new Promise(r => setTimeout(r, 2000 + Math.random() * 500));
 
             // Select "AGIP GCBA - ABL IIBB PATENTES"
             const option = await page.waitForSelector('::-p-text(AGIP GCBA - ABL IIBB PATENTES)', { timeout: 5000 }).catch(() => null);
@@ -77,12 +97,12 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         }
 
         console.log('[ABL Rapipago] Company selected');
-        console.log('[ABL Rapipago] Waiting for service options...');
+        await new Promise(r => setTimeout(r, 1500));
 
         await page.waitForFunction(() => document.body.innerText.includes('COBRANZA SIN FACTURA'), { timeout: 20000 });
 
-        // Select Service Option logic - INPUT SEARCH (Proven to reveal Partida input)
-        console.log('[ABL Rapipago] searching for service option (Input Search)...');
+        // Select Service Option logic - INPUT SEARCH
+        console.log('[ABL Rapipago] selecting service option...');
 
         const selectionResult = await page.evaluate(() => {
             const textToFind = 'COBRANZA SIN FACTURA';
@@ -101,14 +121,17 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             });
 
             if (targetInput) {
+                const rect = (targetInput as HTMLElement).getBoundingClientRect();
                 (targetInput as HTMLElement).click();
-                return { found: true };
+                return { found: true, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
             }
             return { found: false };
         });
 
         if (selectionResult.found) {
-            console.log('[ABL Rapipago] ✅ Service option selected (via Input click)');
+            console.log('[ABL Rapipago] ✅ Service option selected');
+            // Move mouse to selection as well
+            await page.mouse.move(selectionResult.x || 0, selectionResult.y || 0, { steps: 10 });
         } else {
             console.log('[ABL Rapipago] ⚠️ Input not found, falling back to text click...');
             const labelText = 'COBRANZA SIN FACTURA';
@@ -121,55 +144,84 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         }
 
         // ---------------------------------------------------------
-        // 4. Input Partida
+        // 4. Input Partida (MODO HUMANO)
         // ---------------------------------------------------------
         await new Promise(r => setTimeout(r, 2000));
-        console.log('[ABL Rapipago] Waiting for partida input...');
+        console.log('[ABL Rapipago] ✍️  Escribiendo partida modo humano...');
 
-        const inputPartida = await page.waitForSelector('input[placeholder*="partida" i]', {
+        const inputSelector = 'input[placeholder*="partida" i]';
+        const inputPartida = await page.waitForSelector(inputSelector, {
             visible: true,
             timeout: 10000
         });
 
         if (inputPartida) {
+            // A. Asegurar foco y limpiar usando teclado (más humano que SET .value)
             await inputPartida.evaluate(el => el.scrollIntoView());
             await inputPartida.click();
-            await new Promise(r => setTimeout(r, 500));
-            await inputPartida.type(partida, { delay: 100 });
+            await new Promise(r => setTimeout(r, 400 + Math.random() * 300));
 
-            // Dispatch React events explicit
-            await inputPartida.evaluate(el => {
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-                el.dispatchEvent(new Event('blur', { bubbles: true }));
+            // Select all and delete (More realistic than setting property)
+            await page.keyboard.down('Control');
+            await page.keyboard.press('A');
+            await page.keyboard.up('Control');
+            await page.keyboard.press('Backspace');
+
+            await new Promise(r => setTimeout(r, 600 + Math.random() * 400));
+
+            // B. Escribir con delay variable (entre 150ms y 300ms por tecla)
+            for (const char of partida) {
+                await page.keyboard.type(char, { delay: 150 + Math.random() * 150 });
+            }
+
+            // C. Mover el mouse con "jitter" para parecer una persona real
+            for (let i = 0; i < 6; i++) {
+                await page.mouse.move(200 + Math.random() * 300, 200 + Math.random() * 300, { steps: 10 });
+                await new Promise(r => setTimeout(r, 150));
+            }
+
+            // D. Sacar el foco del input (simula que el usuario terminó de escribir)
+            await page.evaluate(() => {
+                if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                }
             });
 
-            await new Promise(r => setTimeout(r, 1000));
-            console.log(`[ABL Rapipago] Entered partida: ${partida}`);
+            // E. Espera "psicológica" variable antes de continuar (2 a 4 segundos)
+            await new Promise(r => setTimeout(r, 3000 + Math.random() * 1000));
+            console.log(`[ABL Rapipago] Entered partida: ${partida} (Hyper-Humanized)`);
         } else {
             throw new Error('Partida input not found');
         }
 
-        // Continuar - Coordinate Click (Robust for React Buttons)
+        // Continuar - Humanized verification of button status
         console.log('[ABL Rapipago] Looking for Continuar button...');
 
         let btnContinuar = await page.evaluateHandle(() => {
             const buttons = Array.from(document.querySelectorAll('button'));
             return buttons.find(b => b.textContent?.includes('Continuar'));
-        });
+        }) as any;
 
         if (btnContinuar) {
-            const box = await btnContinuar.boundingBox();
-            if (box) {
-                console.log(`[ABL Rapipago] Clicking Continuar at ${box.x}, ${box.y}`);
-                await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+            const isDisabled = await page.evaluate(el => el.hasAttribute('disabled') || el.classList.contains('disabled'), btnContinuar);
+
+            if (!isDisabled) {
+                const box = await btnContinuar.boundingBox();
+                if (box) {
+                    console.log(`[ABL Rapipago] Clicking Continuar at ${box.x}, ${box.y}`);
+                    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+                } else {
+                    await btnContinuar.click();
+                    console.log('[ABL Rapipago] Clicked Continuar (Element Click Fallback)');
+                }
             } else {
-                // Fallback
-                await btnContinuar.click();
-                console.log('[ABL Rapipago] Clicked Continuar (Element Click Fallback)');
+                console.error('[ABL Rapipago] ⛔ El botón Continuar sigue deshabilitado. Falló la validación del input.');
+                // Try one more blur/wait
+                await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+                await new Promise(r => setTimeout(r, 2000));
+                await btnContinuar.click(); // Force it
             }
         } else {
-            // Fallback
             await page.keyboard.press('Enter');
             console.log('[ABL Rapipago] Button not found, pressed Enter fallback');
         }

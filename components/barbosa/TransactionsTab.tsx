@@ -301,6 +301,7 @@ export function TransactionsTab() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         ...tx,
+                        type: categories.find(c => c.id === tx.categoryId)?.type || 'EXPENSE',
                         categoryId: tx.categoryId || '',
                         subCategoryId: tx.subCategoryId || null,
                         importSource: currentImportSource,

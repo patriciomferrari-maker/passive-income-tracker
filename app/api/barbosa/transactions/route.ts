@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
             date: toArgNoon(date, 'keep-day'), // Standardize Input Date
             amount: parseFloat(amount),
             currency,
-            type,
+            type: type || category?.type || 'EXPENSE',
             exchangeRate: exchangeRate ? parseFloat(exchangeRate) : null,
             amountUSD: currency === 'USD' ? parseFloat(amount) : (exchangeRate ? parseFloat(amount) / parseFloat(exchangeRate) : null),
             description: description,
