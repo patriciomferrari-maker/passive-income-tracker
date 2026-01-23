@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
-import { checkMetrogasWhatsApp } from '../lib/scrapers/metrogas-whatsapp';
-import { checkAysaWhatsApp } from '../lib/scrapers/aysa-whatsapp';
+import { checkMetrogas } from '../lib/scrapers/metrogas';
+import { checkAysaWeb } from '../lib/scrapers/aysa-web';
+import { checkNaturgy } from '../lib/scrapers/naturgy';
 
 interface CheckResult {
     propertyId: string;
@@ -41,11 +42,11 @@ async function checkAllUtilities() {
             console.log(`\n🏠 Checking: ${property.name}`);
             console.log('─'.repeat(50));
 
-            // Check Metrogas (Gas)
+            // Check Metrogas (Gas) - SCAPER METHOD (Legacy/Working)
             if (property.gasId) {
                 console.log(`\n🔥 Checking Metrogas (${property.gasId})...`);
                 try {
-                    const result = await checkMetrogasWhatsApp(property.gasId);
+                    const result = await checkMetrogas(property.gasId);
 
                     // Save to database
                     await prisma.utilityCheck.create({
@@ -87,13 +88,57 @@ async function checkAllUtilities() {
                         error: error.message
                     });
                 }
+
+                // Check Naturgy (Gas) - Run for same ID, assuming it might be Naturgy if Metrogas fails or just to support both
+                console.log(`\n🔥 Checking Naturgy (${property.gasId})...`);
+                try {
+                    const result = await checkNaturgy(property.gasId);
+
+                    // Only save if status is known/valid to avoid cluttering DB with "User not found" from wrong provider
+                    if (result.status !== 'UNKNOWN' && result.status !== 'ERROR') {
+                        await prisma.utilityCheck.create({
+                            data: {
+                                propertyId: property.id,
+                                serviceType: 'GAS', // Uses same type 'GAS'
+                                accountNumber: property.gasId,
+                                status: result.status,
+                                debtAmount: result.debtAmount,
+                                lastBillAmount: result.lastBillAmount,
+                                lastBillDate: result.lastBillDate,
+                                dueDate: result.dueDate,
+                                isAutomatic: true,
+                                errorMessage: result.errorMessage
+                            }
+                        });
+
+                        results.push({
+                            propertyId: property.id,
+                            propertyName: property.name,
+                            service: 'Naturgy',
+                            status: result.status,
+                            debtAmount: result.debtAmount,
+                            error: result.errorMessage
+                        });
+
+                        console.log(`   ✅ Status: ${result.status}`);
+                        if (result.debtAmount > 0) {
+                            console.log(`   💰 Debt: $${result.debtAmount.toLocaleString('es-AR')}`);
+                        }
+                    } else {
+                        console.log(`   ℹ️  Skipping Naturgy result: ${result.status} (likely not a Naturgy account)`);
+                    }
+
+                } catch (error: any) {
+                    // Don't error out loudly, just log
+                    console.error(`   ❌ Naturgy Error: ${error.message}`);
+                }
             }
 
-            // Check AYSA (Water)
+            // Check AYSA (Water) - WEB SCRAPER METHOD
             if (property.aysaId) {
                 console.log(`\n💧 Checking AYSA (${property.aysaId})...`);
                 try {
-                    const result = await checkAysaWhatsApp(property.aysaId);
+                    const result = await checkAysaWeb(property.aysaId);
 
                     // Save to database
                     await prisma.utilityCheck.create({

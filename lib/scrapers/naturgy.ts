@@ -16,7 +16,7 @@ export async function checkNaturgy(accountNumber: string): Promise<NaturgyResult
         console.log(`[Naturgy] Checking account: ${accountNumber}`);
 
         browser = await puppeteer.launch({
-            headless: true,
+            headless: false,
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
         });
 
@@ -87,20 +87,27 @@ export async function checkNaturgy(accountNumber: string): Promise<NaturgyResult
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Click submit button (look for "Acceder a pagar" text)
-        const buttonClicked = await page.evaluate(() => {
+        const buttonInfo = await page.evaluate(() => {
             const buttons = Array.from(document.querySelectorAll('button'));
+            const buttonTexts = buttons.map(btn => btn.textContent?.trim() || '');
+
             const submitButton = buttons.find(btn =>
                 btn.textContent?.toLowerCase().includes('acceder') ||
-                btn.textContent?.toLowerCase().includes('consultar')
+                btn.textContent?.toLowerCase().includes('consultar') ||
+                btn.textContent?.toLowerCase().includes('pagar')
             );
-            if (submitButton) {
-                (submitButton as HTMLElement).click();
-                return true;
-            }
-            return false;
+
+            return {
+                found: !!submitButton,
+                allButtons: buttonTexts,
+                bodyPreview: document.body.textContent?.substring(0, 500) || ''
+            };
         });
 
-        if (!buttonClicked) {
+        console.log('[Naturgy] Debug - Buttons found:', buttonInfo.allButtons);
+        console.log('[Naturgy] Debug - Body preview:', buttonInfo.bodyPreview.substring(0, 200));
+
+        if (!buttonInfo.found) {
             console.log('[Naturgy] ⚠️  Submit button not found');
             return {
                 status: 'UNKNOWN',
@@ -111,6 +118,19 @@ export async function checkNaturgy(accountNumber: string): Promise<NaturgyResult
                 errorMessage: 'Botón de consulta no encontrado'
             };
         }
+
+        // Click the button
+        await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const submitButton = buttons.find(btn =>
+                btn.textContent?.toLowerCase().includes('acceder') ||
+                btn.textContent?.toLowerCase().includes('consultar') ||
+                btn.textContent?.toLowerCase().includes('pagar')
+            );
+            if (submitButton) {
+                (submitButton as HTMLElement).click();
+            }
+        });
 
         console.log('[Naturgy] Waiting for results...');
         await new Promise(resolve => setTimeout(resolve, 5000));

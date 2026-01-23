@@ -30,6 +30,17 @@ export interface PassiveIncomeStats {
     debtCollected: number;
 }
 
+interface ServiceCheck {
+    name: string; // e.g., "Expensas", "ABL", "Gas", "Luz"
+    status: 'UP_TO_DATE' | 'OVERDUE';
+    debtAmount: number | null;
+}
+
+interface PropertyServices {
+    propertyName: string;
+    services: ServiceCheck[];
+}
+
 interface MonthlyReportData {
     userName: string;
     month: string;
@@ -57,6 +68,9 @@ interface MonthlyReportData {
     hasUSA?: boolean;
     hasBank?: boolean;
     hasDebts?: boolean;
+
+    // NEW: Property Services Status
+    propertyServices?: PropertyServices[];
 }
 
 export function generateMonthlyReportEmail(data: MonthlyReportData): string {
@@ -65,7 +79,8 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
         totalDebtPending, totalBank, totalArg, totalUSA,
         maturities, previousMonthPassiveIncome, // New
         rentalEvents,
-        hasRentals, hasArg, hasUSA, hasBank, hasDebts
+        hasRentals, hasArg, hasUSA, hasBank, hasDebts,
+        propertyServices // New
     } = data;
 
     // Metrics for Executive Summary
@@ -202,6 +217,90 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
         `;
     };
 
+    // New: Services Summary Table
+    const renderServicesTable = () => {
+        if (!propertyServices || propertyServices.length === 0) return '';
+
+        // Get all unique service names
+        const allServiceNames = Array.from(
+            new Set(propertyServices.flatMap(p => p.services.map(s => s.name)))
+        ).sort();
+
+        // Calculate total debt
+        const totalDebt = propertyServices.reduce((sum, prop) => {
+            return sum + prop.services.reduce((s, svc) => s + (svc.debtAmount || 0), 0);
+        }, 0);
+
+        return `
+        <div style="margin-bottom: 32px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <h2 style="margin: 0 0 15px 0; color: #1e293b; font-size: 18px; font-weight: 600;">
+                📋 Estado de Servicios por Propiedad
+            </h2>
+            
+            <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;">
+                <thead>
+                    <tr style="background: #e2e8f0; border-bottom: 2px solid #cbd5e1;">
+                        <th style="padding: 12px; text-align: left; font-size: 13px; color: #475569; font-weight: 600; border-right: 1px solid #cbd5e1;">
+                            Propiedad
+                        </th>
+                        ${allServiceNames.map(serviceName => `
+                            <th style="padding: 12px; text-align: center; font-size: 13px; color: #475569; font-weight: 600; border-right: 1px solid #cbd5e1;">
+                                ${serviceName}
+                            </th>
+                        `).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${propertyServices.map((property, idx) => {
+            const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+            return `
+                        <tr style="border-bottom: 1px solid #e2e8f0; background: ${bgColor};">
+                            <td style="padding: 12px; font-size: 14px; color: #334155; font-weight: 600; border-right: 1px solid #e2e8f0;">
+                                🏠 ${property.propertyName}
+                            </td>
+                            ${allServiceNames.map(serviceName => {
+                const service = property.services.find(s => s.name === serviceName);
+                if (!service) {
+                    return `<td style="padding: 12px; text-align: center; border-right: 1px solid #e2e8f0;"><span style="color: #cbd5e1;">-</span></td>`;
+                }
+
+                if (service.status === 'UP_TO_DATE') {
+                    return `
+                                    <td style="padding: 12px; text-align: center; border-right: 1px solid #e2e8f0;">
+                                        <span style="background: #dcfce7; color: #166534; padding: 5px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; display: inline-block;">
+                                            ✓ Al día
+                                        </span>
+                                    </td>
+                                    `;
+                } else {
+                    return `
+                                    <td style="padding: 12px; text-align: center; border-right: 1px solid #e2e8f0;">
+                                        <div style="background: #fee2e2; color: #991b1b; padding: 5px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-block;">
+                                            <div style="font-size: 10px; opacity: 0.8;">⚠ DEUDA</div>
+                                            <div style="font-size: 13px; margin-top: 2px;">${formatCurrency(service.debtAmount || 0, 'ARS')}</div>
+                                        </div>
+                                    </td>
+                                    `;
+                }
+            }).join('')}
+                        </tr>
+                        `;
+        }).join('')}
+                </tbody>
+            </table>
+            
+            ${totalDebt > 0 ? `
+            <div style="margin-top: 15px; padding: 12px; background: white; border-radius: 6px; border-left: 4px solid #dc2626;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 14px; color: #64748b; font-weight: 500;">Total Deuda Pendiente:</span>
+                    <span style="font-size: 20px; font-weight: 700; color: #dc2626;">${formatCurrency(totalDebt, 'ARS')}</span>
+                </div>
+            </div>
+            ` : ''}
+        </div>
+        `;
+    };
+
     return `
 <!DOCTYPE html>
 <html>
@@ -268,6 +367,9 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
 
         <!-- Main Content -->
         <div style="padding: 0 32px 32px;">
+            
+            <!-- NEW: Services Summary -->
+            ${renderServicesTable()}
             
             <!-- NEW: Previous Month Passive Income Details -->
             ${renderPassiveIncome()}

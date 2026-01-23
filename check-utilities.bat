@@ -10,7 +10,7 @@ echo.
 cd /d "%~dp0"
 
 REM Run the TypeScript script
-call npx ts-node scripts/check-all-utilities.ts
+call npx tsx scripts/check-all-utilities.ts
 
 echo.
 echo ========================================

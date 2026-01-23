@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Opciones de Diseño - Resumen de Servicios</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f1f5f9;
+            padding: 40px 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .option-wrapper {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .option-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 10px;
+        }
+        .option-subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 30px;
+        }
+        .email-preview {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center; color: #1e293b; margin-bottom: 40px;">
+            Opciones de Diseño: Resumen de Servicios
+        </h1>
+
+        <!-- OPCIÓN 1: TABLA COMPACTA -->
+        <div class="option-wrapper">
+            <div class="option-title">Opción 1: Tabla Compacta con Badges</div>
+            <div class="option-subtitle">✅ Mejor para: Muchos servicios | Estilo: Profesional y formal</div>
+            
+            <div class="email-preview">
+                <!-- Resumen de Servicios -->
+                <div style="margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                    <h2 style="margin: 0 0 15px 0; color: #1e293b; font-size: 18px; font-weight: 600;">
+                        📋 Estado de Servicios
+                    </h2>
+                    
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #e2e8f0; border-bottom: 2px solid #cbd5e1;">
+                                <th style="padding: 10px; text-align: left; font-size: 13px; color: #475569;">Propiedad</th>
+                                <th style="padding: 10px; text-align: left; font-size: 13px; color: #475569;">Servicio</th>
+                                <th style="padding: 10px; text-align: center; font-size: 13px; color: #475569;">Estado</th>
+                                <th style="padding: 10px; text-align: right; font-size: 13px; color: #475569;">Deuda</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 12px; font-size: 14px; color: #334155;">Depto A - Palermo</td>
+                                <td style="padding: 12px; font-size: 14px; color: #64748b;">Expensas</td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <span style="background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                                        ✓ Al día
+                                    </span>
+                                </td>
+                                <td style="padding: 12px; text-align: right; font-size: 14px; color: #64748b;">-</td>
+                            </tr>
+                            
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 12px; font-size: 14px; color: #334155;">Casa B - Belgrano</td>
+                                <td style="padding: 12px; font-size: 14px; color: #64748b;">ABL</td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <span style="background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                                        ⚠ Deuda
+                                    </span>
+                                </td>
+                                <td style="padding: 12px; text-align: right; font-size: 14px; font-weight: 600; color: #dc2626;">
+                                    $45,230
+                                </td>
+                            </tr>
+                            
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 12px; font-size: 14px; color: #334155;">Casa B - Belgrano</td>
+                                <td style="padding: 12px; font-size: 14px; color: #64748b;">Gas</td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <span style="background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                                        ✓ Al día
+                                    </span>
+                                </td>
+                                <td style="padding: 12px; text-align: right; font-size: 14px; color: #64748b;">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div style="margin-top: 15px; padding: 12px; background: white; border-radius: 6px; border-left: 4px solid #dc2626;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 14px; color: #64748b;">Total Deuda Pendiente:</span>
+                            <span style="font-size: 18px; font-weight: 700; color: #dc2626;">$45,230</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- OPCIÓN 2: CARDS AGRUPADOS -->
+        <div class="option-wrapper">
+            <div class="option-title">Opción 2: Cards Agrupados por Propiedad ⭐ RECOMENDADA</div>
+            <div class="option-subtitle">✅ Mejor para: Vista organizada | Estilo: Moderno y claro</div>
+            
+            <div class="email-preview">
+                <div style="margin: 30px 0;">
+                    <h2 style="margin: 0 0 20px 0; color: #1e293b; font-size: 18px; font-weight: 600;">
+                        📋 Estado de Servicios por Propiedad
+                    </h2>
+                    
+                    <!-- Propiedad 1 -->
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #22c55e;">
+                        <h3 style="margin: 0 0 12px 0; color: #334155; font-size: 15px; font-weight: 600;">
+                            🏠 Depto A - Palermo
+                        </h3>
+                        
+                        <div style="display: grid; gap: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: white; border-radius: 6px;">
+                                <div>
+                                    <span style="font-size: 14px; color: #334155; font-weight: 500;">Expensas</span>
+                                    <span style="margin-left: 8px; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 600;">
+                                        ✓ AL DÍA
+                                    </span>
+                                </div>
+                                <span style="font-size: 13px; color: #64748b;">-</span>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: white; border-radius: 6px;">
+                                <div>
+                                    <span style="font-size: 14px; color: #334155; font-weight: 500;">Luz</span>
+                                    <span style="margin-left: 8px; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 600;">
+                                        ✓ AL DÍA
+                                    </span>
+                                </div>
+                                <span style="font-size: 13px; color: #64748b;">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Propiedad 2 con deuda -->
+                    <div style="margin-bottom: 20px; padding: 15px; background: #fef2f2; border-radius: 8px; border-left: 4px solid #dc2626;">
+                        <h3 style="margin: 0 0 12px 0; color: #334155; font-size: 15px; font-weight: 600;">
+                            🏠 Casa B - Belgrano
+                        </h3>
+                        
+                        <div style="display: grid; gap: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: white; border-radius: 6px;">
+                                <div>
+                                    <span style="font-size: 14px; color: #334155; font-weight: 500;">ABL</span>
+                                    <span style="margin-left: 8px; background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 600;">
+                                        ⚠ DEUDA
+                                    </span>
+                                </div>
+                                <span style="font-size: 14px; font-weight: 600; color: #dc2626;">$45,230</span>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: white; border-radius: 6px;">
+                                <div>
+                                    <span style="font-size: 14px; color: #334155; font-weight: 500;">Gas</span>
+                                    <span style="margin-left: 8px; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 600;">
+                                        ✓ AL DÍA
+                                    </span>
+                                </div>
+                                <span style="font-size: 13px; color: #64748b;">-</span>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 10px; padding: 8px 12px; background: white; border-radius: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 13px; color: #64748b; font-weight: 500;">Deuda Total:</span>
+                                <span style="font-size: 15px; font-weight: 700; color: #dc2626;">$45,230</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- OPCIÓN 3: LISTA MINIMALISTA -->
+        <div class="option-wrapper">
+            <div class="option-title">Opción 3: Lista Minimalista con Iconos</div>
+            <div class="option-subtitle">✅ Mejor para: Vista rápida | Estilo: Moderno y atractivo</div>
+            
+            <div class="email-preview">
+                <div style="margin: 30px 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px;">
+                    <h2 style="margin: 0 0 15px 0; color: white; font-size: 18px; font-weight: 600;">
+                        📋 Resumen de Servicios
+                    </h2>
+                    
+                    <div style="background: white; border-radius: 8px; padding: 15px;">
+                        <div style="display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+                            <div style="width: 40px; height: 40px; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                <span style="font-size: 20px;">✓</span>
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 14px; font-weight: 600; color: #334155;">Depto A - Palermo</div>
+                                <div style="font-size: 12px; color: #64748b;">Expensas • Al día</div>
+                            </div>
+                            <div style="font-size: 14px; color: #64748b;">-</div>
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+                            <div style="width: 40px; height: 40px; background: #fee2e2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                <span style="font-size: 20px;">⚠</span>
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 14px; font-weight: 600; color: #334155;">Casa B - Belgrano</div>
+                                <div style="font-size: 12px; color: #dc2626; font-weight: 500;">ABL • Deuda pendiente</div>
+                            </div>
+                            <div style="font-size: 15px; font-weight: 700; color: #dc2626;">$45,230</div>
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; padding: 10px 0;">
+                            <div style="width: 40px; height: 40px; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                <span style="font-size: 20px;">✓</span>
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 14px; font-weight: 600; color: #334155;">Casa B - Belgrano</div>
+                                <div style="font-size: 12px; color: #64748b;">Gas • Al día</div>
+                            </div>
+                            <div style="font-size: 14px; color: #64748b;">-</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 12px; padding: 12px; background: rgba(255,255,255,0.2); border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 14px; color: white; font-weight: 500;">Total Deuda:</span>
+                            <span style="font-size: 20px; font-weight: 700; color: white;">$45,230</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; padding: 40px 20px; background: white; border-radius: 12px; margin-top: 40px;">
+            <h3 style="color: #1e293b; margin-bottom: 20px;">¿Cuál prefieres?</h3>
+            <p style="color: #64748b; max-width: 600px; margin: 0 auto;">
+                La <strong>Opción 2</strong> es la más recomendada porque agrupa por propiedad, 
+                destaca visualmente las deudas y muestra subtotales claros.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
