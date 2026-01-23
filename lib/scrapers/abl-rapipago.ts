@@ -78,47 +78,53 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
             const isVisible = await input.isIntersectingViewport();
             if (isVisible) {
                 await input.click();
-                await input.type('ABL', { delay: 100 });
+                await input.type('IIBB PATENTES', { delay: 100 });
                 break;
             }
         }
 
-        console.log('[ABL Rapipago] Typed ABL');
-        await new Promise(r => setTimeout(r, 3000));
+        console.log('[ABL Rapipago] Typed IIBB PATENTES');
+        await new Promise(r => setTimeout(r, 2000));
 
-        // Click on first option that appears (AGIP GCBA - ABL IIBB PATENTES)
-        const companyClicked = await page.evaluate(() => {
-            const elements = Array.from(document.querySelectorAll('*'));
-            const agip = elements.find(el => {
-                const text = el.textContent || '';
-                return text.includes('AGIP GCBA') && text.includes('ABL');
-            });
-            if (agip) {
-                (agip as HTMLElement).click();
-                return true;
-            }
-            return false;
-        });
+        // Select first option from dropdown using keyboard
+        await page.keyboard.press('ArrowDown');
+        await new Promise(r => setTimeout(r, 500));
+        await page.keyboard.press('Enter');
 
-        console.log(`[ABL Rapipago] Company selected: ${companyClicked}`);
-        await new Promise(r => setTimeout(r, 3000));
+        console.log('[ABL Rapipago] Company selected from dropdown');
+        await new Promise(r => setTimeout(r, 5000)); // Increased wait for service options to load
 
-        // Step 5: Select service type
+        // Step 5: Select service type - click second radio button
+        console.log('[ABL Rapipago] Looking for service type radio buttons...');
+        await new Promise(r => setTimeout(r, 2000));
+
         const serviceSelected = await page.evaluate(() => {
-            const elements = Array.from(document.querySelectorAll('*'));
-            const cobranza = elements.find(el => {
-                const text = el.textContent || '';
-                return text.includes('COBRANZA SIN FACTURA') && text.includes('FACILIDADES');
-            });
-            if (cobranza) {
-                (cobranza as HTMLElement).click();
+            const radios = document.querySelectorAll('input[type="radio"]');
+            if (radios.length >= 2) {
+                (radios[1] as HTMLInputElement).click(); // Second option: COBRANZA SIN FACTURA - PLAN DE FACILIDADES
                 return true;
             }
             return false;
         });
 
-        console.log(`[ABL Rapipago] Service type selected: ${serviceSelected}`);
-        await new Promise(r => setTimeout(r, 8000)); // Increased wait for page to load
+        console.log(`[ABL Rapipago] Service radio selected: ${serviceSelected}`);
+        await new Promise(r => setTimeout(r, 1500));
+
+        // Click Continuar button
+        const continuarClicked = await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const continuar = buttons.find(btn =>
+                btn.textContent?.toLowerCase().includes('continuar')
+            );
+            if (continuar) {
+                (continuar as HTMLElement).click();
+                return true;
+            }
+            return false;
+        });
+
+        console.log(`[ABL Rapipago] Continuar clicked: ${continuarClicked}`);
+        await new Promise(r => setTimeout(r, 5000)); // Wait for partida page to load
 
         // Step 6: Enter partida - wait for and find the partida input field
         console.log('[ABL Rapipago] Looking for partida input field...');

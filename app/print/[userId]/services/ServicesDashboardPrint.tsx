@@ -162,10 +162,17 @@ export default function ServicesDashboardPrint({ servicesData }: Props) {
                                     {/* ABL Cochera */}
                                     <td className="py-4 px-4 text-center">
                                         {property.hasGarage && property.garageMunicipalId ? (
-                                            <div className="flex flex-col items-center gap-2">
-                                                <div className="text-xs text-slate-400">Cochera</div>
-                                                {property.checks.garageMunicipal && getStatusBadge(property.checks.garageMunicipal.status, property.checks.garageMunicipal.debtAmount)}
-                                            </div>
+                                            property.checks.garageMunicipal ? (
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <div className="text-xs text-slate-400">Cochera</div>
+                                                    {getStatusBadge(property.checks.garageMunicipal.status, property.checks.garageMunicipal.debtAmount)}
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <div className="text-xs text-slate-400">Cochera</div>
+                                                    <span className="text-slate-600 text-xs">Sin datos</span>
+                                                </div>
+                                            )
                                         ) : (
                                             <span className="text-slate-600">-</span>
                                         )}
