@@ -92,7 +92,7 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         await page.keyboard.press('Enter');
 
         console.log('[ABL Rapipago] Company selected from dropdown');
-        await new Promise(r => setTimeout(r, 5000)); // Increased wait for service options to load
+        await new Promise(r => setTimeout(r, 8000)); // Increased wait for service page with partida field to load
 
         // Step 5: Select service type - click second radio button
         console.log('[ABL Rapipago] Looking for service type radio buttons...');

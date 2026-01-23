@@ -178,7 +178,7 @@ export default function SettingsPage() {
                 <h1 className="text-3xl font-bold text-white">Configuración</h1>
             </div>
 
-            <Card className="bg-slate-900 border-slate-800 text-slate-100">
+            <Card className="bg-slate-950 border-slate-800 text-slate-100">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Mail className="h-5 w-5 text-purple-400" />
