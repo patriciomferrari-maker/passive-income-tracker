@@ -640,6 +640,21 @@ export function TransactionsTab() {
                         >
                             <span className="text-[10px] font-bold">ESTAD.</span>
                         </div>
+
+                        {/* SELECT ALL FILTERED BUTTON */}
+                        {(filterMonth !== 'ALL' || filterYear !== 'ALL' || filterSource !== 'ALL') && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    const filteredIds = filteredTransactions.map(tx => tx.id);
+                                    setSelectedIds(new Set([...Array.from(selectedIds), ...filteredIds]));
+                                }}
+                                className="h-8 text-[10px] font-bold border-indigo-800 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/20"
+                            >
+                                <Check className="w-3 h-3 mr-1" /> SELECCIONAR TODO
+                            </Button>
+                        )}
                     </div>
 
                     {/* Batch Actions */}

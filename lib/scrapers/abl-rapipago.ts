@@ -156,72 +156,60 @@ export async function checkABLRapipago(partida: string): Promise<ABLRapipagoResu
         });
 
         if (inputPartida) {
-            // A. Asegurar foco y limpiar usando teclado (más humano que SET .value)
-            await inputPartida.evaluate(el => el.scrollIntoView());
+            // A. Asegurar foco y limpiar (MODO HUMANO SUGERIDO POR USER)
             await inputPartida.click();
-            await new Promise(r => setTimeout(r, 400 + Math.random() * 300));
+            await page.evaluate((sel) => {
+                const el = document.querySelector(sel) as HTMLInputElement;
+                if (el) el.value = '';
+            }, inputSelector);
 
-            // Select all and delete (More realistic than setting property)
-            await page.keyboard.down('Control');
-            await page.keyboard.press('A');
-            await page.keyboard.up('Control');
-            await page.keyboard.press('Backspace');
+            await new Promise(r => setTimeout(r, 500));
 
-            await new Promise(r => setTimeout(r, 600 + Math.random() * 400));
+            // B. Escribir con delay variable (entre 120ms y 250ms por tecla)
+            await inputPartida.type(partida, { delay: 150 });
 
-            // B. Escribir con delay variable (entre 150ms y 300ms por tecla)
-            for (const char of partida) {
-                await page.keyboard.type(char, { delay: 150 + Math.random() * 150 });
-            }
-
-            // C. Mover el mouse con "jitter" para parecer una persona real
-            for (let i = 0; i < 6; i++) {
-                await page.mouse.move(200 + Math.random() * 300, 200 + Math.random() * 300, { steps: 10 });
-                await new Promise(r => setTimeout(r, 150));
-            }
+            // C. Mover el mouse un poco aleatoriamente (Fake mouse movements)
+            await page.mouse.move(100, 100);
+            await page.mouse.move(Math.floor(Math.random() * 500), Math.floor(Math.random() * 500));
 
             // D. Sacar el foco del input (simula que el usuario terminó de escribir)
-            await page.evaluate(() => {
-                if (document.activeElement instanceof HTMLElement) {
-                    document.activeElement.blur();
+            // Esto dispara los eventos de validación del framework
+            await page.evaluate((sel) => {
+                const el = document.querySelector(sel) as HTMLInputElement;
+                if (el) {
+                    el.blur();
+                    // Explicitly dispatch events as React sometimes misses standard keyboard events in headless
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
                 }
-            });
+            }, inputSelector);
 
-            // E. Espera "psicológica" variable antes de continuar (2 a 4 segundos)
-            await new Promise(r => setTimeout(r, 3000 + Math.random() * 1000));
-            console.log(`[ABL Rapipago] Entered partida: ${partida} (Hyper-Humanized)`);
+            // E. Espera "psicológica" antes de continuar (1.5 segundos)
+            await new Promise(r => setTimeout(r, 1500));
+            console.log(`[ABL Rapipago] Entered partida: ${partida} (User suggested flow)`);
         } else {
             throw new Error('Partida input not found');
         }
 
-        // Continuar - Humanized verification of button status
+        // Continuar - User suggested flow
         console.log('[ABL Rapipago] Looking for Continuar button...');
 
-        let btnContinuar = await page.evaluateHandle(() => {
-            const buttons = Array.from(document.querySelectorAll('button'));
-            return buttons.find(b => b.textContent?.includes('Continuar'));
-        }) as any;
+        const btnContinuar = await page.waitForSelector('button::-p-text(Continuar)', { visible: true, timeout: 5000 }).catch(() => null) as any;
 
         if (btnContinuar) {
             const isDisabled = await page.evaluate(el => el.hasAttribute('disabled') || el.classList.contains('disabled'), btnContinuar);
 
             if (!isDisabled) {
-                const box = await btnContinuar.boundingBox();
-                if (box) {
-                    console.log(`[ABL Rapipago] Clicking Continuar at ${box.x}, ${box.y}`);
-                    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-                } else {
-                    await btnContinuar.click();
-                    console.log('[ABL Rapipago] Clicked Continuar (Element Click Fallback)');
-                }
+                await btnContinuar.click();
+                console.log('[ABL Rapipago] Clicked Continuar (User method)');
             } else {
                 console.error('[ABL Rapipago] ⛔ El botón Continuar sigue deshabilitado. Falló la validación del input.');
-                // Try one more blur/wait
-                await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+                // Force one more try
                 await new Promise(r => setTimeout(r, 2000));
-                await btnContinuar.click(); // Force it
+                await btnContinuar.click();
             }
         } else {
+            // Fallback
             await page.keyboard.press('Enter');
             console.log('[ABL Rapipago] Button not found, pressed Enter fallback');
         }

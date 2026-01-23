@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             text: relevantText.substring(0, 1000), // Snippet
             transactions,
-            importSource: `PDF_${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}`,
+            importSource: `${file.name} (${new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })})`,
             parserUsed
         });
 
