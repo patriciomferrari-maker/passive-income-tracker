@@ -78,16 +78,19 @@ export function TransactionsTab() {
     useEffect(() => {
         if (showParsedDialog && parsedResults) {
             const updated = parsedResults.map(tx => {
-                const isInstallment = tx.isInstallmentPlan || /cuota\s*\d+\/\d+/i.test(tx.description) || /\d{1,2}\/\d{1,2}/.test(tx.description);
+                const isInstallment = tx.isInstallmentPlan ||
+                    (tx.installments && tx.installments.total > 1) ||
+                    /cuota\s*\d+\/\d+/i.test(tx.description) ||
+                    /\d{1,2}\/\d{1,2}/.test(tx.description);
 
-                // USER REQUEST: For installments, keep the date from the resumen (originalDate)
+                // USER REQUEST: For installments, strictly keep the date from the resumen (originalDate)
                 if (isInstallment && tx.originalDate) {
                     return { ...tx, date: tx.originalDate };
                 }
 
                 if (isInstallment) return tx; // Fallback
 
-                // USER REQUEST: Impute to target month/year, but let's preserve the day like in the API
+                // USER REQUEST: Impute to target month/year, but preserve the day like in the API
                 const d = new Date(tx.originalDate || tx.date);
                 const tYear = parseInt(importTargetYear);
                 const tMonth = parseInt(importTargetMonth) - 1;

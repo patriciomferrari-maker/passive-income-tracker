@@ -74,7 +74,10 @@ export async function POST(req: NextRequest) {
 
         transactions = transactions.map((tx: any) => {
             let finalDate = tx.date;
-            const isInstallment = tx.isInstallmentPlan || /cuota\s*\d+\/\d+/i.test(tx.description) || /\d{1,2}\/\d{1,2}/.test(tx.description);
+            const isInstallment = tx.isInstallmentPlan ||
+                (tx.installments && tx.installments.total > 1) ||
+                /cuota\s*\d+\/\d+/i.test(tx.description) ||
+                /\d{1,2}\/\d{1,2}/.test(tx.description);
 
             // LOGIC: If Target Month selected AND NOT Installment -> Force Target Date (Keep DAY if possible)
             if (targetDate && !isInstallment) {
@@ -442,7 +445,7 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
                         amount: truth.amount, // Override AI amount with Regex extraction
                         currency: truth.currency, // Override AI currency containing strictly detected value
                         installments: truth.installments || tx.installments,
-                        isInstallmentPlan: !!(truth.installments || tx.isInstallmentPlan),
+                        isInstallmentPlan: !!(truth.installments || tx.isInstallmentPlan || (tx.description && /cuota\s*\d+\/\d+/i.test(tx.description))),
                         grade: 'A+' // Audit Passed
                     };
                 }
