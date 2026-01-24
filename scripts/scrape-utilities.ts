@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { checkMetrogas } from '../lib/scrapers/metrogas';
-import { checkNaturgy } from '../lib/scrapers/naturgy';
+import { checkNaturgyRapipago as checkNaturgy } from '../lib/scrapers/naturgy-rapipago';
 import { checkEdenor } from '../lib/scrapers/edenor';
 import { checkABLProvincia } from '../lib/scrapers/abl-provincia';
 
