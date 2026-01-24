@@ -165,8 +165,12 @@ export async function POST(req: NextRequest) {
         const currentQuota = installments.current || 1;
 
         // Calculate THE REAL Start Date of the plan (Month 1)
-        const trueStartDate = toArgNoon(new Date(date), 'keep-day');
-        trueStartDate.setMonth(trueStartDate.getMonth() - (currentQuota - 1));
+        const trueStartDate = toArgNoon(date instanceof Date ? date : new Date(date), 'keep-day');
+
+        // USER REQUEST: "toma como premisa para las cuotas, la fecha que aparece en el pdf, no hagamos nada mas."
+        // We purposefully DO NOT subtract the months anymore. If the PDF says Jan 16, 2025 (Cuota 12/12),
+        // we set the Plan Start Date to Jan 16, 2025.
+        // trueStartDate.setMonth(trueStartDate.getMonth() - (currentQuota - 1));
 
         console.log('[API] Installment Plan: Main Date = ' + date + ', Quota = ' + currentQuota + '/' + installments.total + ', Calculated StartDate=' + trueStartDate.toISOString());
 
