@@ -1155,10 +1155,10 @@ export function TransactionsTab() {
                         <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded border border-slate-700 mx-4">
                             <span className="text-[10px] text-slate-500 font-bold uppercase mr-1">Imputar en:</span>
                             <Select value={importTargetMonth} onValueChange={setImportTargetMonth}>
-                                <SelectTrigger className="w-[130px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
+                                <SelectTrigger className="w-[160px] h-8 text-xs bg-slate-900 border-slate-700 text-slate-300">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-slate-900 border-slate-800 text-white z-[100] min-w-[130px]">
+                                <SelectContent className="bg-slate-900 border-slate-800 text-white z-[100] min-w-[160px]">
                                     {Array.from({ length: 12 }).map((_, i) => (
                                         <SelectItem key={i} value={(i + 1).toString()}>{format(new Date(2024, i, 1), 'MMMM', { locale: es })}</SelectItem>
                                     ))}
