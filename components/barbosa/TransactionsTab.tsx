@@ -1264,7 +1264,14 @@ export function TransactionsTab() {
                                                                     }
 
                                                                     if (checked && !newResults[idx].installments) {
-                                                                        newResults[idx].installments = { current: 1, total: 12 };
+                                                                        // Try to infer from description if regex missed it or user is forcing it
+                                                                        const desc = newResults[idx].description || '';
+                                                                        const match = desc.match(/(\d{1,2})\/(\d{1,2})/);
+                                                                        if (match) {
+                                                                            newResults[idx].installments = { current: parseInt(match[1]), total: parseInt(match[2]) };
+                                                                        } else {
+                                                                            newResults[idx].installments = { current: 1, total: 12 };
+                                                                        }
                                                                     }
                                                                     setParsedResults(newResults);
                                                                 }}

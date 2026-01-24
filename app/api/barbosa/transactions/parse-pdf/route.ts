@@ -397,9 +397,13 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
         // Currency (Optional): (U\$S|USD)?
         // Amount: ([0-9\.,-]+)
 
-        const match = line.match(/(\d{2}[-/\.]\d{2}(?:[-/\.]\d{2})?)\s+.*?\s+(?:(\d{2}\/\d{2})\s+)?(\d{6})\s+(?:(U\$S|USD)\s+)?((?:-)?(?:\d{1,3}\.)*(?:\d{1,3})(?:,\d{2}))/);
+        // Updated Regex: Relaxed Cuota to \d{1,2}\/\d{1,2}
+        const match = line.match(/(\d{2}[-/\.]\d{2}(?:[-/\.]\d{2})?)\s+.*?\s+(?:(\d{1,2}\/\d{1,2})\s+)?(\d{6})\s+(?:(U\$S|USD)\s+)?((?:-)?(?:\d{1,3}\.)*(?:\d{1,3})(?:,\d{2}))/);
 
         if (match) {
+            console.log('[PDF-AUDIT] Matched Line:', line);
+            console.log('[PDF-AUDIT] Groups:', match[2] ? `Cuota: ${match[2]}` : 'No Cuota', `Voucher: ${match[3]}`);
+
             // Found a clear Galicia row!
             const rawDate = match[1];
             const rawVoucher = match[3];
@@ -425,6 +429,8 @@ function validateAndCorrectTransactions(geminiTransactions: any[], originalText:
             } else {
                 auditMap.get(rawVoucher)?.push(record);
             }
+        } else {
+            // console.log('[PDF-AUDIT] No Match:', line);
         }
     }
 
