@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
                         amount: true,
                         status: true,
                         isStatistical: true,
-                        comprobante: true
+                        comprobante: true,
+                        description: true
                     },
                     orderBy: { date: 'asc' }
                 }
