@@ -164,16 +164,22 @@ export async function POST(req: NextRequest) {
     if (isInstallmentPlan && installments && installments.total > 1) {
         const currentQuota = installments.current || 1;
 
+        console.log(`[API DEBUG] Installment Import:`, {
+            description,
+            isInstallmentPlan,
+            installments,
+            originalDate: date,
+            currentQuota
+        });
+
         // Calculate THE REAL Start Date of the plan (Month 1)
         // LOGIC: If this is Quota 6/12, then the plan started 5 months ago.
-        // We MUST Shift the Plan Start Date back so that the Date-Based Progress Logic works.
-        // The *Transaction* will still use the literal PDF date, but the *Plan* container needs the correct origin.
         const trueStartDate = toArgNoon(date instanceof Date ? date : new Date(date), 'keep-day');
         if (currentQuota > 1) {
             trueStartDate.setMonth(trueStartDate.getMonth() - (currentQuota - 1));
         }
 
-        console.log('[API] Installment Plan: Main Date = ' + date + ', Quota = ' + currentQuota + '/' + installments.total + ', Calculated StartDate=' + trueStartDate.toISOString());
+        console.log('[API DEBUG] Calculated Plan Start:', trueStartDate.toISOString());
 
         // Try to find EXISTING plan
         const planTotalAmount = parseFloat(amount) * installments.total;
