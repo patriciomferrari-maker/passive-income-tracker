@@ -34,28 +34,34 @@ export async function GET(req: NextRequest) {
         const enhancedPlans = plans.map(p => {
             const paidTx = p.transactions.filter(t => t.status === 'REAL');
 
-            // Logic to find Max Quota from descriptions (e.g. "Cuota 6/12")
+            // Logic to find Max Quota based on DATE (vs Plan Start)
+            // This is more robust than description parsing which might be clean.
             let maxQuota = 0;
+            const planStart = new Date(p.startDate);
+
             paidTx.forEach(t => {
-                const match = t.description.match(/Cuota\s*(\d+)\//i);
-                if (match) {
-                    const q = parseInt(match[1]);
-                    if (q > maxQuota) maxQuota = q;
-                }
+                const tDate = new Date(t.date);
+                const yearDiff = tDate.getFullYear() - planStart.getFullYear();
+                const monthDiff = tDate.getMonth() - planStart.getMonth();
+                // Rounding effectively handles minor day shifts (e.g. 15th vs 1st if logic was loose)
+                // But since we aligned StartDate on creation, this should be accurate.
+                const quotaIndex = (yearDiff * 12) + monthDiff + 1;
+
+                if (quotaIndex > maxQuota) maxQuota = quotaIndex;
             });
 
             // If we found a higher quota index than the count (meaning gaps/history missing), use that.
-            const paidCount = maxQuota > paidTx.length ? maxQuota : paidTx.length;
+            // Ensure we don't return 0 if there are transactions (min 1)
+            if (maxQuota === 0 && paidTx.length > 0) maxQuota = paidTx.length;
+
+            const paidCount = maxQuota;
             const paidAmountReal = paidTx.reduce((sum, t) => sum + t.amount, 0);
 
             // Calculate Remaining Amount based on PROJECTED transactions (More accurate for future debt)
             const projectedTx = p.transactions.filter(t => t.status === 'PROJECTED');
             const remainingAmount = projectedTx.reduce((sum, t) => sum + t.amount, 0);
 
-            // For UI "Total - Paid", if we have gaps, we should fudge Paid amount or provide Remaining explicitly?
-            // Let's provide 'paidAmount' as (Total - Remaining) so the UI math works out for "Restante" column without changing frontend.
-            // UI Calculation: Math.max(0, plan.totalAmount - Math.abs(plan.paidAmount))
-            // So if we set paidAmount = Total - Remaining, UI will show Remaining.
+            // For UI "Total - Paid", we use remaining amount logic.
             const paidAmountForUI = p.totalAmount - remainingAmount;
 
             const progress = (paidCount / p.installmentsCount) * 100;
@@ -66,8 +72,8 @@ export async function GET(req: NextRequest) {
 
             return {
                 ...p,
-                paidAmount: paidAmountForUI, // Virtual Paid Amount to ensure "Restante" is correct
-                paidAmountReal: paidAmountReal, // Actual money paid (for debug/details if needed)
+                paidAmount: paidAmountForUI,
+                paidAmountReal: paidAmountReal,
                 paidCount,
                 progress,
                 nextDueDate: nextDue ? nextDue.date : null,
