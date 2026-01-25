@@ -32,8 +32,30 @@ export async function GET(req: NextRequest) {
         // Computed fields for UI
         const enhancedPlans = plans.map(p => {
             const paidTx = p.transactions.filter(t => t.status === 'REAL');
-            const paidAmount = paidTx.reduce((sum, t) => sum + t.amount, 0);
-            const paidCount = paidTx.length;
+
+            // Logic to find Max Quota from descriptions (e.g. "Cuota 6/12")
+            let maxQuota = 0;
+            paidTx.forEach(t => {
+                const match = t.description.match(/Cuota\s*(\d+)\//i);
+                if (match) {
+                    const q = parseInt(match[1]);
+                    if (q > maxQuota) maxQuota = q;
+                }
+            });
+
+            // If we found a higher quota index than the count (meaning gaps/history missing), use that.
+            const paidCount = maxQuota > paidTx.length ? maxQuota : paidTx.length;
+            const paidAmountReal = paidTx.reduce((sum, t) => sum + t.amount, 0);
+
+            // Calculate Remaining Amount based on PROJECTED transactions (More accurate for future debt)
+            const projectedTx = p.transactions.filter(t => t.status === 'PROJECTED');
+            const remainingAmount = projectedTx.reduce((sum, t) => sum + t.amount, 0);
+
+            // For UI "Total - Paid", if we have gaps, we should fudge Paid amount or provide Remaining explicitly?
+            // Let's provide 'paidAmount' as (Total - Remaining) so the UI math works out for "Restante" column without changing frontend.
+            // UI Calculation: Math.max(0, plan.totalAmount - Math.abs(plan.paidAmount))
+            // So if we set paidAmount = Total - Remaining, UI will show Remaining.
+            const paidAmountForUI = p.totalAmount - remainingAmount;
 
             const progress = (paidCount / p.installmentsCount) * 100;
 
@@ -43,7 +65,8 @@ export async function GET(req: NextRequest) {
 
             return {
                 ...p,
-                paidAmount,
+                paidAmount: paidAmountForUI, // Virtual Paid Amount to ensure "Restante" is correct
+                paidAmountReal: paidAmountReal, // Actual money paid (for debug/details if needed)
                 paidCount,
                 progress,
                 nextDueDate: nextDue ? nextDue.date : null,
