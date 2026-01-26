@@ -83,33 +83,56 @@ export function TransactionsTab() {
                     /cuota\s*\d+\/\d+/i.test(tx.description) ||
                     /\d{1,2}\/\d{1,2}/.test(tx.description);
 
-                // USER REQUEST: For installments, strictly keep the date from the resumen (originalDate)
-                if (isInstallment && tx.originalDate) {
-                    return { ...tx, date: tx.originalDate };
+                // NEW LOGIC: Only strictly keep the PDF date if it falls within the Target Month/Year (approx).
+                // Reason: Credit Card summaries often show the "Purchase Date" (e.g. August) for an installment paid in December.
+                // If we use August, the expense disappears from December's dashboard.
+                const updated = parsedResults.map(tx => {
+                    const isInstallment = tx.isInstallmentPlan ||
+                        (tx.installments && tx.installments.total > 1) ||
+                        /cuota\s*\d+\/\d+/i.test(tx.description) ||
+                        /\d{1,2}\/\d{1,2}/.test(tx.description);
+
+                    const d = new Date(tx.originalDate || tx.date);
+                    const tYear = parseInt(importTargetYear);
+                    const tMonth = parseInt(importTargetMonth) - 1; // 0-11
+
+                    // Check if PDF date matches Target Period
+                    const isSameMonth = d.getMonth() === tMonth && d.getFullYear() === tYear;
+
+                    // If it's an installment AND the date is roughly same month, KEEP IT.
+                    // If it's an installment with an OLD date (e.g. Purchase Date), MOVE IT TO TARGET.
+                    // Exception: If currentQuota == 1, often Purchase Date IS correctly in this month, or close.
+
+                    if (isInstallment && tx.originalDate && isSameMonth) {
+                        return { ...tx, date: tx.originalDate };
+                    }
+
+                    // Fallback / Impute: Use Target Month, but try to keep original DAY if valid
+                    const candidate = new Date(tYear, tMonth, d.getDate(), 12, 0, 0);
+                    // Safety: If day was 31 and target month has 30, it rolls over. Fix that.
+                    if (candidate.getMonth() !== tMonth) {
+                        candidate.setDate(0); // Last day of previous month? No, setDate(0) sets it to last day of PREVIOUS month relative to rollover?
+                        // Actually setDate(0) on (Month+1) goes to Month End.
+                        // Easier: just clamp to end of month.
+                        // But let's rely on JS Date correction or just stick to 1st if weird.
+                        // Simple approach:
+                        const lastDay = new Date(tYear, tMonth + 1, 0).getDate();
+                        const dayToUse = Math.min(d.getDate(), lastDay);
+                        candidate.setFullYear(tYear);
+                        candidate.setMonth(tMonth);
+                        candidate.setDate(dayToUse);
+                    }
+
+                    const dateStr = candidate.toISOString().split('T')[0];
+                    return { ...tx, date: dateStr };
+                });
+
+                // Avoid infinite loop by comparing if dates actually changed
+                const changed = updated.some((tx, i) => tx.date !== parsedResults[i].date);
+                if (changed) {
+                    setParsedResults(updated);
                 }
-
-                if (isInstallment) return tx; // Fallback
-
-                // USER REQUEST: Impute to target month/year, but preserve the day like in the API
-                const d = new Date(tx.originalDate || tx.date);
-                const tYear = parseInt(importTargetYear);
-                const tMonth = parseInt(importTargetMonth) - 1;
-
-                const candidate = new Date(tYear, tMonth, d.getDate(), 15, 0, 0);
-                if (candidate.getMonth() !== tMonth) {
-                    candidate.setDate(0); // End of month safety
-                }
-
-                const dateStr = candidate.toISOString().split('T')[0];
-                return { ...tx, date: dateStr };
-            });
-
-            // Avoid infinite loop by comparing if dates actually changed
-            const changed = updated.some((tx, i) => tx.date !== parsedResults[i].date);
-            if (changed) {
-                setParsedResults(updated);
             }
-        }
     }, [importTargetMonth, importTargetYear, showParsedDialog]);
 
     const loadData = async () => {
