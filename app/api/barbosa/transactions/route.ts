@@ -262,14 +262,14 @@ export async function POST(req: NextRequest) {
             });
             installmentPlanId = plan.id;
 
-            // Generate ONLY FUTURE installments
-            // Start from currentQuota + 1. No backfill.
+            // Generate ALL installments around the current one to complete the plan
             const promises = [];
-            for (let i = currentQuota + 1; i <= installments.total; i++) {
+            for (let i = 1; i <= installments.total; i++) {
+                if (i === currentQuota) continue; // Skip the one we are inserting as REAL
 
                 const nextDate = new Date(trueStartDate);
-                // Shift months relative to origin
-                nextDate.setMonth(nextDate.getMonth() + (i - currentQuota));
+                // Shift months relative to origin (i-1 months from start)
+                nextDate.setMonth(nextDate.getMonth() + (i - 1));
 
                 // Adjust day envelope
                 const originalDay = trueStartDate.getDate();
