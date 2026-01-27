@@ -86,14 +86,17 @@ export async function POST(request: Request) {
             currency = 'ARS';
         }
 
-        // Check if exists in Global Catalog
+        // Check if exists in Global Catalog FOR THE SAME MARKET
         const globalCheck = await prisma.globalAsset.findFirst({
-            where: { ticker }
+            where: {
+                ticker,
+                market: targetMarket
+            }
         });
 
         if (globalCheck) {
             return NextResponse.json(
-                { error: `El activo ${ticker} ya existe en el Catálogo Global. Úsalo directamente desde la lista.` },
+                { error: `El activo ${ticker} ya existe en el Catálogo Global de ${targetMarket}. Úsalo directamente desde la lista.` },
                 { status: 400 }
             );
         }
