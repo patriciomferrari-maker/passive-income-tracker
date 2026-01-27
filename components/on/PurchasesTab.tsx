@@ -237,7 +237,8 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
             setSelectedIds(new Set());
 
             // Auto-expand all tickers (show operations always expanded)
-            const uniqueTickers = new Set(convertedData.map((tx: Transaction) => tx.investment.ticker));
+            const tickerList = convertedData.map((tx: Transaction) => tx.investment.ticker);
+            const uniqueTickers = new Set<string>(tickerList);
             setExpandedTickers(uniqueTickers);
         } catch (error) {
             console.error('Error fetching transactions:', error);
@@ -472,7 +473,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                 Registrar Venta
                             </Button>
                             <Button variant="ghost" onClick={() => setShowImport(true)} className="text-slate-400 hover:text-white">
-                                <FileDown size={16} />
+                                <Upload size={16} />
                             </Button>
                         </div>
                     </div>
