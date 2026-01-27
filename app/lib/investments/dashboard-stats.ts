@@ -184,7 +184,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
 
         const invUnrealizedUSD = quantity > 0 ? marketValueUSD - invCostOpenUSD : 0;
 
-        if (quantity > 0 && currentPriceUSD > 0) {
+        if (quantity > 0) {
             totalUnrealizedUSD += invUnrealizedUSD;
             accumulatedCapitalInvertidoUSD += invCostOpenUSD;
         }
@@ -270,11 +270,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
                 // Let's just use the signed amounts from logic.
                 // Simplified:
                 // If Buy: -(Price*Qty + Comm)
-                // If Sell: +(Price*Qty - Comm)
-                const net = (Number(tx.price) * Number(tx.quantity)) - (Number(tx.type === 'SELL' ? tx.commission : -tx.commission));
-                // No, let's keep it simple.
-                // Buy: - (Total Spent)
-                // Sell: + (Total Received)
+                // If Sell: +(Total Received)
 
                 let flow = (Number(tx.price) * Number(tx.quantity));
                 if (tx.type === 'BUY') flow = -(flow + Number(tx.commission));
@@ -324,6 +320,9 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
     if (totalBreakdownValue > 0) {
         portfolioBreakdown.forEach(i => i.percentage = (i.value / totalBreakdownValue) * 100);
     }
+    // Sort logic to put 0 value items at end? Or sort by Value descending.
+    portfolioBreakdown.sort((a, b) => b.value - a.value);
+
 
     // C. Consolidated Flow & TIR
     // Use the same normalized logic
@@ -340,26 +339,23 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
     investmentsWithMetrics.forEach(inv => {
         inv.transactions.forEach((tx: any) => {
             // Same Flow Logic as above
-            let flow = (Number(tx.price) * Number(tx.quantity));
-            // Correct logic for TIR input:
             // Buy = Outflow (-). Sell = Inflow (+). 
             // Note: Route.ts previously only used BUY for "Purchase Yield"? 
             // "Purchase Yield" implies "Yield on specific purchases".
             // But "Consolidated TIR" usually implies Portfolio Performance (including sells).
             // Given the mismatches, I will implement standard XIRR: All Flows.
+            // But wait, above I used signed amounts. 
+            // Let's verify loop above logic again.
 
-            if (tx.type === 'BUY') flow = -(flow + Number(tx.commission));
-            else flow = (flow - Number(tx.commission)); // Sell
+            let flowRaw = (Number(tx.price) * Number(tx.quantity));
+            if (tx.type === 'BUY') flowRaw = -(flowRaw + Number(tx.commission));
+            else flowRaw = (flowRaw - Number(tx.commission));
 
             if (tx.currency === 'ARS') {
                 const r = getRate(new Date(tx.date));
-                if (r > 0) flow /= r;
+                if (r > 0) flowRaw /= r;
             }
-
-            // For "Purchase Yield" (Hold to Maturity approximation currently used in dashboard):
-            // It often ignores sells or treats them as returns.
-            // If I include Sells, it's correct.
-            allAmounts.push(flow);
+            allAmounts.push(flowRaw);
             allDates.push(new Date(tx.date));
         });
 
@@ -420,14 +416,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
     // Map to simple structure
     const upcomingPayments = allFuture.slice(0, 200).map((cf: any) => ({
         date: cf.date,
-        amount: cf.amount, // Return RAW amount for display? Or normalized? Dashboard usually displays raw currency if mixed? 
-        // Dashboard View sums them up. If mixed currency, sum is wrong.
-        // Dashboard uses `formatMoney` which assumes one currency or just formats numbers.
-        // It's safer to probably return raw but the dashboard charts likely expect consistent units.
-        // But users usually want to see "100,000 ARS" not "80 USD".
-        // HOWEVER, if we are in USD mode, users expect USD.
-        // Let's return RAW here and let UI handle, or consistent with previous logic.
-        // Previous logic returned raw. I'll stick to raw to avoid breaking "Pagos Futuros" list visual.
+        amount: cf.amount, // Return RAW amount for display logic
         ticker: cf.ticker,
         type: cf.type
     }));
@@ -438,7 +427,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
 
     return {
         investments: investmentsWithMetrics,
-        capitalInvertido: accumulatedCapitalInvertidoUSD, // Normalized USD Cost Basis
+        capitalInvertido: accumulatedCapitalInvertidoUSD, // Normalized USD Cost Basis from OPEN POSITIONS
         capitalCobrado,
         interesCobrado,
         capitalACobrar,
@@ -449,7 +438,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
         proximoPago: upcomingPayments[0] || null,
         upcomingPayments,
         portfolioBreakdown,
-        totalONs: investments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(i.type || '')).length,
+        totalONs: investments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO', 'CEDEAR', 'ETF', 'STOCK'].includes(i.type || '')).length, // Include ALL types
         totalInvestments: investments.length,
         totalTransactions: investments.reduce((sum, inv) => sum + inv.transactions.length, 0),
         totalCurrentValue: tenenciaTotalValorActual,

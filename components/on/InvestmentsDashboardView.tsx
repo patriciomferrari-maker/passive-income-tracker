@@ -148,14 +148,14 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
                         </div>
 
                         {/* Current Value (New Card) */}
-                        {data.totalONs > 0 && (
+                        {(data.totalCurrentValue !== undefined && data.totalCurrentValue > 0) && (
                             <div className="p-6 flex flex-col justify-center items-center text-center hover:bg-slate-900/50 transition-colors print:bg-white">
                                 <div className="mb-3 p-3 rounded-full bg-cyan-500/10 text-cyan-500">
                                     <DollarSign className="h-6 w-6" />
                                 </div>
                                 <p className="text-sm font-medium text-slate-400 print:text-slate-600 uppercase tracking-wider mb-1">Valor Actual</p>
                                 <div className="text-3xl font-bold text-cyan-400 print:text-cyan-700 tracking-tight">
-                                    {formatMoney(data.totalCurrentValue || 0)}
+                                    {formatMoney(data.totalCurrentValue)}
                                 </div>
                                 <p className="text-xs text-slate-500 mt-2">
                                     Market Value Estimado
