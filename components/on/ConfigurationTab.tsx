@@ -142,124 +142,123 @@ export function ConfigurationTab() {
             }} className="text-xs text-slate-500 border-slate-700">
                 🛠️ Debug Auth
             </Button>
-        </div>
 
             {
-        subTab === 'catalog' ? (
-            <GlobalCatalogTab excludeMarket="US" />
-        ) : (
-        <>
-            <Card className="bg-slate-950 border-slate-800">
-                <CardHeader>
-                    <CardTitle className="text-white flex items-center justify-between">
-                        ONs y Manuales
-                        <Button
-                            onClick={() => {
-                                setEditingON(null);
-                                setShowForm(true);
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700"
-                        >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Nuevo Manual
-                        </Button>
-                    </CardTitle>
-                    <CardDescription className="text-slate-300">
-                        Gestiona activos que requieren configuración manual de flujos (ej. Obligaciones Negociables).
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {loading ? (
-                        <div className="text-slate-400 text-center py-12">Cargando...</div>
-                    ) : ons.length === 0 ? (
-                        <div className="text-slate-400 text-center py-12">
-                            No hay activos manuales configurados.
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b border-white/10">
-                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">Tipo</th>
-                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">Ticker</th>
-                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">Nombre</th>
-                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">Tasa</th>
-                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">Frecuencia</th>
-                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">Vencimiento</th>
-                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">Amortización</th>
-                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {ons.map((on) => (
-                                        <tr key={on.id} className="border-b border-white/5 hover:bg-white/5">
-                                            <td className="py-3 px-4">
-                                                <span className={`text-[10px] items-center px-1.5 py-0.5 rounded font-medium border ${on.type === 'ON' || on.type === 'CORPORATE_BOND' ? 'bg-blue-900/40 text-blue-300 border-blue-800' :
-                                                    on.type === 'CEDEAR' ? 'bg-purple-900/40 text-purple-300 border-purple-800' :
-                                                        'bg-green-900/40 text-green-300 border-green-800'
-                                                    }`}>
-                                                    {(on.type === 'CORPORATE_BOND' ? 'ON' : (on.type || 'ON'))}
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-4 text-white font-mono">{on.ticker}</td>
-                                            <td className="py-3 px-4 text-white">{on.name}</td>
-                                            <td className="py-3 px-4 text-slate-300">
-                                                {on.couponRate ? `${(on.couponRate * 100).toFixed(2)}%` : '-'}
-                                            </td>
-                                            <td className="py-3 px-4 text-slate-300">
-                                                {on.frequency ? `${on.frequency} meses` : '-'}
-                                            </td>
-                                            <td className="py-3 px-4 text-slate-300">
-                                                {on.maturityDate ? format(new Date(on.maturityDate), 'dd/MM/yyyy') : '-'}
-                                            </td>
-                                            <td className="py-3 px-4 text-slate-300">
-                                                <span className={`px-2 py-1 rounded text-xs ${on.amortization === 'BULLET'
-                                                    ? 'bg-blue-500/20 text-blue-300'
-                                                    : 'bg-purple-500/20 text-purple-300'
-                                                    }`}>
-                                                    {(on.type === 'ON' || on.type === 'CORPORATE_BOND') ? (on.amortization || 'BULLET') : '-'}
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                <div className="flex gap-2 justify-end">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleEdit(on)}
-                                                        className="text-blue-400 hover:text-blue-300"
-                                                    >
-                                                        <Edit className="h-4 w-4" />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDelete(on.id)}
-                                                        className="text-red-400 hover:text-red-300"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                subTab === 'catalog' ? (
+                    <GlobalCatalogTab excludeMarket="US" />
+                ) : (
+                    <>
+                        <Card className="bg-slate-950 border-slate-800">
+                            <CardHeader>
+                                <CardTitle className="text-white flex items-center justify-between">
+                                    ONs y Manuales
+                                    <Button
+                                        onClick={() => {
+                                            setEditingON(null);
+                                            setShowForm(true);
+                                        }}
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Nuevo Manual
+                                    </Button>
+                                </CardTitle>
+                                <CardDescription className="text-slate-300">
+                                    Gestiona activos que requieren configuración manual de flujos (ej. Obligaciones Negociables).
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {loading ? (
+                                    <div className="text-slate-400 text-center py-12">Cargando...</div>
+                                ) : ons.length === 0 ? (
+                                    <div className="text-slate-400 text-center py-12">
+                                        No hay activos manuales configurados.
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="border-b border-white/10">
+                                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Tipo</th>
+                                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Ticker</th>
+                                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Nombre</th>
+                                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Tasa</th>
+                                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Frecuencia</th>
+                                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Vencimiento</th>
+                                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Amortización</th>
+                                                    <th className="text-right py-3 px-4 text-slate-300 font-medium">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {ons.map((on) => (
+                                                    <tr key={on.id} className="border-b border-white/5 hover:bg-white/5">
+                                                        <td className="py-3 px-4">
+                                                            <span className={`text-[10px] items-center px-1.5 py-0.5 rounded font-medium border ${on.type === 'ON' || on.type === 'CORPORATE_BOND' ? 'bg-blue-900/40 text-blue-300 border-blue-800' :
+                                                                on.type === 'CEDEAR' ? 'bg-purple-900/40 text-purple-300 border-purple-800' :
+                                                                    'bg-green-900/40 text-green-300 border-green-800'
+                                                                }`}>
+                                                                {(on.type === 'CORPORATE_BOND' ? 'ON' : (on.type || 'ON'))}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3 px-4 text-white font-mono">{on.ticker}</td>
+                                                        <td className="py-3 px-4 text-white">{on.name}</td>
+                                                        <td className="py-3 px-4 text-slate-300">
+                                                            {on.couponRate ? `${(on.couponRate * 100).toFixed(2)}%` : '-'}
+                                                        </td>
+                                                        <td className="py-3 px-4 text-slate-300">
+                                                            {on.frequency ? `${on.frequency} meses` : '-'}
+                                                        </td>
+                                                        <td className="py-3 px-4 text-slate-300">
+                                                            {on.maturityDate ? format(new Date(on.maturityDate), 'dd/MM/yyyy') : '-'}
+                                                        </td>
+                                                        <td className="py-3 px-4 text-slate-300">
+                                                            <span className={`px-2 py-1 rounded text-xs ${on.amortization === 'BULLET'
+                                                                ? 'bg-blue-500/20 text-blue-300'
+                                                                : 'bg-purple-500/20 text-purple-300'
+                                                                }`}>
+                                                                {(on.type === 'ON' || on.type === 'CORPORATE_BOND') ? (on.amortization || 'BULLET') : '-'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3 px-4">
+                                                            <div className="flex gap-2 justify-end">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleEdit(on)}
+                                                                    className="text-blue-400 hover:text-blue-300"
+                                                                >
+                                                                    <Edit className="h-4 w-4" />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDelete(on.id)}
+                                                                    className="text-red-400 hover:text-red-300"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
 
-            {showForm && (
-                <ONForm
-                    onClose={() => {
-                        setShowForm(false);
-                        setEditingON(null);
-                    }}
-                    onSave={handleSave}
-                    initialData={editingON}
-                />
-            )}
-        </>
-    )
-    }
+                        {showForm && (
+                            <ONForm
+                                onClose={() => {
+                                    setShowForm(false);
+                                    setEditingON(null);
+                                }}
+                                onSave={handleSave}
+                                initialData={editingON}
+                            />
+                        )}
+                    </>
+                )
+            }
         </div >
     );
 }
