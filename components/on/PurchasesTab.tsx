@@ -74,7 +74,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
     useEffect(() => {
         Promise.all([
             fetch(`/api/investments/on?market=${market}`).then(res => res.json()),
-            fetch(`/api/investments/positions?type=ON,CORPORATE_BOND,ETF,CEDEAR&market=${market}`).then(res => res.json())
+            fetch(`/api/investments/positions?type=${market === 'US' ? 'TREASURY,ETF,STOCK' : 'ON,CORPORATE_BOND,ETF,CEDEAR'}&market=${market}`).then(res => res.json())
         ]).then(([assetsData, positionsData]) => {
             // Create a map of quantities from positions
             const qtyMap = new Map<string, number>();
@@ -311,8 +311,9 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                         </div>
 
                         {/* Type Filter */}
+                        {/* Type Filter */}
                         <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
-                            {['ALL', 'ON', 'CEDEAR'].map(type => (
+                            {(market === 'US' ? ['ALL', 'TREASURY', 'ETF', 'STOCK'] : ['ALL', 'ON', 'CEDEAR']).map(type => (
                                 <button
                                     key={type}
                                     onClick={() => setViewType(type)}
@@ -321,7 +322,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                         : 'text-slate-400 hover:text-white hover:bg-slate-800'
                                         }`}
                                 >
-                                    {type === 'ALL' ? 'Todos' : type}
+                                    {type === 'ALL' ? 'Todos' : type === 'TREASURY' ? 'Treasuries' : type === 'ETF' ? 'ETFs' : type === 'STOCK' ? 'Stocks' : type}
                                 </button>
                             ))}
                         </div>

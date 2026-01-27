@@ -75,8 +75,9 @@ export function HoldingsTab({ market = 'ARG' }: { market?: string }) {
                     </div>
                     <div className="flex items-center gap-2">
                         {/* Type Filter */}
+                        {/* Type Filter */}
                         <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
-                            {['ALL', 'ON', 'CEDEAR'].map(type => (
+                            {(market === 'US' ? ['ALL', 'TREASURY', 'ETF', 'STOCK'] : ['ALL', 'ON', 'CEDEAR']).map(type => (
                                 <button
                                     key={type}
                                     onClick={() => setViewType(type)}
@@ -85,7 +86,7 @@ export function HoldingsTab({ market = 'ARG' }: { market?: string }) {
                                         : 'text-slate-400 hover:text-white hover:bg-slate-800'
                                         }`}
                                 >
-                                    {type === 'ALL' ? 'Todos' : type}
+                                    {type === 'ALL' ? 'Todos' : type === 'TREASURY' ? 'Treasuries' : type === 'ETF' ? 'ETFs' : type === 'STOCK' ? 'Stocks' : type}
                                 </button>
                             ))}
                         </div>
