@@ -11,7 +11,7 @@ export async function GET(
         const userId = await getUserId();
         const { id } = await params;
         const treasury = await prisma.investment.findFirst({
-            where: { id, type: 'TREASURY', userId },
+            where: { id, userId },
             include: {
                 transactions: true,
                 cashflows: true
@@ -41,7 +41,7 @@ export async function PUT(
         const { ticker, name, emissionDate, couponRate, frequency, maturityDate } = body;
 
         // Verify ownership
-        const existing = await prisma.investment.findFirst({ where: { id, type: 'TREASURY', userId } });
+        const existing = await prisma.investment.findFirst({ where: { id, userId } });
         if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
         const treasury = await prisma.investment.update({
@@ -73,7 +73,7 @@ export async function DELETE(
         const { id } = await params;
 
         // Verify ownership
-        const existing = await prisma.investment.findFirst({ where: { id, type: 'TREASURY', userId } });
+        const existing = await prisma.investment.findFirst({ where: { id, userId } });
         if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
         await prisma.investment.delete({
