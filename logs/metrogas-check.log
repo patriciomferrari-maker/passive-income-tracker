@@ -460,3 +460,26 @@ Found Soldado: 40000041500
 ✅ Check saved to database
 
 🎉 Manual check completed
+[mar 27/01/2026 16:00:01,82] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+
+❌ Error: PrismaClientInitializationError: 
+Invalid `prisma.property.findFirst()` invocation in
+C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\scripts\manual-metrogas-check.ts:10:43
+
+   7 console.log('🔥 Running manual Metrogas check for Soldado...\n');
+   8 
+   9 // Find Soldado property
+→ 10 const soldado = await prisma.property.findFirst(
+Can't reach database server at `aws-1-us-east-1.pooler.supabase.com:6543`
+
+Please make sure your database server is running at `aws-1-us-east-1.pooler.supabase.com:6543`.
+    at $n.handleRequestError (C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async manualMetrogasCheck (C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\scripts\manual-metrogas-check.ts:10:21) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}

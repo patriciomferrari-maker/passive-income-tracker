@@ -452,188 +452,161 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                         </div>
                     </div>
 
-                    <div className="space-y-6">
-                        {loading ? (
-                            <div className="text-center py-12 text-slate-500">Cargando operaciones...</div>
-                        ) : Object.keys(groupedData).length === 0 ? (
-                            <div className="text-center py-12 text-slate-500">No hay operaciones registradas</div>
-                        ) : (
-                            Object.entries(groupedData).sort((a, b) => a[0].localeCompare(b[0])).map(([type, tickersMap]) => (
-                                <div key={type} className="animate-in fade-in slide-in-from-left-2 duration-300">
-                                    <h3 className="text-lg font-semibold text-slate-200 mb-3 px-2 flex items-center gap-2">
-                                        <Badge variant="outline" className="bg-slate-900 text-slate-300 border-slate-700">
-                                            {type}
-                                        </Badge>
-                                    </h3>
+                    <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-hidden mt-4">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-slate-900 text-slate-400">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left w-8"></th>
+                                        <th className="px-4 py-3 text-left font-medium w-[20%]">Activo / Fecha</th>
+                                        <th className="px-4 py-3 text-right font-medium w-[12%]">Nominales</th>
+                                        <th className="px-4 py-3 text-right font-medium w-[15%]">PPP / Precio Compra</th>
+                                        <th className="px-4 py-3 text-right font-medium w-[12%] hidden md:table-cell">Comisión</th>
+                                        <th className="px-4 py-3 text-right font-medium text-emerald-400 w-[15%]">Invertido / Total</th>
+                                        <th className="px-4 py-3 text-right font-medium w-[12%]">Resultado</th>
+                                        <th className="px-4 py-3 text-right font-medium w-[8%]">%</th>
+                                        <th className="px-4 py-3 text-right font-medium w-[6%]">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800">
+                                    {loading ? (
+                                        <tr><td colSpan={9} className="text-center py-12 text-slate-500">Cargando operaciones...</td></tr>
+                                    ) : Object.keys(groupedData).length === 0 ? (
+                                        <tr><td colSpan={9} className="text-center py-12 text-slate-500">No hay operaciones registradas</td></tr>
+                                    ) : (
+                                        Object.entries(groupedData).sort((a, b) => a[0].localeCompare(b[0])).map(([type, tickersMap]) => (
+                                            <div key={type} className="contents">
+                                                {/* Category Header (Optional in a flat table, but keeping it as a sticky separator or row) */}
+                                                <tr className="bg-slate-950/50">
+                                                    <td colSpan={9} className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-y border-slate-800/50">
+                                                        {type}
+                                                    </td>
+                                                </tr>
+                                                {Object.values(tickersMap).sort((a, b) => a.ticker.localeCompare(b.ticker)).map(group => {
+                                                    const isExpanded = expandedTickers.has(group.ticker);
+                                                    const stats = positionStats[group.ticker];
+                                                    const hasStats = !!stats && stats.quantity > 0;
 
-                                    <div className="space-y-3">
-                                        {Object.values(tickersMap).sort((a, b) => a.ticker.localeCompare(b.ticker)).map(group => {
-                                            const isExpanded = expandedTickers.has(group.ticker);
-                                            const stats = positionStats[group.ticker];
-                                            const hasStats = !!stats && stats.quantity > 0;
+                                                    const nominals = hasStats ? stats.quantity : 0;
+                                                    const invested = hasStats ? stats.invested : 0;
+                                                    const ppp = hasStats ? stats.ppp : 0;
+                                                    const currentVal = hasStats ? stats.currentValue : 0;
+                                                    const result = currentVal - invested;
+                                                    const resultPercent = invested > 0 ? (result / invested) * 100 : 0;
 
-                                            const nominals = hasStats ? stats.quantity : 0;
-                                            const invested = hasStats ? stats.invested : 0;
-                                            const ppp = hasStats ? stats.ppp : 0;
-                                            const currentVal = hasStats ? stats.currentValue : 0;
-                                            const result = currentVal - invested;
-                                            const resultPercent = invested > 0 ? (result / invested) * 100 : 0;
-
-                                            return (
-                                                <div key={group.ticker} className="border border-slate-800 rounded-lg bg-slate-900/30 overflow-hidden mb-4">
-                                                    {/* Asset Header: Primary Role is Current Position */}
-                                                    <div
-                                                        className="px-4 py-4 cursor-pointer hover:bg-slate-800/50 transition-colors border-b border-slate-800/50 bg-slate-900/40"
-                                                        onClick={() => toggleTicker(group.ticker)}
-                                                    >
-                                                        <div className="flex items-center text-sm">
-                                                            {/* Col 1: Expand Icon */}
-                                                            <div className="w-10 flex-shrink-0 text-center">
-                                                                {isExpanded ? <ChevronDown className="h-4 w-4 text-slate-400 mx-auto" /> : <ChevronRight className="h-4 w-4 text-slate-400 mx-auto" />}
-                                                            </div>
-
-                                                            {/* Col 2+3: Ticker and Info */}
-                                                            <div className="flex-1 min-w-0 pr-4">
-                                                                <div className="font-bold text-white flex items-center gap-2 text-base">
-                                                                    {group.ticker}
-                                                                    <span className="text-xs font-normal text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">
-                                                                        {group.transactions.length} ops
-                                                                    </span>
-                                                                </div>
-                                                                <div className="text-xs text-slate-400 truncate">{group.description}</div>
-                                                            </div>
-
-                                                            {/* Grid Area: Positions and Stats aligned with table headers */}
-                                                            <div className="flex items-center gap-0">
-                                                                {/* Cantidad / Nominales */}
-                                                                <div className="w-28 text-right flex-shrink-0 px-2">
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Nominales</div>
-                                                                    <div className="font-mono font-bold text-slate-100">
-                                                                        {Intl.NumberFormat('es-AR').format(nominals)}
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Precio / PPP */}
-                                                                <div className="w-32 text-right flex-shrink-0 px-2 hidden sm:block">
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">PPP</div>
-                                                                    <div className="font-mono font-medium text-slate-200">
-                                                                        {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(ppp)}
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Comisión Total */}
-                                                                <div className="w-28 text-right flex-shrink-0 px-2 hidden md:block">
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Comisión</div>
-                                                                    <div className="font-mono text-slate-400">
-                                                                        {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(hasStats ? stats.commission : 0)}
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Total Invertido */}
-                                                                <div className="w-36 text-right flex-shrink-0 px-2">
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Invertido</div>
-                                                                    <div className="font-mono font-bold text-blue-400">
-                                                                        {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(invested)}
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Moneda */}
-                                                                <div className="w-20 text-right flex-shrink-0 px-2 hidden lg:block">
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Moneda</div>
-                                                                    <div className="font-medium text-slate-400">
-                                                                        {viewCurrency}
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Result Space */}
-                                                                <div className="w-24 flex-shrink-0 px-2 hidden xl:flex justify-end">
-                                                                    {hasStats && (
-                                                                        <div className={`px-2 py-0.5 rounded text-[10px] font-bold ${result >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                                                                            {result >= 0 ? '+' : ''}{resultPercent.toFixed(1)}%
+                                                    return (
+                                                        <>
+                                                            {/* PARENT ROW */}
+                                                            <tr
+                                                                key={group.ticker}
+                                                                className={`hover:bg-slate-800/50 transition-colors cursor-pointer border-t border-slate-800 ${isExpanded ? 'bg-slate-800/40' : ''}`}
+                                                                onClick={() => toggleTicker(group.ticker)}
+                                                            >
+                                                                <td className="px-4 py-4 text-slate-500">
+                                                                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                                                </td>
+                                                                <td className="px-4 py-4">
+                                                                    <div>
+                                                                        <div className="font-bold text-white text-base flex items-center gap-2">
+                                                                            {group.ticker}
+                                                                            <span className="text-[10px] font-normal text-slate-500 bg-slate-900 border border-slate-800 px-1 py-0 rounded-sm">
+                                                                                {group.transactions.length} ops
+                                                                            </span>
                                                                         </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                                        <div className="text-xs text-slate-500 truncate max-w-[200px]">{group.description}</div>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-4 text-right text-white tabular-nums font-semibold">
+                                                                    {Intl.NumberFormat('es-AR').format(nominals)}
+                                                                </td>
+                                                                <td className="px-4 py-4 text-right text-slate-300 tabular-nums">
+                                                                    <div className="flex flex-col items-end gap-0">
+                                                                        <span>{!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(ppp)}</span>
+                                                                        <span className="text-[9px] text-slate-500 uppercase tracking-tighter">PPP</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-4 text-right text-slate-500 tabular-nums hidden md:table-cell text-xs">
+                                                                    {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(hasStats ? stats.commission : 0)}
+                                                                </td>
+                                                                <td className="px-4 py-4 text-right text-emerald-400 font-bold tabular-nums">
+                                                                    <div className="flex flex-col items-end gap-0">
+                                                                        <span>{!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(invested)}</span>
+                                                                        <span className="text-[9px] opacity-70 uppercase tracking-tighter">Total</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className={`px-4 py-4 text-right font-bold tabular-nums ${result >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                    {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(result)}
+                                                                </td>
+                                                                <td className={`px-4 py-4 text-right font-medium tabular-nums ${resultPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                    {resultPercent.toFixed(2)}%
+                                                                </td>
+                                                                <td className="px-4 py-4 text-right text-slate-500 font-medium text-xs">
+                                                                    {viewCurrency}
+                                                                </td>
+                                                            </tr>
 
-                                                    {/* Transactions List */}
-                                                    {isExpanded && (
-                                                        <div className="border-t border-slate-800/40 bg-slate-900/10">
-                                                            <div className="overflow-x-auto">
-                                                                <table className="w-full text-sm table-fixed min-w-[800px]">
-                                                                    <tbody className="divide-y divide-slate-800/30">
-                                                                        {group.transactions
-                                                                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                                                                            .map(tx => {
-                                                                                const isTxSell = tx.totalAmount >= 0;
-                                                                                return (
-                                                                                    <tr key={tx.id} className="hover:bg-slate-800/40 transition-colors group/row">
-                                                                                        <td className="px-4 py-2.5 text-center w-10">
-                                                                                            <Checkbox
-                                                                                                checked={selectedIds.has(tx.id)}
-                                                                                                onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
-                                                                                                className="border-slate-700 data-[state=checked]:bg-blue-600 h-3.5 w-3.5"
-                                                                                            />
-                                                                                        </td>
-                                                                                        <td className="px-4 py-2.5 text-slate-400 font-mono text-[11px] w-28">
-                                                                                            {format(new Date(tx.date), 'dd/MM/yyyy')}
-                                                                                        </td>
-                                                                                        <td className="px-4 py-2.5 flex-1">
-                                                                                            <Badge variant="outline" className={`text-[9px] font-bold tracking-tight px-1.5 h-4 border-0 ${isTxSell ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
-                                                                                                {isTxSell ? 'VENTA' : 'COMPRA'}
-                                                                                                {tx.type === 'DIVIDEND' && ' • DIV'}
-                                                                                                {tx.type === 'INTEREST' && ' • INT'}
-                                                                                            </Badge>
-                                                                                        </td>
-                                                                                        <td className="px-2 py-2.5 text-right text-slate-300 font-mono tabular-nums w-28">
-                                                                                            {Intl.NumberFormat('es-AR').format(tx.quantity)}
-                                                                                        </td>
-                                                                                        <td className="px-2 py-2.5 text-right text-slate-300 font-mono tabular-nums w-32">
-                                                                                            {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.price)}
-                                                                                        </td>
-                                                                                        <td className="px-2 py-2.5 text-right text-slate-500 font-mono tabular-nums text-[11px] w-28">
-                                                                                            {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.commission)}
-                                                                                        </td>
-                                                                                        <td className="px-2 py-2.5 text-right font-mono tabular-nums font-medium w-36">
-                                                                                            <span className={isTxSell ? 'text-green-500/90' : 'text-red-400/90'}>
-                                                                                                {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.totalAmount)}
-                                                                                            </span>
-                                                                                        </td>
-                                                                                        <td className="px-2 py-2.5 text-right text-slate-600 font-medium text-xs w-20">
-                                                                                            {tx.currency}
-                                                                                        </td>
-                                                                                        <td className="px-4 py-2.5 text-right w-24">
-                                                                                            <div className="flex justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                                                                                                <button
-                                                                                                    onClick={() => handleEditTransaction(tx)}
-                                                                                                    className="p-1 text-slate-500 hover:text-blue-400 hover:bg-blue-400/10 rounded transition-colors"
-                                                                                                >
-                                                                                                    <Pencil size={12} />
-                                                                                                </button>
-                                                                                                <button
-                                                                                                    onClick={() => handleDelete(tx.id)}
-                                                                                                    className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
-                                                                                                >
-                                                                                                    <Trash2 size={12} />
-                                                                                                </button>
-                                                                                            </div>
-                                                                                        </td>
-                                                                                    </tr>
-                                                                                );
-                                                                            })}
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ))
-                        )}
+                                                            {/* CHILD ROWS */}
+                                                            {isExpanded && group.transactions
+                                                                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                                                .map(tx => {
+                                                                    const isTxSell = tx.totalAmount >= 0;
+                                                                    return (
+                                                                        <tr key={tx.id} className="bg-slate-950/20 hover:bg-slate-800/10 group/row">
+                                                                            <td className="px-4 py-2 border-l-2 border-slate-700 text-center">
+                                                                                <Checkbox
+                                                                                    checked={selectedIds.has(tx.id)}
+                                                                                    onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
+                                                                                    className="border-slate-800 data-[state=checked]:bg-blue-600 h-3.5 w-3.5"
+                                                                                />
+                                                                            </td>
+                                                                            <td className="px-4 py-2">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <span className="text-slate-400 font-mono text-[11px]">{format(new Date(tx.date), 'dd/MM/yyyy')}</span>
+                                                                                    <Badge variant="outline" className={`text-[9px] font-bold tracking-tight px-1.5 h-4 border-0 ${isTxSell ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
+                                                                                        {isTxSell ? 'VENTA' : 'COMPRA'}
+                                                                                        {tx.type === 'DIVIDEND' && ' • DIV'}
+                                                                                        {tx.type === 'INTEREST' && ' • INT'}
+                                                                                    </Badge>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="px-4 py-2 text-right text-slate-400 text-xs tabular-nums">
+                                                                                {Intl.NumberFormat('es-AR').format(tx.quantity)}
+                                                                            </td>
+                                                                            <td className="px-4 py-2 text-right text-slate-400 text-xs tabular-nums">
+                                                                                {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.price)}
+                                                                            </td>
+                                                                            <td className="px-4 py-2 text-right text-slate-600 text-[11px] tabular-nums hidden md:table-cell">
+                                                                                {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.commission)}
+                                                                            </td>
+                                                                            <td className={`px-4 py-2 text-right text-xs tabular-nums font-medium ${isTxSell ? 'text-green-500/80' : 'text-red-400/80'}`}>
+                                                                                {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.totalAmount)}
+                                                                            </td>
+                                                                            <td className="px-4 py-2 text-right">
+                                                                                {/* Result/Percent per tx is optional, showing currency instead to keep columns aligned */}
+                                                                                <span className="text-slate-600 text-[10px]">{tx.currency}</span>
+                                                                            </td>
+                                                                            <td colSpan={2} className="px-4 py-2 text-right">
+                                                                                <div className="flex justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                                                                    <button onClick={() => handleEditTransaction(tx)} className="p-1 text-slate-600 hover:text-blue-400 transition-colors">
+                                                                                        <Pencil size={12} />
+                                                                                    </button>
+                                                                                    <button onClick={() => handleDelete(tx.id)} className="p-1 text-slate-600 hover:text-red-400 transition-colors">
+                                                                                        <Trash2 size={12} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    );
+                                                                })}
+                                                        </>
+                                                    );
+                                                })}
+                                            </div>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
