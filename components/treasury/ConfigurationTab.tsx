@@ -35,7 +35,7 @@ export function ConfigurationTab() {
     const loadTreasuries = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/investments/treasury');
+            const res = await fetch('/api/investments/treasury', { cache: 'no-store' });
             const data = await res.json();
             setTreasuries(data);
         } catch (error) {

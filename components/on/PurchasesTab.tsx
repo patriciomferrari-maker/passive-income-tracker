@@ -73,8 +73,8 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
     // Fetch Assets and Positions
     useEffect(() => {
         Promise.all([
-            fetch(`/api/investments/on?market=${market}`).then(res => res.json()),
-            fetch(`/api/investments/positions?type=${market === 'US' ? 'TREASURY,ETF,STOCK' : 'ON,CORPORATE_BOND,ETF,CEDEAR'}&market=${market}`).then(res => res.json())
+            fetch(`/api/investments/on?market=${market}`, { cache: 'no-store' }).then(res => res.json()),
+            fetch(`/api/investments/positions?type=${market === 'US' ? 'TREASURY,ETF,STOCK' : 'ON,CORPORATE_BOND,ETF,CEDEAR'}&market=${market}`, { cache: 'no-store' }).then(res => res.json())
         ]).then(([assetsData, positionsData]) => {
             // Create a map of quantities from positions
             const qtyMap = new Map<string, number>();
