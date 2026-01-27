@@ -96,30 +96,46 @@ export function ConfigurationTab() {
         setShowForm(true);
     };
 
+
+    const debugAuth = async () => {
+        try {
+            const res = await fetch('/api/debug-auth?t=' + Date.now());
+            const data = await res.json();
+            alert(`Debug Info:\nUser ID: ${data.userId}\nAuth: ${data.authenticated}`);
+        } catch (e: any) {
+            alert('Debug Failed: ' + e.message);
+        }
+    };
+
     return (
         <div className="space-y-6">
-            {/* Sub-Tabs Navigation */}
-            <div className="flex p-1 bg-slate-900/50 rounded-lg w-fit border border-slate-800">
-                <button
-                    onClick={() => setSubTab('catalog')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${subTab === 'catalog'
-                        ? 'bg-blue-600 text-white shadow'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                        }`}
-                >
-                    <Globe size={16} />
-                    Catálogo ETFs (USA)
-                </button>
-                <button
-                    onClick={() => setSubTab('manual')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${subTab === 'manual'
-                        ? 'bg-blue-600 text-white shadow'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                        }`}
-                >
-                    <Database size={16} />
-                    Treasuries (Manual)
-                </button>
+            <div className="flex justify-between items-center">
+                {/* Sub-Tabs Navigation */}
+                <div className="flex p-1 bg-slate-900/50 rounded-lg w-fit border border-slate-800">
+                    <button
+                        onClick={() => setSubTab('catalog')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${subTab === 'catalog'
+                            ? 'bg-blue-600 text-white shadow'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                            }`}
+                    >
+                        <Globe size={16} />
+                        Catálogo ETFs (USA)
+                    </button>
+                    <button
+                        onClick={() => setSubTab('manual')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${subTab === 'manual'
+                            ? 'bg-blue-600 text-white shadow'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                            }`}
+                    >
+                        <Database size={16} />
+                        Treasuries (Manual)
+                    </button>
+                </div>
+                <Button variant="outline" size="sm" onClick={debugAuth} className="text-xs text-slate-500 border-slate-700">
+                    🛠️ Debug Auth
+                </Button>
             </div>
 
             {subTab === 'catalog' ? (

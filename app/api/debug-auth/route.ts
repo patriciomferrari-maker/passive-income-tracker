@@ -1,21 +1,18 @@
-import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+
+import { getUserId } from '@/app/lib/auth-helper';
+import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const session = await auth();
-
+        const userId = await getUserId();
         return NextResponse.json({
-            isAuthenticated: !!session,
-            user: session?.user || null,
-            userId: session?.user?.id || 'undefined',
-            timestamp: new Date().toISOString(),
-            node_env: process.env.NODE_ENV
+            userId,
+            authenticated: !!userId,
+            meta: 'Debug Auth Endpoint'
         });
-    } catch (error) {
-        return NextResponse.json({
-            error: 'Failed to check auth',
-            details: error instanceof Error ? error.message : String(error)
-        }, { status: 500 });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
