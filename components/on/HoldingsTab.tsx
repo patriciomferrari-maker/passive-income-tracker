@@ -92,26 +92,29 @@ export function HoldingsTab({ market = 'ARG' }: { market?: string }) {
                         </div>
 
                         {/* Currency Toggle */}
-                        <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800 ml-4">
-                            <button
-                                onClick={() => setViewCurrency('ARS')}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${viewCurrency === 'ARS'
-                                    ? 'bg-blue-900/50 text-blue-200 border border-blue-800'
-                                    : 'text-slate-400 hover:text-white'
-                                    }`}
-                            >
-                                ARS
-                            </button>
-                            <button
-                                onClick={() => setViewCurrency('USD')}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${viewCurrency === 'USD'
-                                    ? 'bg-green-900/50 text-green-200 border border-green-800'
-                                    : 'text-slate-400 hover:text-white'
-                                    }`}
-                            >
-                                USD
-                            </button>
-                        </div>
+                        {/* Currency Toggle */}
+                        {market !== 'US' && (
+                            <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800 ml-4">
+                                <button
+                                    onClick={() => setViewCurrency('ARS')}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${viewCurrency === 'ARS'
+                                        ? 'bg-blue-900/50 text-blue-200 border border-blue-800'
+                                        : 'text-slate-400 hover:text-white'
+                                        }`}
+                                >
+                                    ARS
+                                </button>
+                                <button
+                                    onClick={() => setViewCurrency('USD')}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${viewCurrency === 'USD'
+                                        ? 'bg-green-900/50 text-green-200 border border-green-800'
+                                        : 'text-slate-400 hover:text-white'
+                                        }`}
+                                >
+                                    USD
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent>
