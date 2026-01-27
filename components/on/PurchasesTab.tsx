@@ -149,8 +149,6 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
             // Update Assets List for Modals
             const qtyMap = new Map<string, number>();
             Object.entries(stats).forEach(([t, s]) => {
-                // Map by ticker? Modals use ID?
-                // We need ID mapping.
                 const asset = assetMap.get(t);
                 if (asset) qtyMap.set(asset.id, s.quantity);
             });
@@ -166,7 +164,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
 
         const savedPrivacy = localStorage.getItem('privacy_mode');
         if (savedPrivacy !== null) setShowValues(savedPrivacy === 'true');
-    }, [market, refreshTrigger, viewCurrency]); // Added viewCurrency dependency
+    }, [market, refreshTrigger, viewCurrency]);
 
     const fetchTransactions = async () => {
         try {
@@ -224,7 +222,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
             setTransactions(convertedData);
             setSelectedIds(new Set());
 
-            // Auto-expand all tickers (show operations always expanded)
+            // Auto-expand all tickers
             const tickerList = convertedData.map((tx: Transaction) => tx.investment.ticker);
             const uniqueTickers = new Set<string>(tickerList);
             setExpandedTickers(uniqueTickers);
@@ -237,7 +235,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
 
     useEffect(() => {
         fetchTransactions();
-    }, [refreshTrigger, viewType, viewCurrency]); // Added viewCurrency dependency
+    }, [refreshTrigger, viewType, viewCurrency]);
 
     const handleEditTransaction = (tx: Transaction) => {
         setEditingTxId(tx.id);
@@ -281,8 +279,6 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
     };
 
     // --- Grouping Logic ---
-
-    // 1. Filter Raw Transactions
     const filteredTransactions = transactions.filter(tx => {
         const matchesSearch = tx.investment.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
             tx.investment.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -295,9 +291,8 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
         return matchesSearch && matchesAction;
     });
 
-    // 2. Group by Type -> Ticker
     const groupedData = useMemo(() => {
-        const groups: Record<string, Record<string, GroupedAsset>> = {}; // Type -> Ticker -> Data
+        const groups: Record<string, Record<string, GroupedAsset>> = {};
 
         filteredTransactions.forEach(tx => {
             const type = tx.investment.type || 'OTRO';
@@ -314,10 +309,8 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                 };
             }
 
-            // Add tx
             groups[type][ticker].transactions.push(tx);
 
-            // Accumulate Holdings (Buy +, Sell -)
             const isSell = tx.totalAmount >= 0;
             if (isSell) {
                 groups[type][ticker].currentHoldings -= tx.quantity;
@@ -326,8 +319,6 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
             }
         });
 
-        // Convert to array for rendering
-        // Sort Types?
         return groups;
     }, [filteredTransactions]);
 
@@ -359,7 +350,6 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                         </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                        {/* Action Filter */}
                         <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800 mr-2">
                             {[
                                 { id: 'ALL', label: 'Todas' },
@@ -379,8 +369,6 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                             ))}
                         </div>
 
-                        {/* Type Filter */}
-                        {/* Type Filter */}
                         <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
                             {(market === 'US' ? ['ALL', 'TREASURY', 'ETF', 'STOCK'] : ['ALL', 'ON', 'CEDEAR']).map(type => (
                                 <button
@@ -396,8 +384,6 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                             ))}
                         </div>
 
-                        {/* Currency Toggle */}
-                        {/* Currency Toggle */}
                         {market !== 'US' && (
                             <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800 ml-2">
                                 <button
@@ -486,13 +472,6 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                             const stats = positionStats[group.ticker];
                                             const hasStats = !!stats && stats.quantity > 0;
 
-                                            // Fallback to group aggregation if no stats (e.g. all closed)
-                                            // The user asked for "Posicion de cada activo" (Current).
-                                            // If position is closed (Qty=0), we show 0 or "Closed".
-                                            // But displaying "Invested" works for history? 
-                                            // "Totalizador con la posicion" -> usually means OPEN position.
-
-                                            // If no open position, we show "--"
                                             const nominals = hasStats ? stats.quantity : 0;
                                             const invested = hasStats ? stats.invested : 0;
                                             const ppp = hasStats ? stats.ppp : 0;
@@ -501,140 +480,157 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                             const resultPercent = invested > 0 ? (result / invested) * 100 : 0;
 
                                             return (
-                                                <div key={group.ticker} className="border border-slate-800 rounded-lg bg-slate-900/30 overflow-hidden">
-                                                    {/* Asset Header */}
+                                                <div key={group.ticker} className="border border-slate-800 rounded-lg bg-slate-900/30 overflow-hidden mb-4">
+                                                    {/* Asset Header: Primary Role is Current Position */}
                                                     <div
-                                                        className="px-4 py-3 cursor-pointer hover:bg-slate-800/50 transition-colors border-b border-slate-800/50"
+                                                        className="px-4 py-4 cursor-pointer hover:bg-slate-800/50 transition-colors border-b border-slate-800/50 bg-slate-900/40"
                                                         onClick={() => toggleTicker(group.ticker)}
                                                     >
-                                                        <div className="grid grid-cols-[1fr,auto] gap-4">
-                                                            <div className="flex items-center gap-3">
-                                                                {isExpanded ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
-                                                                <div>
-                                                                    <div className="font-medium text-white flex items-center gap-2">
-                                                                        {group.ticker}
-                                                                        <span className="text-xs font-normal text-slate-500">
-                                                                            ({group.transactions.length} ops)
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="text-xs text-slate-400">{group.description}</div>
-                                                                </div>
+                                                        <div className="flex items-center text-sm">
+                                                            {/* Col 1: Expand Icon */}
+                                                            <div className="w-10 flex-shrink-0 text-center">
+                                                                {isExpanded ? <ChevronDown className="h-4 w-4 text-slate-400 mx-auto" /> : <ChevronRight className="h-4 w-4 text-slate-400 mx-auto" />}
                                                             </div>
 
-                                                            {/* Totalizer Stats aligned with table headers */}
-                                                            <div className="flex items-center gap-0 text-sm">
-                                                                {/* Quantity alignment */}
-                                                                <div className="w-[100px] text-right pr-4 border-r border-slate-800/30">
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Nominales</div>
+                                                            {/* Col 2+3: Ticker and Info */}
+                                                            <div className="flex-1 min-w-0 pr-4">
+                                                                <div className="font-bold text-white flex items-center gap-2 text-base">
+                                                                    {group.ticker}
+                                                                    <span className="text-xs font-normal text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">
+                                                                        {group.transactions.length} ops
+                                                                    </span>
+                                                                </div>
+                                                                <div className="text-xs text-slate-400 truncate">{group.description}</div>
+                                                            </div>
+
+                                                            {/* Grid Area: Positions and Stats aligned with table headers */}
+                                                            <div className="flex items-center gap-0">
+                                                                {/* Cantidad / Nominales */}
+                                                                <div className="w-28 text-right flex-shrink-0 px-2">
+                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Nominales</div>
                                                                     <div className="font-mono font-bold text-slate-100">
                                                                         {Intl.NumberFormat('es-AR').format(nominals)}
                                                                     </div>
                                                                 </div>
 
-                                                                {/* PPP alignment */}
-                                                                <div className="w-[120px] text-right pr-4 border-r border-slate-800/30 hidden sm:block">
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">PPP</div>
+                                                                {/* Precio / PPP */}
+                                                                <div className="w-32 text-right flex-shrink-0 px-2 hidden sm:block">
+                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">PPP</div>
                                                                     <div className="font-mono font-medium text-slate-200">
                                                                         {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(ppp)}
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Commission alignment */}
-                                                                <div className="w-[120px] text-right pr-4 border-r border-slate-800/30 hidden md:block">
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Comisión</div>
+                                                                {/* Comisión Total */}
+                                                                <div className="w-28 text-right flex-shrink-0 px-2 hidden md:block">
+                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Comisión</div>
                                                                     <div className="font-mono text-slate-400">
-                                                                        {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency, minimumFractionDigits: 2 }).format(hasStats ? stats.commission : 0)}
+                                                                        {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(hasStats ? stats.commission : 0)}
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Total Invested alignment */}
-                                                                <div className="w-[140px] text-right pr-4 border-r border-slate-800/30">
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Invertido</div>
+                                                                {/* Total Invertido */}
+                                                                <div className="w-36 text-right flex-shrink-0 px-2">
+                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Invertido</div>
                                                                     <div className="font-mono font-bold text-blue-400">
                                                                         {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(invested)}
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Result alignment */}
-                                                                <div className="w-[120px] text-right pr-2 hidden lg:block">
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Resultado</div>
-                                                                    <div className={`font-mono font-bold ${result >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                        {!showValues ? '****' : `${result >= 0 ? '+' : ''}${resultPercent.toFixed(2)}%`}
+                                                                {/* Moneda */}
+                                                                <div className="w-20 text-right flex-shrink-0 px-2 hidden lg:block">
+                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Moneda</div>
+                                                                    <div className="font-medium text-slate-400">
+                                                                        {viewCurrency}
                                                                     </div>
+                                                                </div>
+
+                                                                {/* Result Space */}
+                                                                <div className="w-24 flex-shrink-0 px-2 hidden xl:flex justify-end">
+                                                                    {hasStats && (
+                                                                        <div className={`px-2 py-0.5 rounded text-[10px] font-bold ${result >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                                            {result >= 0 ? '+' : ''}{resultPercent.toFixed(1)}%
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
 
-
                                                     {/* Transactions List */}
                                                     {isExpanded && (
                                                         <div className="border-t border-slate-800/50 bg-slate-950/30">
                                                             <div className="overflow-x-auto">
-                                                                <table className="w-full text-sm">
-                                                                    <thead className="bg-slate-900/50 text-slate-400 text-xs uppercase">
+                                                                <table className="w-full text-sm table-fixed min-w-[800px]">
+                                                                    <thead className="bg-slate-900/50 text-slate-500 text-[10px] uppercase tracking-wider">
                                                                         <tr>
-                                                                            <th className="px-4 py-2 w-10 text-center"></th>
-                                                                            <th className="px-4 py-2 text-left">Fecha</th>
-                                                                            <th className="px-4 py-2 text-center">Tipo</th>
-                                                                            <th className="px-4 py-2 text-right">Cantidad</th>
-                                                                            <th className="px-4 py-2 text-right">Precio</th>
-                                                                            <th className="px-4 py-2 text-right">Comisión</th>
-                                                                            <th className="px-4 py-2 text-right">Total</th>
-                                                                            <th className="px-4 py-2 text-right">Moneda</th>
-                                                                            <th className="px-4 py-2 text-right">Acciones</th>
+                                                                            <th className="w-10 px-0 py-2"></th>
+                                                                            <th className="w-28 px-4 py-2 text-left font-medium">Fecha</th>
+                                                                            <th className="flex-1 px-4 py-2 text-left font-medium">Tipo</th>
+                                                                            <th className="w-28 px-2 py-2 text-right font-medium">Cantidad</th>
+                                                                            <th className="w-32 px-2 py-2 text-right font-medium">Precio</th>
+                                                                            <th className="w-28 px-2 py-2 text-right font-medium">Comisión</th>
+                                                                            <th className="w-36 px-2 py-2 text-right font-medium">Total</th>
+                                                                            <th className="w-20 px-2 py-2 text-right font-medium">Moneda</th>
+                                                                            <th className="w-24 px-4 py-2 text-right font-medium">Acciones</th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody className="divide-y divide-slate-800/50">
                                                                         {group.transactions
-                                                                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // Default sort by date desc
+                                                                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                                                                             .map(tx => {
-                                                                                const isSell = tx.totalAmount >= 0;
+                                                                                const isTxSell = tx.totalAmount >= 0;
                                                                                 return (
-                                                                                    <tr key={tx.id} className="hover:bg-white/5 transition-colors">
-                                                                                        <td className="px-4 py-2 text-center">
+                                                                                    <tr key={tx.id} className="hover:bg-slate-800/30 transition-colors group">
+                                                                                        <td className="px-4 py-3 text-center">
                                                                                             <Checkbox
                                                                                                 checked={selectedIds.has(tx.id)}
-                                                                                                onCheckedChange={(c) => handleSelectRow(tx.id, !!c)}
-                                                                                                className="h-3 w-3"
+                                                                                                onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
+                                                                                                className="border-slate-700 data-[state=checked]:bg-blue-600"
                                                                                             />
                                                                                         </td>
-                                                                                        <td className="px-4 py-2 text-slate-300">
+                                                                                        <td className="px-4 py-3 text-slate-300 font-mono text-xs">
                                                                                             {format(new Date(tx.date), 'dd/MM/yyyy')}
                                                                                         </td>
-                                                                                        <td className="px-4 py-2 text-center">
-                                                                                            <Badge variant={isSell ? "destructive" : "default"} className={`h-5 text-[10px] px-1.5 ${isSell ? "bg-red-900/40 text-red-300 border-red-800" : "bg-green-900/40 text-green-300 border-green-800"}`}>
-                                                                                                {isSell ? 'VENTA' : 'COMPRA'}
+                                                                                        <td className="px-4 py-3">
+                                                                                            <Badge variant="outline" className={`text-[10px] font-bold ${isTxSell ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-green-500/10 text-green-500 border-green-500/20'}`}>
+                                                                                                {isTxSell ? 'VENTA' : 'COMPRA'}
+                                                                                                {tx.type === 'DIVIDEND' && ' - DIVIDENDO'}
+                                                                                                {tx.type === 'INTEREST' && ' - INTERÉS'}
                                                                                             </Badge>
                                                                                         </td>
-                                                                                        <td className="px-4 py-2 text-right text-slate-300 tabular-nums">
-                                                                                            {tx.quantity}
+                                                                                        <td className="px-2 py-3 text-right text-slate-200 font-mono">
+                                                                                            {Intl.NumberFormat('es-AR').format(tx.quantity)}
                                                                                         </td>
-                                                                                        <td className="px-4 py-2 text-right text-slate-300 tabular-nums">
-                                                                                            {!showValues ? '****' : Intl.NumberFormat(tx.currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: tx.currency }).format(tx.price)}
+                                                                                        <td className="px-2 py-3 text-right text-slate-200 font-mono">
+                                                                                            {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.price)}
                                                                                         </td>
-                                                                                        <td className="px-4 py-2 text-right text-slate-400 tabular-nums text-xs">
-                                                                                            {!showValues ? '****' : Intl.NumberFormat(tx.currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: tx.currency }).format(tx.commission)}
+                                                                                        <td className="px-2 py-3 text-right text-slate-400 font-mono text-xs">
+                                                                                            {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.commission)}
                                                                                         </td>
-                                                                                        <td className={`px-4 py-2 text-right font-medium tabular-nums ${isSell ? 'text-green-400' : 'text-red-400'}`}>
-                                                                                            {!showValues ? '****' : Intl.NumberFormat(tx.currency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: tx.currency }).format(Math.abs(tx.totalAmount))}
+                                                                                        <td className="px-2 py-3 text-right font-mono font-medium">
+                                                                                            <span className={isTxSell ? 'text-green-500' : 'text-red-400'}>
+                                                                                                {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.totalAmount)}
+                                                                                            </span>
                                                                                         </td>
-                                                                                        <td className="px-4 py-2 text-right text-slate-500 text-xs">
+                                                                                        <td className="px-2 py-3 text-right text-slate-500 font-medium">
                                                                                             {tx.currency}
                                                                                         </td>
-                                                                                        <td className="px-4 py-2 text-right flex justify-end gap-1">
-                                                                                            <button
-                                                                                                onClick={() => handleEditTransaction(tx)}
-                                                                                                className="p-1 text-slate-500 hover:text-blue-400 hover:bg-slate-800 rounded"
-                                                                                            >
-                                                                                                <Pencil size={12} />
-                                                                                            </button>
-                                                                                            <button
-                                                                                                onClick={() => handleDelete(tx.id)}
-                                                                                                className="p-1 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded"
-                                                                                            >
-                                                                                                <Trash2 size={12} />
-                                                                                            </button>
+                                                                                        <td className="px-4 py-3 text-right">
+                                                                                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                                <button
+                                                                                                    onClick={() => handleEditTransaction(tx)}
+                                                                                                    className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded"
+                                                                                                >
+                                                                                                    <Pencil size={14} />
+                                                                                                </button>
+                                                                                                <button
+                                                                                                    onClick={() => handleDelete(tx.id)}
+                                                                                                    className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded"
+                                                                                                >
+                                                                                                    <Trash2 size={14} />
+                                                                                                </button>
+                                                                                            </div>
                                                                                         </td>
                                                                                     </tr>
                                                                                 );
@@ -670,21 +666,15 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                 />
             )}
 
-            <TransactionFormModal
-                isOpen={isTxModalOpen}
-                onClose={handleCloseTxModal}
-                onSuccess={handleSuccess}
-                initialData={editingTxId ? {
-                    id: editingTxId,
-                    date: '', // Fetched by component
-                    quantity: 0,
-                    price: 0,
-                    commission: 0,
-                    currency: 'ARS'
-                } : null}
-                assets={assets}
-                market={market}
-            />
+            {isTxModalOpen && (
+                <TransactionFormModal
+                    isOpen={isTxModalOpen}
+                    onClose={handleCloseTxModal}
+                    onSuccess={handleSuccess}
+                    transactionId={editingTxId}
+                    market={market}
+                />
+            )}
         </div>
     );
 }
