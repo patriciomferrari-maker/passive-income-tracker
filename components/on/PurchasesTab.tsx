@@ -72,8 +72,9 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
 
     interface PositionStats {
         quantity: number;
-        invested: number; // Cost Basis
-        ppp: number;
+        invested: number; // Cost Basis (Price * Qty + Comm)
+        commission: number; // Total Comm for Open
+        ppp: number; // Weighted Avg Price (Invested / Quantity)
         lastPrice: number;
         currentValue: number;
         currency: string;
@@ -104,6 +105,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                             stats[ticker] = {
                                 quantity: 0,
                                 invested: 0,
+                                commission: 0,
                                 ppp: 0,
                                 lastPrice: asset.lastPrice || 0,
                                 currentValue: 0,
@@ -112,9 +114,8 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                         }
 
                         stats[ticker].quantity += p.quantity;
+                        stats[ticker].commission += p.buyCommission;
                         // Invested = Cost Basis (Price * Qty + Comm)
-                        // Note: positionsData 'buyPrice' is unit price. 'buyCommission' is total for lot? 
-                        // Usually FIFO returns buyCommission apportioned to the lot quantity.
                         const cost = (p.quantity * p.buyPrice) + p.buyCommission;
                         stats[ticker].invested += cost;
                     }
@@ -124,21 +125,8 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
             // Calc PPP and Value
             Object.values(stats).forEach(s => {
                 if (s.quantity > 0) {
-                    s.ppp = s.invested / s.quantity; // Gross PPP (including comms) or Net? Usually users want Net Price? 
-                    // "Invertido" matches sum of costs. PPP = Invested / Qty implies Avg Cost.
+                    s.ppp = s.invested / s.quantity;
                     s.currentValue = s.quantity * s.lastPrice;
-
-                    // Fix for ONs quotes %
-                    // If lastPrice is percentage (e.g. 1.02 or 98.00) AND stats say raw nominals.
-                    // But we used a heuristic in positions route? 
-                    // Let's rely on dashboard/positions logic: If price is raw, just multiply.
-                    // But in positions route we normalize price.
-                    // asset.lastPrice from 'assetsData' is RAW.
-                    // positionsData calculates its own 'sellPrice' (current val) logic.
-                    // Maybe we should iterate positionsData again to sum 'currentValue'?
-                    // positionsData doesn't return 'currentValue', it returns 'sellPrice' (which is curr price).
-                    // Let's use that if possible? 
-                    // But 'p.sellPrice' is populated with Current Price in Open Positions logic.
                 }
             });
 
@@ -516,10 +504,10 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                 <div key={group.ticker} className="border border-slate-800 rounded-lg bg-slate-900/30 overflow-hidden">
                                                     {/* Asset Header */}
                                                     <div
-                                                        className="px-4 py-3 cursor-pointer hover:bg-slate-800/50 transition-colors"
+                                                        className="px-4 py-3 cursor-pointer hover:bg-slate-800/50 transition-colors border-b border-slate-800/50"
                                                         onClick={() => toggleTicker(group.ticker)}
                                                     >
-                                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                        <div className="grid grid-cols-[1fr,auto] gap-4">
                                                             <div className="flex items-center gap-3">
                                                                 {isExpanded ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
                                                                 <div>
@@ -533,46 +521,47 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                                 </div>
                                                             </div>
 
-                                                            {/* Totalizer Stats */}
-                                                            <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-sm">
-                                                                <div className="text-right">
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">Nominales</div>
-                                                                    <div className="font-mono font-medium text-slate-200">
+                                                            {/* Totalizer Stats aligned with table headers */}
+                                                            <div className="flex items-center gap-0 text-sm">
+                                                                {/* Quantity alignment */}
+                                                                <div className="w-[100px] text-right pr-4 border-r border-slate-800/30">
+                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Nominales</div>
+                                                                    <div className="font-mono font-bold text-slate-100">
                                                                         {Intl.NumberFormat('es-AR').format(nominals)}
                                                                     </div>
                                                                 </div>
 
-                                                                {hasStats && (
-                                                                    <>
-                                                                        <div className="text-right hidden sm:block">
-                                                                            <div className="text-[10px] text-slate-500 uppercase tracking-wider">PPP</div>
-                                                                            <div className="font-mono text-slate-300">
-                                                                                {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(ppp)}
-                                                                            </div>
-                                                                        </div>
+                                                                {/* PPP alignment */}
+                                                                <div className="w-[120px] text-right pr-4 border-r border-slate-800/30 hidden sm:block">
+                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">PPP</div>
+                                                                    <div className="font-mono font-medium text-slate-200">
+                                                                        {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(ppp)}
+                                                                    </div>
+                                                                </div>
 
-                                                                        <div className="text-right">
-                                                                            <div className="text-[10px] text-slate-500 uppercase tracking-wider">Invertido</div>
-                                                                            <div className="font-mono font-medium text-slate-200">
-                                                                                {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(invested)}
-                                                                            </div>
-                                                                        </div>
+                                                                {/* Commission alignment */}
+                                                                <div className="w-[120px] text-right pr-4 border-r border-slate-800/30 hidden md:block">
+                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Comisión</div>
+                                                                    <div className="font-mono text-slate-400">
+                                                                        {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency, minimumFractionDigits: 2 }).format(hasStats ? stats.commission : 0)}
+                                                                    </div>
+                                                                </div>
 
-                                                                        <div className="text-right">
-                                                                            <div className="text-[10px] text-slate-500 uppercase tracking-wider">Valor Actual</div>
-                                                                            <div className="font-mono font-bold text-slate-100">
-                                                                                {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(currentVal)}
-                                                                            </div>
-                                                                        </div>
+                                                                {/* Total Invested alignment */}
+                                                                <div className="w-[140px] text-right pr-4 border-r border-slate-800/30">
+                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Invertido</div>
+                                                                    <div className="font-mono font-bold text-blue-400">
+                                                                        {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(invested)}
+                                                                    </div>
+                                                                </div>
 
-                                                                        <div className="text-right hidden sm:block">
-                                                                            <div className="text-[10px] text-slate-500 uppercase tracking-wider">Resultado</div>
-                                                                            <div className={`font-mono font-medium ${result >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                                {!showValues ? '****' : `${result >= 0 ? '+' : ''}${resultPercent.toFixed(2)}%`}
-                                                                            </div>
-                                                                        </div>
-                                                                    </>
-                                                                )}
+                                                                {/* Result alignment */}
+                                                                <div className="w-[120px] text-right pr-2 hidden lg:block">
+                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Resultado</div>
+                                                                    <div className={`font-mono font-bold ${result >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                        {!showValues ? '****' : `${result >= 0 ? '+' : ''}${resultPercent.toFixed(2)}%`}
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
