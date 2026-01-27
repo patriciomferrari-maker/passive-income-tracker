@@ -170,6 +170,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                                     <>
                                         <option value="TREASURY">Treasuries</option>
                                         <option value="ETF">ETFs</option>
+                                        <option value="STOCK">Stocks</option>
                                     </>
                                 ) : (
                                     <>

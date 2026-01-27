@@ -40,7 +40,7 @@ export function PurchasesTab() {
     const [showValues, setShowValues] = useState(true);
 
     // Filter State
-    const [filterType, setFilterType] = useState<'ALL' | 'TREASURY' | 'ETF'>('ALL');
+    const [filterType, setFilterType] = useState<'ALL' | 'TREASURY' | 'ETF' | 'STOCK'>('ALL');
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -111,8 +111,8 @@ export function PurchasesTab() {
             // Fetch with specific types: TREASURY and ETF
             const [treasuriesRes, txRes, positionsRes] = await Promise.all([
                 fetch('/api/investments/treasury', { cache: 'no-store' }),
-                fetch('/api/investments/transactions?type=TREASURY,ETF', { cache: 'no-store' }),
-                fetch('/api/investments/positions?type=TREASURY,ETF', { cache: 'no-store' })
+                fetch('/api/investments/transactions?type=TREASURY,ETF,STOCK', { cache: 'no-store' }),
+                fetch('/api/investments/positions?type=TREASURY,ETF,STOCK', { cache: 'no-store' })
             ]);
 
             const treasuriesData = await treasuriesRes.json();
@@ -360,7 +360,7 @@ export function PurchasesTab() {
 
                     <TabsContent value="positions" className="mt-4 space-y-4">
                         {/* Button moved to header */}
-                        <PositionsTable types="TREASURY,ETF" market="US" refreshTrigger={refreshTrigger} />
+                        <PositionsTable types="TREASURY,ETF,STOCK" market="US" refreshTrigger={refreshTrigger} />
                     </TabsContent>
 
                     <TabsContent value="history">
@@ -379,319 +379,327 @@ export function PurchasesTab() {
                                 >
                                     Treasuries
                                 </button>
-                                <button
-                                    onClick={() => setFilterType('ETF')}
-                                    className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'ETF' ? 'bg-purple-900/50 text-purple-200' : 'text-slate-400 hover:text-white'}`}
-                                >
-                                    ETFs
-                                </button>
-                            </div>
-
-                            {selectedIds.length > 0 && (
-                                <Button
-                                    onClick={confirmBulkDelete}
-                                    variant="outline"
-                                    className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
-                                >
-                                    <Trash className="h-4 w-4 mr-2" />
-                                    Eliminar ({selectedIds.length})
-                                </Button>
-                            )}
+                                ETFs
+                            </button>
+                            <button
+                                onClick={() => setFilterType('STOCK')}
+                                className={`px-3 py-1 text-sm rounded transition-colors ${filterType === 'STOCK' ? 'bg-orange-900/50 text-orange-200' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                Stocks
+                            </button>
                         </div>
 
-                        {loading ? (
-                            <div className="text-slate-400 text-center py-12">Cargando...</div>
-                        ) : transactions.length === 0 ? (
-                            <div className="text-slate-400 text-center py-12">
-                                No hay compras registradas.
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto rounded-md border border-slate-800">
-                                <table className="w-full">
-                                    <thead className="bg-slate-900/50">
-                                        <tr className="border-b border-white/10">
-                                            <th className="w-10 py-3 px-4">
-                                                <button
-                                                    onClick={toggleSelectAll}
-                                                    className="text-slate-400 hover:text-white"
-                                                >
-                                                    {selectedIds.length === transactions.length && transactions.length > 0 ? (
-                                                        <CheckSquare size={18} />
-                                                    ) : (
-                                                        <Square size={18} />
-                                                    )}
-                                                </button>
-                                            </th>
-                                            <th className="text-left py-3 px-4 text-slate-300 font-medium">Tipo</th>
-                                            <th className="text-left py-3 px-4 text-slate-300 font-medium">
-                                                <button onClick={() => handleSort('date')} className="flex items-center gap-1 hover:text-white">
-                                                    Fecha
-                                                    {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
-                                                    {sortConfig?.key !== 'date' && <ArrowUpDown size={14} className="opacity-50" />}
-                                                </button>
-                                            </th>
-                                            <th className="text-left py-3 px-4 text-slate-300 font-medium">
-                                                <button onClick={() => handleSort('ticker')} className="flex items-center gap-1 hover:text-white">
-                                                    Ticker
-                                                    {sortConfig?.key === 'ticker' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
-                                                    {sortConfig?.key !== 'ticker' && <ArrowUpDown size={14} className="opacity-50" />}
-                                                </button>
-                                            </th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Cantidad</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">ComisiÃ³n</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Total</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 font-medium">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {getSortedTransactions().map((tx) => {
-                                            const totalPaid = Math.abs(tx.totalAmount);
-                                            return (
-                                                <tr key={tx.id} className={`border-b border-white/5 hover:bg-white/5 ${selectedIds.includes(tx.id) ? 'bg-white/10' : ''}`}>
-                                                    <td className="py-3 px-4">
-                                                        <button
-                                                            onClick={() => toggleSelection(tx.id)}
-                                                            className={`hover:text-white ${selectedIds.includes(tx.id) ? 'text-blue-400' : 'text-slate-500'}`}
-                                                        >
-                                                            {selectedIds.includes(tx.id) ? <CheckSquare size={18} /> : <Square size={18} />}
-                                                        </button>
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${(tx.type || 'BUY') === 'SELL'
-                                                            ? 'bg-red-900/50 text-red-200 border border-red-800'
-                                                            : 'bg-green-900/50 text-green-200 border border-green-800'
-                                                            }`}>
-                                                            {(tx.type || 'BUY') === 'SELL' ? 'VENTA' : 'COMPRA'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-white">
-                                                        {format(new Date(tx.date), 'dd/MM/yyyy')}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-white">
-                                                        <div className="flex flex-col">
-                                                            <div>
-                                                                <span className="font-bold">{tx.investment.ticker}</span>
-                                                                {tx.investment.type === 'ETF' && (
-                                                                    <span className="ml-2 text-[10px] bg-purple-900/50 text-purple-300 px-1 rounded border border-purple-800">ETF</span>
-                                                                )}
-                                                            </div>
-                                                            <span className="text-slate-400 text-xs hidden md:inline">{tx.investment.name}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-white text-right font-mono">
-                                                        {tx.quantity}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-white text-right font-mono">
-                                                        {formatMoney(tx.price)}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-white text-right font-mono">
-                                                        {formatMoney(tx.commission)}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-white text-right font-mono text-slate-400">
-                                                        {formatMoney(totalPaid)}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-right">
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            <button
-                                                                onClick={() => handleEdit(tx)}
-                                                                className="p-2 text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
-                                                                title="Editar compra"
-                                                            >
-                                                                <Edit size={16} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => confirmDelete(tx.id)}
-                                                                className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                                                                title="Eliminar compra"
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                        {selectedIds.length > 0 && (
+                            <Button
+                                onClick={confirmBulkDelete}
+                                variant="outline"
+                                className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                            >
+                                <Trash className="h-4 w-4 mr-2" />
+                                Eliminar ({selectedIds.length})
+                            </Button>
                         )}
-                    </TabsContent>
-                </Tabs>
-            </CardContent>
+                    </div>
 
-            {/* New Transaction Form Modal */}
-            {showForm && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <Card className="w-full max-w-md bg-slate-900 border-slate-700">
-                        <CardHeader>
-                            <CardTitle className="text-white">{editingTransaction ? `Editar ${transactionType === 'SELL' ? 'Venta' : 'Compra'}` : 'Nueva Compra'}</CardTitle>
-                            <CardDescription className="text-slate-400">
-                                {editingTransaction ? 'Modifica los datos de la compra' : 'Registra una nueva operaciÃ³n de compra'}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-300">Treasury</label>
-                                    {editingTransaction ? (
-                                        <div className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white">
-                                            <span className="font-bold">{editingTransaction.investment.ticker}</span>
-                                            <span className="text-slate-400 ml-2">- {editingTransaction.investment.name}</span>
-                                        </div>
-                                    ) : (
-                                        <select
-                                            required
-                                            value={selectedTreasury}
-                                            onChange={(e) => setSelectedTreasury(e.target.value)}
-                                            className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                        >
-                                            <option value="">Seleccionar Treasury...</option>
-                                            {treasuries.map(treasury => (
-                                                <option key={treasury.id} value={treasury.id}>
-                                                    {treasury.ticker} - {treasury.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    )}
-                                </div>
+                    {loading ? (
+                        <div className="text-slate-400 text-center py-12">Cargando...</div>
+                    ) : transactions.length === 0 ? (
+                        <div className="text-slate-400 text-center py-12">
+                            No hay compras registradas.
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto rounded-md border border-slate-800">
+                            <table className="w-full">
+                                <thead className="bg-slate-900/50">
+                                    <tr className="border-b border-white/10">
+                                        <th className="w-10 py-3 px-4">
+                                            <button
+                                                onClick={toggleSelectAll}
+                                                className="text-slate-400 hover:text-white"
+                                            >
+                                                {selectedIds.length === transactions.length && transactions.length > 0 ? (
+                                                    <CheckSquare size={18} />
+                                                ) : (
+                                                    <Square size={18} />
+                                                )}
+                                            </button>
+                                        </th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">Tipo</th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">
+                                            <button onClick={() => handleSort('date')} className="flex items-center gap-1 hover:text-white">
+                                                Fecha
+                                                {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                                {sortConfig?.key !== 'date' && <ArrowUpDown size={14} className="opacity-50" />}
+                                            </button>
+                                        </th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-medium">
+                                            <button onClick={() => handleSort('ticker')} className="flex items-center gap-1 hover:text-white">
+                                                Ticker
+                                                {sortConfig?.key === 'ticker' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                                {sortConfig?.key !== 'ticker' && <ArrowUpDown size={14} className="opacity-50" />}
+                                            </button>
+                                        </th>
+                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">Cantidad</th>
+                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">Precio</th>
+                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">ComisiÃ³n</th>
+                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">Total</th>
+                                        <th className="text-right py-3 px-4 text-slate-300 font-medium">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {getSortedTransactions().map((tx) => {
+                                        const totalPaid = Math.abs(tx.totalAmount);
+                                        return (
+                                            <tr key={tx.id} className={`border-b border-white/5 hover:bg-white/5 ${selectedIds.includes(tx.id) ? 'bg-white/10' : ''}`}>
+                                                <td className="py-3 px-4">
+                                                    <button
+                                                        onClick={() => toggleSelection(tx.id)}
+                                                        className={`hover:text-white ${selectedIds.includes(tx.id) ? 'text-blue-400' : 'text-slate-500'}`}
+                                                    >
+                                                        {selectedIds.includes(tx.id) ? <CheckSquare size={18} /> : <Square size={18} />}
+                                                    </button>
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${(tx.type || 'BUY') === 'SELL'
+                                                        ? 'bg-red-900/50 text-red-200 border border-red-800'
+                                                        : 'bg-green-900/50 text-green-200 border border-green-800'
+                                                        }`}>
+                                                        {(tx.type || 'BUY') === 'SELL' ? 'VENTA' : 'COMPRA'}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-white">
+                                                    {format(new Date(tx.date), 'dd/MM/yyyy')}
+                                                </td>
+                                                <td className="py-3 px-4 text-white">
+                                                    <div className="flex flex-col">
+                                                        <div>
+                                                            <span className="font-bold">{tx.investment.ticker}</span>
+                                                            {tx.investment.type === 'ETF' && (
+                                                                <span className="ml-2 text-[10px] bg-purple-900/50 text-purple-300 px-1 rounded border border-purple-800">ETF</span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-slate-400 text-xs hidden md:inline">{tx.investment.name}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 px-4 text-white text-right font-mono">
+                                                    {tx.quantity}
+                                                </td>
+                                                <td className="py-3 px-4 text-white text-right font-mono">
+                                                    {formatMoney(tx.price)}
+                                                </td>
+                                                <td className="py-3 px-4 text-white text-right font-mono">
+                                                    {formatMoney(tx.commission)}
+                                                </td>
+                                                <td className="py-3 px-4 text-white text-right font-mono text-slate-400">
+                                                    {formatMoney(totalPaid)}
+                                                </td>
+                                                <td className="py-3 px-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleEdit(tx)}
+                                                            className="p-2 text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
+                                                            title="Editar compra"
+                                                        >
+                                                            <Edit size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => confirmDelete(tx.id)}
+                                                            className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                                                            title="Eliminar compra"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </TabsContent>
+            </Tabs>
+        </CardContent>
 
-                                {editingTransaction && (
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-slate-300">Tipo de Operación</label>
-                                        <select
-                                            value={transactionType}
-                                            onChange={(e) => setTransactionType(e.target.value as 'BUY' | 'SELL')}
-                                            className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                        >
-                                            <option value="BUY">Compra</option>
-                                            <option value="SELL">Venta</option>
-                                        </select>
+            {/* New Transaction Form Modal */ }
+    {
+        showForm && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <Card className="w-full max-w-md bg-slate-900 border-slate-700">
+                    <CardHeader>
+                        <CardTitle className="text-white">{editingTransaction ? `Editar ${transactionType === 'SELL' ? 'Venta' : 'Compra'}` : 'Nueva Compra'}</CardTitle>
+                        <CardDescription className="text-slate-400">
+                            {editingTransaction ? 'Modifica los datos de la compra' : 'Registra una nueva operaciÃ³n de compra'}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-300">Treasury</label>
+                                {editingTransaction ? (
+                                    <div className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white">
+                                        <span className="font-bold">{editingTransaction.investment.ticker}</span>
+                                        <span className="text-slate-400 ml-2">- {editingTransaction.investment.name}</span>
                                     </div>
+                                ) : (
+                                    <select
+                                        required
+                                        value={selectedTreasury}
+                                        onChange={(e) => setSelectedTreasury(e.target.value)}
+                                        className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
+                                    >
+                                        <option value="">Seleccionar Treasury...</option>
+                                        {treasuries.map(treasury => (
+                                            <option key={treasury.id} value={treasury.id}>
+                                                {treasury.ticker} - {treasury.name}
+                                            </option>
+                                        ))}
+                                    </select>
                                 )}
+                            </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-slate-300">Fecha</label>
-                                        <input
-                                            type="date"
-                                            required
-                                            value={date}
-                                            onChange={(e) => setDate(e.target.value)}
-                                            className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-slate-300">Cantidad</label>
-                                        <input
-                                            type="number"
-                                            required
-                                            min="1"
-                                            step="1"
-                                            value={quantity}
-                                            onChange={(e) => setQuantity(e.target.value)}
-                                            className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-slate-300">Precio</label>
-                                        <input
-                                            type="number"
-                                            required
-                                            min="0"
-                                            step="any"
-                                            value={price}
-                                            onChange={(e) => setPrice(e.target.value)}
-                                            className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-slate-300">ComisiÃ³n</label>
-                                        <input
-                                            type="number"
-                                            required
-                                            min="0"
-                                            step="any"
-                                            value={commission}
-                                            onChange={(e) => setCommission(e.target.value)}
-                                            className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-4 pt-4">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setShowForm(false)}
-                                        className="w-full border-slate-600 text-slate-300 hover:bg-slate-800"
+                            {editingTransaction && (
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-300">Tipo de Operación</label>
+                                    <select
+                                        value={transactionType}
+                                        onChange={(e) => setTransactionType(e.target.value as 'BUY' | 'SELL')}
+                                        className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
                                     >
-                                        Cancelar
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        disabled={submitting}
-                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                                    >
-                                        {submitting ? 'Guardando...' : 'Guardar'}
-                                    </Button>
+                                        <option value="BUY">Compra</option>
+                                        <option value="SELL">Venta</option>
+                                    </select>
                                 </div>
-                            </form>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
+                            )}
 
-            {/* Register Sale Modal */}
-            {showSaleModal && (
-                <RegisterSaleModal
-                    assets={treasuries}
-                    onClose={() => setShowSaleModal(false)}
-                    onSuccess={handleSaleSuccess}
-                />
-            )}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-300">Fecha</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={date}
+                                        onChange={(e) => setDate(e.target.value)}
+                                        className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-300">Cantidad</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        min="1"
+                                        step="1"
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(e.target.value)}
+                                        className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
+                                    />
+                                </div>
+                            </div>
 
-            {/* Delete Confirmation Modal */}
-            {showDeleteConfirm && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <Card className="w-full max-w-md bg-slate-900 border-slate-700">
-                        <CardHeader>
-                            <CardTitle className="text-white flex items-center gap-2">
-                                <AlertTriangle className="text-red-500" />
-                                Confirmar EliminaciÃ³n
-                            </CardTitle>
-                            <CardDescription className="text-slate-400">
-                                {deleteType === 'single'
-                                    ? 'Â¿EstÃ¡s seguro de que deseas eliminar esta compra? Esta acciÃ³n no se puede deshacer.'
-                                    : `Â¿EstÃ¡s seguro de que deseas eliminar las ${selectedIds.length} compras seleccionadas? Esta acciÃ³n no se puede deshacer.`
-                                }
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-300">Precio</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        min="0"
+                                        step="any"
+                                        value={price}
+                                        onChange={(e) => setPrice(e.target.value)}
+                                        className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-300">ComisiÃ³n</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        min="0"
+                                        step="any"
+                                        value={commission}
+                                        onChange={(e) => setCommission(e.target.value)}
+                                        className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
+                                    />
+                                </div>
+                            </div>
+
                             <div className="flex gap-4 pt-4">
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    onClick={() => setShowDeleteConfirm(false)}
+                                    onClick={() => setShowForm(false)}
                                     className="w-full border-slate-600 text-slate-300 hover:bg-slate-800"
                                 >
                                     Cancelar
                                 </Button>
                                 <Button
-                                    type="button"
-                                    onClick={executeDelete}
-                                    className="w-full bg-red-600 hover:bg-red-700 text-white"
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                                 >
-                                    Eliminar
+                                    {submitting ? 'Guardando...' : 'Guardar'}
                                 </Button>
                             </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
-        </Card>
+                        </form>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
+    {/* Register Sale Modal */ }
+    {
+        showSaleModal && (
+            <RegisterSaleModal
+                assets={treasuries}
+                onClose={() => setShowSaleModal(false)}
+                onSuccess={handleSaleSuccess}
+            />
+        )
+    }
+
+    {/* Delete Confirmation Modal */ }
+    {
+        showDeleteConfirm && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <Card className="w-full max-w-md bg-slate-900 border-slate-700">
+                    <CardHeader>
+                        <CardTitle className="text-white flex items-center gap-2">
+                            <AlertTriangle className="text-red-500" />
+                            Confirmar EliminaciÃ³n
+                        </CardTitle>
+                        <CardDescription className="text-slate-400">
+                            {deleteType === 'single'
+                                ? 'Â¿EstÃ¡s seguro de que deseas eliminar esta compra? Esta acciÃ³n no se puede deshacer.'
+                                : `Â¿EstÃ¡s seguro de que deseas eliminar las ${selectedIds.length} compras seleccionadas? Esta acciÃ³n no se puede deshacer.`
+                            }
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex gap-4 pt-4">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowDeleteConfirm(false)}
+                                className="w-full border-slate-600 text-slate-300 hover:bg-slate-800"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={executeDelete}
+                                className="w-full bg-red-600 hover:bg-red-700 text-white"
+                            >
+                                Eliminar
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+        </Card >
     );
 }

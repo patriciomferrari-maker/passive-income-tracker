@@ -299,13 +299,12 @@ export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
     return results;
 }
 
-// 1. Update Treasuries (Yahoo Finance Only)
-
+// 1. Update Treasuries & US Stocks (US Market - Twelve Data Priority)
 export async function updateTreasuries(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
     const yahooFinance = new YahooFinance();
 
-    // Find Treasuries/ETFs with Ticker
+    // Find Treasuries/ETFs/Stocks with Ticker
     const investments = await prisma.investment.findMany({
         where: {
             ticker: { not: '' },
@@ -314,21 +313,56 @@ export async function updateTreasuries(userId?: string): Promise<MarketDataResul
         }
     });
 
-    for (const inv of investments) {
-        try {
-            const quote = await yahooFinance.quote(inv.ticker);
-            if (quote && quote.regularMarketPrice) {
-                const price = quote.regularMarketPrice;
-                const currency = quote.currency || inv.currency;
+    if (investments.length === 0) return [];
 
-                await savePrice(inv.id, price, currency, true); // Always update main for US assets
-                results.push({ ticker: inv.ticker, price, currency, source: 'YAHOO' });
-            } else {
-                results.push({ ticker: inv.ticker, price: null, currency: null, error: 'Not found on Yahoo', source: 'YAHOO' });
+    console.log(`Updating ${investments.length} US Investments (User Holdings)...`);
+
+    // --- TWELVE DATA BATCH FETCHING ---
+    const twelveDataClient = new TwelveDataClient();
+    let twelveDataPrices = new Map<string, number>();
+
+    if (process.env.TWELVE_DATA_API_KEY) {
+        // Unique tickers to fetch
+        const uniqueTickers = Array.from(new Set(investments.map(i => i.ticker)));
+        try {
+            twelveDataPrices = await twelveDataClient.fetchBatchedPrices(uniqueTickers);
+        } catch (e) {
+            console.error('Twelve Data Batch Error (Investments):', e);
+        }
+    }
+
+    // Helper to add delay between Yahoo requests (fallback only)
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    for (let i = 0; i < investments.length; i++) {
+        const inv = investments[i];
+        let price = twelveDataPrices.get(inv.ticker);
+        let source: 'TWELVE_DATA' | 'YAHOO' = 'TWELVE_DATA';
+
+        // Fallback to Yahoo
+        if (!price) {
+            source = 'YAHOO';
+            if (i > 0) await delay(1000); // Mild delay for Yahoo fallback
+
+            try {
+                const quote = await yahooFinance.quote(inv.ticker);
+                if (quote && quote.regularMarketPrice) {
+                    price = quote.regularMarketPrice;
+                }
+            } catch (e: any) {
+                console.error(`  ✗ ${inv.ticker}: ${e.message}`);
+                results.push({ ticker: inv.ticker, price: null, currency: null, error: e.message || 'Yahoo Error', source: 'YAHOO' });
+                continue;
             }
-        } catch (e: any) {
-            console.error('Yahoo Error:', e);
-            results.push({ ticker: inv.ticker, price: null, currency: null, error: e.message || 'Yahoo Error', source: 'YAHOO' });
+        }
+
+        if (price) {
+            const currency = inv.currency; // Keep investment currency (usually USD)
+            await savePrice(inv.id, price, currency, true);
+            results.push({ ticker: inv.ticker, price, currency, source: source });
+            console.log(`  ✓ ${inv.ticker}: $${price} (${source})`);
+        } else {
+            results.push({ ticker: inv.ticker, price: null, currency: null, error: 'Not found', source: source });
         }
     }
     return results;
@@ -512,4 +546,118 @@ export async function getLatestPrices(tickers: string[]): Promise<{ ticker: stri
     }));
 
     return prices;
+}
+
+// Optimization: Update ONLY Active Assets (Investments + UserHoldings > 0)
+export async function updateActiveAssetsOnly(): Promise<{ count: number; results: MarketDataResult[] }> {
+    const results: MarketDataResult[] = [];
+    console.log('🚀 Starting Optimized Asset Update (Active Only)...');
+
+    // 1. Get Active Investments (Legacy System)
+    const investments = await prisma.investment.findMany({
+        where: { ticker: { not: '' } }
+    });
+
+    // 2. Get Active User Holdings (Global Catalog System)
+    const holdings = await prisma.userHolding.findMany({
+        where: {
+            asset: { ticker: { not: '' } },
+            transactions: { some: {} } // Heuristic: has transactions usually implies quantity > 0 or history.
+        },
+        include: { asset: true }
+    });
+
+    // 3. Merge Tickers & Determine Market
+    const tickersMap = new Map<string, { market: string; type: string; id?: string; globalId?: string }>();
+
+    investments.forEach(inv => {
+        tickersMap.set(inv.ticker, { market: inv.market || 'US', type: inv.type, id: inv.id });
+    });
+
+    holdings.forEach(h => {
+        // Prefer GlobalAsset properties
+        tickersMap.set(h.asset.ticker, { market: h.asset.market || 'ARG', type: h.asset.type, globalId: h.asset.id });
+    });
+
+    const activeTickers = Array.from(tickersMap.keys());
+    console.log(`Found ${activeTickers.length} active unique tickers.`);
+
+    // 4. Split by Market
+    const usTickers: string[] = [];
+    const argTickers: string[] = [];
+
+    activeTickers.forEach(t => {
+        const data = tickersMap.get(t);
+        if (data?.market === 'US') usTickers.push(t);
+        else argTickers.push(t);
+    });
+
+    // 5. Update US Assets (Twelve Data Batch)
+    if (usTickers.length > 0) {
+        console.log(`Updating ${usTickers.length} US Assets via Twelve Data...`);
+        const twelveDataClient = new TwelveDataClient();
+        let prices = new Map<string, number>();
+
+        if (process.env.TWELVE_DATA_API_KEY) {
+            try {
+                prices = await twelveDataClient.fetchBatchedPrices(usTickers);
+            } catch (e) {
+                console.error('TD Batch Error:', e);
+            }
+        }
+
+        // Save prices
+        for (const ticker of usTickers) {
+            const price = prices.get(ticker);
+            const meta = tickersMap.get(ticker);
+
+            if (price && meta) {
+                // Update Investment (if exists)
+                if (meta.id) await savePrice(meta.id, price, 'USD', true);
+
+                // Update GlobalAsset (if exists)
+                if (meta.globalId) {
+                    await prisma.globalAsset.update({
+                        where: { id: meta.globalId },
+                        data: { lastPrice: price, lastPriceDate: new Date() }
+                    });
+                }
+                results.push({ ticker, price, currency: 'USD', source: 'TWELVE_DATA' });
+            }
+        }
+    }
+
+    // 6. Update ARG Assets (Rava/IOL)
+    if (argTickers.length > 0) {
+        console.log(`Updating ${argTickers.length} ARG Assets...`);
+        for (const ticker of argTickers) {
+            const meta = tickersMap.get(ticker);
+            const rava = await fetchRavaPrice(ticker);
+            let price = rava?.price;
+            let currency = 'ARS';
+            let source: any = 'RAVA';
+
+            if (!price) {
+                const iol = await fetchIOLPrice(ticker);
+                if (iol) {
+                    price = iol.price;
+                    currency = iol.currency;
+                    source = 'IOL';
+                }
+            }
+
+            if (price && meta) {
+                if (meta.id) await savePrice(meta.id, price, currency, meta.type === 'ON' || meta.type === 'CEDEAR');
+                if (meta.globalId) {
+                    await prisma.globalAsset.update({
+                        where: { id: meta.globalId },
+                        data: { lastPrice: price, lastPriceDate: new Date() }
+                    });
+                }
+                results.push({ ticker, price, currency, source });
+            }
+        }
+    }
+
+    return { count: results.length, results };
 }

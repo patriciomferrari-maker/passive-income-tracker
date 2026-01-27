@@ -12,7 +12,7 @@ interface TreasuryFormProps {
 }
 
 export function TreasuryForm({ onClose, onSave, initialData }: TreasuryFormProps) {
-    const [type, setType] = useState<'TREASURY' | 'ETF'>(initialData?.type || 'TREASURY');
+    const [type, setType] = useState<'TREASURY' | 'ETF' | 'STOCK'>(initialData?.type || 'TREASURY');
     const [ticker, setTicker] = useState(initialData?.ticker || '');
     const [name, setName] = useState(initialData?.name || '');
 
@@ -80,133 +80,138 @@ export function TreasuryForm({ onClose, onSave, initialData }: TreasuryFormProps
                                 >
                                     Treasury
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setType('ETF')}
                                     className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${type === 'ETF' ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                                         }`}
                                 >
                                     ETF
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setType('STOCK')}
+                                    className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${type === 'STOCK' ? 'bg-orange-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                        }`}
+                                >
+                                    Stock
+                                </button>
                             </div>
                         )}
 
-                        {/* Ticker y Nombre */}
+                {/* Ticker y Nombre */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">
+                            Ticker *
+                        </label>
+                        <input
+                            type="text"
+                            value={ticker}
+                            onChange={(e) => setTicker(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
+                            placeholder={type === 'TREASURY' ? "ej: T-10Y" : "ej: SPY"}
+                            required
+                            disabled={!!initialData}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">
+                            Nombre *
+                        </label>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
+                            placeholder={type === 'TREASURY' ? "ej: US Treasury 10Y" : "ej: S&P 500 ETF"}
+                            required
+                        />
+                    </div>
+                </div>
+
+                {type === 'TREASURY' && (
+                    <>
+                        {/* Fechas */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-300 mb-1">
-                                    Ticker *
+                                    Fecha de Emisión *
                                 </label>
                                 <input
-                                    type="text"
-                                    value={ticker}
-                                    onChange={(e) => setTicker(e.target.value)}
+                                    type="date"
+                                    value={emissionDate}
+                                    onChange={(e) => setEmissionDate(e.target.value)}
                                     className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                    placeholder={type === 'TREASURY' ? "ej: T-10Y" : "ej: SPY"}
                                     required
-                                    disabled={!!initialData}
                                 />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-300 mb-1">
-                                    Nombre *
+                                    Fecha de Vencimiento *
                                 </label>
                                 <input
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
+                                    type="date"
+                                    value={maturityDate}
+                                    onChange={(e) => setMaturityDate(e.target.value)}
                                     className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                    placeholder={type === 'TREASURY' ? "ej: US Treasury 10Y" : "ej: S&P 500 ETF"}
                                     required
                                 />
                             </div>
                         </div>
 
-                        {type === 'TREASURY' && (
-                            <>
-                                {/* Fechas */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1">
-                                            Fecha de Emisión *
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={emissionDate}
-                                            onChange={(e) => setEmissionDate(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1">
-                                            Fecha de Vencimiento *
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={maturityDate}
-                                            onChange={(e) => setMaturityDate(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Tasa y Frecuencia */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1">
-                                            Tasa de Interés (% anual) *
-                                        </label>
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            value={couponRate}
-                                            onChange={(e) => setCouponRate(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                            placeholder="ej: 4.5"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1">
-                                            Frecuencia de Pago (meses) *
-                                        </label>
-                                        <select
-                                            value={frequency}
-                                            onChange={(e) => setFrequency(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-                                            required
-                                        >
-                                            <option value="6">Semestral</option>
-                                            <option value="12">Anual</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-
-                        {/* Buttons */}
-                        <div className="flex gap-3 pt-4">
-                            <Button
-                                type="button"
-                                onClick={onClose}
-                                variant="outline"
-                                className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
-                            >
-                                Cancelar
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={loading}
-                                className="flex-1 bg-blue-600 hover:bg-blue-700"
-                            >
-                                {loading ? 'Guardando...' : 'Guardar Activo'}
-                            </Button>
+                        {/* Tasa y Frecuencia */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">
+                                    Tasa de Interés (% anual) *
+                                </label>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    value={couponRate}
+                                    onChange={(e) => setCouponRate(e.target.value)}
+                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
+                                    placeholder="ej: 4.5"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">
+                                    Frecuencia de Pago (meses) *
+                                </label>
+                                <select
+                                    value={frequency}
+                                    onChange={(e) => setFrequency(e.target.value)}
+                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
+                                    required
+                                >
+                                    <option value="6">Semestral</option>
+                                    <option value="12">Anual</option>
+                                </select>
+                            </div>
                         </div>
-                    </form>
+                    </>
+                )}
+
+                {/* Buttons */}
+                <div className="flex gap-3 pt-4">
+                    <Button
+                        type="button"
+                        onClick={onClose}
+                        variant="outline"
+                        className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
+                    >
+                        Cancelar
+                    </Button>
+                    <Button
+                        type="submit"
+                        disabled={loading}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    >
+                        {loading ? 'Guardando...' : 'Guardar Activo'}
+                    </Button>
                 </div>
-            </div>
+            </form>
         </div>
+            </div >
+        </div >
     );
 }

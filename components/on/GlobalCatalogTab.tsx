@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Globe, Plus, Check, Loader2, DollarSign, Briefcase } from 'lucide-react';
+import GlobalAssetFormModal from '@/components/common/GlobalAssetFormModal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -28,6 +29,7 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [updatingTicker, setUpdatingTicker] = useState<string | null>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     const [error, setError] = useState<string | null>(null);
 
@@ -113,6 +115,15 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
 
     return (
         <div className="space-y-6">
+            <GlobalAssetFormModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onSuccess={(newAsset) => {
+                    setAssets(prev => [...prev, newAsset]);
+                    alert(`Activo ${newAsset.ticker} creado correctamente.`);
+                }}
+            />
+
             <Card className="bg-slate-950 border-slate-800">
                 <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-6">
@@ -122,17 +133,23 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
                                 Catálogo Global
                             </h2>
                             <p className="text-slate-400">
-                                Explora y agrega CEDEARs, ETFs y otros activos a tu cartera.
+                                Explora y agrega CEDEARs, ETFs y Stocks a tu cartera.
                             </p>
                         </div>
-                        <div className="relative w-full md:w-96">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 h-4 w-4" />
-                            <Input
-                                placeholder="Buscar por ticker o nombre..."
-                                className="pl-10 bg-slate-900 border-slate-700 text-white"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
+                        <div className="flex gap-2 w-full md:w-auto">
+                            <div className="relative w-full md:w-64">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 h-4 w-4" />
+                                <Input
+                                    placeholder="Buscar..."
+                                    className="pl-10 bg-slate-900 border-slate-700 text-white"
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                />
+                            </div>
+                            <Button onClick={() => setIsAddModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                                <Plus className="h-4 w-4 md:mr-2" />
+                                <span className="hidden md:inline">Agregar Activo</span>
+                            </Button>
                         </div>
                     </div>
 
