@@ -27,7 +27,7 @@ export function HoldingsTab({ market = 'ARG' }: { market?: string }) {
     // Fetch assets for the modal
     useEffect(() => {
         // Fetch Assets
-        fetch(`/api/investments/on?market=${market}`, { cache: 'no-store' })
+        fetch(`/api/investments/on?market=${market}&t=${Date.now()}`, { cache: 'no-store' })
             .then(res => res.json())
             .then(data => {
                 const formatted = data.map((item: any) => ({

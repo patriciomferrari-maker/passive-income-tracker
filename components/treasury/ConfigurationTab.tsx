@@ -35,7 +35,7 @@ export function ConfigurationTab() {
     const loadTreasuries = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/investments/treasury', { cache: 'no-store' });
+            const res = await fetch(`/api/investments/treasury?t=${Date.now()}`, { cache: 'no-store' });
             const data = await res.json();
             setTreasuries(data);
         } catch (error) {
@@ -54,16 +54,21 @@ export function ConfigurationTab() {
                     body: JSON.stringify(data)
                 });
             } else {
-                await fetch('/api/investments/treasury', {
+                const res = await fetch('/api/investments/treasury', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Failed to save');
+                }
             }
             await loadTreasuries();
             setShowForm(false);
             setEditingTreasury(null);
-        } catch (error) {
+        } catch (error: any) {
+            alert('Error detallado: ' + error.message);
             throw error;
         }
     };
