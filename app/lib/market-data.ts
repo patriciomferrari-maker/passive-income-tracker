@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import yahooFinance from 'yahoo-finance2';
+import { TwelveDataClient } from '@/lib/utils/twelve-data';
 
 // Types
 interface MarketDataResult {
@@ -170,50 +171,76 @@ export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
     });
 
     console.log(`Updating ${usAssets.length} US Global Assets...`);
+
+    // Try Twelve Data first if API key is present
+    const twelveDataClient = new TwelveDataClient();
+    let twelveDataPrices = new Map<string, number>();
+
+    // Only attempt Twelve Data if we have a key
+    if (process.env.TWELVE_DATA_API_KEY) {
+        const tickers = usAssets.map(a => a.ticker);
+        try {
+            twelveDataPrices = await twelveDataClient.fetchBatchedPrices(tickers);
+        } catch (e) {
+            console.error('Twelve Data Batch Error:', e);
+        }
+    }
+
     for (let i = 0; i < usAssets.length; i++) {
         const asset = usAssets[i];
+        let price = twelveDataPrices.get(asset.ticker);
+        let source: 'TWELVE_DATA' | 'YAHOO' = 'TWELVE_DATA';
 
-        // Add delay between requests to avoid rate limiting (except for first request)
-        if (i > 0) {
-            await delay(5000); // 5 second delay to avoid aggressive rate limiting
-        }
+        // Fallback to Yahoo if Twelve Data missed this ticker
+        if (!price) {
+            source = 'YAHOO';
+            // Add delay between Yahoo requests to avoid rate limiting (except for first request)
+            if (i > 0) {
+                await delay(2000);
+            }
 
-        try {
-            const quote = await yahooFinance.quote(asset.ticker);
-            if (quote && quote.regularMarketPrice) {
-                await prisma.globalAsset.update({
-                    where: { id: asset.id },
-                    data: {
-                        lastPrice: quote.regularMarketPrice,
-                        lastPriceDate: new Date()
-                    }
-                });
-                results.push({
-                    ticker: asset.ticker,
-                    price: quote.regularMarketPrice,
-                    currency: quote.currency || 'USD',
-                    source: 'YAHOO'
-                });
-                console.log(`  ✓ ${asset.ticker}: $${quote.regularMarketPrice}`);
-            } else {
+            try {
+                const quote = await yahooFinance.quote(asset.ticker);
+                if (quote && quote.regularMarketPrice) {
+                    price = quote.regularMarketPrice;
+                }
+            } catch (e: any) {
+                console.error(`  ✗ ${asset.ticker}: ${e.message}`);
                 results.push({
                     ticker: asset.ticker,
                     price: null,
                     currency: null,
-                    error: 'Not found on Yahoo',
+                    error: e.message,
                     source: 'YAHOO'
                 });
-                console.log(`  ✗ ${asset.ticker}: No price`);
+                continue;
             }
-        } catch (e: any) {
-            console.error(`  ✗ ${asset.ticker}: ${e.message}`);
+        }
+
+        if (price) {
+            await prisma.globalAsset.update({
+                where: { id: asset.id },
+                data: {
+                    lastPrice: price,
+                    lastPriceDate: new Date()
+                }
+            });
+            results.push({
+                ticker: asset.ticker,
+                price: price,
+                currency: 'USD', // Assumption for US market
+                source: source
+            });
+            console.log(`  ✓ ${asset.ticker}: $${price} (${source})`);
+        } else {
             results.push({
                 ticker: asset.ticker,
                 price: null,
                 currency: null,
-                error: e.message,
+                error: 'Not found on Twelve Data or Yahoo',
                 source: 'YAHOO'
             });
+            console.log(`  ✗ ${asset.ticker}: No price found`);
         }
     }
 

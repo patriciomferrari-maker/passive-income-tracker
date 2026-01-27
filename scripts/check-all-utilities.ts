@@ -1,7 +1,8 @@
 import { prisma } from '../lib/prisma';
 import { checkMetrogas } from '../lib/scrapers/metrogas';
 import { checkAysaWeb } from '../lib/scrapers/aysa-web';
-import { checkNaturgy } from '../lib/scrapers/naturgy';
+import { checkABLCABA } from '../lib/scrapers/abl-caba';
+import { checkABLProvincia } from '../lib/scrapers/abl-provincia';
 
 interface CheckResult {
     propertyId: string;
@@ -24,7 +25,8 @@ async function checkAllUtilities() {
             where: {
                 OR: [
                     { gasId: { not: null } },
-                    { aysaId: { not: null } }
+                    { aysaId: { not: null } },
+                    { municipalId: { not: null } }
                 ]
             },
             select: {
@@ -43,13 +45,11 @@ async function checkAllUtilities() {
             console.log(`\n🏠 Checking: ${property.name}`);
             console.log('─'.repeat(50));
 
-            // Check Metrogas (Gas) - SCAPER METHOD (Legacy/Working)
+            // 1. Check Metrogas (Gas)
             if (property.gasId) {
                 console.log(`\n🔥 Checking Metrogas (${property.gasId})...`);
                 try {
                     const result = await checkMetrogas(property.gasId);
-
-                    // Save to database
                     await prisma.utilityCheck.create({
                         data: {
                             propertyId: property.id,
@@ -79,7 +79,7 @@ async function checkAllUtilities() {
                         console.log(`   💰 Debt: $${result.debtAmount.toLocaleString('es-AR')}`);
                     }
                 } catch (error: any) {
-                    console.error(`   ❌ Error: ${error.message}`);
+                    console.error(`   ❌ Metrogas Error: ${error.message}`);
                     results.push({
                         propertyId: property.id,
                         propertyName: property.name,
@@ -89,114 +89,67 @@ async function checkAllUtilities() {
                         error: error.message
                     });
                 }
-
-                // Check Naturgy (Gas) - Rapipago Method
-                console.log(`\n🔥 Checking Naturgy via Rapipago (${property.gasId})...`);
-                try {
-                    const { checkNaturgyRapipago } = require('../lib/scrapers/naturgy-rapipago');
-                    const result = await checkNaturgyRapipago(property.gasId);
-
-                    // Only save if status is known/valid to avoid cluttering DB with "User not found" from wrong provider
-                    if (result.status !== 'UNKNOWN' && result.status !== 'ERROR') {
-                        await prisma.utilityCheck.create({
-                            data: {
-                                propertyId: property.id,
-                                serviceType: 'GAS',
-                                accountNumber: property.gasId,
-                                status: result.status,
-                                debtAmount: result.debtAmount,
-                                lastBillAmount: result.lastBillAmount,
-                                lastBillDate: result.lastBillDate,
-                                dueDate: result.dueDate,
-                                isAutomatic: true,
-                                errorMessage: result.errorMessage
-                            }
-                        });
-
-                        results.push({
-                            propertyId: property.id,
-                            propertyName: property.name,
-                            service: 'Naturgy',
-                            status: result.status,
-                            debtAmount: result.debtAmount,
-                            error: result.errorMessage
-                        });
-
-                        console.log(`   ✅ Status: ${result.status}`);
-                        if (result.debtAmount > 0) {
-                            console.log(`   💰 Debt: $${result.debtAmount.toLocaleString('es-AR')}`);
-                        }
-                    } else {
-                        console.log(`   ℹ️  Skipping Naturgy result: ${result.status} (likely not a Naturgy account or no debt found)`);
-                    }
-
-                } catch (error: any) {
-                    console.error(`   ❌ Naturgy Error: ${error.message}`);
-                }
             }
 
-            // Check ABL (Municipal) - NEW RAPIPAGO SCRAPER
+            // 2. Check ABL (Municipal) - Jurisdiction Aware
             if (property.municipalId) {
-                console.log(`\n🏛️ Checking ABL CABA (${property.municipalId})...`);
+                const isCABA = property.jurisdiction === 'CABA';
+                const serviceLabel = isCABA ? 'ABL CABA' : 'ABL Provincia';
+                console.log(`\n🏛️  Checking ${serviceLabel} (${property.municipalId})...`);
+
                 try {
-                    // Lazy load to avoid issues if module has missing deps
-                    const { checkABLRapipago } = require('../lib/scrapers/abl-rapipago');
-                    const result = await checkABLRapipago(property.municipalId);
+                    const result = isCABA
+                        ? await checkABLCABA(property.municipalId)
+                        : await checkABLProvincia(property.municipalId);
 
-                    // Save to database
-                    if (result.status !== 'UNKNOWN' && result.status !== 'ERROR') {
-                        await prisma.utilityCheck.create({
-                            data: {
-                                propertyId: property.id,
-                                serviceType: 'ABL',
-                                accountNumber: property.municipalId,
-                                status: result.status,
-                                debtAmount: result.debtAmount,
-                                lastBillAmount: result.lastBillAmount,
-                                lastBillDate: result.lastBillDate,
-                                dueDate: result.dueDate,
-                                isAutomatic: true,
-                                errorMessage: result.errorMessage
-                            }
-                        });
-
-                        results.push({
+                    await prisma.utilityCheck.create({
+                        data: {
                             propertyId: property.id,
-                            propertyName: property.name,
-                            service: 'ABL',
+                            serviceType: 'ABL',
+                            accountNumber: property.municipalId,
                             status: result.status,
                             debtAmount: result.debtAmount,
-                            error: result.errorMessage
-                        });
-
-                        console.log(`   ✅ Status: ${result.status}`);
-                        if (result.debtAmount > 0) {
-                            console.log(`   💰 Debt: $${result.debtAmount.toLocaleString('es-AR')}`);
+                            lastBillAmount: result.lastBillAmount,
+                            lastBillDate: result.lastBillDate,
+                            dueDate: result.dueDate,
+                            isAutomatic: true,
+                            errorMessage: result.errorMessage
                         }
-                    } else if (result.status === 'ERROR') {
-                        console.error(`   ❌ ABL Error: ${result.errorMessage}`);
-                        results.push({
-                            propertyId: property.id,
-                            propertyName: property.name,
-                            service: 'ABL',
-                            status: 'ERROR',
-                            debtAmount: 0,
-                            error: result.errorMessage
-                        });
+                    });
+
+                    results.push({
+                        propertyId: property.id,
+                        propertyName: property.name,
+                        service: serviceLabel,
+                        status: result.status,
+                        debtAmount: result.debtAmount,
+                        error: result.errorMessage
+                    });
+
+                    console.log(`   ✅ Status: ${result.status}${result.status !== 'UP_TO_DATE' && result.status !== 'OVERDUE' ? ` (${result.errorMessage || ''})` : ''}`);
+                    if (result.debtAmount > 0) {
+                        console.log(`   💰 Debt: $${result.debtAmount.toLocaleString('es-AR')}`);
                     }
 
                 } catch (error: any) {
-                    console.error(`   ❌ Error loading/running ABL scraper: ${error.message}`);
+                    console.error(`   ❌ ${serviceLabel} Error: ${error.message}`);
+                    results.push({
+                        propertyId: property.id,
+                        propertyName: property.name,
+                        service: serviceLabel,
+                        status: 'ERROR',
+                        debtAmount: 0,
+                        error: error.message
+                    });
                 }
             }
 
-            // Check AYSA (Water) - WEB SCRAPER METHOD
+            // 3. Check AYSA (Water)
             if (property.aysaId) {
                 console.log(`\n💧 Checking AYSA (${property.aysaId})...`);
                 try {
                     const result = await checkAysaWeb(property.aysaId);
 
-                    // Save to database
                     await prisma.utilityCheck.create({
                         data: {
                             propertyId: property.id,
@@ -226,7 +179,7 @@ async function checkAllUtilities() {
                         console.log(`   💰 Debt: $${result.debtAmount.toLocaleString('es-AR')}`);
                     }
                 } catch (error: any) {
-                    console.error(`   ❌ Error: ${error.message}`);
+                    console.error(`   ❌ AYSA Error: ${error.message}`);
                     results.push({
                         propertyId: property.id,
                         propertyName: property.name,
@@ -247,10 +200,12 @@ async function checkAllUtilities() {
         const upToDate = results.filter(r => r.status === 'UP_TO_DATE').length;
         const overdue = results.filter(r => r.status === 'OVERDUE').length;
         const errors = results.filter(r => r.status === 'ERROR').length;
+        const unknown = results.filter(r => r.status === 'UNKNOWN').length;
         const totalDebt = results.reduce((sum, r) => sum + r.debtAmount, 0);
 
         console.log(`\n✅ Up to date: ${upToDate}`);
         console.log(`⚠️  Overdue: ${overdue}`);
+        console.log(`❓ Unknown/Blocked: ${unknown}`);
         console.log(`❌ Errors: ${errors}`);
         console.log(`💰 Total debt: $${totalDebt.toLocaleString('es-AR')}`);
 
@@ -258,6 +213,14 @@ async function checkAllUtilities() {
             console.log('\n⚠️  PROPERTIES WITH DEBT:');
             results.filter(r => r.status === 'OVERDUE').forEach(r => {
                 console.log(`   • ${r.propertyName} - ${r.service}: $${r.debtAmount.toLocaleString('es-AR')}`);
+            });
+        }
+
+        const blocked = results.filter(r => r.status === 'ERROR' || r.status === 'UNKNOWN');
+        if (blocked.length > 0) {
+            console.log('\n🚫 BLOCKED OR ERROR SERVICES (RE-RUN RECOMMENDED):');
+            blocked.forEach(r => {
+                console.log(`   • ${r.propertyName} - ${r.service}: ${r.status}${r.error ? ` (${r.error})` : ''}`);
             });
         }
 

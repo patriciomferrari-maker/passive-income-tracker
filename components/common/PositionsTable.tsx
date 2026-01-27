@@ -53,9 +53,10 @@ interface PositionsTableProps {
     currency?: string;
     refreshTrigger?: number;
     onEdit?: (positionId: string) => void;
+    hideEmpty?: boolean;
 }
 
-export default function PositionsTable({ types, market, currency, refreshTrigger, onEdit }: PositionsTableProps) {
+export default function PositionsTable({ types, market, currency, refreshTrigger, onEdit, hideEmpty = true }: PositionsTableProps) {
     const [positions, setPositions] = useState<PositionEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'ticker', direction: 'asc' });
@@ -68,6 +69,7 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
             if (types) params.append('type', types);
             if (market) params.append('market', market);
             if (currency) params.append('currency', currency);
+            if (hideEmpty) params.append('hideEmpty', 'true');
 
             const url = `/api/investments/positions?${params.toString()}`;
 

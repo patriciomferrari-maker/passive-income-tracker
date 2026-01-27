@@ -3,6 +3,8 @@ import { checkMetrogas } from '../lib/scrapers/metrogas';
 import { checkNaturgyRapipago as checkNaturgy } from '../lib/scrapers/naturgy-rapipago';
 import { checkEdenor } from '../lib/scrapers/edenor';
 import { checkABLProvincia } from '../lib/scrapers/abl-provincia';
+import { checkABLCABA } from '../lib/scrapers/abl-caba';
+import { checkAysaWeb } from '../lib/scrapers/aysa-web';
 
 const prisma = new PrismaClient();
 
@@ -16,7 +18,8 @@ export async function scrapeAllUtilities() {
                 OR: [
                     { gasId: { not: null } },
                     { electricityId: { not: null } },
-                    { municipalId: { not: null } }
+                    { municipalId: { not: null } },
+                    { aysaId: { not: null } }
                 ]
             },
             select: {
@@ -26,6 +29,7 @@ export async function scrapeAllUtilities() {
                 gasId: true,
                 electricityId: true,
                 municipalId: true,
+                aysaId: true,
                 hasGarage: true,
                 garageMunicipalId: true,
                 userId: true
@@ -139,11 +143,62 @@ export async function scrapeAllUtilities() {
                 }
             }
 
-            // Check ABL (only Provincia - CABA has reCAPTCHA)
-            if (property.municipalId && property.jurisdiction === 'PROVINCIA') {
+            // Check AySA (Water)
+            if (property.aysaId) {
                 try {
-                    console.log(`  🏛️  Checking ABL Provincia (${property.municipalId})...`);
-                    const result = await checkABLProvincia(property.municipalId);
+                    console.log(`  💧 Checking AySA (${property.aysaId})...`);
+                    const result = await checkAysaWeb(property.aysaId);
+
+                    await prisma.utilityCheck.create({
+                        data: {
+                            propertyId: property.id,
+                            serviceType: 'AYSA',
+                            accountNumber: property.aysaId,
+                            status: result.status,
+                            debtAmount: result.debtAmount,
+                            lastBillAmount: result.lastBillAmount,
+                            lastBillDate: result.lastBillDate,
+                            dueDate: result.dueDate,
+                            isAutomatic: true,
+                            errorMessage: result.errorMessage
+                        }
+                    });
+
+                    if (result.status === 'ERROR') {
+                        console.log(`  ❌ AySA check failed: ${result.errorMessage}`);
+                        errorCount++;
+                    } else {
+                        console.log(`  ✅ AySA: ${result.status} (Debt: $${result.debtAmount})`);
+                        successCount++;
+                    }
+                } catch (error: any) {
+                    console.error(`  ❌ Error checking AySA:`, error.message);
+
+                    // Save error status
+                    await prisma.utilityCheck.create({
+                        data: {
+                            propertyId: property.id,
+                            serviceType: 'AYSA',
+                            accountNumber: property.aysaId,
+                            status: 'ERROR',
+                            debtAmount: 0,
+                            isAutomatic: true,
+                            errorMessage: error.message
+                        }
+                    });
+                    errorCount++;
+                }
+            }
+
+            // Check ABL (Municipal taxes)
+            if (property.municipalId) {
+                try {
+                    const ablProvider = property.jurisdiction === 'CABA' ? 'ABL CABA' : 'ABL Provincia';
+                    console.log(`  🏛️  Checking ${ablProvider} (${property.municipalId})...`);
+
+                    const result = property.jurisdiction === 'CABA'
+                        ? await checkABLCABA(property.municipalId)
+                        : await checkABLProvincia(property.municipalId);
 
                     await prisma.utilityCheck.create({
                         data: {
@@ -161,14 +216,15 @@ export async function scrapeAllUtilities() {
                     });
 
                     if (result.status === 'ERROR') {
-                        console.log(`  ❌ ABL check failed: ${result.errorMessage}`);
+                        console.log(`  ❌ ${ablProvider} check failed: ${result.errorMessage}`);
                         errorCount++;
                     } else {
-                        console.log(`  ✅ ABL: ${result.status} (Debt: $${result.debtAmount})`);
+                        console.log(`  ✅ ${ablProvider}: ${result.status} (Debt: $${result.debtAmount})`);
                         successCount++;
                     }
                 } catch (error: any) {
-                    console.error(`  ❌ Error checking ABL:`, error.message);
+                    const ablProvider = property.jurisdiction === 'CABA' ? 'ABL CABA' : 'ABL Provincia';
+                    console.error(`  ❌ Error checking ${ablProvider}:`, error.message);
 
                     // Save error status
                     await prisma.utilityCheck.create({

@@ -478,56 +478,61 @@ export async function GET(request: Request) {
         }
 
         // 6. Merge "Empty" User Holdings (Assets tracked but with 0 transactions)
-        const processedTickers = new Set(Object.keys(txByTicker));
+        // If hideEmpty=true, skipping this step entirely.
+        const hideEmpty = searchParams.get('hideEmpty') === 'true';
 
-        for (const holding of userHoldings) {
-            if (!processedTickers.has(holding.asset.ticker)) {
-                // Determine current price for this empty asset
-                let currentPrice = 0;
-                let currentExchangeRate = 1;
+        if (!hideEmpty) {
+            const processedTickers = new Set(Object.keys(txByTicker));
 
-                const basePrice = holding.asset.lastPrice || 0;
-                const baseCurrency = holding.asset.currency || 'USD'; // GlobalAsset default is usually ARS but fields say USD/ARS
+            for (const holding of userHoldings) {
+                if (!processedTickers.has(holding.asset.ticker)) {
+                    // Determine current price for this empty asset
+                    let currentPrice = 0;
+                    let currentExchangeRate = 1;
 
-                if (targetCurrency) {
-                    if (baseCurrency === targetCurrency) {
-                        currentPrice = basePrice;
-                    } else {
-                        const rateDate = holding.asset.lastPriceDate || new Date();
-                        const rate = getRate(rateDate);
-                        if (rate > 0) {
-                            if (baseCurrency === 'ARS' && targetCurrency === 'USD') currentPrice = basePrice / rate;
-                            else if (baseCurrency === 'USD' && targetCurrency === 'ARS') currentPrice = basePrice * rate;
+                    const basePrice = holding.asset.lastPrice || 0;
+                    const baseCurrency = holding.asset.currency || 'USD'; // GlobalAsset default is usually ARS but fields say USD/ARS
+
+                    if (targetCurrency) {
+                        if (baseCurrency === targetCurrency) {
+                            currentPrice = basePrice;
+                        } else {
+                            const rateDate = holding.asset.lastPriceDate || new Date();
+                            const rate = getRate(rateDate);
+                            if (rate > 0) {
+                                if (baseCurrency === 'ARS' && targetCurrency === 'USD') currentPrice = basePrice / rate;
+                                else if (baseCurrency === 'USD' && targetCurrency === 'ARS') currentPrice = basePrice * rate;
+                            }
                         }
+                    } else {
+                        currentPrice = basePrice;
                     }
-                } else {
-                    currentPrice = basePrice;
-                }
 
-                if (holding.asset.type === 'ON' || holding.asset.type === 'CORPORATE_BOND') {
-                    if (currentPrice > 2.0) currentPrice = currentPrice / 100;
-                }
+                    if (holding.asset.type === 'ON' || holding.asset.type === 'CORPORATE_BOND') {
+                        if (currentPrice > 2.0) currentPrice = currentPrice / 100;
+                    }
 
-                allPositions.push({
-                    id: `empty-${holding.id}`,
-                    date: new Date().toISOString(),
-                    ticker: holding.asset.ticker,
-                    name: holding.asset.name,
-                    status: 'OPEN',
-                    quantity: 0,
-                    buyPrice: 0,
-                    buyCommission: 0,
-                    sellPrice: currentPrice,
-                    sellCommission: 0,
-                    resultAbs: 0,
-                    resultPercent: 0,
-                    currency: targetCurrency || holding.asset.currency,
-                    unrealized: true,
-                    fxResult: 0,
-                    priceResult: 0,
-                    type: holding.asset.type,
-                    theoreticalTir: null
-                });
+                    allPositions.push({
+                        id: `empty-${holding.id}`,
+                        date: new Date().toISOString(),
+                        ticker: holding.asset.ticker,
+                        name: holding.asset.name,
+                        status: 'OPEN',
+                        quantity: 0,
+                        buyPrice: 0,
+                        buyCommission: 0,
+                        sellPrice: currentPrice,
+                        sellCommission: 0,
+                        resultAbs: 0,
+                        resultPercent: 0,
+                        currency: targetCurrency || holding.asset.currency,
+                        unrealized: true,
+                        fxResult: 0,
+                        priceResult: 0,
+                        type: holding.asset.type,
+                        theoreticalTir: null
+                    });
+                }
             }
         }
 

@@ -297,3 +297,166 @@ Found Soldado: 40000041500
 ✅ Check saved to database
 
 🎉 Manual check completed
+[s�b 24/01/2026 23:00:01,80] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: "No registra deuda"
+[Metrogas] Has "No registra deuda": true
+[Metrogas] Amount elements found: 3
+[Metrogas] ✅ No debt found
+
+📊 Scraper result:
+{
+  "status": "UP_TO_DATE",
+  "debtAmount": 0,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[dom 25/01/2026 11:00:01,64] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Error: Waiting for selector `input` failed
+
+📊 Scraper result:
+{
+  "status": "ERROR",
+  "debtAmount": 0,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null,
+  "errorMessage": "Waiting for selector `input` failed"
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[dom 25/01/2026 16:00:01,65] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Error: Waiting for selector `input` failed
+
+📊 Scraper result:
+{
+  "status": "ERROR",
+  "debtAmount": 0,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null,
+  "errorMessage": "Waiting for selector `input` failed"
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[dom 25/01/2026 23:00:02,23] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[lun 26/01/2026 11:00:01,59] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: "No registra deuda"
+[Metrogas] Has "No registra deuda": true
+[Metrogas] Amount elements found: 3
+[Metrogas] ✅ No debt found
+
+📊 Scraper result:
+{
+  "status": "UP_TO_DATE",
+  "debtAmount": 0,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[lun 26/01/2026 16:00:01,46] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: "No registra deuda"
+[Metrogas] Has "No registra deuda": true
+[Metrogas] Amount elements found: 3
+[Metrogas] ✅ No debt found
+
+📊 Scraper result:
+{
+  "status": "UP_TO_DATE",
+  "debtAmount": 0,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[lun 26/01/2026 23:00:01,60] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: ""
+[Metrogas] Has "No registra deuda": false
+[Metrogas] Amount elements found: 3
+[Metrogas] ❓ Unknown status. Body preview: "Línea de mensajes de advertencia para cerrarValores disponiblesLínea de mensajes de error para cerrarLínea de mensajes de éxito para cerrarLínea de mensajes informativos para cerrarLínea de mensajes i"
+
+📊 Scraper result:
+{
+  "status": "UNKNOWN",
+  "debtAmount": 0,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[mar 27/01/2026 11:00:01,67] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: "3"
+[Metrogas] Has "No registra deuda": false
+[Metrogas] Amount elements found: 5
+[Metrogas] ⚠️  Debt found (fallback): $5447.28
+
+📊 Scraper result:
+{
+  "status": "OVERDUE",
+  "debtAmount": 5447.28,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed

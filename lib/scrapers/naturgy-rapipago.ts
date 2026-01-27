@@ -15,20 +15,18 @@ export interface NaturgyRapipagoResult {
     errorMessage?: string;
 }
 
-export async function checkNaturgyRapipago(onlinePaymentCode: string): Promise<NaturgyRapipagoResult> {
-    console.log(`🏛️ [Naturgy Rapipago] Checking code: ${onlinePaymentCode}`);
+export async function checkNaturgyRapipago(barcode: string): Promise<NaturgyRapipagoResult> {
+    console.log(`🔥 [Naturgy Rapipago] Checking Barcode: ${barcode}`);
 
     let browser: Browser | null = null;
     let page: Page | null = null;
 
     try {
         browser = await puppeteer.launch({
-            headless: false,
-            executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-            userDataDir: 'C:\\temp\\EdgeProfile',
-            defaultViewport: null,
+            headless: true, // Headless for production
             args: [
-                '--start-maximized',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
                 '--disable-blink-features=AutomationControlled'
             ],
             ignoreDefaultArgs: ['--enable-automation']
@@ -36,220 +34,173 @@ export async function checkNaturgyRapipago(onlinePaymentCode: string): Promise<N
 
         page = await browser.newPage();
 
-        // 1. Navigate directly to Rapipago payments section
+        // 1. Navigate to Rapipago
         await page.goto('https://pagar.rapipago.com.ar/rapipagoWeb/pagos/', {
             waitUntil: 'networkidle2',
             timeout: 60000
         });
 
-        console.log('[Naturgy Rapipago] Page loaded. Starting human behavior...');
+        // 2. Human Behavior Emulation
+        await new Promise(r => setTimeout(r, 1000 + Math.random() * 2000));
+        await page.mouse.move(Math.random() * 500, Math.random() * 500, { steps: 20 });
 
-        // Use 'CAPITAL FEDERAL'
-        const inputLoc = await page.waitForSelector('input', { visible: true, timeout: 15000 });
+        // 3. Select Location (BUENOS AIRES for Provincia)
+        const inputLoc = await page.waitForSelector('input', { visible: true });
         if (inputLoc) {
             await inputLoc.click();
             await new Promise(r => setTimeout(r, 500));
-            for (const char of 'CAPITAL FEDERAL') {
-                await page.keyboard.type(char, { delay: 50 + Math.random() * 50 });
+            for (const char of 'BUENOS AIRES') {
+                await page.keyboard.type(char, { delay: 100 + Math.random() * 150 });
             }
-            await new Promise(r => setTimeout(r, 1500));
+            await new Promise(r => setTimeout(r, 1000));
             await page.keyboard.press('ArrowDown');
-            await new Promise(r => setTimeout(r, 500));
             await page.keyboard.press('Enter');
         }
 
         await new Promise(r => setTimeout(r, 2000));
 
-        // Click "Pago de Facturas"
+        // 4. Click "Pago de Facturas"
         await page.evaluate(() => {
             const elements = Array.from(document.querySelectorAll('*'));
             const pagoFacturas = (elements.find(el => el.textContent?.trim().toLowerCase() === 'pago de facturas') as HTMLElement);
-            if (pagoFacturas) {
-                pagoFacturas.click();
-            }
+            if (pagoFacturas) pagoFacturas.click();
         });
 
         await new Promise(r => setTimeout(r, 3000));
 
-        // Search for company "Naturgy"
+        // 5. Search for Company "NATURGY"
         const companyInput = await page.waitForSelector('input[placeholder*="empresa" i], input[type="text"]', { visible: true });
         if (companyInput) {
             await companyInput.click();
             await new Promise(r => setTimeout(r, 400));
-            for (const char of 'Naturgy') {
-                await page.keyboard.type(char, { delay: 100 });
+            for (const char of 'NATURGY') {
+                await page.keyboard.type(char, { delay: 150 });
             }
-            await new Promise(r => setTimeout(r, 2500));
+            await new Promise(r => setTimeout(r, 2000));
+            await page.keyboard.press('ArrowDown');
+            await page.keyboard.press('Enter');
+        }
 
-            // Select "Naturgy Buenos Aires"
-            const option = await page.waitForSelector('::-p-text(Naturgy Buenos Aires)', { timeout: 8000 }).catch(() => null);
+        await new Promise(r => setTimeout(r, 3000));
 
-            if (option) {
-                await option.click();
-            } else {
-                await page.keyboard.press('ArrowDown');
-                await page.keyboard.press('Enter');
+        // 6. Select Service "COBRANZA CON CODIGO DE BARRA"
+        const selectionResult = await page.evaluate(() => {
+            const textToFind = 'CODIGO DE BARRA';
+            const inputs = Array.from(document.querySelectorAll('input[type="checkbox"], input[type="radio"]'));
+
+            const targetInput = inputs.find(input => {
+                const parentSibling = input.parentElement?.nextElementSibling;
+                if (parentSibling && parentSibling.textContent?.toUpperCase().includes(textToFind)) return true;
+
+                let parent = input.parentElement;
+                while (parent && parent.tagName !== 'LI' && parent.tagName !== 'BODY') {
+                    if (parent.innerText && parent.innerText.toUpperCase().includes(textToFind)) return true;
+                    parent = parent.parentElement;
+                }
+                return false;
+            });
+
+            if (targetInput) {
+                const rect = (targetInput as HTMLElement).getBoundingClientRect();
+                (targetInput as HTMLElement).click();
+                return { found: true, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+            }
+            return { found: false };
+        });
+
+        if (selectionResult.found && selectionResult.x) {
+            await page.mouse.move(selectionResult.x, selectionResult.y, { steps: 10 });
+        }
+
+        await new Promise(r => setTimeout(r, 2000));
+
+        // 7. Input Barcode
+        const inputSelector = 'input[placeholder*="barra" i], input[placeholder*="código" i], input[placeholder*="cliente" i]';
+        let inputClient = await page.waitForSelector(inputSelector, { visible: true, timeout: 5000 }).catch(() => null);
+
+        if (!inputClient) {
+            // Try clicking Continuar to advance
+            const btnContinueService = await page.waitForSelector('button::-p-text(Continuar)', { visible: true, timeout: 5000 }).catch(() => null);
+            if (btnContinueService) {
+                await btnContinueService.click();
+                await new Promise(r => setTimeout(r, 3000));
+                inputClient = await page.waitForSelector('input:not([type="checkbox"]):not([type="radio"])', { visible: true, timeout: 10000 }).catch(() => null);
             }
         }
 
-        console.log('[Naturgy Rapipago] Company selected');
-        await new Promise(r => setTimeout(r, 2000));
-
-        // Select "COBRANZA CON CODIGO DE BARRA"
-        console.log('[Naturgy Rapipago] selecting service option: Barcode (Ultra-resilient)...');
-        await page.waitForFunction(() => document.body.innerText.includes('COBRANZA CON CODIGO DE BARRA'), { timeout: 20000 });
-
-        // Wait for radio buttons to definitely be in the DOM
-        await page.waitForSelector('input[type="radio"]', { timeout: 10000 });
-
-        // Extremely aggressive selection
-        await page.evaluate(() => {
-            const radios = Array.from(document.querySelectorAll('input[type="radio"]')) as HTMLInputElement[];
-            const labels = Array.from(document.querySelectorAll('label'));
-
-            // Try everything: radio click, label click, checked property, dispatching events
-            const targetRadio = radios.find((r, i) => i === 0 || r.parentElement?.innerText.includes('BARRA')) || radios[0];
-            if (targetRadio) {
-                targetRadio.checked = true;
-                targetRadio.click();
-                targetRadio.dispatchEvent(new Event('change', { bubbles: true }));
-                targetRadio.dispatchEvent(new Event('input', { bubbles: true }));
-
-                const parentLabel = targetRadio.closest('label') || targetRadio.parentElement;
-                if (parentLabel) (parentLabel as HTMLElement).click();
-            }
-
-            // Also try clicking ANY element that has the text
-            const spans = Array.from(document.querySelectorAll('span, p, div, label'));
-            const textMatch = spans.find(s => s.textContent?.includes('COBRANZA CON CODIGO DE BARRA')) as HTMLElement;
-            if (textMatch) textMatch.click();
-        });
-
-        await new Promise(r => setTimeout(r, 1500));
-
-        // Click intermediate "Continuar" - it should be enabled now
-        console.log('[Naturgy Rapipago] Checking for Continuar button...');
-        await page.evaluate(() => {
-            const buttons = Array.from(document.querySelectorAll('button'));
-            const btn = buttons.find(b => b.textContent?.includes('Continuar')) as HTMLButtonElement;
-            if (btn) {
-                btn.disabled = false; // Just in case, force it
-                btn.click();
-            }
-        });
-
-        await new Promise(r => setTimeout(r, 4000));
-
-        // Input Código de barras
-        console.log('[Naturgy Rapipago] ✍️  Entering barcode sequence...');
-
-        // Use a generic text input selector if specific ones fail
-        const inputSelector = 'input[placeholder*="arra" i], input[type="text"], .payments_fields';
-        const inputCode = await page.waitForSelector(inputSelector, {
-            visible: true,
-            timeout: 15000
-        });
-
-        if (inputCode) {
-            await inputCode.click();
-            await page.evaluate((sel) => {
-                const el = (document.querySelectorAll(sel) as NodeListOf<HTMLInputElement>)[1] || document.querySelector(sel);
-                if (el) (el as HTMLInputElement).value = '';
-            }, inputSelector);
-
+        if (inputClient) {
+            await inputClient.click();
+            await page.evaluate((el) => (el as HTMLInputElement).value = '', inputClient);
             await new Promise(r => setTimeout(r, 500));
-            await inputCode.type(onlinePaymentCode, { delay: 20 });
-
-            await page.evaluate((sel) => {
-                const els = Array.from(document.querySelectorAll(sel)) as HTMLInputElement[];
-                const el = els.find(e => e.value === '') || els[els.length - 1];
-                if (el) {
-                    el.blur();
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }, inputSelector);
-
-            await new Promise(r => setTimeout(r, 2000));
+            await inputClient.type(barcode, { delay: 100 });
+            await page.mouse.move(100, 100);
+            await page.evaluate((el) => {
+                el.blur();
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }, inputClient);
+            await new Promise(r => setTimeout(r, 1500));
         } else {
             throw new Error('Barcode input not found');
         }
 
-        // Final Continuar
-        console.log('[Naturgy Rapipago] Clicking final Continuar...');
-        const finalClicked = await page.evaluate(() => {
-            const buttons = Array.from(document.querySelectorAll('button'));
-            const btn = buttons.find(b => b.textContent?.includes('Continuar') && !(b as HTMLButtonElement).disabled) as HTMLElement;
-            if (btn) {
-                btn.click();
-                return true;
-            }
-            return false;
-        });
-
-        if (!finalClicked) {
+        // 8. Submit
+        const btnContinuar = await page.waitForSelector('button::-p-text(Continuar)', { visible: true, timeout: 5000 }).catch(() => null) as any;
+        if (btnContinuar) {
+            await btnContinuar.click();
+        } else {
             await page.keyboard.press('Enter');
         }
 
-        // Wait for results
-        console.log('[Naturgy Rapipago] Waiting for results (long timeout)...');
-        await new Promise(r => setTimeout(r, 15000));
+        // 9. Read Results
+        await new Promise(r => setTimeout(r, 8000));
 
         const result = await page.evaluate(() => {
             const bodyText = document.body.innerText;
             const lowerBody = bodyText.toLowerCase();
 
-            if (lowerBody.includes('error') || document.querySelector('.invoice-validation-error-container')) {
-                const desc = document.querySelector('.invoice-validation-error-description')?.textContent?.trim() || 'Generic error or validation failed';
-                return { error: desc };
-            }
+            const errorContainer = document.querySelector('.invoice-validation-error-container');
+            if (errorContainer) return { error: document.querySelector('.invoice-validation-error-description')?.textContent?.trim() };
 
-            const noDebt = lowerBody.includes('no registra deuda') || lowerBody.includes('sin deuda');
+            const noDebt = ['no registra deuda', 'sin deuda', 'saldo cancelado'].some(t => lowerBody.includes(t));
 
+            // Naturgy-specific parsing: Look for "A pagar" or "Importe" fields
             let totalAmount = 0;
-            const amountMatch = bodyText.match(/(?:Importe|A pagar)\s*\$?\s*([\d,.]+)/i);
-            if (amountMatch) {
-                let clean = amountMatch[1].trim();
+
+            // Try to find "A pagar" amount (most reliable)
+            const aPagarMatch = bodyText.match(/A\s+pagar\s+([\d,.]+)/i);
+            if (aPagarMatch) {
+                let clean = aPagarMatch[1].trim();
                 if (clean.includes(',') && clean.includes('.')) clean = clean.replace(/\./g, '').replace(',', '.');
                 else if (clean.includes(',')) clean = clean.replace(',', '.');
                 totalAmount = parseFloat(clean) || 0;
             } else {
-                const amountMatches = bodyText.match(/\$\s*([\d,.]+)/g);
-                if (amountMatches) {
-                    const parsed = amountMatches.map(str => {
-                        let clean = str.replace('$', '').trim();
-                        if (clean.includes(',') && clean.includes('.')) clean = clean.replace(/\./g, '').replace(',', '.');
-                        else if (clean.includes(',')) clean = clean.replace(',', '.');
-                        return parseFloat(clean) || 0;
-                    });
-                    totalAmount = Math.max(...parsed);
+                // Fallback: Try "Importe"
+                const importeMatch = bodyText.match(/Importe\s+([\d,.]+)/i);
+                if (importeMatch) {
+                    let clean = importeMatch[1].trim();
+                    if (clean.includes(',') && clean.includes('.')) clean = clean.replace(/\./g, '').replace(',', '.');
+                    else if (clean.includes(',')) clean = clean.replace(',', '.');
+                    totalAmount = parseFloat(clean) || 0;
                 }
             }
 
             return { noDebt, totalAmount };
         });
 
-        console.log(`[Naturgy Rapipago] Final Logic Result:`, result);
-
         let finalResult: NaturgyRapipagoResult;
         if ((result as any).error) {
             finalResult = { status: 'ERROR', debtAmount: 0, lastBillAmount: null, lastBillDate: null, dueDate: null, errorMessage: (result as any).error };
         } else if ((result as any).totalAmount > 0) {
             finalResult = { status: 'OVERDUE', debtAmount: (result as any).totalAmount, lastBillAmount: null, lastBillDate: null, dueDate: null };
-        } else if ((result as any).noDebt) {
-            finalResult = { status: 'UP_TO_DATE', debtAmount: 0, lastBillAmount: null, lastBillDate: null, dueDate: null };
         } else {
-            finalResult = { status: 'UNKNOWN', debtAmount: 0, lastBillAmount: null, lastBillDate: null, dueDate: null, errorMessage: 'Could not determine status from screen' };
+            finalResult = { status: 'UP_TO_DATE', debtAmount: 0, lastBillAmount: null, lastBillDate: null, dueDate: null };
         }
 
         await browser.close();
         return finalResult;
 
     } catch (error: any) {
-        console.error('[Naturgy Rapipago] ❌ Error:', error.message);
-        if (page) {
-            await page.screenshot({ path: 'C:\\Users\\patri\\.gemini\\antigravity\\brain\\d81054cb-d81b-4896-a008-38772a5dd88e\\naturgy_error_standalone.png' });
-        }
         if (browser) await browser.close();
         return { status: 'ERROR', debtAmount: 0, lastBillAmount: null, lastBillDate: null, dueDate: null, errorMessage: error.message };
     }
