@@ -559,76 +559,63 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
 
                                                     {/* Transactions List */}
                                                     {isExpanded && (
-                                                        <div className="border-t border-slate-800/50 bg-slate-950/30">
+                                                        <div className="border-t border-slate-800/40 bg-slate-900/10">
                                                             <div className="overflow-x-auto">
                                                                 <table className="w-full text-sm table-fixed min-w-[800px]">
-                                                                    <thead className="bg-slate-900/50 text-slate-500 text-[10px] uppercase tracking-wider">
-                                                                        <tr>
-                                                                            <th className="w-10 px-0 py-2"></th>
-                                                                            <th className="w-28 px-4 py-2 text-left font-medium">Fecha</th>
-                                                                            <th className="flex-1 px-4 py-2 text-left font-medium">Tipo</th>
-                                                                            <th className="w-28 px-2 py-2 text-right font-medium">Cantidad</th>
-                                                                            <th className="w-32 px-2 py-2 text-right font-medium">Precio</th>
-                                                                            <th className="w-28 px-2 py-2 text-right font-medium">Comisión</th>
-                                                                            <th className="w-36 px-2 py-2 text-right font-medium">Total</th>
-                                                                            <th className="w-20 px-2 py-2 text-right font-medium">Moneda</th>
-                                                                            <th className="w-24 px-4 py-2 text-right font-medium">Acciones</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody className="divide-y divide-slate-800/50">
+                                                                    <tbody className="divide-y divide-slate-800/30">
                                                                         {group.transactions
                                                                             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                                                                             .map(tx => {
                                                                                 const isTxSell = tx.totalAmount >= 0;
                                                                                 return (
-                                                                                    <tr key={tx.id} className="hover:bg-slate-800/30 transition-colors group">
-                                                                                        <td className="px-4 py-3 text-center">
+                                                                                    <tr key={tx.id} className="hover:bg-slate-800/40 transition-colors group/row">
+                                                                                        <td className="px-4 py-2.5 text-center w-10">
                                                                                             <Checkbox
                                                                                                 checked={selectedIds.has(tx.id)}
                                                                                                 onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
-                                                                                                className="border-slate-700 data-[state=checked]:bg-blue-600"
+                                                                                                className="border-slate-700 data-[state=checked]:bg-blue-600 h-3.5 w-3.5"
                                                                                             />
                                                                                         </td>
-                                                                                        <td className="px-4 py-3 text-slate-300 font-mono text-xs">
+                                                                                        <td className="px-4 py-2.5 text-slate-400 font-mono text-[11px] w-28">
                                                                                             {format(new Date(tx.date), 'dd/MM/yyyy')}
                                                                                         </td>
-                                                                                        <td className="px-4 py-3">
-                                                                                            <Badge variant="outline" className={`text-[10px] font-bold ${isTxSell ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-green-500/10 text-green-500 border-green-500/20'}`}>
+                                                                                        <td className="px-4 py-2.5 flex-1">
+                                                                                            <Badge variant="outline" className={`text-[9px] font-bold tracking-tight px-1.5 h-4 border-0 ${isTxSell ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
                                                                                                 {isTxSell ? 'VENTA' : 'COMPRA'}
-                                                                                                {tx.type === 'DIVIDEND' && ' - DIVIDENDO'}
-                                                                                                {tx.type === 'INTEREST' && ' - INTERÉS'}
+                                                                                                {tx.type === 'DIVIDEND' && ' • DIV'}
+                                                                                                {tx.type === 'INTEREST' && ' • INT'}
                                                                                             </Badge>
                                                                                         </td>
-                                                                                        <td className="px-2 py-3 text-right text-slate-200 font-mono">
+                                                                                        <td className="px-2 py-2.5 text-right text-slate-300 font-mono tabular-nums w-28">
                                                                                             {Intl.NumberFormat('es-AR').format(tx.quantity)}
                                                                                         </td>
-                                                                                        <td className="px-2 py-3 text-right text-slate-200 font-mono">
+                                                                                        <td className="px-2 py-2.5 text-right text-slate-300 font-mono tabular-nums w-32">
                                                                                             {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.price)}
                                                                                         </td>
-                                                                                        <td className="px-2 py-3 text-right text-slate-400 font-mono text-xs">
+                                                                                        <td className="px-2 py-2.5 text-right text-slate-500 font-mono tabular-nums text-[11px] w-28">
                                                                                             {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.commission)}
                                                                                         </td>
-                                                                                        <td className="px-2 py-3 text-right font-mono font-medium">
-                                                                                            <span className={isTxSell ? 'text-green-500' : 'text-red-400'}>
+                                                                                        <td className="px-2 py-2.5 text-right font-mono tabular-nums font-medium w-36">
+                                                                                            <span className={isTxSell ? 'text-green-500/90' : 'text-red-400/90'}>
                                                                                                 {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.totalAmount)}
                                                                                             </span>
                                                                                         </td>
-                                                                                        <td className="px-2 py-3 text-right text-slate-500 font-medium">
+                                                                                        <td className="px-2 py-2.5 text-right text-slate-600 font-medium text-xs w-20">
                                                                                             {tx.currency}
                                                                                         </td>
-                                                                                        <td className="px-4 py-3 text-right">
-                                                                                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                        <td className="px-4 py-2.5 text-right w-24">
+                                                                                            <div className="flex justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                                                                                 <button
                                                                                                     onClick={() => handleEditTransaction(tx)}
-                                                                                                    className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded"
+                                                                                                    className="p-1 text-slate-500 hover:text-blue-400 hover:bg-blue-400/10 rounded transition-colors"
                                                                                                 >
-                                                                                                    <Pencil size={14} />
+                                                                                                    <Pencil size={12} />
                                                                                                 </button>
                                                                                                 <button
                                                                                                     onClick={() => handleDelete(tx.id)}
-                                                                                                    className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded"
+                                                                                                    className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
                                                                                                 >
-                                                                                                    <Trash2 size={14} />
+                                                                                                    <Trash2 size={12} />
                                                                                                 </button>
                                                                                             </div>
                                                                                         </td>
