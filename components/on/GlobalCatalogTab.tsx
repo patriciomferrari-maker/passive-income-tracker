@@ -137,100 +137,99 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {error && (
-                    <div className="mb-6 p-4 bg-red-900/50 border border-red-800 rounded-lg text-red-200">
-                        {error}
-                    </div>
-                )}
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-900/50 border border-red-800 rounded-lg text-red-200">
+                            {error}
+                        </div>
+                    )}
 
-                {loading && !assets.length ? (
-                    <div className="flex justify-center py-12">
-                        <Loader2 className="animate-spin text-blue-400 h-8 w-8" />
-                    </div>
-                ) : (
-                    <div className="space-y-8">
-                        {Object.entries(filteredAssets.reduce((acc, asset) => {
-                            const type = asset.type || 'Otros';
-                            if (!acc[type]) acc[type] = [];
-                            acc[type].push(asset);
-                            return acc;
-                        }, {} as Record<string, GlobalAsset[]>)).sort((a, b) => a[0].localeCompare(b[0])).map(([type, typeAssets]) => (
-                            <div key={type} className="bg-slate-900/30 rounded-lg p-4 border border-slate-800">
-                                <h3 className="text-lg font-semibold text-blue-400 mb-4 flex items-center gap-2">
-                                    <Briefcase className="h-4 w-4" />
-                                    {type === 'CORPORATE_BOND' ? 'Obligaciones Negociables' : type}
-                                    <Badge variant="secondary" className="ml-2 bg-slate-800 text-slate-400 border-none">
-                                        {typeAssets.length}
-                                    </Badge>
-                                </h3>
+                    {loading && !assets.length ? (
+                        <div className="flex justify-center py-12">
+                            <Loader2 className="animate-spin text-blue-400 h-8 w-8" />
+                        </div>
+                    ) : (
+                        <div className="space-y-8">
+                            {Object.entries(filteredAssets.reduce((acc, asset) => {
+                                const type = asset.type || 'Otros';
+                                if (!acc[type]) acc[type] = [];
+                                acc[type].push(asset);
+                                return acc;
+                            }, {} as Record<string, GlobalAsset[]>)).sort((a, b) => a[0].localeCompare(b[0])).map(([type, typeAssets]) => (
+                                <div key={type} className="bg-slate-900/30 rounded-lg p-4 border border-slate-800">
+                                    <h3 className="text-lg font-semibold text-blue-400 mb-4 flex items-center gap-2">
+                                        <Briefcase className="h-4 w-4" />
+                                        {type === 'CORPORATE_BOND' ? 'Obligaciones Negociables' : type}
+                                        <Badge variant="secondary" className="ml-2 bg-slate-800 text-slate-400 border-none">
+                                            {typeAssets.length}
+                                        </Badge>
+                                    </h3>
 
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left">
-                                        <thead>
-                                            <tr className="border-b border-slate-800 text-xs uppercase text-slate-500 font-medium">
-                                                <th className="pb-3 pl-2">Ticker</th>
-                                                <th className="pb-3">Nombre</th>
-                                                <th className="pb-3 text-right">Precio</th>
-                                                <th className="pb-3 text-center">Moneda</th>
-                                                <th className="pb-3 text-center">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-800/50">
-                                            {typeAssets.map((asset) => (
-                                                <tr key={asset.id} className="group hover:bg-slate-800/30 transition-colors">
-                                                    <td className="py-3 pl-2 font-mono font-bold text-white">
-                                                        {asset.ticker}
-                                                    </td>
-                                                    <td className="py-3 text-slate-300 text-sm">
-                                                        {asset.name}
-                                                    </td>
-                                                    <td className="py-3 text-right text-slate-200 font-mono">
-                                                        {asset.lastPrice
-                                                            ? new Intl.NumberFormat('en-US', { style: 'currency', currency: asset.currency }).format(asset.lastPrice)
-                                                            : '-'}
-                                                    </td>
-                                                    <td className="py-3 text-center">
-                                                        <Badge variant="outline" className={`border-none ${asset.currency === 'USD' ? 'text-green-400 bg-green-900/20' : 'text-blue-400 bg-blue-900/20'}`}>
-                                                            {asset.currency}
-                                                        </Badge>
-                                                    </td>
-                                                    <td className="py-3 text-center">
-                                                        {asset.market === 'US' && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="h-7 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
-                                                                onClick={() => handleUpdatePrice(asset.ticker)}
-                                                                disabled={updatingTicker === asset.ticker}
-                                                            >
-                                                                {updatingTicker === asset.ticker ? (
-                                                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                                                ) : (
-                                                                    <DollarSign className="h-3 w-3" />
-                                                                )}
-                                                                <span className="ml-1">Actualizar</span>
-                                                            </Button>
-                                                        )}
-                                                    </td>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left">
+                                            <thead>
+                                                <tr className="border-b border-slate-800 text-xs uppercase text-slate-500 font-medium">
+                                                    <th className="pb-3 pl-2">Ticker</th>
+                                                    <th className="pb-3">Nombre</th>
+                                                    <th className="pb-3 text-right">Precio</th>
+                                                    <th className="pb-3 text-center">Moneda</th>
+                                                    <th className="pb-3 text-center">Acciones</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-800/50">
+                                                {typeAssets.map((asset) => (
+                                                    <tr key={asset.id} className="group hover:bg-slate-800/30 transition-colors">
+                                                        <td className="py-3 pl-2 font-mono font-bold text-white">
+                                                            {asset.ticker}
+                                                        </td>
+                                                        <td className="py-3 text-slate-300 text-sm">
+                                                            {asset.name}
+                                                        </td>
+                                                        <td className="py-3 text-right text-slate-200 font-mono">
+                                                            {asset.lastPrice
+                                                                ? new Intl.NumberFormat('en-US', { style: 'currency', currency: asset.currency }).format(asset.lastPrice)
+                                                                : '-'}
+                                                        </td>
+                                                        <td className="py-3 text-center">
+                                                            <Badge variant="outline" className={`border-none ${asset.currency === 'USD' ? 'text-green-400 bg-green-900/20' : 'text-blue-400 bg-blue-900/20'}`}>
+                                                                {asset.currency}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className="py-3 text-center">
+                                                            {asset.market === 'US' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-7 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                                                                    onClick={() => handleUpdatePrice(asset.ticker)}
+                                                                    disabled={updatingTicker === asset.ticker}
+                                                                >
+                                                                    {updatingTicker === asset.ticker ? (
+                                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                                    ) : (
+                                                                        <DollarSign className="h-3 w-3" />
+                                                                    )}
+                                                                    <span className="ml-1">Actualizar</span>
+                                                                </Button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
 
-                        {filteredAssets.length === 0 && !loading && (
-                            <div className="text-center py-12 text-slate-500 italic">
-                                No se encontraron activos que coincidan con tu búsqueda.
-                            </div>
-                        )}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+                            {filteredAssets.length === 0 && !loading && (
+                                <div className="text-center py-12 text-slate-500 italic">
+                                    No se encontraron activos que coincidan con tu búsqueda.
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
         </div >
     );
 }
