@@ -199,8 +199,8 @@ export function TreasuryForm({ onClose, onSave, initialData }: TreasuryFormProps
                             <Button
                                 type="button"
                                 onClick={onClose}
-                                variant="outline"
-                                className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
+                                variant="ghost"
+                                className="flex-1 bg-red-950/30 text-red-400 hover:bg-red-900/50 hover:text-red-200 border border-red-900/30 transition-all"
                             >
                                 Cancelar
                             </Button>

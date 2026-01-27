@@ -125,7 +125,7 @@ export default function GlobalAssetFormModal({ isOpen, onClose, onSuccess }: Glo
                                 type="button"
                                 onClick={onClose}
                                 variant="ghost"
-                                className="w-full text-slate-400 hover:text-white"
+                                className="w-full bg-red-950/30 text-red-400 hover:bg-red-900/50 hover:text-red-200 border border-red-900/30 transition-all"
                             >
                                 Cancelar
                             </Button>
