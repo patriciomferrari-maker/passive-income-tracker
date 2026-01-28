@@ -282,29 +282,29 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                         <thead className="bg-slate-900 text-slate-400">
                             <tr>
                                 <th className="px-3 py-3 text-left w-8"></th>
-                                <th className="px-3 py-3 text-left font-semibold text-slate-100 w-[15%]">
+                                <th className="px-3 py-3 text-left font-bold text-white w-[15%]">
                                     <button onClick={() => handleSort('ticker')} className="flex items-center gap-1 hover:text-white">
                                         Activo / Fecha
                                         {sortConfig?.key === 'ticker' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                         {sortConfig?.key !== 'ticker' && <ArrowUpDown size={14} className="opacity-50" />}
                                     </button>
                                 </th>
-                                <th className="px-3 py-3 text-right font-semibold text-slate-100 w-[8%]">Nominales</th>
-                                <th className="px-3 py-3 text-right font-semibold text-slate-100 w-[10%]">PPC / Precio Compra</th>
-                                <th className="px-3 py-3 text-right font-medium w-[8%] text-[10px] text-slate-500 uppercase tracking-wider">Com. Compra</th>
+                                <th className="px-3 py-3 text-right font-bold text-white w-[8%]">Nominales</th>
+                                <th className="px-3 py-3 text-right font-bold text-white w-[10%]">PPC / Precio Compra</th>
+                                <th className="px-3 py-3 text-right font-bold text-white w-[8%] text-[10px] uppercase tracking-wider">Com. Compra</th>
                                 <th className="px-3 py-3 text-right font-bold text-white w-[12%]">Valor Compra</th>
-                                <th className="px-3 py-3 text-right font-bold w-[10%] text-emerald-400">Precio Vta/Act</th>
-                                <th className="px-3 py-3 text-right font-medium w-[8%] text-[10px] text-slate-500 uppercase tracking-wider">Com. Venta</th>
-                                <th className="px-3 py-3 text-right font-bold text-emerald-400 w-[12%]">Valor Vta/Act</th>
+                                <th className="px-3 py-3 text-right font-bold text-white w-[10%]">Precio Vta/Act</th>
+                                <th className="px-3 py-3 text-right font-bold text-white w-[8%] text-[10px] uppercase tracking-wider">Com. Venta</th>
+                                <th className="px-3 py-3 text-right font-bold text-white w-[12%]">Valor Vta/Act</th>
                                 <th className="px-3 py-3 text-right font-bold text-white w-[10%]">
                                     <button onClick={() => handleSort('result')} className="flex items-center gap-1 hover:text-white ml-auto">
                                         Resultado
                                         {sortConfig?.key === 'result' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                     </button>
                                 </th>
-                                <th className="px-3 py-3 text-right font-semibold text-slate-100 w-[7%]">% / Acción</th>
-                                <th className="px-3 py-3 text-right font-medium w-[5%] text-[10px] text-slate-500">TIR C.</th>
-                                <th className="px-3 py-3 text-right font-medium w-[5%] text-[10px] text-slate-500">TIR M.</th>
+                                <th className="px-3 py-3 text-right font-bold text-white w-[7%]">% / Acción</th>
+                                <th className="px-3 py-3 text-right font-bold text-white w-[5%] text-[10px]">TIR C.</th>
+                                <th className="px-3 py-3 text-right font-bold text-white w-[5%] text-[10px]">TIR M.</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
