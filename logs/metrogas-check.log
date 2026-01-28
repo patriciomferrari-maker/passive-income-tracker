@@ -483,3 +483,10 @@ Please make sure your database server is running at `aws-1-us-east-1.pooler.supa
   clientVersion: '5.22.0',
   errorCode: undefined
 }
+[mar 27/01/2026 23:00:01,96] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+^C
