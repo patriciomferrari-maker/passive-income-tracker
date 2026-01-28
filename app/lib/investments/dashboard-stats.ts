@@ -438,7 +438,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
         proximoPago: upcomingPayments[0] || null,
         upcomingPayments,
         portfolioBreakdown,
-        totalONs: investments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO', 'CEDEAR', 'ETF', 'STOCK'].includes(i.type || '')).length, // Include ALL types
+        totalONs: investments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO', 'SOVEREIGN_BOND'].includes(i.type || '')).length,
         totalInvestments: investments.length,
         totalTransactions: investments.reduce((sum, inv) => sum + inv.transactions.length, 0),
         totalCurrentValue: tenenciaTotalValorActual,
