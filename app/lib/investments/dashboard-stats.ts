@@ -313,7 +313,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
             invested: costBasis,
             percentage: 0
         };
-    }).filter(i => i.value > 0 || i.tir !== 0);
+    }).filter(i => i.value > 0 || i.invested > 0 || i.tir !== 0);
 
     // Calculate Percentages
     const totalBreakdownValue = portfolioBreakdown.reduce((sum, i) => sum + i.value, 0);

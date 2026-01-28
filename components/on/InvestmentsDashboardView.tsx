@@ -109,7 +109,16 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
         .sort((a, b) => b.purchaseTir - a.purchaseTir) : [];
 
     // Pie visualization data
-    const pieChartData = showValues ? data.portfolioBreakdown : [{ ticker: 'Oculto', invested: 1, percentage: 100, tir: 0 }];
+    const pieChartData = useMemo(() => {
+        if (!data || !data.portfolioBreakdown) return [];
+        if (!showValues) return [{ ticker: 'Oculto', invested: 1, percentage: 100, tir: 0 }];
+
+        const total = data.portfolioBreakdown.reduce((sum, item) => sum + item.invested, 0);
+        return data.portfolioBreakdown.map(item => ({
+            ...item,
+            percentage: total > 0 ? (item.invested / total) * 100 : 0
+        })).sort((a, b) => b.invested - a.invested);
+    }, [data, showValues]);
     const PIE_COLORS = showValues ? COLORS : ['#1e293b']; // Slate 800 for empty
 
     // Prepare Type Distribution data
@@ -174,7 +183,7 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
                                 <div className="mb-3 p-3 rounded-full bg-cyan-500/10 text-cyan-500">
                                     <DollarSign className="h-6 w-6" />
                                 </div>
-                                <p className="text-sm font-medium text-slate-400 print:text-slate-600 uppercase tracking-wider mb-1">Valor Actual</p>
+                                <p className="text-sm font-medium text-slate-400 print:text-slate-600 uppercase tracking-wider mb-1">Valor Actual Inversión</p>
                                 <div className="text-3xl font-bold text-cyan-400 print:text-cyan-700 tracking-tight">
                                     {formatMoney(data.totalCurrentValue)}
                                 </div>
@@ -493,51 +502,7 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
             )}
 
             {/* Charts Row 2: Value Comparison & TIR */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:break-inside-avoid">
-                {/* Value Comparison Chart */}
-                {data.portfolioBreakdown.length > 0 && (
-                    <Card className={cardClass}>
-                        <CardHeader>
-                            <CardTitle className="text-white print:text-slate-900 flex items-center gap-2">
-                                <DollarSign className="h-5 w-5 text-emerald-500" />
-                                Capital: Invertido vs Actual
-                            </CardTitle>
-                            <CardDescription className="text-slate-300 print:text-slate-500">
-                                Comparación por activo (USD)
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="h-[350px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart
-                                        data={data.portfolioBreakdown.filter(i => i.value > 0 || i.invested > 0).sort((a, b) => b.value - a.value).slice(0, 10)}
-                                        layout="vertical"
-                                        margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" horizontal={true} vertical={false} />
-                                        <XAxis type="number" hide />
-                                        <YAxis
-                                            dataKey="ticker"
-                                            type="category"
-                                            stroke="#94a3b8"
-                                            fontSize={12}
-                                            width={50}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                            itemStyle={{ color: '#e2e8f0' }}
-                                            formatter={(value: number) => formatMoney(value)}
-                                        />
-                                        <Legend />
-                                        <Bar dataKey="invested" name="Invertido" fill="#334155" radius={[0, 4, 4, 0]} />
-                                        <Bar dataKey="value" name="Valor Actual" fill="#10b981" radius={[0, 4, 4, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
+            <div className="grid grid-cols-1 gap-6 print:break-inside-avoid">
                 {/* TIR Comparison */}
                 {tirChartData.length > 0 && (
                     <Card className={cardClass}>
@@ -585,26 +550,29 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
                 )}
             </div>
             {/* Summary Stats moved or integrated? Let's keep them if they fit. */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-800 print:border-slate-300">
-                <div className="text-center">
-                    <div className="text-xs text-slate-400 print:text-slate-600 mb-1">Mejor que Mercado</div>
-                    <div className="text-lg font-bold text-green-400 print:text-green-700">
-                        {tirChartData.filter(d => d.better).length} / {tirChartData.length}
+            {/* Performance Indicators (Only for Fixed Income) */}
+            {data.totalONs > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-800 print:border-slate-300">
+                    <div className="text-center">
+                        <div className="text-xs text-slate-400 print:text-slate-600 mb-1">Mejor que Mercado</div>
+                        <div className="text-lg font-bold text-green-400 print:text-green-700">
+                            {tirChartData.filter(d => d.better).length} / {tirChartData.length}
+                        </div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-xs text-slate-400 print:text-slate-600 mb-1">Alpha Promedio</div>
+                        <div className="text-lg font-bold text-white print:text-slate-900">
+                            {showValues && tirChartData.length > 0 ? `+${(tirChartData.reduce((sum, d) => sum + d.diff, 0) / tirChartData.length).toFixed(1)}%` : '****'}
+                        </div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-xs text-slate-400 print:text-slate-600 mb-1">TIR Promedio</div>
+                        <div className="text-lg font-bold text-white print:text-slate-900">
+                            {showValues && tirChartData.length > 0 ? `${(tirChartData.reduce((sum, d) => sum + d.purchaseTir, 0) / tirChartData.length).toFixed(1)}%` : '****'}
+                        </div>
                     </div>
                 </div>
-                <div className="text-center">
-                    <div className="text-xs text-slate-400 print:text-slate-600 mb-1">Alpha Promedio</div>
-                    <div className="text-lg font-bold text-white print:text-slate-900">
-                        {showValues && tirChartData.length > 0 ? `+${(tirChartData.reduce((sum, d) => sum + d.diff, 0) / tirChartData.length).toFixed(1)}%` : '****'}
-                    </div>
-                </div>
-                <div className="text-center">
-                    <div className="text-xs text-slate-400 print:text-slate-600 mb-1">TIR Promedio</div>
-                    <div className="text-lg font-bold text-white print:text-slate-900">
-                        {showValues && tirChartData.length > 0 ? `${(tirChartData.reduce((sum, d) => sum + d.purchaseTir, 0) / tirChartData.length).toFixed(1)}%` : '****'}
-                    </div>
-                </div>
-            </div>
+            )}
 
 
             {/* Upcoming Payments Timeline */}
