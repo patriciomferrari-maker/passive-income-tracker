@@ -206,10 +206,10 @@ export function ConsolidatedCashflowTab() {
                                             <table className="w-full">
                                                 <thead>
                                                     <tr className="border-b border-white/10 bg-black/20">
-                                                        <th className="text-left py-2 px-4 text-slate-400 font-medium text-sm">Mes</th>
-                                                        <th className="text-right py-2 px-4 text-slate-400 font-medium text-sm">Interés</th>
-                                                        <th className="text-right py-2 px-4 text-slate-400 font-medium text-sm">Amortización</th>
-                                                        <th className="text-right py-2 px-4 text-slate-400 font-medium text-sm">Total</th>
+                                                        <th className="text-left py-2 px-4 text-white font-bold text-sm">Mes</th>
+                                                        <th className="text-right py-2 px-4 text-white font-bold text-sm">Interés</th>
+                                                        <th className="text-right py-2 px-4 text-white font-bold text-sm">Amortización</th>
+                                                        <th className="text-right py-2 px-4 text-white font-bold text-sm">Total</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>

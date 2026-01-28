@@ -221,10 +221,10 @@ export function IndividualCashflowTab() {
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-white/10">
-                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Fecha</th>
-                                    <th className="text-left py-3 px-4 text-slate-300 font-medium">Concepto</th>
-                                    <th className="text-right py-3 px-4 text-slate-300 font-medium">Monto</th>
-                                    <th className="text-right py-3 px-4 text-slate-300 font-medium">Saldo Nominales</th>
+                                    <th className="text-left py-3 px-4 text-white font-bold">Fecha</th>
+                                    <th className="text-left py-3 px-4 text-white font-bold">Concepto</th>
+                                    <th className="text-right py-3 px-4 text-white font-bold">Monto</th>
+                                    <th className="text-right py-3 px-4 text-white font-bold">Saldo Nominales</th>
                                 </tr>
                             </thead>
                             <tbody>
