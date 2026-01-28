@@ -458,12 +458,13 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                 <thead className="bg-slate-900 text-white">
                                     <tr>
                                         <th className="px-4 py-3 text-left w-8"></th>
-                                        <th className="px-4 py-3 text-left font-bold w-[25%]">Activo / Fecha</th>
-                                        <th className="px-4 py-3 text-right font-bold w-[12%]">Nominales</th>
-                                        <th className="px-4 py-3 text-right font-bold w-[15%]">PPP / Precio Compra</th>
-                                        <th className="px-4 py-3 text-right font-bold w-[12%] hidden md:table-cell">Comisión</th>
-                                        <th className="px-4 py-3 text-right font-bold text-emerald-400 w-[20%]">Invertido / Total</th>
-                                        <th className="px-4 py-3 text-right font-bold w-[16%]">Acciones</th>
+                                        <th className="px-4 py-3 text-left w-[20%]">Activo / Fecha</th>
+                                        <th className="px-4 py-3 text-right w-[10%]">Nominales</th>
+                                        <th className="px-4 py-3 text-right w-[12%]">Precio</th>
+                                        <th className="px-4 py-3 text-right w-[10%] hidden md:table-cell">Comisión</th>
+                                        <th className="px-4 py-3 text-right text-emerald-400 w-[15%]">Invertido / Total</th>
+                                        <th className="px-4 py-3 text-right w-[12%]">Días en Cartera</th>
+                                        <th className="px-4 py-3 text-right w-[12%]">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800">
@@ -476,7 +477,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                             <div key={type} className="contents">
                                                 {/* Category Header (Optional in a flat table, but keeping it as a sticky separator or row) */}
                                                 <tr className="bg-slate-950/50">
-                                                    <td colSpan={7} className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-y border-slate-800/50">
+                                                    <td colSpan={8} className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-y border-slate-800/50">
                                                         {type}
                                                     </td>
                                                 </tr>
@@ -518,10 +519,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                                     {Intl.NumberFormat('es-AR').format(nominals)}
                                                                 </td>
                                                                 <td className="px-4 py-4 text-right text-slate-300 tabular-nums">
-                                                                    <div className="flex flex-col items-end gap-0">
-                                                                        <span>{!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(ppp)}</span>
-                                                                        <span className="text-[9px] text-slate-500 uppercase tracking-tighter">PPP</span>
-                                                                    </div>
+                                                                    <span>{!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(hasStats ? stats.ppp : 0)}</span>
                                                                 </td>
                                                                 <td className="px-4 py-4 text-right text-slate-500 tabular-nums hidden md:table-cell text-xs">
                                                                     {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(hasStats ? stats.commission : 0)}
@@ -531,6 +529,9 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                                         <span>{!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(invested)}</span>
                                                                         <span className="text-[9px] opacity-70 uppercase tracking-tighter">Total</span>
                                                                     </div>
+                                                                </td>
+                                                                <td className="px-4 py-4 text-right text-slate-400 tabular-nums text-sm">
+                                                                    {hasStats ? '-' : '-'}
                                                                 </td>
                                                                 <td className="px-4 py-4 text-right text-slate-500 font-medium text-xs">
                                                                     {viewCurrency}
@@ -572,6 +573,9 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                                             </td>
                                                                             <td className={`px-4 py-2 text-right text-xs tabular-nums font-medium ${isTxSell ? 'text-green-500/80' : 'text-red-400/80'}`}>
                                                                                 {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.totalAmount)}
+                                                                            </td>
+                                                                            <td className="px-4 py-2 text-right text-slate-400 text-[11px] tabular-nums">
+                                                                                {Math.floor((new Date().getTime() - new Date(tx.date).getTime()) / (1000 * 60 * 60 * 24))}d
                                                                             </td>
                                                                             <td className="px-4 py-2 text-right">
                                                                                 <div className="flex justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">

@@ -173,13 +173,13 @@ export function ConfigurationTab() {
                                     <table className="w-full">
                                         <thead>
                                             <tr className="border-b border-white/10">
-                                                <th className="text-left py-3 px-4 text-white font-bold">Tipo</th>
-                                                <th className="text-left py-3 px-4 text-white font-bold">Ticker</th>
-                                                <th className="text-left py-3 px-4 text-white font-bold">Nombre</th>
-                                                <th className="text-left py-3 px-4 text-white font-bold">Tasa</th>
-                                                <th className="text-left py-3 px-4 text-white font-bold">Frecuencia</th>
-                                                <th className="text-left py-3 px-4 text-white font-bold">Vencimiento</th>
-                                                <th className="text-right py-3 px-4 text-white font-bold">Acciones</th>
+                                                <th className="text-left py-3 px-4 text-slate-300 font-normal">Tipo</th>
+                                                <th className="text-left py-3 px-4 text-slate-300 font-normal">Ticker</th>
+                                                <th className="text-left py-3 px-4 text-slate-300 font-normal">Nombre</th>
+                                                <th className="text-left py-3 px-4 text-slate-300 font-normal">Tasa</th>
+                                                <th className="text-left py-3 px-4 text-slate-300 font-normal">Frecuencia</th>
+                                                <th className="text-left py-3 px-4 text-slate-300 font-normal">Vencimiento</th>
+                                                <th className="text-right py-3 px-4 text-slate-300 font-normal">Acciones</th>
                                             </tr>
                                         </thead>
                                         <tbody>

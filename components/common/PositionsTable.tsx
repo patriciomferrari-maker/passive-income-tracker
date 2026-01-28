@@ -279,32 +279,33 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
             <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-hidden mt-4">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                        <thead className="bg-slate-900 text-slate-400">
+                        <thead className="bg-slate-900 text-slate-300">
                             <tr>
                                 <th className="px-3 py-3 text-left w-8"></th>
-                                <th className="px-3 py-3 text-left font-bold text-white w-[15%]">
+                                <th className="px-3 py-3 text-left w-[15%]">
                                     <button onClick={() => handleSort('ticker')} className="flex items-center gap-1 hover:text-white">
                                         Activo / Fecha
                                         {sortConfig?.key === 'ticker' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                         {sortConfig?.key !== 'ticker' && <ArrowUpDown size={14} className="opacity-50" />}
                                     </button>
                                 </th>
-                                <th className="px-3 py-3 text-right font-bold text-white w-[8%]">Nominales</th>
-                                <th className="px-3 py-3 text-right font-bold text-white w-[10%]">PPC / Precio Compra</th>
-                                <th className="px-3 py-3 text-right font-bold text-white w-[8%] text-[10px] uppercase tracking-wider">Com. Compra</th>
-                                <th className="px-3 py-3 text-right font-bold text-white w-[12%]">Valor Compra</th>
-                                <th className="px-3 py-3 text-right font-bold text-white w-[10%]">Precio Vta/Act</th>
-                                <th className="px-3 py-3 text-right font-bold text-white w-[8%] text-[10px] uppercase tracking-wider">Com. Venta</th>
-                                <th className="px-3 py-3 text-right font-bold text-white w-[12%]">Valor Vta/Act</th>
-                                <th className="px-3 py-3 text-right font-bold text-white w-[10%]">
+                                <th className="px-3 py-3 text-right w-[8%]">Nominales</th>
+                                <th className="px-3 py-3 text-right w-[10%]">Precio Compra</th>
+                                <th className="px-3 py-3 text-right w-[8%] text-[10px] uppercase tracking-wider">Com. Compra</th>
+                                <th className="px-3 py-3 text-right w-[10%]">Valor Compra</th>
+                                <th className="px-3 py-3 text-right w-[10%]">Precio Vta/Act</th>
+                                <th className="px-3 py-3 text-right w-[8%] text-[10px] uppercase tracking-wider">Com. Venta</th>
+                                <th className="px-3 py-3 text-right w-[10%] font-semibold">Valor Vta/Act</th>
+                                <th className="px-3 py-3 text-right w-[10%] font-semibold">
                                     <button onClick={() => handleSort('result')} className="flex items-center gap-1 hover:text-white ml-auto">
                                         Resultado
                                         {sortConfig?.key === 'result' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                     </button>
                                 </th>
-                                <th className="px-3 py-3 text-right font-bold text-white w-[7%]">% / Acción</th>
-                                <th className="px-3 py-3 text-right font-bold text-white w-[5%] text-[10px]">TIR C.</th>
-                                <th className="px-3 py-3 text-right font-bold text-white w-[5%] text-[10px]">TIR M.</th>
+                                <th className="px-3 py-3 text-right w-[6%]">%</th>
+                                <th className="px-3 py-3 text-right w-[5%] text-[10px]">TIR C.</th>
+                                <th className="px-3 py-3 text-right w-[5%] text-[10px]">TIR M.</th>
+                                <th className="px-3 py-3 text-right w-[8%] text-[10px]">Días</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
@@ -375,6 +376,11 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                                     ? `${group.positions.find(p => p.status === 'OPEN' && p.theoreticalTir)?.theoreticalTir?.toFixed(1)}%`
                                                     : '-'}
                                             </td>
+                                            <td className="px-3 py-4 text-right text-slate-300 font-mono text-[10px]">
+                                                {group.totalNominals > 0 ? (
+                                                    Math.floor((new Date().getTime() - new Date(group.positions[0].date).getTime()) / (1000 * 60 * 60 * 24)) + 'd'
+                                                ) : '-'}
+                                            </td>
                                         </tr>
 
                                         {/* CHILD ROWS (FLAT) */}
@@ -424,6 +430,9 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                                 </td>
                                                 <td className="px-3 py-2 text-right text-slate-600 text-[10px] font-mono">
                                                     -
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-slate-600 text-[10px] font-mono">
+                                                    {Math.floor(((pos.status === 'CLOSED' ? new Date(pos.date).getTime() : new Date().getTime()) - new Date(pos.date).getTime()) / (1000 * 60 * 60 * 24))}d
                                                 </td>
                                             </tr>
                                         ))}

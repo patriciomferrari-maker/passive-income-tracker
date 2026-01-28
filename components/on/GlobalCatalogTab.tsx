@@ -168,7 +168,7 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left">
                                             <thead>
-                                                <tr className="border-b border-slate-800 text-xs uppercase text-white font-bold">
+                                                <tr className="border-b border-slate-800 text-xs uppercase text-slate-300 font-normal">
                                                     <th className="pb-3 pl-2">Ticker</th>
                                                     <th className="pb-3">Nombre</th>
                                                     <th className="pb-3 text-right">Precio</th>
