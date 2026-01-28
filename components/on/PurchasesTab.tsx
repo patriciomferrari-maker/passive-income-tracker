@@ -458,15 +458,24 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                 <thead className="bg-slate-900 text-white">
                                     <tr>
                                         <th className="px-4 py-3 text-left w-8"></th>
-                                        <th className="px-4 py-3 text-left w-[8%]">Estado</th>
-                                        <th className="px-4 py-3 text-left w-[12%]">Activo</th>
+                                        <th className="px-4 py-3 text-left w-[18%]">Activo</th>
+                                        <th className="px-4 py-3 text-left w-[10%]">Estado</th>
+                                        <th className="px-4 py-3 text-right w-[10%]">Fecha</th>
                                         <th className="px-4 py-3 text-right w-[10%]">Nominales</th>
                                         <th className="px-4 py-3 text-right w-[10%]">Precio</th>
                                         <th className="px-4 py-3 text-right w-[8%] hidden md:table-cell">Comisión</th>
                                         <th className="px-4 py-3 text-right text-emerald-400 w-[12%]">Inversión total</th>
-                                        <th className="px-4 py-3 text-right w-[10%] text-sm">Días</th>
-                                        <th className="px-4 py-3 text-right w-[12%]">Fecha</th>
-                                        <th className="px-4 py-3 text-right w-[12%]">Acciones</th>
+                                        <th className="px-4 py-3 text-right w-[8%] text-sm">Días</th>
+                                        <th className="px-4 py-3 text-center w-10">
+                                            <Checkbox
+                                                checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0}
+                                                onCheckedChange={(checked) => {
+                                                    if (checked) setSelectedIds(new Set(filteredTransactions.map(tx => tx.id)));
+                                                    else setSelectedIds(new Set());
+                                                }}
+                                                className="border-slate-700 data-[state=checked]:bg-blue-600 h-3.5 w-3.5"
+                                            />
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800">
@@ -506,9 +515,6 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                                 <td className="px-4 py-4 text-slate-500">
                                                                     {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                                                 </td>
-                                                                <td className="px-4 py-4 text-slate-500 font-bold text-[10px] uppercase tracking-wider">
-                                                                    POSICIÓN
-                                                                </td>
                                                                 <td className="px-4 py-4">
                                                                     <div>
                                                                         <div className="font-bold text-white text-base flex items-center gap-2">
@@ -519,6 +525,12 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                                         </div>
                                                                         <div className="text-xs text-slate-500 truncate max-w-[200px]">{group.description}</div>
                                                                     </div>
+                                                                </td>
+                                                                <td className="px-4 py-4 text-slate-400 font-bold text-[10px] uppercase tracking-wider">
+                                                                    POSICIÓN
+                                                                </td>
+                                                                <td className="px-4 py-4 text-right text-slate-400 tabular-nums text-sm">
+                                                                    -
                                                                 </td>
                                                                 <td className="px-4 py-4 text-right text-white tabular-nums font-semibold">
                                                                     {Intl.NumberFormat('es-AR').format(nominals)}
@@ -535,10 +547,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                                 <td className="px-4 py-4 text-right text-slate-400 tabular-nums text-sm">
                                                                     -
                                                                 </td>
-                                                                <td className="px-4 py-4 text-right text-slate-400 tabular-nums text-sm">
-                                                                    -
-                                                                </td>
-                                                                <td className="px-4 py-4 text-right text-slate-500 font-medium text-xs">
+                                                                <td className="px-4 py-4 text-center text-slate-500 font-medium text-xs">
                                                                     {viewCurrency}
                                                                 </td>
                                                             </tr>
@@ -549,23 +558,22 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                                 .map(tx => {
                                                                     const isTxSell = tx.totalAmount >= 0;
                                                                     return (
-                                                                        <tr key={tx.id} className="bg-slate-950/20 hover:bg-slate-800/10 group/row">
-                                                                            <td className="px-4 py-2 border-l-2 border-slate-700 text-center">
-                                                                                <Checkbox
-                                                                                    checked={selectedIds.has(tx.id)}
-                                                                                    onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
-                                                                                    className="border-slate-800 data-[state=checked]:bg-blue-600 h-3.5 w-3.5"
-                                                                                />
+                                                                        <tr key={tx.id} className="bg-slate-950/20 hover:bg-slate-800/10 group/row border-b border-slate-800/30">
+                                                                            <td className="px-4 py-2 border-l-2 border-slate-700">
+                                                                                {/* Chevron Column spacer */}
+                                                                            </td>
+                                                                            <td className="px-4 py-2 text-slate-500 italic">
+                                                                                {/* Activo Column empty for children */}
                                                                             </td>
                                                                             <td className="px-4 py-2">
-                                                                                <span className={`text-[10px] font-bold uppercase tracking-tight ${isTxSell ? 'text-red-400' : 'text-green-400'}`}>
+                                                                                <Badge variant="outline" className={`text-[9px] font-bold tracking-tight px-1.5 h-4 border-0 ${isTxSell ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
                                                                                     {isTxSell ? 'VENTA' : 'COMPRA'}
                                                                                     {tx.type === 'DIVIDEND' && ' • DIV'}
                                                                                     {tx.type === 'INTEREST' && ' • INT'}
-                                                                                </span>
+                                                                                </Badge>
                                                                             </td>
-                                                                            <td className="px-4 py-2">
-                                                                                {/* Active Asset Column - empty for children */}
+                                                                            <td className="px-4 py-2 text-right">
+                                                                                <span className="text-slate-400 font-mono text-[11px]">{format(new Date(tx.date), 'dd/MM/yyyy')}</span>
                                                                             </td>
                                                                             <td className="px-4 py-2 text-right text-slate-400 text-xs tabular-nums">
                                                                                 {Intl.NumberFormat('es-AR').format(tx.quantity)}
@@ -580,20 +588,14 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                                                 {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.totalAmount)}
                                                                             </td>
                                                                             <td className="px-4 py-2 text-right text-slate-400 text-[11px] tabular-nums">
-                                                                                {Intl.NumberFormat('es-AR').format(Math.floor((new Date().getTime() - new Date(tx.date).getTime()) / (1000 * 60 * 60 * 24)))}
+                                                                                {Intl.NumberFormat('es-AR', { useGrouping: true }).format(Math.floor((new Date().getTime() - new Date(tx.date).getTime()) / (1000 * 60 * 60 * 24)))}
                                                                             </td>
-                                                                            <td className="px-4 py-2 text-right">
-                                                                                <span className="text-slate-400 font-mono text-[11px]">{format(new Date(tx.date), 'dd/MM/yyyy')}</span>
-                                                                            </td>
-                                                                            <td className="px-4 py-2 text-right">
-                                                                                <div className="flex justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                                                                                    <button onClick={() => handleEditTransaction(tx)} className="p-1 text-slate-600 hover:text-blue-400 transition-colors">
-                                                                                        <Pencil size={12} />
-                                                                                    </button>
-                                                                                    <button onClick={() => handleDelete(tx.id)} className="p-1 text-slate-600 hover:text-red-400 transition-colors">
-                                                                                        <Trash2 size={12} />
-                                                                                    </button>
-                                                                                </div>
+                                                                            <td className="px-4 py-2 text-center">
+                                                                                <Checkbox
+                                                                                    checked={selectedIds.has(tx.id)}
+                                                                                    onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
+                                                                                    className="border-slate-800 data-[state=checked]:bg-blue-600 h-3.5 w-3.5"
+                                                                                />
                                                                             </td>
                                                                         </tr>
                                                                     );
