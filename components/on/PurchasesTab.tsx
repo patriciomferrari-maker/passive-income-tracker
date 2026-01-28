@@ -455,17 +455,15 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                     <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-hidden mt-4">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
-                                <thead className="bg-slate-900 text-slate-400">
+                                <thead className="bg-slate-900 text-white">
                                     <tr>
                                         <th className="px-4 py-3 text-left w-8"></th>
-                                        <th className="px-4 py-3 text-left font-medium w-[20%]">Activo / Fecha</th>
-                                        <th className="px-4 py-3 text-right font-medium w-[12%]">Nominales</th>
-                                        <th className="px-4 py-3 text-right font-medium w-[15%]">PPP / Precio Compra</th>
-                                        <th className="px-4 py-3 text-right font-medium w-[12%] hidden md:table-cell">Comisión</th>
-                                        <th className="px-4 py-3 text-right font-medium text-emerald-400 w-[15%]">Invertido / Total</th>
-                                        <th className="px-4 py-3 text-right font-medium w-[12%]">Resultado</th>
-                                        <th className="px-4 py-3 text-right font-medium w-[8%]">%</th>
-                                        <th className="px-4 py-3 text-right font-medium w-[6%]">Acciones</th>
+                                        <th className="px-4 py-3 text-left font-bold w-[25%]">Activo / Fecha</th>
+                                        <th className="px-4 py-3 text-right font-bold w-[12%]">Nominales</th>
+                                        <th className="px-4 py-3 text-right font-bold w-[15%]">PPP / Precio Compra</th>
+                                        <th className="px-4 py-3 text-right font-bold w-[12%] hidden md:table-cell">Comisión</th>
+                                        <th className="px-4 py-3 text-right font-bold text-emerald-400 w-[20%]">Invertido / Total</th>
+                                        <th className="px-4 py-3 text-right font-bold w-[16%]">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800">
@@ -478,7 +476,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                             <div key={type} className="contents">
                                                 {/* Category Header (Optional in a flat table, but keeping it as a sticky separator or row) */}
                                                 <tr className="bg-slate-950/50">
-                                                    <td colSpan={9} className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-y border-slate-800/50">
+                                                    <td colSpan={7} className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-y border-slate-800/50">
                                                         {type}
                                                     </td>
                                                 </tr>
@@ -534,12 +532,6 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                                         <span className="text-[9px] opacity-70 uppercase tracking-tighter">Total</span>
                                                                     </div>
                                                                 </td>
-                                                                <td className={`px-4 py-4 text-right font-bold tabular-nums ${result >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                    {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(result)}
-                                                                </td>
-                                                                <td className={`px-4 py-4 text-right font-medium tabular-nums ${resultPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                    {resultPercent.toFixed(2)}%
-                                                                </td>
                                                                 <td className="px-4 py-4 text-right text-slate-500 font-medium text-xs">
                                                                     {viewCurrency}
                                                                 </td>
@@ -582,10 +574,6 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                                                 {!showValues ? '****' : Intl.NumberFormat(viewCurrency === 'ARS' ? 'es-AR' : 'en-US', { style: 'currency', currency: viewCurrency }).format(tx.totalAmount)}
                                                                             </td>
                                                                             <td className="px-4 py-2 text-right">
-                                                                                {/* Result/Percent per tx is optional, showing currency instead to keep columns aligned */}
-                                                                                <span className="text-slate-600 text-[10px]">{tx.currency}</span>
-                                                                            </td>
-                                                                            <td colSpan={2} className="px-4 py-2 text-right">
                                                                                 <div className="flex justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                                                                     <button onClick={() => handleEditTransaction(tx)} className="p-1 text-slate-600 hover:text-blue-400 transition-colors">
                                                                                         <Pencil size={12} />
