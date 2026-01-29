@@ -196,10 +196,10 @@ export default function HomePage() {
                   {/* Helper to check visibility */}
                   {(() => {
                     const sections = stats.enabledSections || [];
-                    const showAllLegacy = sections.length === 0;
+                    const showAll = sections.length === 0;
 
                     const shouldShow = (id: string) => {
-                      if (showAllLegacy) {
+                      if (showAll) {
                         // New sections should be OPT-IN, even for legacy users
                         if (['crypto', 'economics'].includes(id)) return false;
                         return true;
