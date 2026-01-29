@@ -829,6 +829,7 @@ model SharedAccess {
   @@index([viewerId])
 }
 
+
 // =================================================================
 // ASSET SPLIT HISTORY
 // =================================================================
@@ -845,4 +846,30 @@ model AssetSplitHistory {
   
   @@index([ticker])
   @@index([createdAt])
+}
+
+// =================================================================
+// CEDEAR DIVIDENDS
+// =================================================================
+
+model CedearDividend {
+  id              String   @id @default(cuid())
+  ticker          String
+  companyName     String
+  announcementDate DateTime  // Date the dividend was announced
+  paymentDate     DateTime? // Date the dividend will be/was paid
+  recordDate      DateTime? // Record date (fecha de registro)
+  exDate          DateTime? // Ex-dividend date
+  amount          Float?    // Dividend amount in USD (nullable for manual entry)
+  currency        String   @default("USD")
+  pdfUrl          String?  // Link to Comafi PDF with details
+  notes           String?  // Additional notes
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([ticker, announcementDate]) // Prevent duplicate announcements
+  @@index([ticker])
+  @@index([announcementDate])
+  @@index([paymentDate])
 }

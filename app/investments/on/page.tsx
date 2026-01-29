@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Settings, ShoppingCart, TrendingUp, BarChart3, LayoutDashboard, ArrowLeft, Briefcase } from 'lucide-react';
+import { Plus, Settings, ShoppingCart, TrendingUp, BarChart3, LayoutDashboard, ArrowLeft, Briefcase, DollarSign } from 'lucide-react';
 import { DashboardTab } from '@/components/on/DashboardTab';
 import { ConfigurationTab } from '@/components/on/ConfigurationTab';
 import { PurchasesTab } from '@/components/on/PurchasesTab';
 import { HoldingsTab } from '@/components/on/HoldingsTab';
 import { IndividualCashflowTab } from '@/components/on/IndividualCashflowTab';
 import { ConsolidatedCashflowTab } from '@/components/on/ConsolidatedCashflowTab';
+import DividendsTab from '@/components/on/DividendsTab';
 import Link from 'next/link';
 
 export default function ONManagementPage() {
@@ -20,6 +21,7 @@ export default function ONManagementPage() {
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'holdings', label: 'Tenencia', icon: Briefcase },
         { id: 'purchases', label: 'Operaciones', icon: ShoppingCart },
+        { id: 'dividends', label: 'Dividendos', icon: DollarSign },
         { id: 'individual', label: 'Flujo por ON', icon: TrendingUp },
         { id: 'consolidated', label: 'Flujo Consolidado', icon: BarChart3 },
         { id: 'config', label: 'Configuración', icon: Settings }
@@ -65,6 +67,7 @@ export default function ONManagementPage() {
                     {activeTab === 'config' && <ConfigurationTab />}
                     {activeTab === 'holdings' && <HoldingsTab />}
                     {activeTab === 'purchases' && <PurchasesTab />}
+                    {activeTab === 'dividends' && <DividendsTab />}
                     {activeTab === 'individual' && <IndividualCashflowTab />}
                     {activeTab === 'consolidated' && <ConsolidatedCashflowTab />}
                 </div>

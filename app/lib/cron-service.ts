@@ -108,6 +108,7 @@ export async function runEconomicUpdates() {
         ons: { status: 'skipped', count: 0, error: null as any },
         catalog: { status: 'skipped', added: 0, updated: 0, error: null as any },
         splits: { status: 'skipped', applied: 0, error: null as any, reason: null as any },
+        dividends: { status: 'skipped', count: 0, error: null as any },
         bcra: { status: 'skipped', count: 0, error: null as any, seeded: false, created: 0, updated: 0, skipped: 0 }
     };
 
@@ -243,6 +244,42 @@ export async function runEconomicUpdates() {
         }
     } catch (e) {
         results.splits = { status: 'failed', error: e instanceof Error ? e.message : String(e) };
+    }
+
+    // 7. Update CEDEAR Dividends
+    try {
+        const { scrapeComafiDividends } = await import('@/app/lib/scrapers/comafi-dividends');
+        const announcements = await scrapeComafiDividends();
+        let newCount = 0;
+
+        for (const data of announcements) {
+            const existing = await prisma.cedearDividend.findUnique({
+                where: {
+                    ticker_announcementDate: {
+                        ticker: data.ticker,
+                        announcementDate: data.announcementDate
+                    }
+                }
+            });
+
+            if (!existing) {
+                await prisma.cedearDividend.create({
+                    data: {
+                        ticker: data.ticker,
+                        companyName: data.companyName,
+                        announcementDate: data.announcementDate,
+                        pdfUrl: data.pdfUrl,
+                        notes: `Automated scrape: ${data.eventName}`
+                    }
+                });
+                newCount++;
+            }
+        }
+        results.dividends = { status: 'success', count: newCount, error: null };
+        console.log(`✅ CEDEAR Dividends update: ${newCount} new announcements`);
+    } catch (e) {
+        results.dividends = { status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e) };
+        console.error('Cron Dividends Error:', e);
     }
 
     return results;
