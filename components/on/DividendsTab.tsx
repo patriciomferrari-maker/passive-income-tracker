@@ -38,19 +38,22 @@ export default function DividendsTab() {
     const [loading, setLoading] = useState(true);
     const [searchTicker, setSearchTicker] = useState('');
     const [selectedYear, setSelectedYear] = useState<string>('');
+    const [onlyHoldings, setOnlyHoldings] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDividend, setEditingDividend] = useState<Dividend | null>(null);
 
     useEffect(() => {
         fetchDividends();
         fetchSummary();
-    }, [searchTicker, selectedYear]);
+    }, [searchTicker, selectedYear, onlyHoldings]);
 
     const fetchDividends = async () => {
         try {
+            setLoading(true);
             const params = new URLSearchParams();
             if (searchTicker) params.append('ticker', searchTicker);
             if (selectedYear) params.append('year', selectedYear);
+            if (onlyHoldings) params.append('onlyHoldings', 'true');
 
             const response = await fetch(`/api/dividends/cedear?${params}`);
             const data = await response.json();
@@ -66,6 +69,7 @@ export default function DividendsTab() {
         try {
             const params = new URLSearchParams();
             if (selectedYear) params.append('year', selectedYear);
+            if (onlyHoldings) params.append('onlyHoldings', 'true');
 
             const response = await fetch(`/api/dividends/cedear/summary?${params}`);
             const data = await response.json();
@@ -167,36 +171,45 @@ export default function DividendsTab() {
             </div>
 
             {/* Filters and Actions */}
-            <Card className="p-4">
+            <Card className="p-4 bg-slate-900/50 border-slate-800">
                 <div className="flex flex-wrap gap-4 items-center justify-between">
-                    <div className="flex gap-4 flex-1">
+                    <div className="flex flex-wrap gap-4 flex-1">
                         <div className="relative flex-1 max-w-xs">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500" />
                             <Input
                                 type="text"
-                                placeholder="Buscar por ticker..."
+                                placeholder="Ticker..."
                                 value={searchTicker}
                                 onChange={(e) => setSearchTicker(e.target.value.toUpperCase())}
-                                className="pl-10 bg-slate-900/50 border-slate-700 font-mono"
+                                className="pl-10 bg-slate-950 border-slate-800 font-mono text-white"
                             />
                         </div>
                         <select
                             value={selectedYear}
                             onChange={(e) => setSelectedYear(e.target.value)}
-                            className="px-4 py-2 bg-slate-950 border border-slate-700 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                            className="px-4 py-2 bg-slate-950 border border-slate-800 rounded-md text-sm text-slate-300 outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="">Todos los años</option>
                             {years.map(year => (
                                 <option key={year} value={year}>{year}</option>
                             ))}
                         </select>
+
+                        <Button
+                            variant={onlyHoldings ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setOnlyHoldings(!onlyHoldings)}
+                            className={`h-10 px-4 ${onlyHoldings ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-slate-800 text-slate-400 hover:bg-slate-800"}`}
+                        >
+                            {onlyHoldings ? "Solo mis activos" : "Todos los activos"}
+                        </Button>
                     </div>
                     <Button
                         onClick={() => {
                             setEditingDividend(null);
                             setIsModalOpen(true);
                         }}
-                        className="bg-blue-600 hover:bg-blue-700"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
                         <Plus className="w-4 h-4 mr-2" />
                         Agregar Manual

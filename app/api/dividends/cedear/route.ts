@@ -1,13 +1,15 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+import { getUserActiveTickers } from '@/app/lib/holdings-helper';
 
 export const dynamic = 'force-dynamic';
 
 // GET - List dividends with optional filters
 export async function GET(request: Request) {
     try {
-        await getUserId(); // Verify authentication
+        const userId = await getUserId();
+        if (!userId) return unauthorized();
 
         const { searchParams } = new URL(request.url);
         const ticker = searchParams.get('ticker');
@@ -15,11 +17,25 @@ export async function GET(request: Request) {
         const month = searchParams.get('month');
         const startDate = searchParams.get('startDate');
         const endDate = searchParams.get('endDate');
+        const onlyHoldings = searchParams.get('onlyHoldings') === 'true';
 
         const where: any = {};
 
+        if (onlyHoldings) {
+            const activeTickers = await getUserActiveTickers(userId);
+            where.ticker = { in: activeTickers };
+        }
+
         if (ticker) {
-            where.ticker = ticker;
+            // If already filtering by holdings, we need to handle both
+            if (where.ticker) {
+                // Ticker must be in holdings AND match the search
+                // But typically ticker search overrides, or we just intersection
+                // Let's make search override if it's specific
+                where.ticker = ticker;
+            } else {
+                where.ticker = ticker;
+            }
         }
 
         if (year || month) {

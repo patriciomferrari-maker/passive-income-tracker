@@ -1,21 +1,29 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+import { getUserActiveTickers } from '@/app/lib/holdings-helper';
 
 export const dynamic = 'force-dynamic';
 
 // GET - Get dividend summary and aggregations
 export async function GET(request: Request) {
     try {
-        await getUserId();
+        const userId = await getUserId();
+        if (!userId) return unauthorized();
 
         const { searchParams } = new URL(request.url);
         const year = searchParams.get('year');
+        const onlyHoldings = searchParams.get('onlyHoldings') === 'true';
 
         // Get all dividends with amounts
         const where: any = {
             amount: { not: null }
         };
+
+        if (onlyHoldings) {
+            const activeTickers = await getUserActiveTickers(userId);
+            where.ticker = { in: activeTickers };
+        }
 
         if (year) {
             const yearNum = parseInt(year);
