@@ -55,6 +55,7 @@ export async function GET(request: Request) {
             market: asset.market,
             lastPrice: asset.lastPrice,
             lastPriceDate: asset.lastPriceDate,
+            ratio: asset.ratio,
             inPortfolio: userId && asset.userHoldings ? asset.userHoldings.length > 0 : false
         }));
 
