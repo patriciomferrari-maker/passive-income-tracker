@@ -5,7 +5,24 @@ import { prisma } from '@/lib/prisma';
  */
 export async function getUserActiveTickers(userId: string): Promise<string[]> {
     try {
-        // Fetch UserHoldings for GlobalAssets (CEDEARs, ETFs, etc.)
+        // 1. Fetch Investments (ONs, Treasuries, etc.)
+        const investments = await prisma.investment.findMany({
+            where: { userId },
+            include: {
+                transactions: true
+            }
+        });
+
+        const activeInvestmentTickers = investments
+            .filter(i => {
+                const quantity = i.transactions.reduce((sum, t) => {
+                    return sum + (t.type === 'BUY' ? t.quantity : -t.quantity);
+                }, 0);
+                return quantity > 0.000001;
+            })
+            .map(i => i.ticker);
+
+        // 2. Fetch UserHoldings for GlobalAssets (CEDEARs, ETFs, etc.)
         const holdings = await prisma.userHolding.findMany({
             where: { userId },
             include: {
@@ -14,16 +31,17 @@ export async function getUserActiveTickers(userId: string): Promise<string[]> {
             }
         });
 
-        const activeTickers = holdings
+        const activeGATickers = holdings
             .filter(h => {
                 const quantity = h.transactions.reduce((sum, t) => {
                     return sum + (t.type === 'BUY' ? t.quantity : -t.quantity);
                 }, 0);
-                return quantity > 0;
+                return quantity > 0.000001;
             })
             .map(h => h.asset.ticker);
 
-        return activeTickers;
+        // Merge and return unique tickers
+        return Array.from(new Set([...activeInvestmentTickers, ...activeGATickers]));
     } catch (error) {
         console.error('Error fetching active tickers:', error);
         return [];

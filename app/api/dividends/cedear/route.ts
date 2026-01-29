@@ -23,19 +23,18 @@ export async function GET(request: Request) {
 
         if (onlyHoldings) {
             const activeTickers = await getUserActiveTickers(userId);
-            where.ticker = { in: activeTickers };
-        }
-
-        if (ticker) {
-            // If already filtering by holdings, we need to handle both
-            if (where.ticker) {
-                // Ticker must be in holdings AND match the search
-                // But typically ticker search overrides, or we just intersection
-                // Let's make search override if it's specific
-                where.ticker = ticker;
+            if (ticker) {
+                // Return ticker only if it's in holdings
+                if (activeTickers.includes(ticker)) {
+                    where.ticker = ticker;
+                } else {
+                    where.ticker = { in: [] }; // No results if searched ticker not in holdings
+                }
             } else {
-                where.ticker = ticker;
+                where.ticker = { in: activeTickers };
             }
+        } else if (ticker) {
+            where.ticker = ticker;
         }
 
         if (year || month) {
