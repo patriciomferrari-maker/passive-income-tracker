@@ -18,8 +18,7 @@ export async function scrapeAllUtilities() {
                 OR: [
                     { gasId: { not: null } },
                     { electricityId: { not: null } },
-                    { municipalId: { not: null } },
-                    { aysaId: { not: null } }
+                    { municipalId: { not: null } }
                 ]
             },
             select: {
@@ -143,52 +142,7 @@ export async function scrapeAllUtilities() {
                 }
             }
 
-            // Check AySA (Water)
-            if (property.aysaId) {
-                try {
-                    console.log(`  💧 Checking AySA (${property.aysaId})...`);
-                    const result = await checkAysaWeb(property.aysaId);
-
-                    await prisma.utilityCheck.create({
-                        data: {
-                            propertyId: property.id,
-                            serviceType: 'AYSA',
-                            accountNumber: property.aysaId,
-                            status: result.status,
-                            debtAmount: result.debtAmount,
-                            lastBillAmount: result.lastBillAmount,
-                            lastBillDate: result.lastBillDate,
-                            dueDate: result.dueDate,
-                            isAutomatic: true,
-                            errorMessage: result.errorMessage
-                        }
-                    });
-
-                    if (result.status === 'ERROR') {
-                        console.log(`  ❌ AySA check failed: ${result.errorMessage}`);
-                        errorCount++;
-                    } else {
-                        console.log(`  ✅ AySA: ${result.status} (Debt: $${result.debtAmount})`);
-                        successCount++;
-                    }
-                } catch (error: any) {
-                    console.error(`  ❌ Error checking AySA:`, error.message);
-
-                    // Save error status
-                    await prisma.utilityCheck.create({
-                        data: {
-                            propertyId: property.id,
-                            serviceType: 'AYSA',
-                            accountNumber: property.aysaId,
-                            status: 'ERROR',
-                            debtAmount: 0,
-                            isAutomatic: true,
-                            errorMessage: error.message
-                        }
-                    });
-                    errorCount++;
-                }
-            }
+            // Skip AySA as per refined requirements
 
             // Check ABL (Municipal taxes)
             if (property.municipalId) {

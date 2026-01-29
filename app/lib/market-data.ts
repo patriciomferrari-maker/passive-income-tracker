@@ -8,7 +8,7 @@ interface MarketDataResult {
     price: number | null;
     currency: string | null;
     error?: string;
-    source: 'YAHOO' | 'IOL' | 'RAVA';
+    source: 'YAHOO' | 'IOL' | 'RAVA' | 'TWELVE_DATA';
 }
 
 interface IPCResult {
@@ -18,7 +18,7 @@ interface IPCResult {
 }
 
 // Helper: Scrape IOL
-async function fetchIOLPrice(symbol: string): Promise<{ price: number; currency: string } | null> {
+export async function fetchIOLPrice(symbol: string): Promise<{ price: number; currency: string } | null> {
     try {
         // Remove .BA if present for IOL URL
         const cleanSymbol = symbol.replace('.BA', '');
@@ -41,18 +41,26 @@ async function fetchIOLPrice(symbol: string): Promise<{ price: number; currency:
             const rawValue = matchDataVal[1];
             const price = parseFloat(rawValue.replace(/\./g, '').replace(',', '.'));
 
-            let currency = 'USD'; // Default assumption
-            // Strict check for currency
-            if (html.includes('data-field="Moneda">US$') || html.includes('data-field="Moneda">USD')) {
+            let currency = 'ARS'; // Default to ARS for ARG market (unless 'D' or clearly USD)
+
+            // Check Moneda field if exists
+            const regexMoneda = /data-field="Moneda">([^<]*)</;
+            const matchMoneda = html.match(regexMoneda);
+            const monedaText = matchMoneda ? matchMoneda[1].trim() : '';
+
+            if (monedaText.includes('US$') || monedaText.includes('USD')) {
                 currency = 'USD';
-            } else if (html.includes('data-field="Moneda">$')) {
+            } else if (monedaText.includes('$')) {
                 currency = 'ARS';
-            } else if (html.includes('U$S') && !html.includes('data-field="Moneda">$')) {
-                // Fallback logic
-                if (symbol.endsWith('D')) {
+            } else {
+                // Fallback: Check context around UltimoPrecio (look for $ or US$)
+                const context = html.substring(Math.max(0, matchDataVal.index! - 100), Math.min(html.length, matchDataVal.index! + 100));
+                if (context.includes('US$') || context.includes('U$S')) {
                     currency = 'USD';
-                } else {
+                } else if (context.includes('$')) {
                     currency = 'ARS';
+                } else if (symbol.endsWith('D')) {
+                    currency = 'USD';
                 }
             }
 
@@ -302,7 +310,7 @@ export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
 // 1. Update Treasuries & US Stocks (US Market - Twelve Data Priority)
 export async function updateTreasuries(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
-    const yahooFinance = new YahooFinance();
+    // yahooFinance is imported as singleton
 
     // Find Treasuries/ETFs/Stocks with Ticker
     const investments = await prisma.investment.findMany({
@@ -371,7 +379,7 @@ export async function updateTreasuries(userId?: string): Promise<MarketDataResul
 // 2. Update Argentina Assets (ON, CEDEAR) - Exclude ETF (now handled by updateTreasuries via Yahoo if US)
 export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
-    const yahooFinance = new YahooFinance();
+    // yahooFinance is imported as singleton
 
     // Find ONs/Cedears ONLY.
     const investments = await prisma.investment.findMany({

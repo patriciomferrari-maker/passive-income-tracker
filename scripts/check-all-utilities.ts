@@ -3,6 +3,8 @@ import { checkMetrogas } from '../lib/scrapers/metrogas';
 import { checkAysaWeb } from '../lib/scrapers/aysa-web';
 import { checkABLCABA } from '../lib/scrapers/abl-caba';
 import { checkABLProvincia } from '../lib/scrapers/abl-provincia';
+import { checkNaturgyRapipago as checkNaturgy } from '../lib/scrapers/naturgy-rapipago';
+import { checkEdenor } from '../lib/scrapers/edenor';
 
 interface CheckResult {
     propertyId: string;
@@ -25,7 +27,7 @@ async function checkAllUtilities() {
             where: {
                 OR: [
                     { gasId: { not: null } },
-                    { aysaId: { not: null } },
+                    { electricityId: { not: null } },
                     { municipalId: { not: null } }
                 ]
             },
@@ -35,6 +37,7 @@ async function checkAllUtilities() {
                 gasId: true,
                 aysaId: true,
                 municipalId: true,
+                electricityId: true,
                 jurisdiction: true
             }
         });
@@ -45,11 +48,16 @@ async function checkAllUtilities() {
             console.log(`\n🏠 Checking: ${property.name}`);
             console.log('─'.repeat(50));
 
-            // 1. Check Metrogas (Gas)
+            // 1. Check Gas (Metrogas for CABA, Naturgy for PROVINCIA)
             if (property.gasId) {
-                console.log(`\n🔥 Checking Metrogas (${property.gasId})...`);
+                const isCABA = property.jurisdiction === 'CABA';
+                const gasProvider = isCABA ? 'Metrogas' : 'Naturgy';
+                console.log(`\n🔥 Checking ${gasProvider} (${property.gasId})...`);
                 try {
-                    const result = await checkMetrogas(property.gasId);
+                    const result = isCABA
+                        ? await checkMetrogas(property.gasId)
+                        : await checkNaturgy(property.gasId);
+
                     await prisma.utilityCheck.create({
                         data: {
                             propertyId: property.id,
@@ -68,7 +76,7 @@ async function checkAllUtilities() {
                     results.push({
                         propertyId: property.id,
                         propertyName: property.name,
-                        service: 'Metrogas',
+                        service: gasProvider,
                         status: result.status,
                         debtAmount: result.debtAmount,
                         error: result.errorMessage
@@ -79,11 +87,57 @@ async function checkAllUtilities() {
                         console.log(`   💰 Debt: $${result.debtAmount.toLocaleString('es-AR')}`);
                     }
                 } catch (error: any) {
-                    console.error(`   ❌ Metrogas Error: ${error.message}`);
+                    console.error(`   ❌ ${gasProvider} Error: ${error.message}`);
                     results.push({
                         propertyId: property.id,
                         propertyName: property.name,
-                        service: 'Metrogas',
+                        service: gasProvider,
+                        status: 'ERROR',
+                        debtAmount: 0,
+                        error: error.message
+                    });
+                }
+            }
+
+            // 2. Check Edenor (Electricity)
+            if (property.electricityId) {
+                console.log(`\n⚡ Checking Edenor (${property.electricityId})...`);
+                try {
+                    const result = await checkEdenor(property.electricityId);
+                    await prisma.utilityCheck.create({
+                        data: {
+                            propertyId: property.id,
+                            serviceType: 'ELECTRICITY',
+                            accountNumber: property.electricityId,
+                            status: result.status,
+                            debtAmount: result.debtAmount,
+                            lastBillAmount: result.lastBillAmount,
+                            lastBillDate: result.lastBillDate,
+                            dueDate: result.dueDate,
+                            isAutomatic: true,
+                            errorMessage: result.errorMessage
+                        }
+                    });
+
+                    results.push({
+                        propertyId: property.id,
+                        propertyName: property.name,
+                        service: 'Edenor',
+                        status: result.status,
+                        debtAmount: result.debtAmount,
+                        error: result.errorMessage
+                    });
+
+                    console.log(`   ✅ Status: ${result.status}`);
+                    if (result.debtAmount > 0) {
+                        console.log(`   💰 Debt: $${result.debtAmount.toLocaleString('es-AR')}`);
+                    }
+                } catch (error: any) {
+                    console.error(`   ❌ Edenor Error: ${error.message}`);
+                    results.push({
+                        propertyId: property.id,
+                        propertyName: property.name,
+                        service: 'Edenor',
                         status: 'ERROR',
                         debtAmount: 0,
                         error: error.message
@@ -144,52 +198,7 @@ async function checkAllUtilities() {
                 }
             }
 
-            // 3. Check AYSA (Water)
-            if (property.aysaId) {
-                console.log(`\n💧 Checking AYSA (${property.aysaId})...`);
-                try {
-                    const result = await checkAysaWeb(property.aysaId);
-
-                    await prisma.utilityCheck.create({
-                        data: {
-                            propertyId: property.id,
-                            serviceType: 'AYSA',
-                            accountNumber: property.aysaId,
-                            status: result.status,
-                            debtAmount: result.debtAmount,
-                            lastBillAmount: result.lastBillAmount,
-                            lastBillDate: result.lastBillDate,
-                            dueDate: result.dueDate,
-                            isAutomatic: true,
-                            errorMessage: result.errorMessage
-                        }
-                    });
-
-                    results.push({
-                        propertyId: property.id,
-                        propertyName: property.name,
-                        service: 'AYSA',
-                        status: result.status,
-                        debtAmount: result.debtAmount,
-                        error: result.errorMessage
-                    });
-
-                    console.log(`   ✅ Status: ${result.status}`);
-                    if (result.debtAmount > 0) {
-                        console.log(`   💰 Debt: $${result.debtAmount.toLocaleString('es-AR')}`);
-                    }
-                } catch (error: any) {
-                    console.error(`   ❌ AYSA Error: ${error.message}`);
-                    results.push({
-                        propertyId: property.id,
-                        propertyName: property.name,
-                        service: 'AYSA',
-                        status: 'ERROR',
-                        debtAmount: 0,
-                        error: error.message
-                    });
-                }
-            }
+            // 4. (Removed) Check AYSA (Water) - As per user request focus list
         }
 
         // Summary

@@ -2,7 +2,11 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { Browser, Page } from 'puppeteer';
-import { solveAudioCaptcha } from '../utils/captcha-solver';
+
+// Add stealth plugin
+try {
+    puppeteer.use(StealthPlugin());
+} catch (e) { }
 
 export interface ABLCABAResult {
     status: 'UP_TO_DATE' | 'OVERDUE' | 'UNKNOWN' | 'ERROR';
@@ -14,13 +18,14 @@ export interface ABLCABAResult {
 }
 
 /**
- * Checks ABL CABA debt directly from the AGIP portal (lb.agip.gob.ar)
- * Uses puppeteer-extra-plugin-stealth to bypass reCAPTCHA v2.
+ * Checks ABL CABA debt via Rapipago portal.
+ * Use robust logic from test-abl-rapipago-standalone.ts
  */
-export async function checkABLCABA(partidaNumber: string): Promise<ABLCABAResult> {
-    console.log(`🏛️ [ABL Direct AGIP] Checking partida: ${partidaNumber}`);
+export async function checkABLCABA(partida: string): Promise<ABLCABAResult> {
+    console.log(`🏛️ [ABL Rapipago] Checking partida: ${partida}`);
 
     let browser: Browser | null = null;
+    let page: Page | null = null;
 
     try {
         browser = await puppeteer.launch({
@@ -33,140 +38,200 @@ export async function checkABLCABA(partidaNumber: string): Promise<ABLCABAResult
             ignoreDefaultArgs: ['--enable-automation']
         }) as unknown as Browser;
 
-        const page = await browser.newPage();
+        page = await browser.newPage();
 
-        // 1. Navigate to AGIP
-        await page.goto('https://lb.agip.gob.ar/ConsultaABL/', {
+        // 1. Navigate directly to Rapipago payments section
+        await page.goto('https://pagar.rapipago.com.ar/rapipagoWeb/pagos/', {
             waitUntil: 'networkidle2',
             timeout: 60000
         });
 
-        // 2. Fill Partida (twice as required by portal)
-        const inputs = await page.$$('input[type="text"], input:not([type])');
-        if (inputs.length >= 2) {
-            await inputs[0].type(partidaNumber, { delay: 100 });
+        // 2. Human Behavior Emulation
+        await new Promise(r => setTimeout(r, 1000 + Math.random() * 2000));
+        await page.mouse.move(Math.random() * 500, Math.random() * 500, { steps: 20 });
+        await page.evaluate(() => window.scrollBy(0, 300));
+        await new Promise(r => setTimeout(r, 500));
+        await page.evaluate(() => window.scrollBy(0, -300));
+
+        // 3. Select Location (CAPITAL FEDERAL)
+        const inputLoc = await page.waitForSelector('input', { visible: true });
+        if (inputLoc) {
+            await inputLoc.click();
             await new Promise(r => setTimeout(r, 500));
-            await inputs[1].type(partidaNumber, { delay: 100 });
-        } else {
-            // Fallback to more specific selectors if generic fails
-            await page.waitForSelector('input[placeholder*="Partida" i]', { timeout: 5000 });
-            await page.type('input[placeholder*="Partida" i]', partidaNumber, { delay: 100 });
-            // Re-type in the second one (usually it follows)
-            const secondInput = await page.$('input:nth-of-type(2)');
-            if (secondInput) await secondInput.type(partidaNumber, { delay: 100 });
+            for (const char of 'CAPITAL FEDERAL') {
+                await page.keyboard.type(char, { delay: 100 + Math.random() * 150 });
+            }
+            await new Promise(r => setTimeout(r, 1000));
+            await page.keyboard.press('ArrowDown');
+            await page.keyboard.press('Enter');
         }
 
-        // 3. Handle CAPTCHA
+        await new Promise(r => setTimeout(r, 2000));
+
+        // 4. Click "Pago de Facturas"
+        await page.evaluate(() => {
+            const elements = Array.from(document.querySelectorAll('*'));
+            const pagoFacturas = (elements.find(el => el.textContent?.trim().toLowerCase() === 'pago de facturas') as HTMLElement);
+            if (pagoFacturas) pagoFacturas.click();
+        });
+
+        await new Promise(r => setTimeout(r, 3000));
+
+        // 5. Search for Company "AGIP"
+        const companyInput = await page.waitForSelector('input[placeholder*="empresa" i], input[type="text"]', { visible: true });
+        if (companyInput) {
+            await companyInput.click();
+            await new Promise(r => setTimeout(r, 400));
+            // Type AGIP
+            for (const char of 'AGIP') {
+                await page.keyboard.type(char, { delay: 150 });
+            }
+            await new Promise(r => setTimeout(r, 2000));
+
+            // Native keyboard flow is more reliable
+            await page.keyboard.press('ArrowDown');
+            await new Promise(r => setTimeout(r, 500));
+            await page.keyboard.press('Enter');
+        }
+
         await new Promise(r => setTimeout(r, 1500));
-        const frames = page.frames();
-        const recaptchaFrame = frames.find(f => f.url().includes('google.com/recaptcha/api2/anchor'));
+        await page.waitForFunction(() => document.body.innerText.includes('COBRANZA SIN FACTURA'), { timeout: 20000 });
 
-        if (recaptchaFrame) {
-            console.log('🏛️ [ABL Direct AGIP] Found reCAPTCHA, attempting to solve...');
-            const checkbox = await recaptchaFrame.waitForSelector('#recaptcha-anchor', { visible: true, timeout: 5000 }).catch(() => null);
-            if (checkbox) {
-                await checkbox.click();
-                await new Promise(r => setTimeout(r, 2000));
+        // 6. Select Service Option
+        const selectionResult = await page.evaluate(() => {
+            const textToFind = 'COBRANZA SIN FACTURA';
+            const inputs = Array.from(document.querySelectorAll('input[type="checkbox"], input[type="radio"]'));
 
-                // Check if it's already solved or if a challenge appeared
-                const isSolved = await page.evaluate(() => {
-                    const cb = document.querySelector('.recaptcha-checkbox[aria-checked="true"]');
-                    return !!cb;
-                });
+            const targetInput = inputs.find(input => {
+                const parentSibling = input.parentElement?.nextElementSibling;
+                if (parentSibling && parentSibling.textContent?.includes(textToFind)) return true;
 
-                if (!isSolved) {
-                    console.log('🏛️ [ABL Direct AGIP] Visual challenge detected, switching to audio...');
-                    const solved = await solveAudioCaptcha(page);
-                    if (solved) {
-                        console.log('🏛️ [ABL Direct AGIP] Audio CAPTCHA solved successfully!');
-                    } else {
-                        console.warn('🏛️ [ABL Direct AGIP] Failed to solve CAPTCHA automatically.');
-                    }
-                } else {
-                    console.log('🏛️ [ABL Direct AGIP] CAPTCHA solved automatically via checkbox.');
+                let parent = input.parentElement;
+                while (parent && parent.tagName !== 'LI' && parent.tagName !== 'BODY') {
+                    if (parent.innerText && parent.innerText.includes(textToFind)) return true;
+                    parent = parent.parentElement;
                 }
+                return false;
+            });
+
+            if (targetInput) {
+                const rect = (targetInput as HTMLElement).getBoundingClientRect();
+                (targetInput as HTMLElement).click();
+                return { found: true, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+            }
+            return { found: false };
+        });
+
+        if (selectionResult.found) {
+            await page.mouse.move(selectionResult.x || 0, selectionResult.y || 0, { steps: 10 });
+        } else {
+            const serviceOption = await page.waitForSelector(`::-p-text(COBRANZA SIN FACTURA)`, { visible: true, timeout: 5000 }).catch(() => null);
+            if (serviceOption) await serviceOption.click();
+        }
+
+        // 7. Input Partida
+        await new Promise(r => setTimeout(r, 2000));
+        const inputSelector = 'input[placeholder*="partida" i]';
+        let inputPartida = await page.waitForSelector(inputSelector, { visible: true, timeout: 10000 }).catch(() => null);
+
+        if (!inputPartida) {
+            console.log('🏛️ [ABL Rapipago] Partida input not found, searching for "Continuar" to advance...');
+            const btnContinueService = await page.waitForSelector('button::-p-text(Continuar)', { visible: true, timeout: 5000 }).catch(() => null);
+            if (btnContinueService) {
+                await btnContinueService.click();
+                await new Promise(r => setTimeout(r, 3000));
+                inputPartida = await page.waitForSelector('input:not([type="checkbox"]):not([type="radio"])', { visible: true, timeout: 10000 }).catch(() => null);
             }
         }
 
-        // 4. Click Consultar
-        const btnConsultar = await page.waitForSelector('button[type="submit"], input[type="submit"], button::-p-text(Consultar)', { timeout: 5000 }).catch(() => null) as any;
+        if (inputPartida) {
+            await inputPartida.click();
+            await page.evaluate((el) => {
+                const input = el as HTMLInputElement;
+                input.value = '';
+            }, inputPartida);
 
-        if (!btnConsultar) {
-            throw new Error('Consultar button not found');
+            await new Promise(r => setTimeout(r, 500));
+            await inputPartida.type(partida, { delay: 150 });
+            await page.mouse.move(Math.floor(Math.random() * 500), Math.floor(Math.random() * 500));
+
+            await page.evaluate((el) => {
+                const input = el as HTMLInputElement;
+                input.blur();
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }, inputPartida);
+
+            await new Promise(r => setTimeout(r, 1500));
+        } else {
+            throw new Error('Partida input not found after selecting service');
         }
 
-        await btnConsultar.click();
-
-        // 5. Wait for and Parse Results
-        const resultFound = await page.waitForSelector('.table, table, .impresion-boletas, .alert, .mensaje', { timeout: 15000 }).catch(() => null);
-
-        if (!resultFound) {
-            const stillChallenged = await page.evaluate(() => {
-                const iframes = Array.from(document.querySelectorAll('iframe'));
-                return iframes.some(f => f.title?.toLowerCase().includes('reto') || f.src.includes('api2/bframe'));
-            });
-            if (stillChallenged) throw new Error('Blocked by reCAPTCHA image challenge');
-            throw new Error('Timeout waiting for results page');
+        // 8. Continue
+        const btnContinuar = await page.waitForSelector('button::-p-text(Continuar)', { visible: true, timeout: 5000 }).catch(() => null) as any;
+        if (btnContinuar) {
+            const isDisabled = await page.evaluate(el => el.hasAttribute('disabled') || el.classList.contains('disabled'), btnContinuar);
+            if (!isDisabled) {
+                await btnContinuar.click();
+            } else {
+                await new Promise(r => setTimeout(r, 2000));
+                await btnContinuar.click();
+            }
+        } else {
+            await page.keyboard.press('Enter');
         }
 
-        const data = await page.evaluate(() => {
-            const installments: any[] = [];
+        // 9. Read Results
+        await new Promise(r => setTimeout(r, 8000));
 
-            // 1. Check for specific "No debt" messages
-            const bodyText = document.body.innerText.toLowerCase();
-            const noDebtIndicators = ['no registra deuda', 'sin deuda', 'saldo cancelado', 'no existen boletas'];
-            const hasNoDebtMessage = noDebtIndicators.some(t => bodyText.includes(t));
+        const result = await page.evaluate(() => {
+            const bodyText = document.body.innerText;
+            const lowerBody = bodyText.toLowerCase();
 
-            // 2. Scan for rows in any table
-            const rows = Array.from(document.querySelectorAll('tr'));
-            rows.forEach(row => {
-                const cols = Array.from(row.querySelectorAll('td, th'));
-                if (cols.length >= 5) {
-                    const yearText = cols[0].innerText.trim();
-                    const amountText = cols[4].innerText.trim();
-                    const amountActText = cols[5]?.innerText.trim() || '';
+            const errorContainer = document.querySelector('.invoice-validation-error-container');
+            if (errorContainer) {
+                const desc = document.querySelector('.invoice-validation-error-description')?.textContent?.trim();
+                if (desc && desc.length > 0) return { error: desc, bodyTextSnippet: bodyText.substring(0, 500) };
+            }
 
-                    // Data row if year is 4 digits and amount has $
-                    if (/^\d{4}$/.test(yearText) && (amountText.includes('$') || amountActText.includes('$'))) {
-                        installments.push({
-                            amount: (amountActText.includes('$') ? amountActText : amountText)
-                                .replace('$', '').replace(/\./g, '').replace(',', '.').trim()
-                        });
-                    }
-                }
-            });
+            const noDebtIndicators = [
+                'no registra deuda',
+                'sin deuda',
+                'saldo cancelado',
+                'no posee deuda',
+                'no se encontraron facturas',
+                'no hay facturas'
+            ];
+            const noDebt = noDebtIndicators.some(t => lowerBody.includes(t));
 
-            return { installments, hasNoDebtMessage };
+            const amountMatches = bodyText.match(/\$\s*([\d,.]+)/g);
+            let totalAmount = 0;
+            if (amountMatches) {
+                const parsed = amountMatches.map(str => {
+                    let clean = str.replace('$', '').trim();
+                    if (clean.includes(',') && clean.includes('.')) clean = clean.replace(/\./g, '').replace(',', '.');
+                    else if (clean.includes(',')) clean = clean.replace(',', '.');
+                    return parseFloat(clean) || 0;
+                });
+                totalAmount = parsed.reduce((a, b) => a + b, 0);
+            }
+            return { noDebt, totalAmount, bodyTextSnippet: bodyText.substring(0, 1000) };
         });
 
-        let finalResult: ABLCABAResult;
+        console.log(`🏛️ [ABL Rapipago] Parser result:`, { noDebt: (result as any).noDebt, totalAmount: (result as any).totalAmount });
+        if (!(result as any).noDebt && (result as any).totalAmount === 0) {
+            console.log(`🏛️ [ABL Rapipago] Body Snippet:`, (result as any).bodyTextSnippet);
+        }
 
-        if (data.installments.length > 0) {
-            const totalDebt = data.installments.reduce((sum, inst) => sum + (parseFloat(inst.amount) || 0), 0);
-            finalResult = {
-                status: 'OVERDUE',
-                debtAmount: totalDebt,
-                lastBillAmount: null,
-                lastBillDate: null,
-                dueDate: null
-            };
-        } else if (data.hasNoDebtMessage) {
-            finalResult = {
-                status: 'UP_TO_DATE',
-                debtAmount: 0,
-                lastBillAmount: null,
-                lastBillDate: null,
-                dueDate: null
-            };
+        let finalResult: ABLCABAResult;
+        if ((result as any).error) {
+            finalResult = { status: 'ERROR', debtAmount: 0, lastBillAmount: null, lastBillDate: null, dueDate: null, errorMessage: (result as any).error };
+        } else if ((result as any).totalAmount > 0) {
+            finalResult = { status: 'OVERDUE', debtAmount: (result as any).totalAmount, lastBillAmount: null, lastBillDate: null, dueDate: null };
+        } else if ((result as any).noDebt) {
+            finalResult = { status: 'UP_TO_DATE', debtAmount: 0, lastBillAmount: null, lastBillDate: null, dueDate: null };
         } else {
-            finalResult = {
-                status: 'UNKNOWN',
-                debtAmount: 0,
-                lastBillAmount: null,
-                lastBillDate: null,
-                dueDate: null,
-                errorMessage: 'No debt rows found but no "No Debt" confirmation either'
-            };
+            finalResult = { status: 'UNKNOWN', debtAmount: 0, lastBillAmount: null, lastBillDate: null, dueDate: null, errorMessage: 'Could not determine status' };
         }
 
         await browser.close();
@@ -174,14 +239,7 @@ export async function checkABLCABA(partidaNumber: string): Promise<ABLCABAResult
 
     } catch (error: any) {
         if (browser) await browser.close();
-        console.error(`❌ [ABL Direct AGIP] Error: ${error.message}`);
-        return {
-            status: 'ERROR',
-            debtAmount: 0,
-            lastBillAmount: null,
-            lastBillDate: null,
-            dueDate: null,
-            errorMessage: error.message
-        };
+        console.error(`❌ [ABL Rapipago] Error: ${error.message}`);
+        return { status: 'ERROR', debtAmount: 0, lastBillAmount: null, lastBillDate: null, dueDate: null, errorMessage: error.message };
     }
 }
