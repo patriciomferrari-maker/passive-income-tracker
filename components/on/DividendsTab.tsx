@@ -233,7 +233,7 @@ export default function DividendsTab() {
                                 dividends.map((dividend) => (
                                     <tr key={dividend.id} className="hover:bg-slate-900/30 transition-colors">
                                         <td className="px-4 py-3 font-mono font-medium text-blue-400">{dividend.ticker}</td>
-                                        <td className="px-4 py-3 text-sm">{dividend.companyName}</td>
+                                        <td className="px-4 py-3 text-sm text-slate-300">{dividend.companyName}</td>
                                         <td className="px-4 py-3 text-sm text-slate-400">{formatDate(dividend.announcementDate)}</td>
                                         <td className="px-4 py-3 text-sm text-slate-400">{formatDate(dividend.paymentDate)}</td>
                                         <td className="px-4 py-3 text-right font-medium">
