@@ -47,3 +47,41 @@ export async function getUserActiveTickers(userId: string): Promise<string[]> {
         return [];
     }
 }
+
+/**
+ * Returns an array of tickers and names that the user has or had in their portfolio (at least one transaction)
+ */
+export async function getUserHistoricalTickers(userId: string): Promise<Array<{ ticker: string, name: string }>> {
+    try {
+        // 1. Fetch all Investments for this user
+        const investments = await prisma.investment.findMany({
+            where: { userId },
+            select: { ticker: true, name: true }
+        });
+
+        // 2. Fetch all GlobalAsset holdings for this user
+        const holdings = await prisma.userHolding.findMany({
+            where: { userId },
+            include: { asset: { select: { ticker: true, name: true } } }
+        });
+
+        const tickerMap = new Map<string, string>();
+
+        investments.forEach(i => {
+            tickerMap.set(i.ticker, i.name);
+        });
+
+        holdings.forEach(h => {
+            tickerMap.set(h.asset.ticker, h.asset.name);
+        });
+
+        const sortedTickers = Array.from(tickerMap.entries())
+            .map(([ticker, name]) => ({ ticker, name }))
+            .sort((a, b) => a.ticker.localeCompare(b.ticker));
+
+        return sortedTickers;
+    } catch (error) {
+        console.error('Error fetching historical tickers:', error);
+        return [];
+    }
+}

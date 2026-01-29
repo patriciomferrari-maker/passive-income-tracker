@@ -36,6 +36,7 @@ interface DividendFormModalProps {
 
 export default function DividendFormModal({ isOpen, onClose, onSuccess, dividend }: DividendFormModalProps) {
     const [loading, setLoading] = useState(false);
+    const [availableTickers, setAvailableTickers] = useState<Array<{ ticker: string, name: string }>>([]);
     const [formData, setFormData] = useState({
         ticker: '',
         companyName: '',
@@ -46,6 +47,24 @@ export default function DividendFormModal({ isOpen, onClose, onSuccess, dividend
         notes: '',
         pdfUrl: ''
     });
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchTickers();
+        }
+    }, [isOpen]);
+
+    const fetchTickers = async () => {
+        try {
+            const res = await fetch('/api/investments/my-tickers');
+            if (res.ok) {
+                const data = await res.json();
+                setAvailableTickers(data);
+            }
+        } catch (error) {
+            console.error('Error fetching tickers:', error);
+        }
+    };
 
     useEffect(() => {
         if (dividend) {
@@ -72,6 +91,17 @@ export default function DividendFormModal({ isOpen, onClose, onSuccess, dividend
             });
         }
     }, [dividend, isOpen]);
+
+    const handleTickerChange = (value: string) => {
+        const uppercaseValue = value.toUpperCase();
+        const found = availableTickers.find(t => t.ticker === uppercaseValue);
+
+        setFormData(prev => ({
+            ...prev,
+            ticker: uppercaseValue,
+            companyName: found ? found.name : prev.companyName
+        }));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -117,112 +147,121 @@ export default function DividendFormModal({ isOpen, onClose, onSuccess, dividend
 
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="ticker">Ticker</Label>
+                                <Input
+                                    id="ticker"
+                                    list="tickers-list"
+                                    value={formData.ticker}
+                                    onChange={(e) => handleTickerChange(e.target.value)}
+                                    placeholder="AAPL"
+                                    required
+                                    className="bg-slate-950 border-slate-800"
+                                />
+                                <datalist id="tickers-list">
+                                    {availableTickers.map(t => (
+                                        <option key={t.ticker} value={t.ticker}>
+                                            {t.name}
+                                        </option>
+                                    ))}
+                                </datalist>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="companyName">Empresa</Label>
+                                <Input
+                                    id="companyName"
+                                    value={formData.companyName}
+                                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                                    placeholder="Apple Inc."
+                                    required
+                                    className="bg-slate-950 border-slate-800"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="announcementDate">Fecha Anuncio</Label>
+                                <Input
+                                    id="announcementDate"
+                                    type="date"
+                                    value={formData.announcementDate}
+                                    onChange={(e) => setFormData({ ...formData, announcementDate: e.target.value })}
+                                    required
+                                    className="bg-slate-950 border-slate-800 [color-scheme:dark]"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="paymentDate">Fecha Pago (opcional)</Label>
+                                <Input
+                                    id="paymentDate"
+                                    type="date"
+                                    value={formData.paymentDate}
+                                    onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
+                                    className="bg-slate-950 border-slate-800 [color-scheme:dark]"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="amount">Monto (USD)</Label>
+                                <Input
+                                    id="amount"
+                                    type="number"
+                                    step="0.00000001"
+                                    value={formData.amount}
+                                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                                    placeholder="0.25"
+                                    className="bg-slate-950 border-slate-800"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="currency">Moneda</Label>
+                                <select
+                                    id="currency"
+                                    value={formData.currency}
+                                    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-md text-sm"
+                                >
+                                    <option value="USD">USD</option>
+                                    <option value="ARS">ARS</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
-                            <Label htmlFor="ticker">Ticker</Label>
+                            <Label htmlFor="pdfUrl">URL del PDF (opcional)</Label>
                             <Input
-                                id="ticker"
-                                value={formData.ticker}
-                                onChange={(e) => setFormData({ ...formData, ticker: e.target.value.toUpperCase() })}
-                                placeholder="AAPL"
-                                required
+                                id="pdfUrl"
+                                type="url"
+                                value={formData.pdfUrl}
+                                onChange={(e) => setFormData({ ...formData, pdfUrl: e.target.value })}
+                                placeholder="https://www.comafi.com.ar/..."
                                 className="bg-slate-950 border-slate-800"
                             />
                         </div>
+
                         <div className="space-y-2">
-                            <Label htmlFor="companyName">Empresa</Label>
-                            <Input
-                                id="companyName"
-                                value={formData.companyName}
-                                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                                placeholder="Apple Inc."
-                                required
-                                className="bg-slate-950 border-slate-800"
+                            <Label htmlFor="notes">Notas</Label>
+                            <Textarea
+                                id="notes"
+                                value={formData.notes}
+                                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                                placeholder="Información adicional sobre el pago..."
+                                className="bg-slate-950 border-slate-800 h-20"
                             />
                         </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="announcementDate">Fecha Anuncio</Label>
-                            <Input
-                                id="announcementDate"
-                                type="date"
-                                value={formData.announcementDate}
-                                onChange={(e) => setFormData({ ...formData, announcementDate: e.target.value })}
-                                required
-                                className="bg-slate-950 border-slate-800 [color-scheme:dark]"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="paymentDate">Fecha Pago (opcional)</Label>
-                            <Input
-                                id="paymentDate"
-                                type="date"
-                                value={formData.paymentDate}
-                                onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
-                                className="bg-slate-950 border-slate-800 [color-scheme:dark]"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="amount">Monto (USD)</Label>
-                            <Input
-                                id="amount"
-                                type="number"
-                                step="0.00000001"
-                                value={formData.amount}
-                                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                                placeholder="0.25"
-                                className="bg-slate-950 border-slate-800"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="currency">Moneda</Label>
-                            <select
-                                id="currency"
-                                value={formData.currency}
-                                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-md text-sm"
-                            >
-                                <option value="USD">USD</option>
-                                <option value="ARS">ARS</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="pdfUrl">URL del PDF (opcional)</Label>
-                        <Input
-                            id="pdfUrl"
-                            type="url"
-                            value={formData.pdfUrl}
-                            onChange={(e) => setFormData({ ...formData, pdfUrl: e.target.value })}
-                            placeholder="https://www.comafi.com.ar/..."
-                            className="bg-slate-950 border-slate-800"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="notes">Notas</Label>
-                        <Textarea
-                            id="notes"
-                            value={formData.notes}
-                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                            placeholder="Información adicional sobre el pago..."
-                            className="bg-slate-950 border-slate-800 h-20"
-                        />
-                    </div>
-
-                    <DialogFooter className="pt-4">
-                        <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
-                            Cancelar
-                        </Button>
-                        <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={loading}>
-                            {loading ? 'Guardando...' : 'Guardar'}
-                        </Button>
-                    </DialogFooter>
+                        <DialogFooter className="pt-4">
+                            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+                                Cancelar
+                            </Button>
+                            <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={loading}>
+                                {loading ? 'Guardando...' : 'Guardar'}
+                            </Button>
+                        </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
