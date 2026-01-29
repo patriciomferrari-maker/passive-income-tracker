@@ -190,7 +190,12 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                             >
                                 <option value="">Seleccionar...</option>
                                 {assets && (assets || [])
-                                    .filter(a => filterType === 'ALL' || (a.type === filterType) || (filterType === 'ON' && !a.type)) // Default to ON if no type? Or loose match
+                                    .filter(a => {
+                                        if (filterType === 'ALL') return true;
+                                        if (filterType === 'ON') return !a.type || a.type === 'ON';
+                                        if (filterType === 'CEDEAR') return a.type === 'CEDEAR' || a.type === 'ETF';
+                                        return a.type === filterType;
+                                    })
                                     .sort((a, b) => a.ticker.localeCompare(b.ticker))
                                     .map(asset => (
                                         <option key={asset.id} value={asset.id}>
