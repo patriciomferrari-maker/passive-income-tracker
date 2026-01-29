@@ -38,14 +38,13 @@ export default function DividendsTab() {
     const [loading, setLoading] = useState(true);
     const [searchTicker, setSearchTicker] = useState('');
     const [selectedYear, setSelectedYear] = useState<string>('');
-    const [onlyHoldings, setOnlyHoldings] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDividend, setEditingDividend] = useState<Dividend | null>(null);
 
     useEffect(() => {
         fetchDividends();
         fetchSummary();
-    }, [searchTicker, selectedYear, onlyHoldings]);
+    }, [searchTicker, selectedYear]);
 
     const fetchDividends = async () => {
         try {
@@ -53,7 +52,7 @@ export default function DividendsTab() {
             const params = new URLSearchParams();
             if (searchTicker) params.append('ticker', searchTicker);
             if (selectedYear) params.append('year', selectedYear);
-            if (onlyHoldings) params.append('onlyHoldings', 'true');
+            params.append('onlyHoldings', 'true');
 
             const response = await fetch(`/api/dividends/cedear?${params}`);
             const data = await response.json();
@@ -69,7 +68,7 @@ export default function DividendsTab() {
         try {
             const params = new URLSearchParams();
             if (selectedYear) params.append('year', selectedYear);
-            if (onlyHoldings) params.append('onlyHoldings', 'true');
+            params.append('onlyHoldings', 'true');
 
             const response = await fetch(`/api/dividends/cedear/summary?${params}`);
             const data = await response.json();
@@ -194,15 +193,6 @@ export default function DividendsTab() {
                                 <option key={year} value={year}>{year}</option>
                             ))}
                         </select>
-
-                        <Button
-                            variant={onlyHoldings ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setOnlyHoldings(!onlyHoldings)}
-                            className={`h-10 px-4 ${onlyHoldings ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-slate-800 text-slate-400 hover:bg-slate-800"}`}
-                        >
-                            {onlyHoldings ? "Solo mis activos" : "Todos los activos"}
-                        </Button>
                     </div>
                     <Button
                         onClick={() => {
