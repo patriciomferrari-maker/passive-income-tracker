@@ -196,9 +196,16 @@ export default function HomePage() {
                   {/* Helper to check visibility */}
                   {(() => {
                     const sections = stats.enabledSections || [];
-                    const showAll = sections.length === 0; // Legacy users or no selection
+                    const showAllLegacy = sections.length === 0;
 
-                    const shouldShow = (id: string) => showAll || sections.includes(id);
+                    const shouldShow = (id: string) => {
+                      if (showAllLegacy) {
+                        // New sections should be OPT-IN, even for legacy users
+                        if (['crypto', 'economics'].includes(id)) return false;
+                        return true;
+                      }
+                      return sections.includes(id);
+                    };
 
                     return (
                       <>
@@ -340,15 +347,16 @@ export default function HomePage() {
                           />
                         )}
 
-                        {/* Economic Data - Restricted to admin only */}
                         {/* Economic Data - Visible to all */}
-                        <DashboardCard
-                          title="Datos Económicos"
-                          description="Inflación, devaluación y UVA"
-                          icon="📈"
-                          href="/datos-economicos"
-                          enabled={true}
-                        />
+                        {shouldShow('economics') && (
+                          <DashboardCard
+                            title="Datos Económicos"
+                            description="Inflación, devaluación y UVA"
+                            icon="📈"
+                            href="/datos-economicos"
+                            enabled={true}
+                          />
+                        )}
 
                         {/* Costa Card - Only show if specifically allowed OR legacy (showAll) */}
                         {(showAll || shouldShow('costa')) && (

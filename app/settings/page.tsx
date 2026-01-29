@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Mail, Save, Send, CheckCircle, AlertCircle, ArrowLeft, LayoutDashboard, CheckCircle2 } from 'lucide-react';
-import { LineChart, Landmark, Building, CreditCard, Wallet, Home, Palmtree } from 'lucide-react';
+import { LineChart, Landmark, Building, CreditCard, Wallet, Home, Palmtree, Coins, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 
 // Definition of sections (Rich format)
@@ -47,6 +47,20 @@ const allSections = [
         icon: Wallet,
         description: 'Saldos y Plazos Fijos',
         features: ['Liquidez', 'Cashflow']
+    },
+    {
+        id: 'crypto',
+        label: 'Crypto Portfolio',
+        icon: Coins,
+        description: 'Bitcoin y Ethereum',
+        features: ['Precios Live', 'Total']
+    },
+    {
+        id: 'economics',
+        label: 'Datos Económicos',
+        icon: TrendingUp,
+        description: 'Variación IPC y UVA',
+        features: ['Inflación', 'Dólar']
     },
     {
         id: 'barbosa',
