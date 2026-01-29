@@ -608,11 +608,25 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                                                                                 {Intl.NumberFormat('es-AR', { useGrouping: true }).format(Math.floor((new Date().getTime() - new Date(tx.date).getTime()) / (1000 * 60 * 60 * 24)))}
                                                                             </td>
                                                                             <td className="px-4 py-2 text-center">
-                                                                                <Checkbox
-                                                                                    checked={selectedIds.has(tx.id)}
-                                                                                    onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
-                                                                                    className="border-slate-800 data-[state=checked]:bg-blue-600 h-3.5 w-3.5"
-                                                                                />
+                                                                                <div className="flex items-center justify-center gap-2">
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        variant="ghost"
+                                                                                        className="h-6 w-6 p-0 text-slate-500 hover:text-blue-400 hover:bg-blue-900/20 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setEditingTxId(tx.id);
+                                                                                            setIsTxModalOpen(true);
+                                                                                        }}
+                                                                                    >
+                                                                                        <Pencil size={12} />
+                                                                                    </Button>
+                                                                                    <Checkbox
+                                                                                        checked={selectedIds.has(tx.id)}
+                                                                                        onCheckedChange={(checked) => handleSelectRow(tx.id, !!checked)}
+                                                                                        className="border-slate-800 data-[state=checked]:bg-blue-600 h-3.5 w-3.5"
+                                                                                    />
+                                                                                </div>
                                                                             </td>
                                                                         </tr>
                                                                     );
