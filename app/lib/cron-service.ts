@@ -8,6 +8,7 @@ import { generateDashboardPdf } from '@/app/lib/pdf-capture';
 import { scrapeInflationData } from '@/app/lib/scrapers/inflation';
 import { scrapeDolarBlue } from '@/app/lib/scrapers/dolar';
 import { updateONs } from '@/app/lib/market-data';
+import { syncCedearCatalog } from '@/app/lib/catalog-service';
 import { regenerateAllCashflows } from '@/lib/rentals';
 import { toArgNoon } from '@/app/lib/date-utils';
 
@@ -210,6 +211,14 @@ export async function runEconomicUpdates() {
         results.ons = { status: 'success', count: onsResults.length, error: null };
     } catch (e) {
         results.ons = { status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e) };
+    }
+
+    // 5. Update CEDEAR/ETF Catalog
+    try {
+        const catalogResults = await syncCedearCatalog();
+        results.catalog = { status: 'success', added: catalogResults.addedCount, updated: catalogResults.updatedCount, error: null };
+    } catch (e) {
+        results.catalog = { status: 'failed', error: e instanceof Error ? e.message : String(e) };
     }
 
     return results;

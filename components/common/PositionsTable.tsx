@@ -107,9 +107,20 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
         return () => window.removeEventListener('privacy-changed', handlePrivacyChange);
     }, []);
 
-    const formatMoney = (amount: number, currency: string) => {
+    const formatMoney = (amount: number | null | undefined, cur: string | null | undefined) => {
         if (!showValues) return '****';
-        return Intl.NumberFormat('es-AR', { style: 'currency', currency: currency }).format(amount);
+        if (amount === null || amount === undefined || isNaN(amount)) return '-';
+
+        const currencyCode = cur || 'USD';
+        try {
+            return new Intl.NumberFormat('es-AR', {
+                style: 'currency',
+                currency: currencyCode
+            }).format(amount);
+        } catch (e) {
+            console.error('Error formatting money:', e, { amount, cur });
+            return `${currencyCode} ${amount.toFixed(2)}`;
+        }
     };
 
     const handleSort = (key: string) => {
@@ -133,6 +144,8 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
     // Grouping Logic
     const groupedAssets = useMemo(() => {
         const groups = new Map<string, AssetGroup>();
+
+        if (!Array.isArray(positions)) return [];
 
         positions.forEach(pos => {
             if (!groups.has(pos.ticker)) {
@@ -180,7 +193,7 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
             }
 
             // Calculate Consolidated Purchase TIR (Weighted by Cost)
-            const openWithTir = group.positions.filter(p => p.status === 'OPEN' && p.originalTir);
+            const openWithTir = Array.isArray(group.positions) ? group.positions.filter(p => p.status === 'OPEN' && p.originalTir) : [];
             if (openWithTir.length > 0) {
                 const totalCostBasis = openWithTir.reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
                 if (totalCostBasis > 0) {
@@ -232,18 +245,20 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
     const totalCostUnrealized = groupedAssets.reduce((sum, g) => sum + g.totalInvestedOriginal, 0);
     const unrealizedPercent = totalCostUnrealized !== 0 ? (totalUnrealized / totalCostUnrealized) * 100 : 0;
 
-    const totalCostRealized = positions
-        .filter(p => p.status === 'CLOSED')
-        .reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0);
+    const totalCostRealized = Array.isArray(positions)
+        ? positions
+            .filter(p => p.status === 'CLOSED')
+            .reduce((sum, p) => sum + ((p.quantity * p.buyPrice) + p.buyCommission), 0)
+        : 0;
     const realizedPercent = totalCostRealized !== 0 ? (totalRealized / totalCostRealized) * 100 : 0;
 
-    const hasEquityAssets = groupedAssets.some(g => {
+    const hasEquityAssets = Array.isArray(groupedAssets) && groupedAssets.some(g => {
         const t = (g.type || '').toUpperCase();
         return !['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(t);
     });
 
     // Totals Footer
-    const totalPrecioCompraAll = positions.reduce((sum, p) => sum + (p.quantity * p.buyPrice + p.buyCommission), 0);
+    const totalPrecioCompraAll = Array.isArray(positions) ? positions.reduce((sum, p) => sum + (p.quantity * p.buyPrice + p.buyCommission), 0) : 0;
     const totalValorActualAll = groupedAssets.reduce((sum, g) => sum + g.totalCurrentValue, 0);
     const totalResultAll = groupedAssets.reduce((sum, g) => sum + g.totalResult, 0);
 
@@ -309,7 +324,7 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
-                            {sortedGroups.map((group) => {
+                            {Array.isArray(sortedGroups) && sortedGroups.map((group) => {
                                 const isExpanded = expandedTickers.has(group.ticker);
                                 let displayPercent = 0;
                                 if (group.totalNominals > 0) {
@@ -377,7 +392,7 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                                     : '-'}
                                             </td>
                                             <td className="px-3 py-4 text-right text-slate-300 font-mono text-[10px]">
-                                                {group.totalNominals > 0 ? (
+                                                {group.totalNominals > 0 && group.positions[0]?.date ? (
                                                     Math.floor((new Date().getTime() - new Date(group.positions[0].date).getTime()) / (1000 * 60 * 60 * 24)) + 'd'
                                                 ) : '-'}
                                             </td>
@@ -389,7 +404,13 @@ export default function PositionsTable({ types, market, currency, refreshTrigger
                                                 <td className="px-3 py-2 border-l-2 border-slate-700"></td>
                                                 <td className="px-3 py-2 text-slate-400 text-[10px]">
                                                     <div className="flex flex-col gap-0.5">
-                                                        <span>{format(new Date(pos.date), 'dd/MM/yyyy')}</span>
+                                                        <span>{(() => {
+                                                            try {
+                                                                return pos.date ? format(new Date(pos.date), 'dd/MM/yyyy') : '-';
+                                                            } catch (e) {
+                                                                return '-';
+                                                            }
+                                                        })()}</span>
                                                         <span className={`w-fit px-1 py-0 rounded-[6px] text-[8px] font-bold border ${pos.status === 'OPEN'
                                                             ? 'border-green-900 text-green-500 bg-green-900/10'
                                                             : 'border-red-900 text-red-500 bg-red-900/10'

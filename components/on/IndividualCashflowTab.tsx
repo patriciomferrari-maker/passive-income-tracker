@@ -81,6 +81,11 @@ export function IndividualCashflowTab() {
         try {
             const res = await fetch('/api/investments/on');
             const data = await res.json();
+            if (!Array.isArray(data)) {
+                console.error('ONs API returned non-array data:', data);
+                setOns([]);
+                return;
+            }
             // Filter only ONs and Bonds, and those with transactions
             const onsWithPurchases = data.filter((on: any) =>
                 (on._count && on._count.transactions > 0) &&
@@ -114,10 +119,12 @@ export function IndividualCashflowTab() {
             const resRates = await fetch('/api/economic-data/tc');
             const ratesData = await resRates.json();
             const exchangeRates: Record<string, number> = {};
-            ratesData.forEach((r: any) => {
-                const dateKey = new Date(r.date).toISOString().split('T')[0];
-                exchangeRates[dateKey] = r.value;
-            });
+            if (Array.isArray(ratesData)) {
+                ratesData.forEach((r: any) => {
+                    const dateKey = new Date(r.date).toISOString().split('T')[0];
+                    exchangeRates[dateKey] = r.value;
+                });
+            }
 
             // Helper to get exchange rate for a date
             const getRate = (date: string) => {
@@ -133,6 +140,13 @@ export function IndividualCashflowTab() {
             // Load Cashflows  
             const resCf = await fetch(`/api/investments/on/${id}/cashflows`);
             const dataCf = await resCf.json();
+
+            if (!Array.isArray(dataCf)) {
+                console.error('Cashflows API returned non-array data:', dataCf);
+                setCashflows([]);
+                setTransactions([]); // Also reset transactions as they are linked
+                return;
+            }
 
             console.log('🔍 CASHFLOW DEBUG:');
             console.log(`Total cashflows: ${dataCf.length}`);
@@ -170,6 +184,12 @@ export function IndividualCashflowTab() {
             const resTx = await fetch(`/api/investments/on/${id}/transactions`);
             const dataTx = await resTx.json();
 
+            if (!Array.isArray(dataTx)) {
+                console.error('Transactions API returned non-array data:', dataTx);
+                setTransactions([]);
+                return;
+            }
+
             // Convert transactions if needed
             const convertedTx = dataTx.map((tx: any) => {
                 let totalAmount = tx.totalAmount;
@@ -199,16 +219,24 @@ export function IndividualCashflowTab() {
     };
 
 
-    const formatMoney = (amount: number) => {
+    const formatMoney = (amount: number | null | undefined) => {
         if (!showValues) return '****';
-        return Intl.NumberFormat('es-AR', {
-            style: 'currency',
-            currency: viewCurrency
-        }).format(amount);
+        if (amount === null || amount === undefined || isNaN(amount)) return '-';
+
+        try {
+            return Intl.NumberFormat('es-AR', {
+                style: 'currency',
+                currency: viewCurrency || 'USD'
+            }).format(amount);
+        } catch (e) {
+            console.error('Error formatting money:', e, { amount, currency: viewCurrency });
+            return `${viewCurrency || 'USD'} ${amount.toFixed(2)}`;
+        }
     };
 
-    const formatNumber = (num: number) => {
+    const formatNumber = (num: number | null | undefined) => {
         if (!showValues) return '****';
+        if (num === null || num === undefined || isNaN(num)) return '-';
         return num.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     };
 
@@ -217,32 +245,36 @@ export function IndividualCashflowTab() {
         const merged: MergedItem[] = [];
 
         // Add Transactions
-        transactions.forEach(tx => {
-            merged.push({
-                id: tx.id,
-                date: tx.date,
-                type: 'BUY', // Assuming only buys for now based on context
-                description: `Compra de ${tx.quantity} nominales`,
-                amount: -Math.abs(tx.totalAmount), // Outflow
-                quantity: tx.quantity,
-                price: tx.price,
-                isTransaction: true,
-                originalData: tx
+        if (Array.isArray(transactions)) {
+            transactions.forEach(tx => {
+                merged.push({
+                    id: tx.id,
+                    date: tx.date,
+                    type: 'BUY', // Assuming only buys for now based on context
+                    description: `Compra de ${tx.quantity} nominales`,
+                    amount: -Math.abs(tx.totalAmount), // Outflow
+                    quantity: tx.quantity,
+                    price: tx.price,
+                    isTransaction: true,
+                    originalData: tx
+                });
             });
-        });
+        }
 
         // Add Cashflows
-        cashflows.forEach(cf => {
-            merged.push({
-                id: cf.id,
-                date: cf.date,
-                type: cf.type as any,
-                description: cf.description,
-                amount: cf.amount, // Inflow
-                isTransaction: false,
-                originalData: cf
+        if (Array.isArray(cashflows)) {
+            cashflows.forEach(cf => {
+                merged.push({
+                    id: cf.id,
+                    date: cf.date,
+                    type: cf.type as any,
+                    description: cf.description,
+                    amount: cf.amount, // Inflow
+                    isTransaction: false,
+                    originalData: cf
+                });
             });
-        });
+        }
 
         // Sort by Date
         merged.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -379,7 +411,7 @@ export function IndividualCashflowTab() {
                             className="px-3 py-1 bg-slate-700 border border-slate-600 rounded-md text-white text-sm font-normal"
                         >
                             <option value="">Seleccionar ON...</option>
-                            {ons.map(on => (
+                            {Array.isArray(ons) && ons.map(on => (
                                 <option key={on.id} value={on.id}>
                                     {on.ticker} - {on.name}
                                 </option>
@@ -451,7 +483,13 @@ export function IndividualCashflowTab() {
                                 {mergedData.map((item, idx) => (
                                     <tr key={`${item.id}-${idx}`} className="border-b border-white/5 hover:bg-white/5">
                                         <td className="py-3 px-4 text-white">
-                                            {format(new Date(item.date), 'dd/MM/yyyy')}
+                                            {(() => {
+                                                try {
+                                                    return item.date ? format(new Date(item.date), 'dd/MM/yyyy') : '-';
+                                                } catch (e) {
+                                                    return '-';
+                                                }
+                                            })()}
                                         </td>
                                         <td className="py-3 px-4 text-white">
                                             <div className="flex items-center gap-2">

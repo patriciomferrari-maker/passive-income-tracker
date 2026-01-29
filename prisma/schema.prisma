@@ -208,6 +208,7 @@ model GlobalAsset {
   type     String // CEDEAR, ETF
   currency String @default("ARS")
   market   String @default("ARG") // ARG, US
+  ratio    String? // Conversion ratio (e.g. "20:1")
 
   // Market Data (shared across all users)
   lastPrice     Float?

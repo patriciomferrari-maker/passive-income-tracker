@@ -30,6 +30,11 @@ export function HoldingsTab({ market = 'ARG' }: { market?: string }) {
         fetch(`/api/investments/on?market=${market}&t=${Date.now()}`, { cache: 'no-store' })
             .then(res => res.json())
             .then(data => {
+                if (!Array.isArray(data)) {
+                    console.error('Assets API returned non-array data:', data);
+                    setAssets([]);
+                    return;
+                }
                 const formatted = data.map((item: any) => ({
                     id: item.id,
                     ticker: item.ticker,

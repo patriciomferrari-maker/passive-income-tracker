@@ -177,6 +177,12 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
             if (!res.ok) throw new Error('Failed to fetch transactions');
             const data = await res.json();
 
+            if (!Array.isArray(data)) {
+                console.error('Transactions API returned non-array data:', data);
+                setTransactions([]);
+                return;
+            }
+
             // Load exchange rates for currency conversion
             const resRates = await fetch('/api/economic-data/tc');
             const ratesData = await resRates.json();
@@ -279,7 +285,7 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
     };
 
     // --- Grouping Logic ---
-    const filteredTransactions = transactions.filter(tx => {
+    const filteredTransactions = (Array.isArray(transactions) ? transactions : []).filter(tx => {
         const matchesSearch = tx.investment.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
             tx.investment.description.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -633,7 +639,8 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
                     isOpen={isTxModalOpen}
                     onClose={handleCloseTxModal}
                     onSuccess={handleSuccess}
-                    transactionId={editingTxId}
+                    initialData={editingTxId ? { id: editingTxId } as any : null}
+                    assets={assets}
                     market={market}
                 />
             )}

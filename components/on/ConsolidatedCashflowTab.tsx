@@ -58,15 +58,27 @@ export function ConsolidatedCashflowTab() {
         );
     };
 
-    const formatMoney = (amount: number) => {
+    const formatMoney = (amount: number | null | undefined) => {
         if (!showValues) return '****';
-        return `$${amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (amount === null || amount === undefined || isNaN(amount)) return '-';
+
+        try {
+            return `$${amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumDigits: 2 })}`;
+        } catch (e) {
+            console.error('Error formatting money:', e, { amount });
+            return `$ ${Number(amount).toFixed(2)}`;
+        }
     };
 
     const loadCashflows = async () => {
         try {
             const res = await fetch('/api/investments/cashflows?type=ON,CORPORATE_BOND', { cache: 'no-store' });
             const data = await res.json();
+            if (!Array.isArray(data)) {
+                console.error('Consolidated cashflows API returned non-array data:', data);
+                setCashflows([]);
+                return;
+            }
             setCashflows(data);
             // Auto-expand current year
             const currentYear = new Date().getFullYear().toString();
@@ -78,15 +90,23 @@ export function ConsolidatedCashflowTab() {
         }
     };
 
-    const chartData = showValues ? cashflows.map(cf => ({
-        month: format(new Date(cf.date), 'MMM yyyy', { locale: es }),
-        Interés: cf.interest,
-        Amortización: cf.amortization,
-        Total: cf.amount
-    })) : [];
+    const chartData = (showValues && Array.isArray(cashflows)) ? cashflows.map(cf => {
+        let month = '-';
+        try {
+            month = cf.date ? format(new Date(cf.date), 'MMM yyyy', { locale: es }) : '-';
+        } catch (e) {
+            console.error('Error formatting date for chart:', e, { date: cf.date });
+        }
+        return {
+            month,
+            Interés: cf.interest,
+            Amortización: cf.amortization,
+            Total: cf.amount
+        };
+    }) : [];
 
     // Group by Year
-    const groupedByYear: YearlyGroup[] = cashflows.reduce((acc, curr) => {
+    const groupedByYear: YearlyGroup[] = Array.isArray(cashflows) ? cashflows.reduce((acc, curr) => {
         const year = new Date(curr.date).getFullYear().toString();
         const existingYear = acc.find(y => y.year === year);
 
@@ -101,7 +121,7 @@ export function ConsolidatedCashflowTab() {
             });
         }
         return acc;
-    }, [] as YearlyGroup[]);
+    }, [] as YearlyGroup[]) : [];
 
     return (
         <div className="space-y-6">
@@ -212,7 +232,13 @@ export function ConsolidatedCashflowTab() {
                                                     {yearGroup.months.map((cf, idx) => (
                                                         <tr key={idx} className="border-b border-white/5 hover:bg-white/5">
                                                             <td className="py-2 px-4 text-white font-medium">
-                                                                {format(new Date(cf.date), 'MMMM', { locale: es })}
+                                                                {(() => {
+                                                                    try {
+                                                                        return cf.date ? format(new Date(cf.date), 'MMMM', { locale: es }) : '-';
+                                                                    } catch (e) {
+                                                                        return '-';
+                                                                    }
+                                                                })()}
                                                             </td>
                                                             <td className="py-2 px-4 text-green-400 text-right font-mono text-sm">
                                                                 {formatMoney(cf.interest)}
@@ -252,11 +278,11 @@ export function ConsolidatedCashflowTab() {
                                     <h3 className="text-xl font-bold text-white">TOTAL GENERAL</h3>
                                     <div className="text-right">
                                         <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500 font-mono">
-                                            {formatMoney(cashflows.reduce((sum, cf) => sum + cf.amount, 0))}
+                                            {formatMoney(Array.isArray(cashflows) ? cashflows.reduce((sum, cf) => sum + cf.amount, 0) : 0)}
                                         </div>
                                         <div className="text-sm text-slate-400 mt-1">
-                                            Interés: {formatMoney(cashflows.reduce((sum, cf) => sum + cf.interest, 0))} |
-                                            Amortización: {formatMoney(cashflows.reduce((sum, cf) => sum + cf.amortization, 0))}
+                                            Interés: {formatMoney(Array.isArray(cashflows) ? cashflows.reduce((sum, cf) => sum + cf.interest, 0) : 0)} |
+                                            Amortización: {formatMoney(Array.isArray(cashflows) ? cashflows.reduce((sum, cf) => sum + cf.amortization, 0) : 0)}
                                         </div>
                                     </div>
                                 </div>

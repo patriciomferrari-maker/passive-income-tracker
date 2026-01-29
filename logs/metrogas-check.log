@@ -489,4 +489,95 @@ Please make sure your database server is running at `aws-1-us-east-1.pooler.supa
 Found Soldado: 40000041500
 
 [Metrogas] Checking account: 40000041500
-^C
+^C[mi� 28/01/2026 11:00:01,76] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: "3"
+[Metrogas] Has "No registra deuda": false
+[Metrogas] Amount elements found: 5
+[Metrogas] ⚠️  Debt found (fallback): $5447.28
+
+📊 Scraper result:
+{
+  "status": "OVERDUE",
+  "debtAmount": 5447.28,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[mi� 28/01/2026 16:00:01,50] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: "3"
+[Metrogas] Has "No registra deuda": false
+[Metrogas] Amount elements found: 5
+[Metrogas] ⚠️  Debt found (fallback): $5447.28
+
+📊 Scraper result:
+{
+  "status": "OVERDUE",
+  "debtAmount": 5447.28,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[mi� 28/01/2026 23:00:01,45] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: "3"
+[Metrogas] Has "No registra deuda": false
+[Metrogas] Amount elements found: 5
+[Metrogas] ⚠️  Debt found (fallback): $5447.28
+
+📊 Scraper result:
+{
+  "status": "OVERDUE",
+  "debtAmount": 5447.28,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
+[jue 29/01/2026 11:00:01,89] Starting Metrogas check... 
+🔥 Running manual Metrogas check for Soldado...
+
+Found Soldado: 40000041500
+
+[Metrogas] Checking account: 40000041500
+[Metrogas] Status text: "3"
+[Metrogas] Has "No registra deuda": false
+[Metrogas] Amount elements found: 5
+[Metrogas] ⚠️  Debt found (fallback): $5447.28
+
+📊 Scraper result:
+{
+  "status": "OVERDUE",
+  "debtAmount": 5447.28,
+  "lastBillAmount": null,
+  "lastBillDate": null,
+  "dueDate": null
+}
+
+✅ Check saved to database
+
+🎉 Manual check completed
