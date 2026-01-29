@@ -7,7 +7,6 @@ import { generateMonthlyReportPdfBuffer } from '@/app/lib/pdf-generator';
 import { generateDashboardPdf } from '@/app/lib/pdf-capture';
 import { scrapeInflationData } from '@/app/lib/scrapers/inflation';
 import { scrapeDolarBlue } from '@/app/lib/scrapers/dolar';
-import { updateONs } from '@/app/lib/market-data';
 import { syncCedearCatalog } from '@/app/lib/catalog-service';
 import { regenerateAllCashflows } from '@/lib/rentals';
 import { toArgNoon } from '@/app/lib/date-utils';
@@ -205,10 +204,16 @@ export async function runEconomicUpdates() {
         results.dolar = { status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e) };
     }
 
-    // 4. Update ONs
+    // 4. Update ONs & Active Assets (Optimized)
     try {
-        const onsResults = await updateONs();
-        results.ons = { status: 'success', count: onsResults.length, error: null };
+        const { updateActiveAssetsOnly } = await import('@/app/lib/market-data');
+        const activeResults = await updateActiveAssetsOnly();
+        results.ons = {
+            status: 'success',
+            count: activeResults.count,
+            error: null
+        };
+        console.log(`✅ Active Assets update: ${activeResults.count} assets updated`);
     } catch (e) {
         results.ons = { status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e) };
     }
