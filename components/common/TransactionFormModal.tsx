@@ -47,16 +47,15 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
         if (isOpen) {
             if (initialData?.id) {
                 // Edit Mode - Fetch fresh data to avoid relying on props that might be converted/incomplete
+                console.log('[TransactionFormModal] Fetching transaction:', initialData.id);
                 setLoading(true);
-                fetch(`/api/investments/transactions/${initialData.id}`) // Use GET (assuming endpoint supports it or I just rely on table?)
-                    // Actually, GET /transactions/[id] might not exist yet. Only DELETE/PUT.
-                    // Let's rely on initialData being correct OR implement GET.
-                    // Given I just saw DELETE/PUT in route.ts, GET is missing.
-                    // I MUST implement GET in route.ts or rely on passed data.
-                    // Passed data is dangerous due to currency conversion.
-                    // I will implement GET in route.ts.
-                    .then(res => res.json())
+                fetch(`/api/investments/transactions/${initialData.id}`)
+                    .then(res => {
+                        console.log('[TransactionFormModal] Fetch response status:', res.status);
+                        return res.json();
+                    })
                     .then(data => {
+                        console.log('[TransactionFormModal] Fetched data:', data);
                         setSelectedON(data.investmentId);
                         setDate(new Date(data.date).toISOString().split('T')[0]);
                         setQuantity(String(data.quantity));
@@ -66,7 +65,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                         setTransactionType((data.type || 'BUY') as 'BUY' | 'SELL');
                     })
                     .catch(err => {
-                        console.error("Error fetching transaction:", err);
+                        console.error("[TransactionFormModal] Error fetching transaction:", err);
                         // Fallback to initialData if fetch fails?
                         if (initialData) {
                             setSelectedON(initialData.investmentId || '');
