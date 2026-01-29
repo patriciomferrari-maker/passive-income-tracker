@@ -828,3 +828,21 @@ model SharedAccess {
   @@index([ownerId])
   @@index([viewerId])
 }
+
+// =================================================================
+// ASSET SPLIT HISTORY
+// =================================================================
+
+model AssetSplitHistory {
+  id        String   @id @default(cuid())
+  ticker    String
+  oldRatio  String
+  newRatio  String
+  multiplier Float    // e.g. 2.0 (2 for 1 split) or 0.5 (reverse split)
+  applied   Boolean  @default(true) // If the changes were applied to user holdings
+  
+  createdAt DateTime @default(now())
+  
+  @@index([ticker])
+  @@index([createdAt])
+}

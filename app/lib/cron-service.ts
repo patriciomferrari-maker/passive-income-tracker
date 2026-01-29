@@ -106,6 +106,8 @@ export async function runEconomicUpdates() {
         ipc: { status: 'skipped', count: 0, error: null as any },
         dolar: { status: 'skipped', count: 0, error: null as any },
         ons: { status: 'skipped', count: 0, error: null as any },
+        catalog: { status: 'skipped', added: 0, updated: 0, error: null as any },
+        splits: { status: 'skipped', applied: 0, error: null as any, reason: null as any },
         bcra: { status: 'skipped', count: 0, error: null as any, seeded: false, created: 0, updated: 0, skipped: 0 }
     };
 
@@ -224,6 +226,23 @@ export async function runEconomicUpdates() {
         results.catalog = { status: 'success', added: catalogResults.addedCount, updated: catalogResults.updatedCount, error: null };
     } catch (e) {
         results.catalog = { status: 'failed', error: e instanceof Error ? e.message : String(e) };
+    }
+
+    // 6. Check for CEDEAR Splits (Mon-Fri)
+    // We run this AFTER catalog update/price update to ensure ratios are fresh if catalog synced first (though catalog sync also updates ratios, split service handles the logic)
+    // Actually split service does its own scraping of ratios to be sure.
+    // Let's run it here.
+    try {
+        const dayOfWeek = new Date().getDay();
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+            const { detectAndApplySplits } = await import('@/app/lib/split-service');
+            const splitResults = await detectAndApplySplits();
+            results.splits = { status: 'success', applied: splitResults.applied, error: null };
+        } else {
+            results.splits = { status: 'skipped', reason: 'Weekend' };
+        }
+    } catch (e) {
+        results.splits = { status: 'failed', error: e instanceof Error ? e.message : String(e) };
     }
 
     return results;
