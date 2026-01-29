@@ -88,6 +88,17 @@ export function PurchasesTab({ market = 'ARG' }: { market?: string }) {
             fetch(`/api/investments/on?market=${market}&t=${Date.now()}`, { cache: 'no-store' }).then(res => res.json()),
             fetch(`/api/investments/positions?type=${market === 'US' ? 'TREASURY,ETF,STOCK' : 'ON,CORPORATE_BOND,ETF,CEDEAR'}&market=${market}&currency=${viewCurrency}&t=${Date.now()}`, { cache: 'no-store' }).then(res => res.json())
         ]).then(([assetsData, positionsData]) => {
+            if (!Array.isArray(assetsData)) {
+                console.error('Assets API returned non-array data:', assetsData);
+                assetsData = [];
+            }
+            if (!Array.isArray(positionsData)) {
+                // positionsData might be undefined if API fails but we don't catch?
+                // Promise.all usually rejects if any promise fails unless we handle .catch individually.
+                // But lines 88-89 use .then(res => res.json()). undefined if json fails? No it rejects.
+                console.error('Positions API returned non-array data:', positionsData);
+                positionsData = [];
+            }
             const stats: Record<string, PositionStats> = {};
 
             // Build Map of Assets for Price

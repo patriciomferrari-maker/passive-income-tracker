@@ -1,5 +1,5 @@
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+// import puppeteer from 'puppeteer-core';
+// import chromium from '@sparticuz/chromium';
 
 // Cache browser instance check
 let isLocal = process.env.NODE_ENV === 'development';
@@ -13,12 +13,15 @@ export async function generateDashboardPdf(userId: string, type: 'rentals' | 'in
     let browser;
 
     if (browserlessToken) {
+        const puppeteer = (await import('puppeteer-core')).default;
         // ... (existing)
         console.log('Connecting to Remote Browserless.io instance...');
         browser = await puppeteer.connect({
             browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessToken}&stealth`,
         });
     } else {
+        const puppeteer = (await import('puppeteer-core')).default;
+        const chromium = (await import('@sparticuz/chromium')).default;
         let executablePath: string | undefined;
 
         if (isLocal) {

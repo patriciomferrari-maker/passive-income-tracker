@@ -1,8 +1,7 @@
+// import puppeteer from 'puppeteer-extra';
+// import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-
-puppeteer.use(StealthPlugin());
+// puppeteer.use(StealthPlugin());
 
 export interface ComafiAsset {
     ticker: string;
@@ -12,6 +11,10 @@ export interface ComafiAsset {
 }
 
 export async function scrapeComafiCedears(): Promise<ComafiAsset[]> {
+    const puppeteer = (await import('puppeteer-extra')).default;
+    const StealthPlugin = (await import('puppeteer-extra-plugin-stealth')).default;
+    puppeteer.use(StealthPlugin());
+
     const browser = await (puppeteer as any).launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']

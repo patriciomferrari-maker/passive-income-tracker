@@ -60,7 +60,13 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
             const res = await fetch(`/api/global-assets?${params.toString()}`);
             if (res.ok) {
                 const data = await res.json();
-                setAssets(data);
+                if (Array.isArray(data)) {
+                    setAssets(data);
+                } else {
+                    console.error('API returned non-array:', data);
+                    setAssets([]);
+                    setError('Respuesta inválida del servidor');
+                }
             } else {
                 const text = await res.text();
                 // Try to parse error json

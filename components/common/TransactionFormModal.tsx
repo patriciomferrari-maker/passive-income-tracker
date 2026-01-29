@@ -189,7 +189,7 @@ export function TransactionFormModal({ isOpen, onClose, onSuccess, initialData, 
                                 className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white disabled:opacity-50"
                             >
                                 <option value="">Seleccionar...</option>
-                                {assets
+                                {assets && (assets || [])
                                     .filter(a => filterType === 'ALL' || (a.type === filterType) || (filterType === 'ON' && !a.type)) // Default to ON if no type? Or loose match
                                     .sort((a, b) => a.ticker.localeCompare(b.ticker))
                                     .map(asset => (

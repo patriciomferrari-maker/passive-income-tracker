@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import yahooFinance from 'yahoo-finance2';
+// import yahooFinance from 'yahoo-finance2';
 import { TwelveDataClient } from '@/lib/utils/twelve-data';
 
 // Types
@@ -168,7 +168,7 @@ async function savePrice(investmentId: string, price: number, currency: string, 
 // Update Global Assets (New Catalog System)
 export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
-    // yahooFinance is imported at top, no instantiation needed in v2
+    const yahooFinance = (await import('yahoo-finance2')).default;
 
     // Helper to add delay between requests
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -310,7 +310,7 @@ export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
 // 1. Update Treasuries & US Stocks (US Market - Twelve Data Priority)
 export async function updateTreasuries(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
-    // yahooFinance is imported as singleton
+    const yahooFinance = (await import('yahoo-finance2')).default;
 
     // Find Treasuries/ETFs/Stocks with Ticker
     const investments = await prisma.investment.findMany({
@@ -379,7 +379,7 @@ export async function updateTreasuries(userId?: string): Promise<MarketDataResul
 // 2. Update Argentina Assets (ON, CEDEAR) - Exclude ETF (now handled by updateTreasuries via Yahoo if US)
 export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
     const results: MarketDataResult[] = [];
-    // yahooFinance is imported as singleton
+    const yahooFinance = (await import('yahoo-finance2')).default;
 
     // Find ONs/Cedears ONLY.
     const investments = await prisma.investment.findMany({

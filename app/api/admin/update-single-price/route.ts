@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import yahooFinance from 'yahoo-finance2';
+// import yahooFinance from 'yahoo-finance2';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(req: Request) {
@@ -19,6 +19,7 @@ export async function POST(req: Request) {
         console.log(`[Admin] Updating price for ${ticker}...`);
 
         // Fetch from Yahoo Finance
+        const yahooFinance = (await import('yahoo-finance2')).default;
         const quote = await yahooFinance.quote(ticker);
 
         if (quote && quote.regularMarketPrice) {
