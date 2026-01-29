@@ -11,12 +11,19 @@ export async function GET(
         const userId = await getUserId();
         const { id } = await params;
 
+        console.log('[GET Transaction] Fetching transaction:', id, 'for user:', userId);
+
         const transaction = await prisma.transaction.findFirst({
             where: {
                 id,
                 investment: { userId }
+            },
+            include: {
+                investment: true
             }
         });
+
+        console.log('[GET Transaction] Found:', !!transaction);
 
         if (!transaction) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
@@ -24,7 +31,7 @@ export async function GET(
 
         return NextResponse.json(transaction);
     } catch (error) {
-        console.error('Error fetching transaction:', error);
+        console.error('[GET Transaction] Error:', error);
         return unauthorized();
     }
 }
