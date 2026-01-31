@@ -23,10 +23,33 @@ export async function GET() {
             userCount
         };
 
+        // 3. Test Gemini Connection (Simple Prompt)
+        let geminiCheck: any = { status: 'skipped' };
+        if (process.env.GEMINI_API_KEY) {
+            try {
+                const { GoogleGenerativeAI } = require('@google/generative-ai');
+                const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+                const result = await model.generateContent("Say 'OK' if you can hear me.");
+                const response = await result.response;
+                geminiCheck = {
+                    status: 'success',
+                    output: response.text()
+                };
+            } catch (e: any) {
+                geminiCheck = {
+                    status: 'failure',
+                    error: e.message,
+                    stack: e.stack
+                };
+            }
+        }
+
         return NextResponse.json({
             status: 'ok',
             env: envCheck,
             db: dbStatus,
+            gemini: geminiCheck,
             timestamp: new Date().toISOString()
         });
 
