@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+import { logAccess } from '@/app/lib/logger';
 
 // GET all investments (generic or by market)
 export const dynamic = 'force-dynamic';

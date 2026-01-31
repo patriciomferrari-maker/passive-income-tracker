@@ -398,6 +398,21 @@ model UtilityCheck {
   // Status
   status     String // UP_TO_DATE, OVERDUE, UNKNOWN, ERROR
   debtAmount Float? // Amount owed (if any)
+  
+  lastBillAmount Float?
+  lastBillDate   DateTime?
+  dueDate        DateTime?
+  
+  isAutomatic Boolean @default(true)
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+}
+
+// =================================================================
+// FINTECH INTEGRATIONS (MercadoPago / Banks)
+// =================================================================
+// (Removed as per user request)
 
   // Bill details
   lastBillAmount Float?

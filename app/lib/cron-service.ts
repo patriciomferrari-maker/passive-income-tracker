@@ -248,7 +248,9 @@ export async function runEconomicUpdates() {
 
     // 7. Update CEDEAR Dividends
     try {
-        const { scrapeComafiDividends } = await import('@/app/lib/scrapers/comafi-dividends');
+        const { scrapeComafiDividends, extractDetailsFromPdf } = await import('@/app/lib/scrapers/comafi-dividends');
+        const { sendDividendAlert } = await import('@/app/lib/email-service');
+
         const announcements = await scrapeComafiDividends();
         let newCount = 0;
 
@@ -263,15 +265,53 @@ export async function runEconomicUpdates() {
             });
 
             if (!existing) {
+                // 1. Enrich with PDF details
+                let details = null;
+                if (data.pdfUrl && extractDetailsFromPdf) {
+                    try {
+                        details = await extractDetailsFromPdf(data.pdfUrl);
+                    } catch (err) {
+                        console.warn(`⚠️ Failed to parse PDF for ${data.ticker}`, err);
+                    }
+                }
+
+                // Parse extracted date (DD/MM/YYYY)
+                let paymentDateParsed = null;
+                if (details?.paymentDate) {
+                    const parts = details.paymentDate.split('/');
+                    if (parts.length === 3) {
+                        // YYYY-MM-DD
+                        paymentDateParsed = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                    }
+                }
+
+                // 2. Save to Database
                 await prisma.cedearDividend.create({
                     data: {
                         ticker: data.ticker,
                         companyName: data.companyName,
                         announcementDate: data.announcementDate,
                         pdfUrl: data.pdfUrl,
-                        notes: `Automated scrape: ${data.eventName}`
+                        notes: details?.rawText
+                            ? `Extracted: ${details.rawText.substring(0, 100)}...`
+                            : `Automated scrape: ${data.eventName}`,
+                        amount: details?.amountUSD || null,
+                        paymentDate: paymentDateParsed
                     }
                 });
+
+                // 3. Send Alert
+                if (sendDividendAlert) {
+                    await sendDividendAlert(
+                        data.ticker,
+                        data.companyName,
+                        data.eventName,
+                        data.announcementDate,
+                        data.pdfUrl,
+                        details // Pass enriched details
+                    );
+                }
+
                 newCount++;
             }
         }

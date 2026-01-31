@@ -14,7 +14,9 @@ import { CashflowTab } from '@/components/barbosa/CashflowTab';
 import { TransactionsTab } from '@/components/barbosa/TransactionsTab';
 import { SettingsTab } from '@/components/barbosa/SettingsTab';
 import { RecurrenceTab } from '@/components/barbosa/RecurrenceTab';
+import { RecurrenceTab } from '@/components/barbosa/RecurrenceTab';
 import { InstallmentsTab } from '@/components/barbosa/InstallmentsTab';
+import { ServicesTab } from '@/components/hogar/ServicesTab';
 
 export default function BarbosaPage() {
     const { data: session } = useSession();

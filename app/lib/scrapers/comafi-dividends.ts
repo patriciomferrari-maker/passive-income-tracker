@@ -101,6 +101,60 @@ export async function scrapeComafiDividends(): Promise<CedearDividendAnnouncemen
     }
 }
 
+// Helper to parse PDF and enrich data
+async function parsePdfAndEnrich(announcement: CedearDividendAnnouncement): Promise<any> {
+    // This function will be called by the consumer (Cron) or we can integrate it here if we want strict coupling.
+    // For now, let's keep the scraper focused on "Finding Announcements".
+    // The "Enrichment" logic is better suited in a separate service or distinct step 
+    // to avoid bloated scraper function and handle PDF failures gracefully without stopping the scrape.
+    return {};
+}
+
+/**
+ * Extracts text from a PDF Buffer using pdf2json
+ */
+import PDFParser from 'pdf2json';
+import axios from 'axios';
+
+export async function extractDetailsFromPdf(pdfUrl: string) {
+    console.log(`📄 [PDF Parser] Downloading ${pdfUrl}...`);
+    try {
+        const response = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
+        const pdfBuffer = response.data;
+
+        const pdfParser = new PDFParser(this, 1);
+
+        return new Promise((resolve, reject) => {
+            pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
+            pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+                try {
+                    // Extract text
+                    const rawText = pdfParser.getRawTextContent().replace(/\r\n/g, " ");
+
+                    // 1. Try to find Payment Date "Fecha de Pago"
+                    // Regex: date (DD/MM/YYYY) close to "pago"
+                    const dateMatch = rawText.match(/pago.*?(\d{2}\/\d{2}\/\d{4})/i);
+                    const paymentDate = dateMatch ? dateMatch[1] : null;
+
+                    // 2. Try to find Amount (USD/ARS)
+                    // Look for "Monto bruto" or similar
+                    const usdMatch = rawText.match(/USD\s*([\d,]+\.?\d*)/i);
+                    const amountUSD = usdMatch ? parseFloat(usdMatch[1].replace(',', '.')) : null;
+
+                    resolve({ paymentDate, amountUSD, rawText: rawText.substring(0, 500) + '...' });
+                } catch (e) {
+                    reject(e);
+                }
+            });
+
+            pdfParser.parseBuffer(pdfBuffer);
+        });
+    } catch (e) {
+        console.error(`[PDF Parser] Failed to parse ${pdfUrl}`, e);
+        return null;
+    }
+}
+
 // For testing
 if (require.main === module) {
     scrapeComafiDividends()

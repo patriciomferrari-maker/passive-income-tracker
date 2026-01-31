@@ -208,7 +208,7 @@ export async function updateGlobalAssets(): Promise<MarketDataResult[]> {
             }
 
             try {
-                const quote = await yahooFinance.quote(asset.ticker);
+                const quote = await yahooFinance.quote(asset.ticker) as any;
                 if (quote && quote.regularMarketPrice) {
                     price = quote.regularMarketPrice;
                 }
@@ -353,7 +353,7 @@ export async function updateTreasuries(userId?: string): Promise<MarketDataResul
             if (i > 0) await delay(1000); // Mild delay for Yahoo fallback
 
             try {
-                const quote = await yahooFinance.quote(inv.ticker);
+                const quote = await yahooFinance.quote(inv.ticker) as any;
                 if (quote && quote.regularMarketPrice) {
                     price = quote.regularMarketPrice;
                 }
@@ -479,7 +479,7 @@ export async function updateONs(userId?: string): Promise<MarketDataResult[]> {
             } else {
                 // Fallback to Yahoo for USD if IOL fails (rare for ONs but possible for Globals)
                 try {
-                    const quote = await yahooFinance.quote(tickerUSD);
+                    const quote = await yahooFinance.quote(tickerUSD) as any;
                     if (quote && quote.regularMarketPrice) {
                         await savePrice(inv.id, quote.regularMarketPrice, quote.currency || 'USD', inv.currency === 'USD');
                     }

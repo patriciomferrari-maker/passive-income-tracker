@@ -97,7 +97,11 @@ export async function getDashboardStats(userId: string) {
                 });
 
                 if (totalHeld > 0) {
-                    onMarketValueUSD += instrumentValue;
+                    let valueUSD = instrumentValue;
+                    if (inv.currency === 'ARS') {
+                        valueUSD = instrumentValue / exchangeRate;
+                    }
+                    onMarketValueUSD += valueUSD;
                     activeOnCount++;
                 }
             }

@@ -134,8 +134,44 @@ export default function AdminPage() {
 
                 {/* Dolar Card */}
                 <DollarCard />
+
+                {/* Backup Card */}
+                <BackupCard />
             </div>
         </div>
+    );
+}
+
+function BackupCard() {
+    const handleDownload = () => {
+        // Trigger download
+        window.location.href = '/api/admin/export';
+    };
+
+    return (
+        <Card className="bg-slate-900 border-slate-800 flex flex-col">
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="text-slate-100 text-lg">Backup y Datos</CardTitle>
+                    <Badge variant="secondary" className="bg-slate-700 text-slate-300">System</Badge>
+                </div>
+                <CardDescription className="text-slate-400 text-xs">
+                    Exportación de datos sistema
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Button
+                    onClick={handleDownload}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white w-full"
+                >
+                    <Database className="mr-2 h-4 w-4" />
+                    Descargar CSV Completo
+                </Button>
+                <p className="text-[10px] text-slate-500 text-center">
+                    Incluye todas las inversiones y transacciones de todos los usuarios.
+                </p>
+            </CardContent>
+        </Card>
     );
 }
 

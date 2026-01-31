@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search, Pencil, Trash2, DollarSign, TrendingUp, Calendar } from 'lucide-react';
 import DividendFormModal from './DividendFormModal';
+import { DividendEvolutionChart } from '@/components/dividends/DividendEvolutionChart';
 
 interface Dividend {
     id: string;

@@ -8,24 +8,17 @@ export const authConfig = {
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
-            const isOnDashboard = nextUrl.pathname.startsWith('/dashboard') ||
-                nextUrl.pathname.startsWith('/investments') ||
-                nextUrl.pathname.startsWith('/alquileres') ||
-                nextUrl.pathname.startsWith('/hogar') ||
-                nextUrl.pathname.startsWith('/settings');
+
+            // 0. Public Routes explicitly allowed
+            if (nextUrl.pathname.startsWith('/print')) return true;
 
             // 1. API Protection
             if (nextUrl.pathname.startsWith('/api')) {
-                // Allow NextAuth routes and potentially public webhooks
+                // Allow NextAuth routes
                 if (nextUrl.pathname.startsWith('/api/auth')) return true;
-
-                // Allow specific public API if needed (e.g. Health check)
                 if (nextUrl.pathname === '/api/health') return true;
-
-                // Block everything else if not logged in
-                if (!isLoggedIn) return false;
-
-                return true;
+                // Basic API protection: Block if not logged in
+                return isLoggedIn;
             }
 
             // 2. Auth Pages (Login/Register)
@@ -36,15 +29,9 @@ export const authConfig = {
                 return true;
             }
 
-            // 3. Public Pages (Home)
-            if (nextUrl.pathname === '/') {
-                return true;
-            }
-
-            // 4. Default Block for other protected pages
-            if (isLoggedIn) return true;
-
-            return false;
+            // 3. Protected Pages (Everything else)
+            // If logged in, allow access. If not, false triggers redirect to /login
+            return isLoggedIn;
         },
     },
     providers: [], // Add providers with an empty array for now

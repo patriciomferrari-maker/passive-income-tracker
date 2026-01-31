@@ -9,7 +9,7 @@ const nextConfig = {
         ignoreBuildErrors: true,
     },
 
-    serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
+    serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core', 'pdf2json'],
     experimental: {
 
     },
