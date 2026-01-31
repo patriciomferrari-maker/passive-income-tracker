@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { seedEconomicData } from '@/scripts/seed-economic-data';
+import { seedEconomicData } from '@/scripts/legacy/seed-economic-data';
 
 export const dynamic = 'force-dynamic';
 
