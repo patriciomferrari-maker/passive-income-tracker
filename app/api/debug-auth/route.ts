@@ -45,11 +45,24 @@ export async function GET() {
             }
         }
 
+        // 4. List Models (Diagnostic)
+        let availableModels: any = 'Skipped';
+        if (process.env.GEMINI_API_KEY) {
+            try {
+                const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
+                const data = await listRes.json();
+                availableModels = data.models ? data.models.map((m: any) => m.name) : data;
+            } catch (e: any) {
+                availableModels = `Error listing models: ${e.message}`;
+            }
+        }
+
         return NextResponse.json({
             status: 'ok',
             env: envCheck,
             db: dbStatus,
             gemini: geminiCheck,
+            gemini_models: availableModels,
             timestamp: new Date().toISOString()
         });
 
