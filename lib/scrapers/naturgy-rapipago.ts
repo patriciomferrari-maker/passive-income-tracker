@@ -1,10 +1,6 @@
 
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { Browser, Page } from 'puppeteer';
-
-// Add stealth plugin
-puppeteer.use(StealthPlugin());
+import { getBrowser } from '@/app/lib/browser-helper';
+import { Browser, Page } from 'puppeteer-core';
 
 export interface NaturgyRapipagoResult {
     status: 'UP_TO_DATE' | 'OVERDUE' | 'UNKNOWN' | 'ERROR';
@@ -22,15 +18,7 @@ export async function checkNaturgyRapipago(barcode: string): Promise<NaturgyRapi
     let page: Page | null = null;
 
     try {
-        browser = await puppeteer.launch({
-            headless: true, // Headless for production
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-blink-features=AutomationControlled'
-            ],
-            ignoreDefaultArgs: ['--enable-automation']
-        }) as unknown as Browser;
+        browser = await getBrowser() as unknown as Browser;
 
         page = await browser.newPage();
 

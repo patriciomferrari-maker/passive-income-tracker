@@ -1,12 +1,6 @@
 
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { Browser, Page } from 'puppeteer';
-
-// Add stealth plugin
-try {
-    puppeteer.use(StealthPlugin());
-} catch (e) { }
+import { getBrowser } from '@/app/lib/browser-helper';
+import { Browser, Page } from 'puppeteer-core';
 
 export interface ABLCABAResult {
     status: 'UP_TO_DATE' | 'OVERDUE' | 'UNKNOWN' | 'ERROR';
@@ -28,15 +22,7 @@ export async function checkABLCABA(partida: string): Promise<ABLCABAResult> {
     let page: Page | null = null;
 
     try {
-        browser = await puppeteer.launch({
-            headless: true,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-blink-features=AutomationControlled'
-            ],
-            ignoreDefaultArgs: ['--enable-automation']
-        }) as unknown as Browser;
+        browser = await getBrowser() as unknown as Browser;
 
         page = await browser.newPage();
 

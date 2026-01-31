@@ -1,4 +1,6 @@
-import puppeteer from 'puppeteer';
+
+import { getBrowser } from '@/app/lib/browser-helper';
+import { Browser, Page } from 'puppeteer-core';
 
 export interface EdenorResult {
     status: 'UP_TO_DATE' | 'OVERDUE' | 'UNKNOWN' | 'ERROR';
@@ -15,10 +17,7 @@ export async function checkEdenor(accountNumber: string): Promise<EdenorResult> 
     try {
         console.log(`[Edenor] Checking account: ${accountNumber}`);
 
-        browser = await puppeteer.launch({
-            headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-        });
+        browser = await getBrowser() as unknown as Browser;
 
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 800 });

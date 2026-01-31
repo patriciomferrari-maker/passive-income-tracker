@@ -1,4 +1,6 @@
-import puppeteer from 'puppeteer';
+
+import { getBrowser } from '@/app/lib/browser-helper';
+import { Page } from 'puppeteer-core'; // Import explicit types
 
 export interface MetrogasResult {
     status: 'UP_TO_DATE' | 'OVERDUE' | 'UNKNOWN' | 'ERROR';
@@ -15,11 +17,7 @@ export async function checkMetrogas(clientNumber: string): Promise<MetrogasResul
     try {
         console.log(`[Metrogas] Checking account: ${clientNumber}`);
 
-        browser = await puppeteer.launch({
-            headless: true, // Metrogas usually works in headless
-            executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-        });
+        browser = await getBrowser(); // Use helper
 
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 800 });
@@ -27,21 +25,23 @@ export async function checkMetrogas(clientNumber: string): Promise<MetrogasResul
         // Navigate to Metrogas portal
         await page.goto('https://saldos.micuenta.metrogas.com.ar/', {
             waitUntil: 'networkidle2',
-            timeout: 30000
+            timeout: 60000 // Increased timeout
         });
 
-        // Wait for page to load
+        // Wait for page to load - robustness
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Enter client number
-        await page.waitForSelector('input', { timeout: 10000 });
-        await page.type('input', clientNumber);
+        const inputSelector = 'input';
+        await page.waitForSelector(inputSelector, { timeout: 15000 });
+        await page.type(inputSelector, clientNumber);
 
         // Press Enter to search
         await page.keyboard.press('Enter');
 
         // Wait for results
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        // Using wait for function instead of fixed timeout is better, but keeping timeout for simplicity + robustness
+        await new Promise(resolve => setTimeout(resolve, 6000));
 
         // Check for "No registra deuda" text using multiple strategies
         const statusData = await page.evaluate(() => {
@@ -51,11 +51,11 @@ export async function checkMetrogas(clientNumber: string): Promise<MetrogasResul
 
             // Strategy 2: Look for any element containing "No registra deuda"
             const bodyText = document.body.textContent || '';
-            const hasNoDebt = bodyText.includes('No registra deuda') || bodyText.includes('no registra deuda');
+            const hasNoDebt = bodyText.includes('No registra deuda') || bodyText.toLowerCase().includes('no registra deuda');
 
             // Strategy 3: Look for dollar amounts
             const amountElements = Array.from(document.querySelectorAll('*'))
-                .filter(el => el.textContent?.includes('$'))
+                .filter(el => el.textContent?.includes('$') && (el.children.length === 0 || el.tagName === 'SPAN'))
                 .map(el => el.textContent?.trim() || '');
 
             return {
@@ -68,7 +68,6 @@ export async function checkMetrogas(clientNumber: string): Promise<MetrogasResul
 
         console.log(`[Metrogas] Status text: "${statusData.statusText}"`);
         console.log(`[Metrogas] Has "No registra deuda": ${statusData.hasNoDebt}`);
-        console.log(`[Metrogas] Amount elements found: ${statusData.amountElements.length}`);
 
         let result: MetrogasResult = {
             status: 'UNKNOWN',
@@ -102,10 +101,10 @@ export async function checkMetrogas(clientNumber: string): Promise<MetrogasResul
                 result.debtAmount = parseFloat(amountMatch[1].replace(/\./g, '').replace(',', '.'));
                 console.log(`[Metrogas] ⚠️  Debt found (fallback): $${result.debtAmount}`);
             } else {
-                console.log(`[Metrogas] ❓ Unknown status. Body preview: "${statusData.bodyText.substring(0, 200)}"`);
+                console.log(`[Metrogas] ❓ Unknown status.`);
             }
         } else {
-            console.log(`[Metrogas] ❓ Unknown status. Body preview: "${statusData.bodyText.substring(0, 200)}"`);
+            console.log(`[Metrogas] ❓ Unknown status.`);
         }
 
         return result;
