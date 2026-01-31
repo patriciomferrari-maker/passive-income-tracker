@@ -273,9 +273,9 @@ async function parseWithGemini(text: string, categories: any[], rules: any[], cu
     // FALLBACK STRATEGY: Try multiple models if one fails (404, 429, etc.)
     const genAI = new GoogleGenerativeAI(apiKey);
     const modelsToTry = [
-        "gemini-1.5-flash",
         "gemini-1.5-flash-001",
-        "gemini-2.0-flash-exp", // Experimental, if available
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
         "gemini-pro"
     ];
 

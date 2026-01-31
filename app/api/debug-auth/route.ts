@@ -29,11 +29,12 @@ export async function GET() {
             try {
                 const { GoogleGenerativeAI } = require('@google/generative-ai');
                 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-                const result = await model.generateContent("Say 'OK' if you can hear me.");
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+                const result = await model.generateContent("Test");
                 const response = await result.response;
                 geminiCheck = {
                     status: 'success',
+                    model: "gemini-1.5-flash-001",
                     output: response.text()
                 };
             } catch (e: any) {
