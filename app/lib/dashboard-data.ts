@@ -59,12 +59,12 @@ export async function getDashboardStats(userId: string) {
             const onInvestments = await prisma.investment.findMany({
                 where: { userId, market: 'ARG' },
                 select: {
-                    id: true, lastPrice: true, type: true, ticker: true, currency: true,
+                    id: true, lastPrice: true, type: true, ticker: true, currency: true, lastPriceDate: true,
                     transactions: { select: { id: true, date: true, type: true, quantity: true, price: true, commission: true, currency: true } }
                 }
             });
 
-            // Optimisation: Fetch prices in batch
+            // Optimisation: Fetch prices in batch with currency
             const onIds = onInvestments.map(i => i.id);
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
@@ -72,36 +72,98 @@ export async function getDashboardStats(userId: string) {
                 where: { investmentId: { in: onIds }, date: { gte: weekAgo } },
                 orderBy: { date: 'desc' }
             });
-            const priceMap: Record<string, number> = {};
-            recentPrices.forEach(p => { if (!priceMap[p.investmentId]) priceMap[p.investmentId] = p.price; });
+            const priceMap: Record<string, { price: number, currency: string }> = {};
+            recentPrices.forEach(p => { if (!priceMap[p.investmentId]) priceMap[p.investmentId] = { price: p.price, currency: p.currency }; });
+
+            // Helper: Get rate at historical date
+            const ratesMap: Record<string, number> = {};
+            const historicalRates = await prisma.economicIndicator.findMany({
+                where: { type: 'TC_USD_ARS' },
+                orderBy: { date: 'desc' },
+                take: 100
+            });
+            historicalRates.forEach(r => {
+                const d = r.date.toISOString().split('T')[0];
+                ratesMap[d] = r.value;
+            });
+
+            const getRate = (date: Date): number => {
+                const dateStr = date.toISOString().split('T')[0];
+                if (ratesMap[dateStr]) return ratesMap[dateStr];
+                // Fallback: Find closest rate in past (look back 10 days)
+                let d = new Date(date);
+                for (let i = 0; i < 10; i++) {
+                    const ds = d.toISOString().split('T')[0];
+                    if (ratesMap[ds]) return ratesMap[ds];
+                    d.setDate(d.getDate() - 1);
+                }
+                return exchangeRate; // Fallback to latest
+            };
 
             const { calculateFIFO } = await import('@/app/lib/fifo');
             let onMarketValueUSD = 0;
             let activeOnCount = 0;
 
             for (const inv of onInvestments) {
-                const fifoTxs = inv.transactions.map(t => ({
-                    id: t.id, date: new Date(t.date), type: (t.type || '').toUpperCase() as 'BUY' | 'SELL',
-                    quantity: t.quantity, price: t.price, commission: t.commission, currency: t.currency
-                }));
-                const result = calculateFIFO(fifoTxs, inv.ticker);
-                let currentPrice = priceMap[inv.id] || inv.lastPrice || 0;
+                // Normalize transactions to USD for FIFO (matching dashboard-stats.ts logic)
+                const fifoTxs = inv.transactions.map(t => {
+                    let price = t.price;
+                    let commission = t.commission;
 
-                if ((inv.type === 'ON' || inv.type === 'CORPORATE_BOND') && currentPrice > 2.0) currentPrice = currentPrice / 100;
+                    if (t.currency === 'ARS') {
+                        const rate = getRate(new Date(t.date));
+                        if (rate > 0) {
+                            price = price / rate;
+                            commission = commission / rate;
+                        }
+                    }
 
-                let instrumentValue = 0;
-                let totalHeld = 0;
-                result.openPositions.forEach(p => {
-                    instrumentValue += p.quantity * currentPrice;
-                    totalHeld += p.quantity;
+                    return {
+                        id: t.id,
+                        date: new Date(t.date),
+                        type: (t.type || '').toUpperCase() as 'BUY' | 'SELL',
+                        quantity: t.quantity,
+                        price: price, // Now in USD
+                        commission: commission, // Now in USD
+                        currency: 'USD'
+                    };
                 });
 
-                if (totalHeld > 0) {
-                    let valueUSD = instrumentValue;
-                    if (inv.currency === 'ARS') {
-                        valueUSD = instrumentValue / exchangeRate;
+                const result = calculateFIFO(fifoTxs, inv.ticker);
+
+                // Determine current price in USD (matching dashboard-stats.ts logic)
+                let currentPriceUSD = 0;
+
+                if (priceMap[inv.id]) {
+                    const p = priceMap[inv.id];
+                    if (p.currency === 'USD') {
+                        currentPriceUSD = p.price;
+                    } else if (p.currency === 'ARS') {
+                        currentPriceUSD = p.price / exchangeRate;
                     }
-                    onMarketValueUSD += valueUSD;
+                } else {
+                    // Fallback to investment lastPrice
+                    const p = Number(inv.lastPrice) || 0;
+                    if (inv.currency === 'ARS') {
+                        const priceDate = inv.lastPriceDate ? new Date(inv.lastPriceDate) : new Date();
+                        const rateAtPriceDate = getRate(priceDate);
+                        const r = rateAtPriceDate > 0 ? rateAtPriceDate : exchangeRate;
+                        currentPriceUSD = p / r;
+                    } else {
+                        currentPriceUSD = p;
+                    }
+                }
+
+                // ON/BOND Price Normalization (percentage quote)
+                if ((inv.type === 'ON' || inv.type === 'CORPORATE_BOND') && currentPriceUSD > 2.0) {
+                    currentPriceUSD = currentPriceUSD / 100;
+                }
+
+                const quantity = result.openPositions.reduce((sum, p) => sum + p.quantity, 0);
+                const marketValueUSD = quantity * currentPriceUSD;
+
+                if (quantity > 0) {
+                    onMarketValueUSD += marketValueUSD;
                     activeOnCount++;
                 }
             }
