@@ -12,7 +12,8 @@ export async function GET() {
             AUTH_SECRET: process.env.AUTH_SECRET ? 'Set (Length: ' + process.env.AUTH_SECRET.length + ')' : 'MISSING',
             POSTGRES_PRISMA_URL: process.env.POSTGRES_PRISMA_URL ? 'Set' : 'MISSING',
             VERCEL_URL: process.env.VERCEL_URL,
-            NEXTAUTH_URL: process.env.NEXTAUTH_URL
+            NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+            GEMINI_API_KEY: process.env.GEMINI_API_KEY ? 'Set (Length: ' + process.env.GEMINI_API_KEY.length + ')' : 'MISSING',
         };
 
         // 2. Check DB Connection
