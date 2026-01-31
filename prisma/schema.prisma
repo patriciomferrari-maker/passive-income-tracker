@@ -414,22 +414,6 @@ model UtilityCheck {
 // =================================================================
 // (Removed as per user request)
 
-  // Bill details
-  lastBillAmount Float?
-  lastBillDate   DateTime?
-  dueDate        DateTime?
-
-  // Metadata
-  accountNumber String? // For reference
-  notes         String?
-  isAutomatic   Boolean @default(false) // true if scraped, false if manual
-  errorMessage  String? // If scraping failed
-
-  createdAt DateTime @default(now())
-
-  @@index([propertyId, serviceType])
-  @@index([checkDate])
-}
 
 // =================================================================
 // DEBT TRACKER (PRESTAMOS/DEUDAS)
