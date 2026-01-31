@@ -141,9 +141,18 @@ export async function POST(req: NextRequest) {
             parserUsed
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('[PDF] Fatal Error:', error);
-        return NextResponse.json({ error: 'Error interno al procesar PDF', details: String(error) }, { status: 500 });
+        console.error('[PDF] Error Name:', error?.name);
+        console.error('[PDF] Error Message:', error?.message);
+        console.error('[PDF] Error Stack:', error?.stack);
+
+        return NextResponse.json({
+            error: 'Error interno al procesar PDF',
+            details: error?.message || String(error),
+            errorType: error?.name,
+            stack: error?.stack?.split('\n').slice(0, 5).join('\n') // First 5 lines
+        }, { status: 500 });
     }
 }
 
