@@ -276,22 +276,42 @@ async function parseWithGemini(text: string, categories: any[], rules: any[], cu
     const categoriesList = categories.map(c => `- ${c.name} (${c.id})`).join('\n');
     const rulesList = rules.map(r => `"${r.pattern}" -> ${r.categoryId}`).join('\n');
 
-    // Truncate if too huge (re-introducing processText variable)
+    // Truncate if too huge
     const processText = text.length > 25000 ? text.substring(0, 25000) : text;
 
-    // FALLBACK STRATEGY: Try multiple models if one fails (404, 429, etc.)
+    // STEP 1: Dynamically fetch available models
+    console.log('[GEMINI] Fetching available models...');
+    let availableModels: string[] = [];
+
+    try {
+        const listResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`);
+        const data = await listResponse.json();
+
+        if (data.models) {
+            // Filter models that support generateContent
+            availableModels = data.models
+                .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+                .map((m: any) => m.name.replace('models/', ''));
+
+            console.log('[GEMINI] Available models:', availableModels);
+        }
+    } catch (e) {
+        console.warn('[GEMINI] Could not fetch models list, using defaults:', e);
+        availableModels = ['gemini-pro', 'gemini-1.0-pro'];
+    }
+
+    if (availableModels.length === 0) {
+        throw new Error('No Gemini models available for this API key. Please check your API key permissions at https://aistudio.google.com/app/apikey');
+    }
+
+    // STEP 2: Try each available model
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const modelsToTry = [
-        "gemini-1.5-flash-001",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-        "gemini-pro"
-    ];
 
     let lastError: any = null;
     let jsonText = "";
 
-    for (const modelName of modelsToTry) {
+    for (const modelName of availableModels) {
         try {
             console.log(`[GEMINI] Attempting with model: ${modelName}...`);
             const model = genAI.getGenerativeModel({
@@ -299,7 +319,7 @@ async function parseWithGemini(text: string, categories: any[], rules: any[], cu
                 generationConfig: { responseMimeType: "application/json" }
             });
 
-            // Prompt definition (reused)
+            // Prompt definition
             const prompt = `
             Analiza este extracto de resumen bancario (PDF procesado). Tu objetivo es generar un JSON estructurado de transacciones.
 
@@ -347,7 +367,10 @@ async function parseWithGemini(text: string, categories: any[], rules: any[], cu
             const response = await result.response;
             jsonText = response.text();
 
-            if (jsonText) break; // Success!
+            if (jsonText) {
+                console.log(`[GEMINI] ✅ Success with model: ${modelName}`);
+                break; // Success!
+            }
 
         } catch (e) {
             console.warn(`[GEMINI] Failed with ${modelName}:`, e);
