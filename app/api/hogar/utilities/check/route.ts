@@ -1,28 +1,30 @@
-
 import { NextResponse } from 'next/server';
-import { scrapeAllUtilities } from '@/app/lib/utility-service';
 import { getUserId, unauthorized } from '@/app/lib/auth-helper';
+import { checkAllUtilities } from '@/app/lib/utility-checker';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300; // 5 minutes timeout for scrapers
+export const maxDuration = 300; // 5 minutes for scraping
 
 export async function POST(request: Request) {
     try {
         const userId = await getUserId();
         if (!userId) return unauthorized();
 
-        // Optional: Parse body for specific property ID
-        const body = await request.json().catch(() => ({}));
-        const { propertyId } = body;
+        console.log(`[Utilities Check API] Starting manual check for user ${userId}`);
 
-        console.log(`[API] Triggering utility check for user ${userId} ${propertyId ? `(Prop: ${propertyId})` : '(All)'}`);
+        const summary = await checkAllUtilities(userId);
 
-        const results = await scrapeAllUtilities(propertyId);
-
-        return NextResponse.json({ success: true, results });
+        return NextResponse.json({
+            success: true,
+            message: 'Utilities check completed',
+            summary
+        });
 
     } catch (error: any) {
-        console.error('[API] Utility Check Error:', error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        console.error('[Utilities Check API] Error:', error);
+        return NextResponse.json(
+            { success: false, error: error.message },
+            { status: 500 }
+        );
     }
 }

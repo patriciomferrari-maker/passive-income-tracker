@@ -84,6 +84,7 @@ export default function BarbosaPage() {
                     {activeTab === 'transactions' && <TransactionsTab />}
                     {activeTab === 'installments' && <InstallmentsTab startDate={startDate} />}
                     {activeTab === 'recurrence' && <RecurrenceTab />}
+                    {activeTab === 'services' && <ServicesTab />}
                     {activeTab === 'settings' && <SettingsTab />}
                 </div>
             </div>
