@@ -2,8 +2,8 @@
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 
-// Environment check
-const isLocal = process.env.NODE_ENV === 'development';
+// Environment check - consider local if not in Vercel
+const isLocal = process.env.NODE_ENV === 'development' || !process.env.VERCEL;
 
 export async function getBrowser() {
     let executablePath: string | undefined;
@@ -11,12 +11,38 @@ export async function getBrowser() {
     if (isLocal) {
         // Local Windows Development
         if (process.platform === 'win32') {
-            executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+            // First try to use puppeteer installed chrome
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
 
-            // Fallback for Edge if Chrome not found (optional, but good for robustness)
-            // You might want to verify if files exist, but hardcoded common paths usually suffice for dev.
-            if (process.env.LOCAL_CHROME_PATH) {
-                executablePath = process.env.LOCAL_CHROME_PATH;
+            const puppeteerChromePath = path.join(os.homedir(), '.cache', 'puppeteer', 'chrome');
+
+            // Check if puppeteer chrome exists
+            if (fs.existsSync(puppeteerChromePath)) {
+                try {
+                    const versions = fs.readdirSync(puppeteerChromePath);
+                    if (versions.length > 0) {
+                        // Use the first version found
+                        const chromePath = path.join(puppeteerChromePath, versions[0], 'chrome-win64', 'chrome.exe');
+                        if (fs.existsSync(chromePath)) {
+                            executablePath = chromePath;
+                            console.log(`[Browser] Using Puppeteer Chrome: ${executablePath}`);
+                        }
+                    }
+                } catch (e) {
+                    console.log('[Browser] Could not read puppeteer chrome directory');
+                }
+            }
+
+            // Fallback to system Chrome if puppeteer chrome not found
+            if (!executablePath) {
+                executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+
+                // Fallback for Edge if Chrome not found
+                if (process.env.LOCAL_CHROME_PATH) {
+                    executablePath = process.env.LOCAL_CHROME_PATH;
+                }
             }
         } else if (process.platform === 'darwin') {
             executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -40,7 +66,7 @@ export async function getBrowser() {
         args: isLocal ? ['--no-sandbox'] : [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
         defaultViewport: isLocal ? { width: 1280, height: 800 } : chromium.defaultViewport,
         executablePath: executablePath,
-        headless: isLocal ? false : chromium.headless, // Headless true in prod
+        headless: true, // Always headless to prevent blocking
         ignoreHTTPSErrors: true,
     });
 }

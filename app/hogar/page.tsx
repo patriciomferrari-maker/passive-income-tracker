@@ -34,6 +34,7 @@ export default function BarbosaPage() {
         { id: 'transactions', label: 'Carga' },
         { id: 'installments', label: 'Cuotas' },
         { id: 'recurrence', label: 'Recurrentes' },
+        { id: 'services', label: 'Servicios' },
         { id: 'settings', label: 'Configuración' }
     ];
 

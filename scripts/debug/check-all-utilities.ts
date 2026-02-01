@@ -1,10 +1,10 @@
-import { prisma } from '../lib/prisma';
-import { checkMetrogas } from '../lib/scrapers/metrogas';
-import { checkAysaWeb } from '../lib/scrapers/aysa-web';
-import { checkABLCABA } from '../lib/scrapers/abl-caba';
-import { checkABLProvincia } from '../lib/scrapers/abl-provincia';
-import { checkNaturgyRapipago as checkNaturgy } from '../lib/scrapers/naturgy-rapipago';
-import { checkEdenor } from '../lib/scrapers/edenor';
+import { prisma } from '../../lib/prisma';
+import { checkMetrogas } from '../../lib/scrapers/metrogas';
+import { checkAysaWeb } from '../../lib/scrapers/aysa-web';
+import { checkABLCABA } from '../../lib/scrapers/abl-caba';
+import { checkABLProvincia } from '../../lib/scrapers/abl-provincia';
+import { checkNaturgyRapipago as checkNaturgy } from '../../lib/scrapers/naturgy-rapipago';
+import { checkEdenor } from '../../lib/scrapers/edenor';
 
 interface CheckResult {
     propertyId: string;
