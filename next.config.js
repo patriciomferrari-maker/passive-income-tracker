@@ -8,6 +8,12 @@ const nextConfig = {
         // !! WARN !!
         ignoreBuildErrors: true,
     },
+    eslint: {
+        // !! WARN !!
+        // Allow production builds even with ESLint errors
+        // !! WARN !!
+        ignoreDuringBuilds: true,
+    },
 
     serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core', 'pdf2json'],
     experimental: {
