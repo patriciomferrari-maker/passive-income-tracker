@@ -440,7 +440,7 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
 
     <!-- Footnotes -->
     <div style="max-width: 600px; margin: 0 auto 24px; padding: 0 16px; color: #94a3b8; font-size: 10px; line-height: 1.5; text-align: left;">
-        <p style="margin: 0 0 4px;">(1) <strong>Liquidez:</strong> Incluye saldo en cuentas bancarias y dinero disponible (caja de ahorro + efectivo).</p>
+        <p style="margin: 0 0 4px;">(1) <strong>Liquidez:</strong> Incluye saldo en cuentas bancarias, FCI de liquidez y dinero disponible (caja de ahorro + efectivo).</p>
         <p style="margin: 0;">(2) <strong>Cartera:</strong> Incluye la valuación de mercado de todos los activos de inversión (Cedears, ONs, Bonos, ETFs).</p>
     </div>
 

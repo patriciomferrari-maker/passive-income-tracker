@@ -366,18 +366,19 @@ export async function runDailyMaintenance(force: boolean = false, targetUserId?:
                     const { getDashboardStats } = await import('@/app/lib/dashboard-data');
                     const stats = await getDashboardStats(user.id);
 
-                    // 1. Bank (Now refers to Liquidity Only)
-                    const bankTotalUSD = stats.bank.totalUSD; // This is now 'liquidityUSD' from shared logic
+                    // 1. Bank (Now refers to Liquidity + FCI)
+                    // User requested FCI to be considered Liquidity
+                    const investedFCI = (stats.bank as any).investedFCI_USD || 0;
+                    const bankTotalUSD = stats.bank.totalUSD + investedFCI;
 
                     // 2. Investments
-                    // Inversiones tiene que ser: Cartera Argentina + Cartera USA + Plazo Fijo + FCI
-                    // We treat PFs and FCIs as "Arg Investments" for the sake of the report summary summing.
+                    // Inversiones tiene que ser: Cartera Argentina + Cartera USA + Plazo Fijo
+                    // We treat PFs as "Arg Investments"
                     const investedPF = (stats.bank as any).investedPF_USD || 0;
-                    const investedFCI = (stats.bank as any).investedFCI_USD || 0;
 
                     const hasBank = bankTotalUSD > 1 || investedPF > 1;
 
-                    const totalArg = stats.on.totalInvested + investedPF + investedFCI;
+                    const totalArg = stats.on.totalInvested + investedPF; // Removed investedFCI from here
                     const totalUSA = stats.treasury.totalInvested;
 
                     const hasArg = stats.on.count > 0 || investedPF > 0 || investedFCI > 0;
