@@ -321,8 +321,9 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 32px; border-collapse: separate; border-spacing: 8px 0;">
                 <tr>
                     <!-- 1. BANK (Liquidez Only) -->
+
                     <td width="33%" valign="top" style="background-color: #f1f5f9; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
-                        <div style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Liquidez</div>
+                        <div style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Liquidez (1)</div>
                         <div style="color: #0f172a; font-size: 16px; font-weight: 700; margin-top: 6px; letter-spacing: -0.5px;">
                             ${formatCurrency(totalBank, 'USD')}
                         </div>
@@ -331,9 +332,10 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
                     <!-- Spacer -->
                     <td width="2%" style="font-size: 0; line-height: 0;">&nbsp;</td>
 
+
                     <!-- 2. INVESTMENTS (Arg + USA) -->
                     <td width="33%" valign="top" style="background-color: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
-                        <div style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Inversiones</div>
+                        <div style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Cartera (2)</div>
                         <div style="color: #0f172a; font-size: 16px; font-weight: 700; margin-top: 6px; letter-spacing: -0.5px;">
                             ${formatCurrency(totalArg + totalUSA, 'USD')}
                         </div>
@@ -434,6 +436,12 @@ export function generateMonthlyReportEmail(data: MonthlyReportData): string {
 
         </div>
 
+    </div>
+
+    <!-- Footnotes -->
+    <div style="max-width: 600px; margin: 0 auto 24px; padding: 0 16px; color: #94a3b8; font-size: 10px; line-height: 1.5; text-align: left;">
+        <p style="margin: 0 0 4px;">(1) <strong>Liquidez:</strong> Incluye saldo en cuentas bancarias y dinero disponible (caja de ahorro + efectivo).</p>
+        <p style="margin: 0;">(2) <strong>Cartera:</strong> Incluye la valuación de mercado de todos los activos de inversión (Cedears, ONs, Bonos, ETFs).</p>
     </div>
 
     <!-- Footer -->
