@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         // 6. Duplicate Detection AND Target Month Re-allocation
         const existingTransactions = await (prisma as any).barbosaTransaction.findMany({
             where: { userId },
-            select: { date: true, amount: true, comprobante: true, description: true }
+            select: { date: true, amount: true, comprobante: true, description: true, status: true }
         });
 
         const targetDate = (targetMonth && targetYear)
@@ -121,6 +121,38 @@ export async function POST(req: NextRequest) {
                         Math.abs(etx.amount - tx.amount) < 0.01 &&
                         cleanDescription(etx.description).toLowerCase() === cleanTxDesc
                 });
+            }
+
+            // IGNORE DUPLICATE FLAG IF THE MATCH IS JUST "PROJECTED"
+            // We want to allow the user to import it (updating the projected one)
+            if (isDuplicate) {
+                const match = existingTransactions.find((etx: any) =>
+                    // Find the specific match again to check status (inefficient but safe or could use find above)
+                    (etx.comprobante === String(tx.comprobante) || Math.abs(etx.amount - tx.amount) < 0.01)
+                    // A simple heuristic: if ANY match is REAL, it's duplicate. If matching is PROJECTED, it's not.
+                    // Let's rely on the fact that 'some' returned true.
+                );
+
+                // Better: Filter existingTransactions to find the matches, then check status
+                const matches = existingTransactions.filter((etx: any) => {
+                    if (isVoucherValid && etx.comprobante === String(tx.comprobante)) {
+                        // Strict check used above
+                        return Math.abs(etx.amount - tx.amount) < 0.01 &&
+                            new Date(etx.date).toISOString().split('T')[0] === new Date(tx.date).toISOString().split('T')[0];
+                    }
+                    if (!isVoucherValid) {
+                        const ctxDate = new Date(etx.date).toISOString().split('T')[0];
+                        const compareDate = new Date(tx.date).toISOString().split('T')[0];
+                        return ctxDate === compareDate &&
+                            Math.abs(etx.amount - tx.amount) < 0.01 &&
+                            cleanDescription(etx.description).toLowerCase() === cleanTxDesc;
+                    }
+                    return false;
+                });
+
+                // If ALL matches are PROJECTED, then it's NOT a duplicate (it's a candidate for update)
+                const allProjected = matches.length > 0 && matches.every((m: any) => m.status === 'PROJECTED');
+                if (allProjected) isDuplicate = false;
             }
 
             return { ...tx, originalDate: tx.date, date: finalDate, isDuplicate, skip: isDuplicate };

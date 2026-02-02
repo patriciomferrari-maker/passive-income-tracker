@@ -120,6 +120,26 @@ export async function POST(req: NextRequest) {
     }
 
     if (existing) {
+        // CASO ESPECIAL: Si ya existe pero es PROYECTADO, lo actualizamos a REAL (Confirmación)
+        if (existing.status === 'PROJECTED') {
+            console.log('[API] Overwriting PROJECTED transaction ' + existing.id + ' with REAL data');
+            const updated = await prisma.barbosaTransaction.update({
+                where: { id: existing.id },
+                data: {
+                    status: 'REAL',
+                    // Update details with confirmed PDF data
+                    comprobante: comprobante ? String(comprobante) : existing.comprobante,
+                    amount: parseFloat(amount),
+                    currency,
+                    date: toArgNoon(date, 'keep-day'),
+                    // Optional: Exchange rate, description update if needed
+                    description: description || existing.description
+                },
+                include: { category: true, subCategory: true }
+            });
+            return NextResponse.json(updated);
+        }
+
         return NextResponse.json({
             error: 'DUPLICATE',
             message: 'La transacción "' + description + '" ya existe(ID: ' + existing.id + ').',
