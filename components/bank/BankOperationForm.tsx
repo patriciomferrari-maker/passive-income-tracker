@@ -179,19 +179,6 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
                                 onChange={(e) => setDurationDays(e.target.value)}
                                 className="bg-slate-800 border-slate-700 text-white"
                             />
-                            {startDate && durationDays && (
-                                <div className="text-right text-[10px] text-blue-400 mt-1 font-mono">
-                                    Vence: {(() => {
-                                        try {
-                                            const [y, m, d] = startDate.split('-').map(Number);
-                                            // Create date at noon to avoid timezone overlaps
-                                            const start = new Date(y, m - 1, d, 12, 0, 0);
-                                            const end = addDays(start, parseInt(durationDays));
-                                            return format(end, 'dd/MM/yyyy');
-                                        } catch { return '-'; }
-                                    })()}
-                                </div>
-                            )}
                         </div>
                     </div>
                     <div className="space-y-2">
@@ -206,13 +193,35 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
                     </div>
 
                     {/* Live Calculation Preview */}
-                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 flex items-center justify-between">
-                        <div className="flex items-center text-slate-400 text-sm">
-                            <Calculator className="w-4 h-4 mr-2" />
-                            Interés Estimado:
+                    <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-3">
+                        {/* 1. Maturity Date */}
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <div className="flex items-center text-slate-400 text-sm">
+                                <CalendarIcon className="w-4 h-4 mr-2 text-blue-500" />
+                                Vencimiento Estimado:
+                            </div>
+                            <div className="text-blue-400 font-bold text-lg">
+                                {(() => {
+                                    if (!startDate || !durationDays) return '-';
+                                    try {
+                                        const [y, m, d] = startDate.split('-').map(Number);
+                                        const start = new Date(y, m - 1, d, 12, 0, 0);
+                                        const end = addDays(start, parseInt(durationDays));
+                                        return format(end, 'dd/MM/yyyy');
+                                    } catch { return '-'; }
+                                })()}
+                            </div>
                         </div>
-                        <div className="text-emerald-400 font-bold">
-                            {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(estimatedInterest)}
+
+                        {/* 2. Interest */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center text-slate-400 text-sm">
+                                <Calculator className="w-4 h-4 mr-2 text-emerald-500" />
+                                Interés Ganado:
+                            </div>
+                            <div className="text-emerald-400 font-bold text-lg">
+                                {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(estimatedInterest)}
+                            </div>
                         </div>
                     </div>
                 </div>
