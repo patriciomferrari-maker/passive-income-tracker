@@ -3,47 +3,13 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Zap, Flame, Building2, ExternalLink, AlertCircle, CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-react';
-
-interface Property {
-    id: string;
-    name: string;
-    jurisdiction: 'CABA' | 'PROVINCIA';
-    gasId: string | null;
-    aysaId: string | null;
-    electricityId: string | null;
-    municipalId: string | null;
-    hasGarage: boolean;
-    garageMunicipalId: string | null;
-}
-
-interface UtilityCheck {
-    id: string;
-    serviceType: string;
-    status: string;
-    debtAmount: number | null;
-    lastBillAmount: number | null;
-    checkDate: string;
-    isAutomatic: boolean;
-    errorMessage: string | null;
-}
-
-interface PropertyUtilities {
-    property: Property;
-    checks: {
-        gas: UtilityCheck | null;
-        aysa: UtilityCheck | null;
-        electricity: UtilityCheck | null;
-        municipal: UtilityCheck | null;
-        garageMunicipal: UtilityCheck | null;
-    };
-}
+import { Zap, Flame, Building2, ExternalLink, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+// ... interfaces ...
 
 export function UtilitiesTab({ showValues }: { showValues: boolean }) {
     const [properties, setProperties] = useState<Property[]>([]);
     const [utilities, setUtilities] = useState<Record<string, PropertyUtilities>>({});
     const [loading, setLoading] = useState(true);
-    const [checking, setChecking] = useState(false);
 
     useEffect(() => {
         fetchProperties();
@@ -86,25 +52,6 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
             console.error(`Error fetching utilities for property ${propertyId}:`, error);
         }
     };
-
-    const handleCheck = async () => {
-        setChecking(true);
-        try {
-            // Reusing the global check endpoint
-            await fetch('/api/hogar/utilities/check', { method: 'POST' });
-
-            // Refresh data for all properties
-            for (const property of properties) {
-                await fetchUtilities(property.id);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setChecking(false);
-        }
-    };
-
-
 
     const getStatusBadge = (status: string, debtAmount: number | null) => {
         const baseClasses = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border";
@@ -172,18 +119,8 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                 <div>
                     <h2 className="text-2xl font-bold text-white">Estado de Servicios</h2>
                     <p className="text-slate-400 text-sm mt-1">
-                        Monitoreo automático de Gas, Electricidad y ABL
+                        Monitoreo automático de Gas, Electricidad y ABL (2 veces al día)
                     </p>
-                </div>
-                <div className="bg-emerald-500/10 p-1.5 rounded-lg border border-emerald-500/20">
-                    <Button
-                        onClick={handleCheck}
-                        disabled={checking}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px] shadow-sm"
-                    >
-                        <RefreshCw className={`mr-2 h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
-                        {checking ? 'Verificando...' : 'Verificar Ahora'}
-                    </Button>
                 </div>
             </div>
 
