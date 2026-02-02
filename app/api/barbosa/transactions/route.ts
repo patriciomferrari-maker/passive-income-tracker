@@ -85,10 +85,21 @@ export async function POST(req: NextRequest) {
                 comprobante: String(comprobante)
             }
         });
-        existing = sameVoucher.find(ext =>
-            cleanDescription(ext.description).toLowerCase() === cleanBodyDesc
-        );
-        if (existing) console.log('[API] Duplicate detected by VOUCHER + DESC:', comprobante, cleanBodyDesc);
+        existing = sameVoucher.find(ext => {
+            const descMatch = cleanDescription(ext.description).toLowerCase() === cleanBodyDesc;
+
+            // Strict match: Voucher + Amount + Date must match to be considered duplicate
+            const amountMatch = Math.abs(ext.amount - parseFloat(amount)) < 0.01;
+
+            // Date match (Compare YYYY-MM-DD)
+            const d1 = new Date(ext.date).toISOString().split('T')[0];
+            const d2 = new Date(date).toISOString().split('T')[0];
+            const dateMatch = d1 === d2;
+
+            return descMatch && amountMatch && dateMatch;
+        });
+
+        if (existing) console.log('[API] Duplicate detected by VOUCHER + DESC + AMT + DATE:', comprobante);
     }
 
     if (!existing && date && amount) {
