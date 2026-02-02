@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Loader2, Plus, Trash2, Edit2, DollarSign, Calendar } from 'lucide-react';
@@ -21,6 +22,7 @@ interface DollarPurchase {
 
 export function DollarsTab() {
     const [purchases, setPurchases] = useState<DollarPurchase[]>([]);
+    const [sourceOptions, setSourceOptions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Form Stats
@@ -32,15 +34,21 @@ export function DollarsTab() {
     const [editingId, setEditingId] = useState<string | null>(null);
 
     useEffect(() => {
-        fetchPurchases();
+        loadData();
     }, []);
 
-    const fetchPurchases = async () => {
+    const loadData = async () => {
         try {
-            const res = await fetch('/api/hogar/dollars');
-            if (!res.ok) throw new Error('Failed to fetch');
-            const data = await res.json();
-            setPurchases(data);
+            const [purRes, srcRes] = await Promise.all([
+                fetch('/api/hogar/dollars'),
+                fetch('/api/hogar/sources')
+            ]);
+
+            const purData = await purRes.json();
+            const srcData = await srcRes.json();
+
+            setPurchases(Array.isArray(purData) ? purData : []);
+            setSourceOptions(Array.isArray(srcData) ? srcData : []);
         } catch (error) {
             console.error(error);
         } finally {
@@ -72,7 +80,7 @@ export function DollarsTab() {
 
             if (!res.ok) throw new Error('Failed to save');
 
-            await fetchPurchases();
+            await loadData();
             resetForm();
         } catch (error) {
             console.error(error);
@@ -114,7 +122,11 @@ export function DollarsTab() {
 
     // Group by Source and Month
     const months = Array.from(new Set(purchases.map(p => new Date(p.date).toISOString().slice(0, 7)))).sort();
-    const sources = Array.from(new Set(purchases.map(p => p.source))).sort();
+    // Merge existing sources from DB + any historical sources not in DB list anymore
+    const allSources = Array.from(new Set([
+        ...sourceOptions.map(s => s.name),
+        ...purchases.map(p => p.source)
+    ])).sort();
 
     const getAmountForSourceAndMonth = (s: string, m: string) => {
         return purchases
@@ -168,14 +180,14 @@ export function DollarsTab() {
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="date">Fecha</Label>
+                                <Label htmlFor="date" className="text-slate-300">Fecha</Label>
                                 <div className="relative">
                                     <Input
                                         id="date"
                                         type="date"
                                         value={date}
                                         onChange={e => setDate(e.target.value)}
-                                        className="bg-slate-950 border-slate-800 text-white pl-10"
+                                        className="bg-slate-950 border-slate-700 text-white pl-10 focus:border-blue-500"
                                         required
                                     />
                                     <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
@@ -183,7 +195,7 @@ export function DollarsTab() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="amount">Monto (USD)</Label>
+                                <Label htmlFor="amount" className="text-slate-300">Monto (USD)</Label>
                                 <div className="relative">
                                     <Input
                                         id="amount"
@@ -191,7 +203,7 @@ export function DollarsTab() {
                                         step="0.01"
                                         value={amount}
                                         onChange={e => setAmount(e.target.value)}
-                                        className="bg-slate-950 border-slate-800 text-white pl-10"
+                                        className="bg-slate-950 border-slate-700 text-white pl-10 focus:border-emerald-500"
                                         placeholder="100.00"
                                         required
                                     />
@@ -200,41 +212,43 @@ export function DollarsTab() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="rate">Cotización (ARS)</Label>
+                                <Label htmlFor="rate" className="text-slate-300">Cotización (ARS)</Label>
                                 <Input
                                     id="rate"
                                     type="number"
                                     step="0.01"
                                     value={rate}
                                     onChange={e => setRate(e.target.value)}
-                                    className="bg-slate-950 border-slate-800 text-white"
+                                    className="bg-slate-950 border-slate-700 text-white focus:border-blue-500"
                                     placeholder="e.g. 1200"
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="source">Concepto / Origen</Label>
-                                <Input
-                                    id="source"
-                                    type="text"
-                                    list="sourcesList"
-                                    value={source}
-                                    onChange={e => setSource(e.target.value)}
-                                    className="bg-slate-950 border-slate-800 text-white"
-                                    placeholder="e.g. Sueldo, Aguinaldo, Regalo"
-                                    required
-                                />
-                                <datalist id="sourcesList">
-                                    {sources.map(s => <option key={s} value={s} />)}
-                                </datalist>
+                                <Label htmlFor="source" className="text-slate-300">Concepto / Origen</Label>
+                                <Select value={source} onValueChange={setSource} required>
+                                    <SelectTrigger className="bg-slate-950 border-slate-700 text-white">
+                                        <SelectValue placeholder="Seleccionar Fuente..." />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                                        {sourceOptions.length === 0 && <SelectItem value="temp" disabled>No hay fuentes creadas (ir a Configuración)</SelectItem>}
+                                        {sourceOptions.map((s: any) => (
+                                            <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                                        ))}
+                                        {/* If editing and source not in list, show it */}
+                                        {editingId && source && !sourceOptions.find(s => s.name === source) && (
+                                            <SelectItem value={source}>{source} (Archivado)</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div className="flex gap-2 pt-2">
-                                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={isSubmitting}>
+                                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" disabled={isSubmitting}>
                                     {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : (editingId ? 'Actualizar' : 'Guardar')}
                                 </Button>
                                 {editingId && (
-                                    <Button type="button" variant="outline" onClick={resetForm} className="border-slate-700 text-slate-300">
+                                    <Button type="button" variant="outline" onClick={resetForm} className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800">
                                         Cancelar
                                     </Button>
                                 )}
@@ -263,7 +277,14 @@ export function DollarsTab() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {sources.map(s => {
+                                    {allSources.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={months.length + 2} className="text-center text-slate-500 py-8">
+                                                No hay movimientos registrados
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                    {allSources.map(s => {
                                         const totalRow = purchases.filter(p => p.source === s).reduce((sum, p) => sum + p.amount, 0);
                                         return (
                                             <TableRow key={s} className="border-slate-800 hover:bg-slate-800/50">
@@ -284,17 +305,19 @@ export function DollarsTab() {
                                     })}
 
                                     {/* Footer / Totals */}
-                                    <TableRow className="border-t-2 border-slate-700 hover:bg-slate-900 font-bold bg-slate-950/50">
-                                        <TableCell className="text-white">TOTAL</TableCell>
-                                        {months.map(m => (
-                                            <TableCell key={m} className="text-right text-emerald-400">
-                                                {getTotalForMonth(m).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                    {months.length > 0 && (
+                                        <TableRow className="border-t-2 border-slate-700 hover:bg-slate-900 font-bold bg-slate-950/50">
+                                            <TableCell className="text-white">TOTAL</TableCell>
+                                            {months.map(m => (
+                                                <TableCell key={m} className="text-right text-emerald-400">
+                                                    {getTotalForMonth(m).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                                </TableCell>
+                                            ))}
+                                            <TableCell className="text-right text-emerald-400 text-lg">
+                                                {totalUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                             </TableCell>
-                                        ))}
-                                        <TableCell className="text-right text-emerald-400 text-lg">
-                                            {totalUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                                        </TableCell>
-                                    </TableRow>
+                                        </TableRow>
+                                    )}
                                 </TableBody>
                             </Table>
                         </div>
@@ -302,7 +325,7 @@ export function DollarsTab() {
                         {/* Recent Transactions List (Mini) */}
                         <div className="mt-8 border-t border-slate-800 pt-6">
                             <h3 className="text-sm font-medium text-slate-400 mb-4">Últimos Movimientos</h3>
-                            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                                 {purchases.slice(0, 20).map(p => (
                                     <div key={p.id} className="flex items-center justify-between p-3 rounded bg-slate-950/50 border border-slate-800/50 hover:border-slate-700 transition-colors group">
                                         <div className="flex items-center gap-3">

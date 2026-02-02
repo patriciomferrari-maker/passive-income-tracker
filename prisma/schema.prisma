@@ -60,12 +60,24 @@ model User {
   userHoldings UserHolding[]
 
   dollarPurchases DollarPurchase[]
+  dollarSources   DollarSource[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 // ... existing code ...
+
+model DollarSource {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+    
+  createdAt DateTime @default(now())
+    
+  @@unique([userId, name])
+}
 
 model DollarPurchase {
   id        String   @id @default(cuid())
