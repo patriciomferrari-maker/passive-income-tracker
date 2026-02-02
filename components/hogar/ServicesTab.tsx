@@ -63,17 +63,19 @@ export function ServicesTab() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Estado de Servicios</h2>
-                    <p className="text-slate-400">Monitoreo automático de Edenor, Metrogas y ABL</p>
+                    <h2 className="text-2xl font-bold text-white">Estado de Servicios ⚡</h2>
+                    <p className="text-slate-400">Monitoreo automático de Edenor, Metrogas y ABL (v2)</p>
                 </div>
-                <Button
-                    onClick={handleCheck}
-                    disabled={checking}
-                    className="bg-blue-600 hover:bg-blue-700 text-white min-w-[140px]"
-                >
-                    <RefreshCw className={`mr-2 h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
-                    {checking ? 'Verificando...' : 'Verificar Ahora'}
-                </Button>
+                <div className="bg-red-500/20 p-2 rounded border border-red-500">
+                    <Button
+                        onClick={handleCheck}
+                        disabled={checking}
+                        className="bg-green-600 hover:bg-green-700 text-white min-w-[140px]"
+                    >
+                        <RefreshCw className={`mr-2 h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
+                        {checking ? 'Verificando...' : 'Verificar Ahora'}
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
