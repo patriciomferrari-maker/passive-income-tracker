@@ -15,6 +15,7 @@ import { TransactionsTab } from '@/components/barbosa/TransactionsTab';
 import { SettingsTab } from '@/components/barbosa/SettingsTab';
 import { RecurrenceTab } from '@/components/barbosa/RecurrenceTab';
 import { InstallmentsTab } from '@/components/barbosa/InstallmentsTab';
+import { DollarsTab } from '@/components/barbosa/DollarsTab';
 // import { ServicesStatus } from '@/components/hogar/ServicesStatus'; // Removed
 
 export default function BarbosaPage() {
@@ -30,7 +31,7 @@ export default function BarbosaPage() {
     const tabs = [
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'cashflow', label: 'Cashflow' },
-        // { id: 'cleaning', label: 'Limpieza' },
+        { id: 'dollars', label: 'Dólares' },
         { id: 'transactions', label: 'Carga' },
         { id: 'installments', label: 'Cuotas' },
         { id: 'recurrence', label: 'Recurrentes' },
@@ -81,6 +82,7 @@ export default function BarbosaPage() {
                     {activeTab === 'dashboard' && <DashboardTab startDate={startDate} />}
                     {/* {activeTab === 'cleaning' && <CleaningTab />} */}
                     {activeTab === 'cashflow' && <CashflowTab startDate={startDate} />}
+                    {activeTab === 'dollars' && <DollarsTab />}
                     {activeTab === 'transactions' && <TransactionsTab />}
                     {activeTab === 'installments' && <InstallmentsTab startDate={startDate} />}
                     {activeTab === 'recurrence' && <RecurrenceTab />}

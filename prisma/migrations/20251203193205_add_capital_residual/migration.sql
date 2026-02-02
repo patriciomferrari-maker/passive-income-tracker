@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "Cashflow" ADD COLUMN "capitalResidual" REAL;
+ALTER TABLE "Cashflow" ADD COLUMN "capitalResidual" DOUBLE PRECISION;

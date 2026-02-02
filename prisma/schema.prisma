@@ -59,8 +59,31 @@ model User {
   // Global Assets
   userHoldings UserHolding[]
 
+  dollarPurchases DollarPurchase[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ... existing code ...
+
+model DollarPurchase {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  date      DateTime
+  amount    Float    // Amount in USD
+  rate      Float?   // Exchange rate (ARS/USD)
+  amountARS Float?   // Cost in ARS
+  
+  source    String   // Concept/Source (e.g. "Sueldo Pato", "Aguinaldo")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([date])
 }
 
 // =================================================================

@@ -44,8 +44,8 @@ export async function getBrowser() {
         try {
             console.log('[Browser] Resolving chromium executable path...');
             // Configure chromium for Vercel
-            chromium.setHeadlessMode = true;
-            chromium.setGraphicsMode = false;
+            (chromium as any).setHeadlessMode = true;
+            (chromium as any).setGraphicsMode = false;
 
             // Attempt to resolve path
             executablePath = await chromium.executablePath();
@@ -59,11 +59,10 @@ export async function getBrowser() {
 
     try {
         return puppeteer.launch({
-            args: isLocal ? ['--no-sandbox'] : [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
-            defaultViewport: isLocal ? { width: 1280, height: 800 } : chromium.defaultViewport,
+            args: isLocal ? ['--no-sandbox'] : [...(chromium as any).args, '--hide-scrollbars', '--disable-web-security'],
+            defaultViewport: isLocal ? { width: 1280, height: 800 } : (chromium as any).defaultViewport,
             executablePath: executablePath,
-            headless: isLocal ? true : chromium.headless,
-            ignoreHTTPSErrors: true,
+            headless: isLocal ? true : (chromium as any).headless,
         });
     } catch (error: any) {
         console.error('[Browser] Launch failed:', error);
