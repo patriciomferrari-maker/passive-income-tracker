@@ -118,7 +118,12 @@ export function DollarsTab() {
     // --- Stats & Cashflow ---
 
     const totalUSD = purchases.reduce((sum, p) => sum + p.amount, 0);
-    const avgRate = purchases.reduce((sum, p) => sum + (p.rate || 0) * p.amount, 0) / (totalUSD || 1);
+
+    // Calculate average rate only for transactions that have a rate
+    const purchasesWithRate = purchases.filter(p => p.rate && p.rate > 0);
+    const totalUSDWithRate = purchasesWithRate.reduce((sum, p) => sum + p.amount, 0);
+    const weightedSum = purchasesWithRate.reduce((sum, p) => sum + (p.rate || 0) * p.amount, 0);
+    const avgRate = totalUSDWithRate > 0 ? weightedSum / totalUSDWithRate : 0;
 
     // Group by Source and Month
     const months = Array.from(new Set(purchases.map(p => new Date(p.date).toISOString().slice(0, 7)))).sort();
