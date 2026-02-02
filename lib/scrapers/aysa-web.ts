@@ -1,4 +1,4 @@
-import puppeteer from 'puppeteer';
+import { getBrowser } from '../../app/lib/browser-helper';
 
 export interface AysaWebResult {
     status: 'UP_TO_DATE' | 'OVERDUE' | 'UNKNOWN' | 'ERROR';
@@ -12,13 +12,8 @@ export interface AysaWebResult {
 export async function checkAysaWeb(accountNumber: string): Promise<AysaWebResult> {
     console.log(`[AYSA Web] Checking account: ${accountNumber}`);
 
-    // Launch browser (visible for reliability)
-    const browser = await puppeteer.launch({
-        headless: false,
-        executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-        defaultViewport: null,
-        args: ['--start-maximized', '--no-sandbox']
-    });
+    // Launch browser using shared helper
+    const browser = await getBrowser();
 
     try {
         const page = await browser.newPage();
