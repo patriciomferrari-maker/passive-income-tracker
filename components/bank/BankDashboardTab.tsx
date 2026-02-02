@@ -24,13 +24,20 @@ export function BankDashboardTab({ stats, operations, showValues }: BankDashboar
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(val);
     };
 
-    // Pre-process operations to calculate endDate if missing
+    // Pre-process and FILTER operations (Only Active)
     const processedOperations = operations.map(op => {
         let endDate = op.endDate;
         if (!endDate && op.type === 'PLAZO_FIJO' && op.startDate && op.durationDays) {
             endDate = addDays(new Date(op.startDate), op.durationDays).toISOString().split('T')[0];
         }
         return { ...op, endDate };
+    }).filter(op => {
+        // EXCLUDE EXPIRED PLAZO FIXOS
+        if (op.type === 'PLAZO_FIJO' && op.endDate) {
+            const today = new Date().toISOString().split('T')[0];
+            return op.endDate >= today;
+        }
+        return true;
     });
 
     // 1. Calculate Interest for Current Year (PFs ending in current year)
@@ -59,14 +66,14 @@ export function BankDashboardTab({ stats, operations, showValues }: BankDashboar
     // 3. Composition Data with %
     const getCompositionData = () => {
         const data: Record<string, number> = {};
-        operations.filter(op => op.currency === 'USD').forEach(op => {
+        processedOperations.filter(op => op.currency === 'USD').forEach(op => {
             const label = op.alias || op.type.replace(/_/g, ' ');
             data[label] = (data[label] || 0) + op.amount;
         });
         return Object.entries(data).map(([name, value]) => ({ name, value }));
     };
     // Group by Type > Currency for Detail View
-    const groupedOperations = operations.reduce((acc, op) => {
+    const groupedOperations = processedOperations.reduce((acc, op) => {
         const typeRaw = op.type || 'VARIOS';
         // Normalize type label (e.g. PLAZO_FIJO -> Plazo Fijo)
         const typeLabel = typeRaw.replace(/_/g, ' ');
