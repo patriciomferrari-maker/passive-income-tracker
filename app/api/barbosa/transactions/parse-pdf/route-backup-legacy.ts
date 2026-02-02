@@ -104,12 +104,7 @@ export async function POST(req: NextRequest) {
             if (isVoucherValid) {
                 isDuplicate = existingTransactions.some((etx: any) =>
                     etx.comprobante === String(tx.comprobante) &&
-                    (
-                        // Strict check: If Voucher Matches, we also require Amount and Date to match
-                        // This handles cases like Tolls (000001) where voucher is repeated for different events.
-                        Math.abs(etx.amount - tx.amount) < 0.01 &&
-                        new Date(etx.date).toISOString().split('T')[0] === new Date(tx.date).toISOString().split('T')[0]
-                    )
+                    cleanDescription(etx.description).toLowerCase() === cleanTxDesc
                 );
             } else {
                 // FALLBACK: If no voucher, use composite key (Date + Amount + Description)
