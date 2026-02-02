@@ -214,23 +214,19 @@ export async function GET(req: NextRequest) {
         // Finalize Trend Data
         const trend = Object.entries(monthlyData).sort().map(([key, val]) => {
             // "Savings" in the trend chart (yellow line) -> Should this also be Dollar Purchases?
-            // User requested: "Ahorro ultimo mes" and "Promedio ahorro/mes" (KPIs) to come from Dollars.
-            // But what about the Chart?
-            // "Evolución Ingresos y Ahorro" -> The 'Savings' bar usually implies (Income - Expense).
-            // However, seeing "Dollars Bought" plotted against Income/Expense might be useful.
-            // Let's stick to the EXPLICIT request first: KPIs.
-            // But wait, if savings is disconnected from Income-Expense, the "Savings Rate" (yellow line) becomes (DollarsBought / Income).
-            // That is actually a more accurate "Savings Rate" (real savings).
-            // Let's use Dollar Purchases for the savings value in the trend data too, for consistency.
+            // User requested: "The % savings of this graph must come from the 'Cashflow' section".
+            // So:
+            // - Savings Amount (for KPI): Dollar Purchases (Manual)
+            // - Savings Rate (for Chart): Cashflow Gap (Income - Expense)
 
-            // Previous Logic: const savings = val.income - val.expense;
-            // New Logic:
-            const savingsUSD = val.dollarPurchasesUSD; // Use manual dollar purchases
-            const savings = val.dollarPurchasesUSD * 1150; // Approx ARS for graph consistency if needed, but we rely on USD mostly.
-            // Note: If we use dollarPurchases for 'savings', we retain (Income - Expense) as 'surplus' maybe?
-            // Let's adhere to the request: "Ahorro ... salgan de la seccion dolares".
+            const savingsUSD = val.dollarPurchasesUSD; // Use manual dollar purchases for KPI Amount
+            const savings = val.dollarPurchasesUSD * 1150;
 
             const expenseOtherUSD = val.expenseUSD - val.expenseCostaUSD;
+
+            // Cashflow-based Rate
+            const cashflowSavingsUSD = val.incomeUSD - val.expenseUSD;
+            const cashflowSavingsRate = val.incomeUSD > 0 ? (cashflowSavingsUSD / val.incomeUSD) * 100 : 0;
 
             return {
                 period: key,
@@ -244,8 +240,8 @@ export async function GET(req: NextRequest) {
                 expenseOtherUSD: expenseOtherUSD,
                 savings: savings,
                 savingsUSD: savingsUSD,
-                // Savings Rate = Dollar Purchases / Total Income
-                savingsRate: val.incomeUSD > 0 ? (savingsUSD / val.incomeUSD) * 100 : 0
+                // Savings Rate = Cashflow Gap / Total Income
+                savingsRate: cashflowSavingsRate
             };
         });
 
