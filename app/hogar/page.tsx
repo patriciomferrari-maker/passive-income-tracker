@@ -15,7 +15,7 @@ import { TransactionsTab } from '@/components/barbosa/TransactionsTab';
 import { SettingsTab } from '@/components/barbosa/SettingsTab';
 import { RecurrenceTab } from '@/components/barbosa/RecurrenceTab';
 import { InstallmentsTab } from '@/components/barbosa/InstallmentsTab';
-import { ServicesTab } from '@/components/hogar/ServicesTab';
+import { ServicesStatus } from '@/components/hogar/ServicesStatus';
 
 export default function BarbosaPage() {
     const { data: session } = useSession();
@@ -84,7 +84,7 @@ export default function BarbosaPage() {
                     {activeTab === 'transactions' && <TransactionsTab />}
                     {activeTab === 'installments' && <InstallmentsTab startDate={startDate} />}
                     {activeTab === 'recurrence' && <RecurrenceTab />}
-                    {activeTab === 'services' && <ServicesTab />}
+                    {activeTab === 'services' && <ServicesStatus />}
                     {activeTab === 'settings' && <SettingsTab />}
                 </div>
             </div>

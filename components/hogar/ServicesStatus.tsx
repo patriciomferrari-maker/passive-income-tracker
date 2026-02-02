@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Zap, Flame, Building, AlertCircle, CheckCircle } from 'lucide-react';
 
-// Force deployment: 2026-02-01
-export function ServicesTab() {
+// Renamed to force cache bust
+export function ServicesStatus() {
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [checking, setChecking] = useState(false);
