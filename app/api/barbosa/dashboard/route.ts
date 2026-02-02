@@ -271,7 +271,9 @@ export async function GET(req: NextRequest) {
         const lastMonthSavingsRate = lastMonth ? lastMonth.savingsRate : 0;
 
         // Average Monthly Savings (USD)
-        const avgSavingsUSD = totalSavingsUSD12M / 12; // Simple 12m avg
+        // User requested: "average based on loaded months" (months > 0)
+        const activeMonthsWithSavings = trend.filter(t => t.savingsUSD > 0).length;
+        const avgSavingsUSD = activeMonthsWithSavings > 0 ? totalSavingsUSD12M / activeMonthsWithSavings : 0;
 
         // 3. Category Distribution (Top 5 - Last Month Only)
         const categoryDist = Object.entries(lastMonthExpenses)
