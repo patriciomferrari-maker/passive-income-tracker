@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calculator } from 'lucide-react';
+import { Calculator, Calendar as CalendarIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { addDays, format } from 'date-fns';
 
 interface BankOperationFormProps {
     onSaved: () => void;
@@ -178,6 +179,19 @@ export function BankOperationForm({ onSaved, initialData, className }: BankOpera
                                 onChange={(e) => setDurationDays(e.target.value)}
                                 className="bg-slate-800 border-slate-700 text-white"
                             />
+                            {startDate && durationDays && (
+                                <div className="text-right text-[10px] text-blue-400 mt-1 font-mono">
+                                    Vence: {(() => {
+                                        try {
+                                            const [y, m, d] = startDate.split('-').map(Number);
+                                            // Create date at noon to avoid timezone overlaps
+                                            const start = new Date(y, m - 1, d, 12, 0, 0);
+                                            const end = addDays(start, parseInt(durationDays));
+                                            return format(end, 'dd/MM/yyyy');
+                                        } catch { return '-'; }
+                                    })()}
+                                </div>
+                            )}
                         </div>
                     </div>
                     <div className="space-y-2">

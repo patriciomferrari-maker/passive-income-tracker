@@ -167,7 +167,10 @@ export function BankDashboardTab({ stats, operations, showValues }: BankDashboar
                                     return (
                                         <div key={idx} className="flex justify-between items-center text-sm border-b border-slate-800 last:border-0 pb-2 last:pb-0">
                                             <div>
-                                                <div className="text-white font-medium">{format(new Date(op.endDate!), 'dd/MM/yyyy')}</div>
+                                                <div className="text-white font-medium">{(() => {
+                                                    const [y, m, d] = new Date(op.endDate!).toISOString().split('T')[0].split('-').map(Number);
+                                                    return format(new Date(y, m - 1, d, 12, 0, 0), 'dd/MM/yyyy');
+                                                })()}</div>
                                                 <div className={`font-bold mt-1 text-lg ${daysLeft <= 7 ? 'text-red-400' : 'text-blue-400'}`}>
                                                     {daysLeft <= 0 ? 'HOY' : `${daysLeft} días`}
                                                 </div>
@@ -281,7 +284,10 @@ export function BankDashboardTab({ stats, operations, showValues }: BankDashboar
                                                     <span className="text-slate-300 font-medium">{item.alias || item.bank || 'Sin nombre'}</span>
                                                     {item.endDate && (
                                                         <span className="text-[10px] text-slate-500">
-                                                            Vence: {format(new Date(item.endDate), 'dd/MM/yyyy')}
+                                                            Vence: {(() => {
+                                                                const [y, m, d] = new Date(item.endDate).toISOString().split('T')[0].split('-').map(Number);
+                                                                return format(new Date(y, m - 1, d, 12, 0, 0), 'dd/MM/yyyy');
+                                                            })()}
                                                         </span>
                                                     )}
                                                 </div>
