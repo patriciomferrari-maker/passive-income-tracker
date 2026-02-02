@@ -43,10 +43,16 @@ export async function getBrowser() {
         // Production (Vercel / Lambda)
         try {
             console.log('[Browser] Resolving chromium executable path...');
+            // Configure chromium for Vercel
+            chromium.setHeadlessMode = true;
+            chromium.setGraphicsMode = false;
+
+            // Attempt to resolve path
             executablePath = await chromium.executablePath();
-            console.log(`[Browser] Chromium path: ${executablePath}`);
+            console.log(`[Browser] Chromium path resolved to: ${executablePath}`);
         } catch (e: any) {
             console.error('Failed to get chromium executable path:', e);
+            // Fallback attempt? No, usually fatal if this fails.
             throw new Error(`Failed to load chromium: ${e.message}`);
         }
     }
