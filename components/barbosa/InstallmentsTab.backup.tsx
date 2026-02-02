@@ -147,8 +147,7 @@ export function InstallmentsTab({ startDate }: InstallmentsTabProps) {
                 case 'progress': aVal = a.progress; bVal = b.progress; break;
                 case 'total': aVal = a.totalAmount; bVal = b.totalAmount; break;
                 case 'restante': aVal = (a.totalAmount - a.paidAmount); bVal = (b.totalAmount - b.paidAmount); break;
-                case 'start': aVal = a.startDate || ''; bVal = b.startDate || ''; break;
-                case 'end': aVal = a.endDate || ''; bVal = b.endDate || ''; break;
+                case 'venc': aVal = a.nextDueDate || '9999'; bVal = b.nextDueDate || '9999'; break;
                 case 'status': aVal = a.isFinished ? 1 : 0; bVal = b.isFinished ? 1 : 0; break;
                 default: return 0;
             }
@@ -236,20 +235,17 @@ export function InstallmentsTab({ startDate }: InstallmentsTabProps) {
                                 <TableHead onClick={() => requestSort('category')} className="text-slate-400 font-bold cursor-pointer hover:text-white transition-colors">
                                     Categoría {sortConfig?.field === 'category' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                 </TableHead>
-                                <TableHead onClick={() => requestSort('start')} className="text-slate-400 font-bold text-center cursor-pointer hover:text-white transition-colors">
-                                    Inicio {sortConfig?.field === 'start' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                                </TableHead>
-                                <TableHead onClick={() => requestSort('end')} className="text-slate-400 font-bold text-center cursor-pointer hover:text-white transition-colors">
-                                    Fin {sortConfig?.field === 'end' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                                </TableHead>
                                 <TableHead onClick={() => requestSort('progress')} className="text-slate-400 font-bold text-center cursor-pointer hover:text-white transition-colors">
                                     Progreso {sortConfig?.field === 'progress' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                 </TableHead>
                                 <TableHead onClick={() => requestSort('total')} className="text-slate-400 font-bold text-right cursor-pointer hover:text-white transition-colors">
-                                    Total {sortConfig?.field === 'total' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    Monto Total {sortConfig?.field === 'total' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                 </TableHead>
                                 <TableHead onClick={() => requestSort('restante')} className="text-slate-400 font-bold text-right cursor-pointer hover:text-white transition-colors">
                                     Restante {sortConfig?.field === 'restante' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </TableHead>
+                                <TableHead onClick={() => requestSort('venc')} className="text-slate-400 font-bold text-center cursor-pointer hover:text-white transition-colors">
+                                    Próx. Venc. {sortConfig?.field === 'venc' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                 </TableHead>
                                 <TableHead onClick={() => requestSort('status')} className="text-slate-400 font-bold text-center cursor-pointer hover:text-white transition-colors">
                                     Estado {sortConfig?.field === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
@@ -260,7 +256,7 @@ export function InstallmentsTab({ startDate }: InstallmentsTabProps) {
                         <TableBody>
                             {filteredPlans.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={9} className="text-center py-8 text-slate-500">
+                                    <TableCell colSpan={8} className="text-center py-8 text-slate-500">
                                         No hay planes para mostrar
                                     </TableCell>
                                 </TableRow>
@@ -290,12 +286,6 @@ export function InstallmentsTab({ startDate }: InstallmentsTabProps) {
                                                 )}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-center text-xs text-slate-400">
-                                            {plan.startDate ? format(new Date(plan.startDate), 'dd/MM/yy') : '-'}
-                                        </TableCell>
-                                        <TableCell className="text-center text-xs text-slate-400">
-                                            {plan.endDate ? format(new Date(plan.endDate), 'dd/MM/yy') : '-'}
-                                        </TableCell>
                                         <TableCell className="text-center">
                                             <div className="flex flex-col items-center gap-1 w-[120px] mx-auto">
                                                 <span className="text-xs text-slate-400">
@@ -313,6 +303,9 @@ export function InstallmentsTab({ startDate }: InstallmentsTabProps) {
                                         </TableCell>
                                         <TableCell className="text-right font-mono font-bold text-red-400">
                                             {plan.isFinished ? '-' : formatCurrency(Math.max(0, plan.totalAmount - Math.abs(plan.paidAmount)), plan.currency)}
+                                        </TableCell>
+                                        <TableCell className="text-center text-slate-400 text-xs">
+                                            {plan.nextDueDate && !plan.isFinished ? format(new Date(plan.nextDueDate), 'dd/MM/yy') : '-'}
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {plan.isFinished ? (

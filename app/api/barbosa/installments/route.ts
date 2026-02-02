@@ -32,53 +32,63 @@ export async function GET(req: NextRequest) {
 
         // Computed fields for UI
         const enhancedPlans = plans.map(p => {
-            const paidTx = p.transactions.filter(t => t.status === 'REAL');
-
-            // Logic to find Max Quota based on DATE (vs Plan Start)
-            // This is more robust than description parsing which might be clean.
-            let maxQuota = 0;
             const planStart = new Date(p.startDate);
+            const now = new Date(); // Use server time, which is usually correct for this relative check
 
-            paidTx.forEach(t => {
-                const tDate = new Date(t.date);
-                const yearDiff = tDate.getFullYear() - planStart.getFullYear();
-                const monthDiff = tDate.getMonth() - planStart.getMonth();
-                // Rounding effectively handles minor day shifts (e.g. 15th vs 1st if logic was loose)
-                // But since we aligned StartDate on creation, this should be accurate.
-                const quotaIndex = (yearDiff * 12) + monthDiff + 1;
+            // Calculate Elapsed Months (Time-based progress)
+            // Example: Start Sep 15. Now Oct 16. Diff = 1 month + 1 day > 1. Total 2.
+            let monthsDiff = (now.getFullYear() - planStart.getFullYear()) * 12 + (now.getMonth() - planStart.getMonth());
+            if (now.getDate() >= planStart.getDate()) {
+                monthsDiff += 1;
+            }
+            // Clamp between 0 and Total Count
+            const timeBasedProgress = Math.max(0, Math.min(monthsDiff, p.installmentsCount));
 
-                if (quotaIndex > maxQuota) maxQuota = quotaIndex;
-            });
-
-            // If we found a higher quota index than the count (meaning gaps/history missing), use that.
-            // Ensure we don't return 0 if there are transactions (min 1)
-            if (maxQuota === 0 && paidTx.length > 0) maxQuota = paidTx.length;
-
-            const paidCount = maxQuota;
+            // Paid Amount Real (Confirmed payments)
+            const paidTx = p.transactions.filter(t => t.status === 'REAL');
             const paidAmountReal = paidTx.reduce((sum, t) => sum + t.amount, 0);
 
-            // Calculate Remaining Amount based on PROJECTED transactions (More accurate for future debt)
-            const projectedTx = p.transactions.filter(t => t.status === 'PROJECTED');
-            const remainingAmount = projectedTx.reduce((sum, t) => sum + t.amount, 0);
-
-            // For UI "Total - Paid", we use remaining amount logic.
-            const paidAmountForUI = p.totalAmount - remainingAmount;
-
-            const progress = (paidCount / p.installmentsCount) * 100;
-
-            const now = new Date();
+            // Remaining Amount: Sum of FUTURE Projected transactions
+            // We consider "Restante" as what is yet to become due.
+            // Past projected is considered "Matured" (de facto debt/paid).
             const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            // Relaxed filter: Projected items that are strictly in future or current month?
+            // "Restante" usually means "Outstanding Balance". 
+            // If I have a projected installment for Today, is it "Restante"? Yes.
+            // If I have one for Last Month, is it "Restante"? No, it's Overdue or Paid (not future).
+            // Let's rely on Time Progress for consistent math:
+            // Remaining = Total * (1 - Progress/Count) is cleaner but assumes equal installments.
+            // Summing projected is safer if amounts vary.
+            const futureProjectedTx = p.transactions.filter(t =>
+                t.status === 'PROJECTED' && new Date(t.date) > now
+            );
+            // Fallback: If no projected txs exist (legacy?), prorate.
+            // But usually they exist. If list empty, assume 0.
+            let remainingAmount = futureProjectedTx.reduce((sum, t) => sum + t.amount, 0);
+
+            // Backup calculation if transactions missing
+            if (p.transactions.length === 0 && remainingAmount === 0 && timeBasedProgress < p.installmentsCount) {
+                remainingAmount = (p.totalAmount / p.installmentsCount) * (p.installmentsCount - timeBasedProgress);
+            }
+
+            const paidAmountForUI = p.totalAmount - remainingAmount;
+            const progress = (timeBasedProgress / p.installmentsCount) * 100;
+
             const nextDue = p.transactions.find(t => t.status === 'PROJECTED' && new Date(t.date) >= startOfCurrentMonth);
+
+            // Calculate End Date
+            const endDate = new Date(planStart);
+            endDate.setMonth(endDate.getMonth() + (p.installmentsCount - 1));
 
             return {
                 ...p,
                 paidAmount: paidAmountForUI,
                 paidAmountReal: paidAmountReal,
-                paidCount,
+                paidCount: timeBasedProgress, // Now reflects Time Progress
                 progress,
                 nextDueDate: nextDue ? nextDue.date : null,
-                isFinished: paidCount >= p.installmentsCount,
-                // These are common to all transactions in the plan
+                endDate: endDate.toISOString(), // New Field
+                isFinished: timeBasedProgress >= p.installmentsCount,
                 isStatistical: p.transactions[0]?.isStatistical || false,
                 comprobante: p.transactions[0]?.comprobante || null
             };
