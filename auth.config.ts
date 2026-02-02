@@ -36,4 +36,9 @@ export const authConfig = {
     },
     providers: [], // Add providers with an empty array for now
     trustHost: true,
+    session: {
+        strategy: 'jwt',
+        maxAge: 3600, // 1 Hour
+        updateAge: 300, // Update session every 5 minutes if active
+    }
 } satisfies NextAuthConfig;
