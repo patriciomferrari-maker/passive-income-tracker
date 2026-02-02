@@ -271,19 +271,19 @@ export function DollarsTab() {
                         <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="border-slate-800 hover:bg-slate-900 border-b border-slate-700/50">
-                                        <TableHead className="text-slate-300 font-bold uppercase text-xs tracking-wider">Origen</TableHead>
+                                    <TableRow className="bg-slate-950 hover:bg-slate-950 border-b border-slate-700">
+                                        <TableHead className="text-white font-extrabold uppercase text-xs tracking-wider">Origen</TableHead>
                                         {months.map(m => {
                                             const d = new Date(m + '-02T00:00:00');
                                             const monthName = format(d, 'MMM yy', { locale: es });
                                             const capped = monthName.charAt(0).toUpperCase() + monthName.slice(1);
                                             return (
-                                                <TableHead key={m} className="text-right text-slate-300 whitespace-nowrap">
+                                                <TableHead key={m} className="text-right text-white font-bold whitespace-nowrap">
                                                     {capped}
                                                 </TableHead>
                                             );
                                         })}
-                                        <TableHead className="text-right text-emerald-400 font-bold text-lg">Total</TableHead>
+                                        <TableHead className="text-right text-white font-extrabold text-lg">Total</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -297,18 +297,18 @@ export function DollarsTab() {
                                     {allSources.map(s => {
                                         const totalRow = purchases.filter(p => p.source === s).reduce((sum, p) => sum + p.amount, 0);
                                         return (
-                                            <TableRow key={s} className="border-slate-800 hover:bg-slate-800/40 transition-colors even:bg-slate-900/30">
-                                                <TableCell className="font-medium text-emerald-100">{s}</TableCell>
+                                            <TableRow key={s} className="border-slate-800 hover:bg-slate-800/50">
+                                                <TableCell className="font-medium text-slate-200">{s}</TableCell>
                                                 {months.map(m => {
                                                     const val = getAmountForSourceAndMonth(s, m);
                                                     return (
-                                                        <TableCell key={m} className={`text-right ${val === 0 ? 'text-slate-700' : 'text-slate-300 font-medium'}`}>
-                                                            {val > 0 ? `$${val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '-'}
+                                                        <TableCell key={m} className="text-right text-slate-400">
+                                                            {val > 0 ? val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-'}
                                                         </TableCell>
                                                     );
                                                 })}
                                                 <TableCell className="text-right font-bold text-emerald-400">
-                                                    {totalRow > 0 ? `$${totalRow.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '-'}
+                                                    {totalRow.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -316,18 +316,18 @@ export function DollarsTab() {
 
                                     {/* Footer / Totals */}
                                     {months.length > 0 && (
-                                        <TableRow className="border-t-4 border-slate-700 hover:bg-slate-800/80 font-bold bg-slate-800/60">
+                                        <TableRow className="border-t-2 border-slate-700 hover:bg-slate-900 font-bold bg-slate-950/50">
                                             <TableCell className="text-white text-lg">TOTAL</TableCell>
                                             {months.map(m => {
                                                 const val = getTotalForMonth(m);
                                                 return (
                                                     <TableCell key={m} className="text-right text-emerald-400">
-                                                        {val > 0 ? `$${val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '-'}
+                                                        {val > 0 ? val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-'}
                                                     </TableCell>
                                                 );
                                             })}
-                                            <TableCell className="text-right text-emerald-400 text-xl font-black">
-                                                ${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                            <TableCell className="text-right text-emerald-400 text-lg">
+                                                {totalUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                             </TableCell>
                                         </TableRow>
                                     )}
