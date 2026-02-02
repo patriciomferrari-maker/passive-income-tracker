@@ -129,16 +129,20 @@ export function DashboardTab({ startDate }: DashboardTabProps) {
                         <p className="text-xs text-slate-500 mt-1">Acumulado últimos 12 meses</p>
                     </CardContent>
                 </Card>
-                <Card className="bg-slate-950 border-slate-900 shadow-lg">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-slate-400">Promedio Ahorro/Mes</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-blue-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-white">US${Math.round(kpis.avgSavingsUSD).toLocaleString()}</div>
-                        <p className="text-xs text-slate-500 mt-1">Estimado mensual</p>
-                    </CardContent>
-                </Card>
+                {/* Hide if 0 */}
+                {kpis.avgSavingsUSD > 0 && (
+                    <Card className="bg-slate-950 border-slate-900 shadow-lg">
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium text-slate-400">Promedio Ahorro/Mes</CardTitle>
+                            <TrendingUp className="h-4 w-4 text-blue-500" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-white">US${Math.round(kpis.avgSavingsUSD).toLocaleString()}</div>
+                            <p className="text-xs text-slate-500 mt-1">Estimado mensual (Dólares)</p>
+                        </CardContent>
+                    </Card>
+                )}
+
                 <Card className="bg-slate-950 border-slate-900 shadow-lg">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium text-slate-400">Tasa de Ahorro (Mes)</CardTitle>
@@ -151,16 +155,20 @@ export function DashboardTab({ startDate }: DashboardTabProps) {
                         <p className="text-xs text-slate-500 mt-1">Del ingreso del último mes</p>
                     </CardContent>
                 </Card>
-                <Card className="bg-slate-950 border-slate-900 shadow-lg">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-slate-400">Ahorro Último Mes</CardTitle>
-                        <Wallet className="h-4 w-4 text-indigo-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-white">US${Math.round(kpis.lastMonthSavingsUSD).toLocaleString()}</div>
-                        <p className="text-xs text-slate-500 mt-1">Cierre del periodo actual</p>
-                    </CardContent>
-                </Card>
+
+                {/* Hide if 0 */}
+                {kpis.lastMonthSavingsUSD > 0 && (
+                    <Card className="bg-slate-950 border-slate-900 shadow-lg">
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium text-slate-400">Ahorro Último Mes</CardTitle>
+                            <Wallet className="h-4 w-4 text-indigo-500" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-white">US${Math.round(kpis.lastMonthSavingsUSD).toLocaleString()}</div>
+                            <p className="text-xs text-slate-500 mt-1">Cierre del periodo actual</p>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             {/* Main Section: Trend + Distribution */}

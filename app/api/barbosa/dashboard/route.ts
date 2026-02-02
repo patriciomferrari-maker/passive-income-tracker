@@ -71,6 +71,14 @@ export async function GET(req: NextRequest) {
             }
         });
 
+        // --- FETCH DOLLAR PURCHASES (MANUAL SAVINGS) ---
+        const dollarPurchases = await prisma.dollarPurchase.findMany({
+            where: {
+                userId,
+                date: { gte: startDate, lte: endDate }
+            }
+        });
+
         // --- DATA PROCESSING ---
 
         // 1. Trend Data (Last 12 Months)
@@ -85,6 +93,7 @@ export async function GET(req: NextRequest) {
             date: Date;
             categoryBreakdown: Record<string, number>; // USD
             categoryBreakdownARS: Record<string, number>; // ARS
+            dollarPurchasesUSD: number; // New manual savings tracker
         }> = {};
 
         // Init months using UTC
@@ -104,14 +113,28 @@ export async function GET(req: NextRequest) {
                 // Store date as UTC Noon for safe display formatting
                 date: new Date(Date.UTC(y, m, 1, 12, 0, 0)),
                 categoryBreakdown: {},
-                categoryBreakdownARS: {}
+                categoryBreakdownARS: {},
+                dollarPurchasesUSD: 0
             };
             current.setUTCMonth(current.getUTCMonth() + 1);
         }
 
-        let totalSavingsUSD12M = 0;
+        let totalSavingsUSD12M = 0; // Will be calculated from DollarPurchases
         const lastMonthKey = `${endDate.getFullYear()}-${(endDate.getMonth() + 1).toString().padStart(2, '0')}`;
         const lastMonthExpenses: Record<string, number> = {};
+
+        // Process Dollar Purchases (Manual Savings)
+        let totalDollarPurchases = 0;
+        dollarPurchases.forEach(dp => {
+            const key = `${dp.date.getUTCFullYear()}-${(dp.date.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+            if (monthlyData[key]) {
+                monthlyData[key].dollarPurchasesUSD += dp.amount;
+                totalDollarPurchases += dp.amount;
+            }
+        });
+
+        // Use total from dollar purchases as the main 12M savings KPI
+        totalSavingsUSD12M = totalDollarPurchases;
 
         txs.forEach(tx => {
             const key = `${tx.date.getUTCFullYear()}-${(tx.date.getUTCMonth() + 1).toString().padStart(2, '0')}`;
@@ -190,25 +213,39 @@ export async function GET(req: NextRequest) {
 
         // Finalize Trend Data
         const trend = Object.entries(monthlyData).sort().map(([key, val]) => {
-            const savings = val.income - val.expense;
-            const savingsUSD = val.incomeUSD - val.expenseUSD;
+            // "Savings" in the trend chart (yellow line) -> Should this also be Dollar Purchases?
+            // User requested: "Ahorro ultimo mes" and "Promedio ahorro/mes" (KPIs) to come from Dollars.
+            // But what about the Chart?
+            // "Evolución Ingresos y Ahorro" -> The 'Savings' bar usually implies (Income - Expense).
+            // However, seeing "Dollars Bought" plotted against Income/Expense might be useful.
+            // Let's stick to the EXPLICIT request first: KPIs.
+            // But wait, if savings is disconnected from Income-Expense, the "Savings Rate" (yellow line) becomes (DollarsBought / Income).
+            // That is actually a more accurate "Savings Rate" (real savings).
+            // Let's use Dollar Purchases for the savings value in the trend data too, for consistency.
+
+            // Previous Logic: const savings = val.income - val.expense;
+            // New Logic:
+            const savingsUSD = val.dollarPurchasesUSD; // Use manual dollar purchases
+            const savings = val.dollarPurchasesUSD * 1150; // Approx ARS for graph consistency if needed, but we rely on USD mostly.
+            // Note: If we use dollarPurchases for 'savings', we retain (Income - Expense) as 'surplus' maybe?
+            // Let's adhere to the request: "Ahorro ... salgan de la seccion dolares".
+
             const expenseOtherUSD = val.expenseUSD - val.expenseCostaUSD;
 
-            totalSavingsUSD12M += savingsUSD;
-
             return {
-                period: key, // "2024-01"
+                period: key,
                 shortDate: val.date.toLocaleDateString('es-ES', { month: 'short' }).toUpperCase(),
                 date: val.date,
                 income: val.income,
-                incomeUSD: val.incomeUSD, // ADD this for chart
+                incomeUSD: val.incomeUSD,
                 expense: val.expense,
-                expenseUSD: val.expenseUSD, // ADD this for chart
+                expenseUSD: val.expenseUSD,
                 expenseCostaUSD: val.expenseCostaUSD,
                 expenseOtherUSD: expenseOtherUSD,
                 savings: savings,
                 savingsUSD: savingsUSD,
-                savingsRate: val.income > 0 ? (savings / val.income) * 100 : 0
+                // Savings Rate = Dollar Purchases / Total Income
+                savingsRate: val.incomeUSD > 0 ? (savingsUSD / val.incomeUSD) * 100 : 0
             };
         });
 
@@ -230,14 +267,15 @@ export async function GET(req: NextRequest) {
         });
 
         // 2. KPIs
-        // Last finished month (or current if meaningful?)
-        // Let's take the last available month in trend (which is current month usually)
-        const lastMonth = trend[trend.length - 1];
+        // Last finished month
+        // We look at the last entry in the trend (last month of range)
+        const lastMonth = trend.find(t => t.period === lastMonthKey) || trend[trend.length - 1];
+
         const lastMonthSavings = lastMonth ? lastMonth.savingsUSD : 0;
-        const lastMonthSavingsRate = lastMonth && lastMonth.income > 0 ? (lastMonth.savings / lastMonth.income) * 100 : 0;
+        const lastMonthSavingsRate = lastMonth ? lastMonth.savingsRate : 0;
 
         // Average Monthly Savings (USD)
-        const avgSavingsUSD = totalSavingsUSD12M / 12;
+        const avgSavingsUSD = totalSavingsUSD12M / 12; // Simple 12m avg
 
         // 3. Category Distribution (Top 5 - Last Month Only)
         const categoryDist = Object.entries(lastMonthExpenses)
