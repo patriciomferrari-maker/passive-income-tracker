@@ -15,7 +15,7 @@ import { TransactionsTab } from '@/components/barbosa/TransactionsTab';
 import { SettingsTab } from '@/components/barbosa/SettingsTab';
 import { RecurrenceTab } from '@/components/barbosa/RecurrenceTab';
 import { InstallmentsTab } from '@/components/barbosa/InstallmentsTab';
-import { ServicesStatus } from '@/components/hogar/ServicesStatus';
+// import { ServicesStatus } from '@/components/hogar/ServicesStatus'; // Removed
 
 export default function BarbosaPage() {
     const { data: session } = useSession();
@@ -34,7 +34,7 @@ export default function BarbosaPage() {
         { id: 'transactions', label: 'Carga' },
         { id: 'installments', label: 'Cuotas' },
         { id: 'recurrence', label: 'Recurrentes' },
-        { id: 'services', label: 'Servicios' },
+        // { id: 'services', label: 'Servicios' }, // Relocated to Alquileres
         { id: 'settings', label: 'Configuración' }
     ];
 
@@ -84,7 +84,6 @@ export default function BarbosaPage() {
                     {activeTab === 'transactions' && <TransactionsTab />}
                     {activeTab === 'installments' && <InstallmentsTab startDate={startDate} />}
                     {activeTab === 'recurrence' && <RecurrenceTab />}
-                    {activeTab === 'services' && <ServicesStatus />}
                     {activeTab === 'settings' && <SettingsTab />}
                 </div>
             </div>

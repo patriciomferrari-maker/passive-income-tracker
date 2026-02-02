@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Zap, Flame, Building2, ExternalLink, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Zap, Flame, Building2, ExternalLink, AlertCircle, CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-react';
 
 interface Property {
     id: string;
@@ -43,6 +43,7 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
     const [properties, setProperties] = useState<Property[]>([]);
     const [utilities, setUtilities] = useState<Record<string, PropertyUtilities>>({});
     const [loading, setLoading] = useState(true);
+    const [checking, setChecking] = useState(false);
 
     useEffect(() => {
         fetchProperties();
@@ -83,6 +84,23 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
             }));
         } catch (error) {
             console.error(`Error fetching utilities for property ${propertyId}:`, error);
+        }
+    };
+
+    const handleCheck = async () => {
+        setChecking(true);
+        try {
+            // Reusing the global check endpoint
+            await fetch('/api/hogar/utilities/check', { method: 'POST' });
+
+            // Refresh data for all properties
+            for (const property of properties) {
+                await fetchUtilities(property.id);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setChecking(false);
         }
     };
 
@@ -156,6 +174,16 @@ export function UtilitiesTab({ showValues }: { showValues: boolean }) {
                     <p className="text-slate-400 text-sm mt-1">
                         Monitoreo automático de Gas, Electricidad y ABL
                     </p>
+                </div>
+                <div className="bg-emerald-500/10 p-1.5 rounded-lg border border-emerald-500/20">
+                    <Button
+                        onClick={handleCheck}
+                        disabled={checking}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px] shadow-sm"
+                    >
+                        <RefreshCw className={`mr-2 h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
+                        {checking ? 'Verificando...' : 'Verificar Ahora'}
+                    </Button>
                 </div>
             </div>
 
