@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { Trash2, Pencil } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { useState } from 'react';
@@ -46,6 +47,7 @@ export function BankOperationsTab({ operations, onRefresh, showValues }: BankOpe
                         <TableHeader className="bg-slate-950">
                             <TableRow className="hover:bg-transparent border-slate-800">
                                 <TableHead className="text-slate-400">Tipo / Alias</TableHead>
+                                <TableHead className="text-slate-400">Estado</TableHead>
                                 <TableHead className="text-slate-400">Fecha Concertación</TableHead>
                                 <TableHead className="text-slate-400">Vencimiento</TableHead>
                                 <TableHead className="text-slate-400 text-center">Plazo</TableHead>
@@ -62,11 +64,26 @@ export function BankOperationsTab({ operations, onRefresh, showValues }: BankOpe
                                     ? op.amount * (op.tna / 100) * (op.durationDays / 365)
                                     : 0;
 
-                                // Calculate End Date if missing
-                                let endDate = op.endDate ? new Date(op.endDate) : null;
-                                if (!endDate && isPF && op.startDate && op.durationDays) {
-                                    endDate = addDays(new Date(op.startDate), op.durationDays);
+                                // Date Helpers
+                                const toNoonDate = (isoStr: string) => {
+                                    if (!isoStr) return null;
+                                    const [y, m, d] = isoStr.split('T')[0].split('-').map(Number);
+                                    return new Date(y, m - 1, d, 12, 0, 0);
+                                };
+
+                                const startDateObj = toNoonDate(op.startDate);
+
+                                // Calculate End Date
+                                let endDateObj: Date | null = op.endDate ? toNoonDate(op.endDate) : null;
+                                if (!endDateObj && isPF && startDateObj && op.durationDays) {
+                                    endDateObj = addDays(startDateObj, op.durationDays);
                                 }
+
+                                // Status Logic
+                                const todayStr = new Date().toISOString().split('T')[0];
+                                const endDateStr = endDateObj ? endDateObj.toISOString().split('T')[0] : '';
+                                const isExpired = endDateStr && endDateStr < todayStr;
+                                const status = isPF ? (isExpired ? 'CERRADO' : 'ABIERTA') : '-';
 
                                 return (
                                     <TableRow key={op.id} className="border-slate-800 hover:bg-slate-800/50">
@@ -77,11 +94,18 @@ export function BankOperationsTab({ operations, onRefresh, showValues }: BankOpe
                                                 </span>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-slate-300">
-                                            {op.startDate ? format(new Date(op.startDate), 'dd/MM/yyyy') : '-'}
+                                        <TableCell>
+                                            {isPF ? (
+                                                <Badge variant={isExpired ? "secondary" : "default"} className={isExpired ? "bg-slate-700 text-slate-400 hover:bg-slate-700" : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/50"}>
+                                                    {status}
+                                                </Badge>
+                                            ) : '-'}
                                         </TableCell>
                                         <TableCell className="text-slate-300">
-                                            {isPF && endDate ? format(endDate, 'dd/MM/yyyy') : '-'}
+                                            {startDateObj ? format(startDateObj, 'dd/MM/yyyy') : '-'}
+                                        </TableCell>
+                                        <TableCell className="text-slate-300">
+                                            {isPF && endDateObj ? format(endDateObj, 'dd/MM/yyyy') : '-'}
                                         </TableCell>
                                         <TableCell className="text-center text-slate-300">
                                             {isPF ? `${op.durationDays} días` : '-'}
