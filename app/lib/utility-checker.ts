@@ -80,7 +80,6 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                         data: {
                             propertyId: property.id,
                             serviceType: 'GAS',
-                            accountNumber: property.gasId,
                             status: result.status,
                             debtAmount: result.debtAmount,
                             lastBillAmount: result.lastBillAmount,
@@ -125,7 +124,6 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                         data: {
                             propertyId: property.id,
                             serviceType: 'ELECTRICITY',
-                            accountNumber: property.electricityId,
                             status: result.status,
                             debtAmount: result.debtAmount,
                             lastBillAmount: result.lastBillAmount,
@@ -174,7 +172,6 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                         data: {
                             propertyId: property.id,
                             serviceType: 'ABL',
-                            accountNumber: property.municipalId,
                             status: result.status,
                             debtAmount: result.debtAmount,
                             lastBillAmount: result.lastBillAmount,
@@ -224,7 +221,6 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                         data: {
                             propertyId: property.id,
                             serviceType: 'MUNICIPAL_GARAGE',
-                            accountNumber: property.garageMunicipalId,
                             status: result.status,
                             debtAmount: result.debtAmount,
                             lastBillAmount: result.lastBillAmount,
@@ -268,7 +264,6 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                         data: {
                             propertyId: property.id,
                             serviceType: 'AYSA',
-                            accountNumber: property.aysaId,
                             status: result.status,
                             debtAmount: result.debtAmount,
                             lastBillAmount: result.lastBillAmount,

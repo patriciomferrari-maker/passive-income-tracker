@@ -73,8 +73,7 @@ export async function GET(
             prisma.utilityCheck.findFirst({
                 where: {
                     propertyId,
-                    serviceType: 'ABL', // Corrected from MUNICIPAL to match Writer
-                    accountNumber: property.municipalId || undefined
+                    serviceType: 'ABL'
                 },
                 orderBy: { checkDate: 'desc' }
             }),
@@ -82,8 +81,7 @@ export async function GET(
             prisma.utilityCheck.findFirst({
                 where: {
                     propertyId,
-                    serviceType: 'MUNICIPAL_GARAGE', // This might need update in writer too, currently writer uses ABL? No, writer needs update.
-                    accountNumber: property.garageMunicipalId || undefined
+                    serviceType: 'MUNICIPAL_GARAGE'
                 },
                 orderBy: { checkDate: 'desc' }
             })
