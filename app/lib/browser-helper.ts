@@ -5,68 +5,62 @@ import chromium from '@sparticuz/chromium';
 // Environment check - consider local if not in Vercel
 const isLocal = process.env.NODE_ENV === 'development' || !process.env.VERCEL;
 
-export async function getBrowser() {
-    let executablePath: string | undefined;
+console.log(`[Browser] Launching... VERCEL=${process.env.VERCEL}, NODE_ENV=${process.env.NODE_ENV}`);
 
-    if (isLocal) {
-        // Local Windows Development
-        if (process.platform === 'win32') {
-            // First try to use puppeteer installed chrome
-            const os = require('os');
-            const path = require('path');
-            const fs = require('fs');
+if (isLocal) {
+    // ... Local logic (keep as is, just wrapped clearly) ...
+    // Local Windows Development
+    if (process.platform === 'win32') {
+        // ... existing windows logic ...
+        if (!executablePath) {
+            // Try finding typical paths
+            const possiblePaths = [
+                'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+                'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+                'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+                process.env.LOCAL_CHROME_PATH
+            ];
 
-            const puppeteerChromePath = path.join(os.homedir(), '.cache', 'puppeteer', 'chrome');
-
-            // Check if puppeteer chrome exists
-            if (fs.existsSync(puppeteerChromePath)) {
-                try {
-                    const versions = fs.readdirSync(puppeteerChromePath);
-                    if (versions.length > 0) {
-                        // Use the first version found
-                        const chromePath = path.join(puppeteerChromePath, versions[0], 'chrome-win64', 'chrome.exe');
-                        if (fs.existsSync(chromePath)) {
-                            executablePath = chromePath;
-                            console.log(`[Browser] Using Puppeteer Chrome: ${executablePath}`);
-                        }
-                    }
-                } catch (e) {
-                    console.log('[Browser] Could not read puppeteer chrome directory');
+            for (const p of possiblePaths) {
+                if (p && require('fs').existsSync(p)) {
+                    executablePath = p;
+                    break;
                 }
             }
-
-            // Fallback to system Chrome if puppeteer chrome not found
-            if (!executablePath) {
-                executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-
-                // Fallback for Edge if Chrome not found
-                if (process.env.LOCAL_CHROME_PATH) {
-                    executablePath = process.env.LOCAL_CHROME_PATH;
-                }
-            }
-        } else if (process.platform === 'darwin') {
-            executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-        } else {
-            executablePath = '/usr/bin/google-chrome';
         }
+    } else if (process.platform === 'darwin') {
+        executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     } else {
-        // Production (Vercel / Lambda)
-        try {
-            // @sparticuz/chromium requires this to locate the binary in the serverless env
-            executablePath = await chromium.executablePath();
-        } catch (e) {
-            console.error('Failed to get chromium executable path:', e);
-            throw e;
-        }
+        executablePath = '/usr/bin/google-chrome';
     }
 
-    console.log(`[Browser] Launching. Local: ${isLocal}, Path: ${executablePath}`);
+    if (!executablePath) {
+        console.warn('[Browser] No local chrome found, trying puppeteer default...');
+        // Leave undefined to let puppeteer try to find it
+    }
 
+} else {
+    // Production (Vercel / Lambda)
+    try {
+        console.log('[Browser] Resolving chromium executable path...');
+        executablePath = await chromium.executablePath();
+        console.log(`[Browser] Chromium path: ${executablePath}`);
+    } catch (e: any) {
+        console.error('Failed to get chromium executable path:', e);
+        throw new Error(`Failed to load chromium: ${e.message}`);
+    }
+}
+
+try {
     return puppeteer.launch({
         args: isLocal ? ['--no-sandbox'] : [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
         defaultViewport: isLocal ? { width: 1280, height: 800 } : chromium.defaultViewport,
         executablePath: executablePath,
-        headless: true, // Always headless to prevent blocking
+        headless: isLocal ? true : chromium.headless,
         ignoreHTTPSErrors: true,
     });
+} catch (error: any) {
+    console.error('[Browser] Launch failed:', error);
+    throw error;
+}
 }
