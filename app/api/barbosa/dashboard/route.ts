@@ -129,13 +129,13 @@ export async function GET(req: NextRequest) {
             if (monthlyData[key]) {
                 if (tx.category.type === 'INCOME') {
                     // Income usually not statistical, but safe check
-                    if (!isStatistical || tx.status === 'PROJECTED') {
+                    if (!isStatistical) {
                         monthlyData[key].income += amount;
                         monthlyData[key].incomeUSD += amountUSD;
                     }
                 } else {
                     // EXPENSE
-                    if (!isStatistical || tx.status === 'PROJECTED') {
+                    if (!isStatistical) {
                         monthlyData[key].expense += amount;
                         monthlyData[key].expenseUSD += amountUSD;
 
