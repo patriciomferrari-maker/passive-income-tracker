@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/app/lib/auth-helper';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/properties/[id]/utilities
  * Get latest utility checks for a property
@@ -67,20 +69,20 @@ export async function GET(
                 },
                 orderBy: { checkDate: 'desc' }
             }),
-            // Latest MUNICIPAL check (property)
+            // Latest MUNICIPAL/ABL check (property)
             prisma.utilityCheck.findFirst({
                 where: {
                     propertyId,
-                    serviceType: 'MUNICIPAL',
+                    serviceType: 'ABL', // Corrected from MUNICIPAL to match Writer
                     accountNumber: property.municipalId || undefined
                 },
                 orderBy: { checkDate: 'desc' }
             }),
-            // Latest MUNICIPAL check (garage)
+            // Latest MUNICIPAL/ABL Cochera check (garage)
             prisma.utilityCheck.findFirst({
                 where: {
                     propertyId,
-                    serviceType: 'MUNICIPAL',
+                    serviceType: 'MUNICIPAL_GARAGE', // This might need update in writer too, currently writer uses ABL? No, writer needs update.
                     accountNumber: property.garageMunicipalId || undefined
                 },
                 orderBy: { checkDate: 'desc' }

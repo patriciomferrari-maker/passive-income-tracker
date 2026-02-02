@@ -54,7 +54,9 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                 aysaId: true,
                 municipalId: true,
                 electricityId: true,
-                jurisdiction: true
+                jurisdiction: true,
+                hasGarage: true,
+                garageMunicipalId: true
             }
         });
 
@@ -199,6 +201,101 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                         propertyId: property.id,
                         propertyName: property.name,
                         service: serviceLabel,
+                        status: 'ERROR',
+                        debtAmount: 0,
+                        error: error.message
+                    });
+                }
+            }
+
+            // 4. Check Garage ABL (Municipal) if distinct
+            if (property.hasGarage && property.garageMunicipalId) {
+                const serviceLabel = 'ABL Cochera';
+                console.log(`🚗 Checking ${serviceLabel} (${property.garageMunicipalId})...`);
+
+                try {
+                    const isCABA = property.jurisdiction === 'CABA';
+
+                    const result = isCABA
+                        ? await checkABLCABA(property.garageMunicipalId)
+                        : await checkABLProvincia(property.garageMunicipalId);
+
+                    await prisma.utilityCheck.create({
+                        data: {
+                            propertyId: property.id,
+                            serviceType: 'MUNICIPAL_GARAGE',
+                            accountNumber: property.garageMunicipalId,
+                            status: result.status,
+                            debtAmount: result.debtAmount,
+                            lastBillAmount: result.lastBillAmount,
+                            lastBillDate: result.lastBillDate,
+                            dueDate: result.dueDate,
+                            isAutomatic: true,
+                            errorMessage: result.errorMessage
+                        }
+                    });
+
+                    results.push({
+                        propertyId: property.id,
+                        propertyName: property.name,
+                        service: serviceLabel,
+                        status: result.status,
+                        debtAmount: result.debtAmount,
+                        error: result.errorMessage
+                    });
+
+                    console.log(`   ✅ ${serviceLabel}: ${result.status}${result.debtAmount > 0 ? ` - Debt: $${result.debtAmount}` : ''}`);
+                } catch (error: any) {
+                    console.error(`   ❌ ${serviceLabel} Error: ${error.message}`);
+                    results.push({
+                        propertyId: property.id,
+                        propertyName: property.name,
+                        service: serviceLabel,
+                        status: 'ERROR',
+                        debtAmount: 0,
+                        error: error.message
+                    });
+                }
+            }
+
+            // 5. Check AYSA
+            if (property.aysaId) {
+                console.log(`💧 Checking AYSA (${property.aysaId})...`);
+                try {
+                    const result = await checkAysaWeb(property.aysaId);
+
+                    await prisma.utilityCheck.create({
+                        data: {
+                            propertyId: property.id,
+                            serviceType: 'AYSA',
+                            accountNumber: property.aysaId,
+                            status: result.status,
+                            debtAmount: result.debtAmount,
+                            lastBillAmount: result.lastBillAmount,
+                            lastBillDate: result.lastBillDate,
+                            dueDate: result.dueDate,
+                            isAutomatic: true,
+                            errorMessage: result.errorMessage
+                        }
+                    });
+
+                    results.push({
+                        propertyId: property.id,
+                        propertyName: property.name,
+                        service: 'AYSA',
+                        status: result.status,
+                        debtAmount: result.debtAmount,
+                        error: result.errorMessage
+                    });
+
+                    console.log(`   ✅ AYSA: ${result.status}${result.debtAmount > 0 ? ` - Debt: $${result.debtAmount}` : ''}`);
+
+                } catch (error: any) {
+                    console.error(`   ❌ AYSA Error: ${error.message}`);
+                    results.push({
+                        propertyId: property.id,
+                        propertyName: property.name,
+                        service: 'AYSA',
                         status: 'ERROR',
                         debtAmount: 0,
                         error: error.message
