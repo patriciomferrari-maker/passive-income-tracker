@@ -275,7 +275,7 @@ export function DollarsTab() {
                                         <TableHead className="text-slate-300">Origen</TableHead>
                                         {months.map(m => (
                                             <TableHead key={m} className="text-right text-slate-300 whitespace-nowrap">
-                                                {format(new Date(m + '-01'), 'MMM yy', { locale: es })}
+                                                {format(new Date(m + '-02T00:00:00'), 'MMM yy', { locale: es })}
                                             </TableHead>
                                         ))}
                                         <TableHead className="text-right text-emerald-400 font-bold">Total</TableHead>
@@ -331,35 +331,41 @@ export function DollarsTab() {
                         <div className="mt-8 border-t border-slate-800 pt-6">
                             <h3 className="text-sm font-medium text-slate-400 mb-4">Últimos Movimientos</h3>
                             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                                {purchases.slice(0, 20).map(p => (
-                                    <div key={p.id} className="flex items-center justify-between p-3 rounded bg-slate-950/50 border border-slate-800/50 hover:border-slate-700 transition-colors group">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                                                <DollarSign size={18} />
+                                {purchases.slice(0, 20).map(p => {
+                                    // Parse date string artificially as local time to prevent timezone shift
+                                    const dateStr = p.date.toString().split('T')[0];
+                                    const displayDate = new Date(dateStr + 'T00:00:00');
+
+                                    return (
+                                        <div key={p.id} className="flex items-center justify-between p-3 rounded bg-slate-950/50 border border-slate-800/50 hover:border-slate-700 transition-colors group">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                                                    <DollarSign size={18} />
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-medium text-white">{p.source}</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        {format(displayDate, 'dd MMM yyyy', { locale: es })}
+                                                        {p.rate && ` • AR$ ${p.rate}`}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <div className="text-sm font-medium text-white">{p.source}</div>
-                                                <div className="text-xs text-slate-500">
-                                                    {format(new Date(p.date), 'dd MMM yyyy', { locale: es })}
-                                                    {p.rate && ` • AR$ ${p.rate}`}
+                                            <div className="flex items-center gap-4">
+                                                <span className="font-mono font-medium text-emerald-400">
+                                                    +${p.amount.toLocaleString('en-US')}
+                                                </span>
+                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-white" onClick={() => handleEdit(p)}>
+                                                        <Edit2 size={14} />
+                                                    </Button>
+                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30" onClick={() => handleDelete(p.id)}>
+                                                        <Trash2 size={14} />
+                                                    </Button>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-4">
-                                            <span className="font-mono font-medium text-emerald-400">
-                                                +${p.amount.toLocaleString('en-US')}
-                                            </span>
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-white" onClick={() => handleEdit(p)}>
-                                                    <Edit2 size={14} />
-                                                </Button>
-                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30" onClick={() => handleDelete(p.id)}>
-                                                    <Trash2 size={14} />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </CardContent>
