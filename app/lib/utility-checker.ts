@@ -62,10 +62,9 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
 
         console.log(`📋 Found ${properties.length} properties with services configured`);
 
-        // Process properties in parallel
-        const checkProperty = async (property: any) => {
+        // Process properties sequentially to avoid ETXTBSY errors in Vercel
+        for (const property of properties) {
             console.log(`\n🏠 Checking: ${property.name}`);
-            const localResults: CheckResult[] = [];
 
             // 1. Check Gas (Metrogas for CABA, Naturgy for PROVINCIA)
             if (property.gasId) {
@@ -92,7 +91,7 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                         }
                     });
 
-                    localResults.push({
+                    results.push({
                         propertyId: property.id,
                         propertyName: property.name,
                         service: gasProvider,
@@ -104,7 +103,7 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                     console.log(`   ✅ ${gasProvider}: ${result.status}${result.debtAmount > 0 ? ` - Debt: $${result.debtAmount}` : ''}`);
                 } catch (error: any) {
                     console.error(`   ❌ ${gasProvider} Error: ${error.message}`);
-                    localResults.push({
+                    results.push({
                         propertyId: property.id,
                         propertyName: property.name,
                         service: gasProvider,
@@ -136,7 +135,7 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                         }
                     });
 
-                    localResults.push({
+                    results.push({
                         propertyId: property.id,
                         propertyName: property.name,
                         service: 'Edenor',
@@ -148,7 +147,7 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                     console.log(`   ✅ Edenor: ${result.status}${result.debtAmount > 0 ? ` - Debt: $${result.debtAmount}` : ''}`);
                 } catch (error: any) {
                     console.error(`   ❌ Edenor Error: ${error.message}`);
-                    localResults.push({
+                    results.push({
                         propertyId: property.id,
                         propertyName: property.name,
                         service: 'Edenor',
@@ -184,7 +183,7 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                         }
                     });
 
-                    localResults.push({
+                    results.push({
                         propertyId: property.id,
                         propertyName: property.name,
                         service: serviceLabel,
@@ -196,7 +195,7 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                     console.log(`   ✅ ${serviceLabel}: ${result.status}${result.debtAmount > 0 ? ` - Debt: $${result.debtAmount}` : ''}`);
                 } catch (error: any) {
                     console.error(`   ❌ ${serviceLabel} Error: ${error.message}`);
-                    localResults.push({
+                    results.push({
                         propertyId: property.id,
                         propertyName: property.name,
                         service: serviceLabel,
@@ -233,7 +232,7 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                         }
                     });
 
-                    localResults.push({
+                    results.push({
                         propertyId: property.id,
                         propertyName: property.name,
                         service: serviceLabel,
@@ -245,7 +244,7 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                     console.log(`   ✅ ${serviceLabel}: ${result.status}${result.debtAmount > 0 ? ` - Debt: $${result.debtAmount}` : ''}`);
                 } catch (error: any) {
                     console.error(`   ❌ ${serviceLabel} Error: ${error.message}`);
-                    localResults.push({
+                    results.push({
                         propertyId: property.id,
                         propertyName: property.name,
                         service: serviceLabel,
@@ -276,7 +275,7 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                         }
                     });
 
-                    localResults.push({
+                    results.push({
                         propertyId: property.id,
                         propertyName: property.name,
                         service: 'AYSA',
@@ -289,7 +288,7 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
 
                 } catch (error: any) {
                     console.error(`   ❌ AYSA Error: ${error.message}`);
-                    localResults.push({
+                    results.push({
                         propertyId: property.id,
                         propertyName: property.name,
                         service: 'AYSA',
@@ -299,14 +298,7 @@ export async function checkAllUtilities(userId: string): Promise<UtilityCheckSum
                     });
                 }
             }
-            return localResults;
-        };
-
-        const promises = properties.map(p => checkProperty(p));
-        const allResults = await Promise.all(promises);
-
-        // Flatten results
-        allResults.forEach(r => results.push(...r));
+        }
 
         // Calculate summary
         const upToDate = results.filter(r => r.status === 'UP_TO_DATE').length;
