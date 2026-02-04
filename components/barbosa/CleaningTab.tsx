@@ -66,13 +66,12 @@ export function CleaningTab() {
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-500" /></div>;
 
-    const { chartData, rawData } = data || { chartData: [], rawData: [] };
-    const lastPoint = chartData.length > 0 ? chartData[chartData.length - 1] : null;
+    const { chartData, tableData } = data || { chartData: [], tableData: [] };
+    const lastPoint = tableData.length > 0 ? tableData[0] : null; // Newest is at 0 index in tableData
 
-    // Determine Gap (Lag)
-    const gap = lastPoint ? ((lastPoint.pricePerHour - lastPoint.theoreticalPrice) / lastPoint.theoreticalPrice) * 100 : 0;
-    const isLagging = gap < -5; // If gap is worse than -5% (paid is 5% less than theoretical)
-    const isGood = gap >= -5;
+    // Insight Logic from last point
+    const delta = lastPoint ? lastPoint.delta : 0;
+    const isLagging = delta < -2; // Tolerance -2%
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -81,18 +80,18 @@ export function CleaningTab() {
             </h2>
 
             {/* Insight Card */}
-            {lastPoint && lastPoint.pricePerHour && (
+            {lastPoint && (
                 <div className={`p-4 rounded-xl border ${isLagging ? 'bg-red-950/30 border-red-800' : 'bg-emerald-950/30 border-emerald-800'}`}>
                     <div className="flex items-start gap-3">
                         {isLagging ? <AlertTriangle className="text-red-500 mt-1" /> : <CheckCircle className="text-emerald-500 mt-1" />}
                         <div>
                             <h3 className={`font-bold ${isLagging ? 'text-red-400' : 'text-emerald-400'}`}>
-                                {isLagging ? 'Desfasaje detectado' : 'Precio Actualizado'}
+                                {isLagging ? 'Desfasaje detectado' : 'Ajuste adecuado'}
                             </h3>
                             <p className="text-slate-300 text-sm mt-1">
-                                Tu precio actual es <b>${lastPoint.pricePerHour.toLocaleString()}</b>.
-                                Según la inflación acumulada, deberías estar pagando <b>${Math.round(lastPoint.theoreticalPrice).toLocaleString()}</b>.
-                                Diferencia: <span className={gap > 0 ? 'text-emerald-400' : 'text-red-400'}>{gap > 0 ? '+' : ''}{Math.round(gap)}%</span>
+                                Tu ajuste acumulado vs Base es <span className="font-bold text-white">{lastPoint.accumPriceGrowth.toFixed(1)}%</span>.
+                                La inflación acumulada es <span className="font-bold text-white">{lastPoint.ipcAccum.toFixed(1)}%</span>.
+                                Diferencia: <span className={delta > 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>{delta > 0 ? '+' : ''}{delta.toFixed(1)} pts</span>.
                             </p>
                         </div>
                     </div>
@@ -163,7 +162,7 @@ export function CleaningTab() {
                 <div className="lg:col-span-2">
                     <Card className="bg-slate-950 border-slate-900 shadow-lg h-full">
                         <CardHeader>
-                            <CardTitle className="text-slate-400">Evolución Precio vs Inflación</CardTitle>
+                            <CardTitle className="text-slate-400">Crecimiento Acumulado (%)</CardTitle>
                         </CardHeader>
                         <CardContent className="h-[300px]">
                             {chartData.length > 0 ? (
@@ -182,7 +181,7 @@ export function CleaningTab() {
                                             tick={{ fontSize: 12 }}
                                             axisLine={false}
                                             tickLine={false}
-                                            tickFormatter={(val) => `$${val}`}
+                                            tickFormatter={(val) => `${val}%`}
                                         />
                                         <Tooltip
                                             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155' }}
@@ -190,22 +189,20 @@ export function CleaningTab() {
                                         />
                                         <Legend />
 
-                                        {/* Theoretical Price (Area/Line) */}
                                         <Line
                                             type="monotone"
-                                            dataKey="theoreticalPrice"
-                                            name="Precio Sugerido (IPC)"
-                                            stroke="#f59e0b"
+                                            dataKey="accumIPC"
+                                            name="Inflación Acumulada"
+                                            stroke="#f97316"
                                             strokeDasharray="5 5"
                                             strokeWidth={2}
                                             dot={false}
                                         />
 
-                                        {/* Actual Price */}
                                         <Line
                                             type="monotone"
-                                            dataKey="pricePerHour"
-                                            name="Precio Pagado"
+                                            dataKey="accumPriceGrowth"
+                                            name="Ajuste Precio"
                                             stroke="#10b981"
                                             strokeWidth={3}
                                             activeDot={{ r: 6 }}
@@ -222,10 +219,10 @@ export function CleaningTab() {
                 </div>
             </div>
 
-            {/* History Table */}
+            {/* Detailed History Table */}
             <Card className="bg-slate-950 border-slate-900 shadow-lg">
                 <CardHeader>
-                    <CardTitle className="text-sm font-medium text-slate-400">Historial</CardTitle>
+                    <CardTitle className="text-sm font-medium text-slate-400">Análisis Detallado</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="overflow-x-auto">
@@ -234,24 +231,40 @@ export function CleaningTab() {
                                 <tr>
                                     <th className="px-4 py-3">Periodo</th>
                                     <th className="px-4 py-3 text-right">Precio Hora</th>
-                                    <th className="px-4 py-3 text-right">Horas/Sem</th>
-                                    <th className="px-4 py-3 text-right">Total/Semana</th>
+                                    <th className="px-4 py-3 text-right">Total Mes</th>
+                                    <th className="px-4 py-3 text-right text-blue-400">Ajuste Mes %</th>
+                                    <th className="px-4 py-3 text-right text-emerald-400">Ajuste Acum %</th>
+                                    <th className="px-4 py-3 text-right text-orange-300">IPC Mes</th>
+                                    <th className="px-4 py-3 text-right text-orange-400">IPC Acum</th>
+                                    <th className="px-4 py-3 text-right font-bold">Delta IPC</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {rawData && rawData.map((row: any) => (
-                                    <tr key={row.id} className="border-b border-slate-800 hover:bg-slate-900/30">
-                                        <td className="px-4 py-3 font-medium text-white">
+                                {tableData && tableData.map((row: any) => (
+                                    <tr key={row.period} className="border-b border-slate-800 hover:bg-slate-900/30">
+                                        <td className="px-4 py-3 font-medium text-white whitespace-nowrap">
                                             {new Date(row.year, row.month - 1).toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
                                         </td>
-                                        <td className="px-4 py-3 text-right text-emerald-400 font-bold">
+                                        <td className="px-4 py-3 text-right font-bold text-white">
                                             ${row.pricePerHour.toLocaleString()}
                                         </td>
-                                        <td className="px-4 py-3 text-right">
-                                            {row.hoursPerWeek} hs
+                                        <td className="px-4 py-3 text-right text-slate-300">
+                                            ${row.totalMonthly.toLocaleString()}
                                         </td>
-                                        <td className="px-4 py-3 text-right">
-                                            ${(row.pricePerHour * row.hoursPerWeek).toLocaleString()}
+                                        <td className="px-4 py-3 text-right text-blue-400">
+                                            {row.monthlyGrowth > 0 ? '+' : ''}{row.monthlyGrowth.toFixed(1)}%
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-emerald-400 font-medium">
+                                            {row.accumPriceGrowth > 0 ? '+' : ''}{row.accumPriceGrowth.toFixed(1)}%
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-orange-300">
+                                            {row.ipcMonthly.toFixed(1)}%
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-orange-400 font-medium">
+                                            {row.ipcAccum.toFixed(1)}%
+                                        </td>
+                                        <td className={`px-4 py-3 text-right font-bold ${row.delta >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                            {row.delta > 0 ? '+' : ''}{row.delta.toFixed(1)} pts
                                         </td>
                                     </tr>
                                 ))}

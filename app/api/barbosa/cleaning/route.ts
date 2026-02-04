@@ -23,72 +23,144 @@ export async function GET(req: NextRequest) {
         });
 
         // 3. Process Data
-        // If no cleaning data, return empty but with success structure
         if (cleaningData.length === 0) {
-            return NextResponse.json({ chartData: [], rawData: [] });
+            return NextResponse.json({ chartData: [], tableData: [] });
         }
 
-        // Find Base Month (First record)
-        const baseRecord = cleaningData[0];
-        const basePrice = baseRecord.pricePerHour;
-
-        // Helper to get IPC for a specific month/year
-        // IPC for Month M is typically published in Month M+1, but represents Month M inflation.
-        // We accumulate: Price(M) should be comparable to Price(Base) * Inflation(Base -> M).
+        // IPC Map: Key "YYYY-M" -> Value (Float %)
         const ipcMap = new Map<string, number>();
         ipcData.forEach(item => {
             const key = `${item.date.getUTCFullYear()}-${item.date.getUTCMonth() + 1}`;
             ipcMap.set(key, item.value);
         });
 
-        let previousPriceTheoretical = basePrice; // Starts at base
+        // State for Accumulation
+        const baseRecord = cleaningData[0]; // Baseline
+        const basePrice = baseRecord.pricePerHour;
+
+        let previousPrice = basePrice;
+        let cumulativeInflationIndex = 1.0; // Starts at 1.0 (Base)
+
+        const tableData = [];
+        const chartData = [];
+
+        // Loop through user records
+        // We only chart/table the months WE HAVE DATA FOR? Or continuous?
+        // User asked: "Desfasaje... a partir del primer mes".
+        // Usually continuous is better for IPC accumulation, but table implies "rows of data I paid".
+        // Let's iterate through the cleaningData array. If there are gaps, the accumulation might be jumpy if we don't account for missing months.
+        // CORRECT APPROACH: Continuous loop from Start Month to End Month.
+        // But for the Table, we only show rows where we have Data? Or show "Missing"?
+        // Detailed request: "Precio hora... Total por mes". Implies rows where I paid.
+        // However, IPC Accumulation MUST be continuous.
+
+        // Strategy:
+        // 1. Determine Start Period (Base) -> End Period (Last Record or Now?). User wants "Seguimiento", usually up to Now.
+        // 2. Loop month by month.
+        // 3. Calculate Accum IPC every month.
+        // 4. Check if we have a Cleaning Record for that month.
+        //    If YES: Calculate Price Metrics. Push to Table/Chart.
+        //    If NO: We can't calculate Price Growth. We skip Table? Or show empty?
+        //    Let's align Chart/Table to "Existing Records" but *calculating* IPC correctly (accumulating over gaps).
 
         const startYear = baseRecord.year;
         const startMonth = baseRecord.month;
+        const lastRecord = cleaningData[cleaningData.length - 1]; // Or use current month?
+        // Use last record to define end of data range, or Today?
+        // Let's go up to Today to show "Current Inflation" even if I haven't updated price?
+        // Let's stick to Last Record for the Table to avoid empty rows.
 
-        const now = new Date();
-        const endYear = now.getFullYear();
-        const endMonth = now.getMonth() + 1; // 1-indexed
-
-        const chartData = [];
-
-        // Loop from Start to End
+        // Actually, to correctly accumulate IPC, we need to iterate continuous months.
         let currentYear = startYear;
         let currentMonth = startMonth;
+        const endYear = lastRecord.year;
+        const endMonth = lastRecord.month;
 
-        while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
+        let isDone = false;
+
+        while (!isDone) {
             const key = `${currentYear}-${currentMonth}`;
-
-            // Find user data for this month
             const userRecord = cleaningData.find(d => d.year === currentYear && d.month === currentMonth);
+            const ipcValue = ipcMap.get(key) || 0; // IPC of this month
 
-            const ipcValue = ipcMap.get(key) || 0; // % value (e.g. 20.6)
+            // Metric: Monthly IPC (for Table)
+            // Metric: Accum IPC % (Compound) -> From Base.
+            // Formula: Accum% = (Index - 1) * 100.
+            const accumIPC = (cumulativeInflationIndex - 1) * 100;
 
-            chartData.push({
-                period: `${currentYear}-${currentMonth.toString().padStart(2, '0')}`,
-                month: currentMonth,
-                year: currentYear,
-                pricePerHour: userRecord ? userRecord.pricePerHour : null, // Null helps chart break lines if missing
-                theoreticalPrice: previousPriceTheoretical,
-                inflationForMonth: ipcValue,
-                isBase: (currentYear === startYear && currentMonth === startMonth)
-            });
+            if (userRecord) {
+                // We have a price
+                const price = userRecord.pricePerHour;
 
-            // Update Theoretical for NEXT month (Cumulative Inflation)
-            const monthlyFactor = 1 + (ipcValue / 100);
-            previousPriceTheoretical = previousPriceTheoretical * monthlyFactor;
+                // Monthly Growth (vs Prev Price, theoretical or actual?)
+                // Usually "Ajuste Mensual" is vs Previous Month Paid.
+                // But what if gap? "vs Previous Paid Record".
+                // If this is the Base (first iteration), growth is 0.
 
-            // Increment Month
-            currentMonth++;
-            if (currentMonth > 12) {
-                currentMonth = 1;
-                currentYear++;
+                // Let's store actual monthly growth if continuous?
+                // Let's assume "Monthly Growth" = (Price - PrevPaid) / PrevPaid.
+                // We need to track `lastPaidPrice` separately.
+
+                // Accum Price Growth (vs Base)
+                const accumPriceGrowth = ((price - basePrice) / basePrice) * 100;
+
+                // Delta: Difference between my Accum Adjustment and Real Inflation Accum
+                const delta = accumPriceGrowth - accumIPC;
+
+                // For Monthly Growth column, we need the PREVIOUS record's price.
+                // We can find the index in cleaningData.
+                const recordIndex = cleaningData.findIndex(d => d.id === userRecord.id);
+                const prevRecord = recordIndex > 0 ? cleaningData[recordIndex - 1] : null;
+                const monthlyGrowth = prevRecord
+                    ? ((price - prevRecord.pricePerHour) / prevRecord.pricePerHour) * 100
+                    : 0;
+
+                const row = {
+                    period: `${currentYear}-${currentMonth.toString().padStart(2, '0')}`,
+                    month: currentMonth,
+                    year: currentYear,
+                    pricePerHour: price,
+                    hoursPerWeek: userRecord.hoursPerWeek,
+                    totalMonthly: (price * userRecord.hoursPerWeek * 4), // 4 weeks approx
+                    monthlyGrowth: monthlyGrowth,
+                    accumPriceGrowth: accumPriceGrowth,
+                    ipcMonthly: ipcValue,
+                    ipcAccum: accumIPC,
+                    delta: delta,
+                    isBase: (recordIndex === 0)
+                };
+
+                tableData.push(row);
+                chartData.push({
+                    period: row.period, // YYYY-MM
+                    accumPriceGrowth: parseFloat(accumPriceGrowth.toFixed(2)),
+                    accumIPC: parseFloat(accumIPC.toFixed(2)),
+                    delta: parseFloat(delta.toFixed(2))
+                });
+            }
+
+            // Advance Inflation Index for NEXT month
+            // If I am in Jan, IPC is 20%. Price in Jan is Base.
+            // By Feb, inflation accumulated is 1.20.
+            // So for Feb Row, IPC Accum should be 20%.
+            // So we update index AFTER processing row.
+            cumulativeInflationIndex = cumulativeInflationIndex * (1 + (ipcValue / 100));
+
+            // Check loop end
+            if (currentYear > endYear || (currentYear === endYear && currentMonth >= endMonth)) {
+                isDone = true;
+            } else {
+                currentMonth++;
+                if (currentMonth > 12) {
+                    currentMonth = 1;
+                    currentYear++;
+                }
             }
         }
 
         return NextResponse.json({
             chartData,
-            rawData: cleaningData
+            tableData: tableData.reverse() // Newest first for table
         });
 
     } catch (error: any) {
