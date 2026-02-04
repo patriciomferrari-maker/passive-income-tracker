@@ -53,7 +53,14 @@ export function SnowballChart() {
                             dataKey="month"
                             stroke="#94a3b8"
                             tick={{ fontSize: 12 }}
-                            tickFormatter={(val) => (typeof val === 'string' ? val.slice(2) : val)}
+                            tickFormatter={(val) => {
+                                if (typeof val !== 'string') return val;
+                                const [year, month] = val.split('-');
+                                const date = new Date(parseInt(year), parseInt(month) - 1);
+                                const m = date.toLocaleDateString('es-AR', { month: 'short' });
+                                const y = date.toLocaleDateString('es-AR', { year: '2-digit' });
+                                return `${m}-${y}`;
+                            }}
                         />
                         <YAxis
                             stroke="#94a3b8"
