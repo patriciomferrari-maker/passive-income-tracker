@@ -50,6 +50,13 @@ export async function GET(request: Request) {
 
         console.log('✅ Daily update completed successfully');
 
+        if (scrapeData.updated > 0 || scrapeData.created > 0) {
+            console.log('📢 New economic data detected. Checking contracts...');
+            // Dynamically import to avoid circular dep issues if any, though likely safe
+            const { checkContractAdjustments } = await import('@/app/lib/contract-helper');
+            await checkContractAdjustments();
+        }
+
         return NextResponse.json({
             success: true,
             message: 'Economic data updated',

@@ -36,3 +36,37 @@ export async function sendDividendAlert(ticker: string, company: string, eventNa
         console.error('[Email] Failed to send:', error);
     }
 }
+
+export async function sendContractAdjustmentAlert(contractData: any) {
+    if (!process.env.RESEND_API_KEY) return;
+
+    try {
+        const { tenantName, propertyName, oldRent, newRent, percentage, adjustmentDate } = contractData;
+
+        await resend.emails.send({
+            from: 'Passive Income <alerts@resend.dev>',
+            to: ['patri.ferrari@gmail.com'],
+            subject: `🏠 Ajuste Alquiler: ${propertyName}`,
+            html: `
+                <h1>Ajuste de Alquiler Detectado</h1>
+                <p><strong>Propiedad:</strong> ${propertyName}</p>
+                <p><strong>Inquilino:</strong> ${tenantName}</p>
+                <p><strong>Fecha Ajuste:</strong> ${adjustmentDate}</p>
+                
+                <hr />
+                
+                <p>Según el índice IPC publicado:</p>
+                <ul>
+                    <li>Alquiler Anterior: <strong>$${oldRent}</strong></li>
+                    <li>Porcentaje Ajuste: <strong>${percentage}%</strong></li>
+                    <li>Nuevo Alquiler Sugerido: <strong style="color: green; font-size: 1.2em;">$${newRent}</strong></li>
+                </ul>
+                
+                <p><em>Este valor ha sido calculado automáticamente. Por favor confirmar con el inquilino.</em></p>
+            `
+        });
+        console.log(`[Email] Sent contract alert for ${propertyName}`);
+    } catch (error) {
+        console.error('[Email] Failed to send contract alert:', error);
+    }
+}

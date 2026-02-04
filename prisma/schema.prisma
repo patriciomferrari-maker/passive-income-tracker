@@ -229,6 +229,7 @@ model Investment {
   assetPrices AssetPrice[]
 
   market String @default("US") // US, ARG
+  sector String? // e.g. Energy, Tech, Real Estate
 
   @@unique([userId, ticker]) // Tickers unique per User, not global
   @@index([userId])
@@ -245,6 +246,7 @@ model GlobalAsset {
   type     String // CEDEAR, ETF
   currency String @default("ARS")
   market   String @default("ARG") // ARG, US
+  sector   String? // e.g. Energy, Tech
   ratio    String? // Conversion ratio (e.g. "20:1")
 
   // Market Data (shared across all users)
