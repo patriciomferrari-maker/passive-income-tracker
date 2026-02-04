@@ -61,7 +61,8 @@ export function SectorChart() {
                             ))}
                         </Pie>
                         <Tooltip
-                            contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff' }}
+                            itemStyle={{ color: '#f8fafc' }} // Slate-50 for high contrast
+                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f8fafc' }}
                             formatter={(value: any) => {
                                 const val = Number(value);
                                 if (isNaN(val)) return '$0';

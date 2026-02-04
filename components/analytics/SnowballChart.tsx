@@ -61,9 +61,9 @@ export function SnowballChart() {
                             tickFormatter={(val) => `$${val}`}
                         />
                         <Tooltip
-                            contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }}
-                            itemStyle={{ color: '#e2e8f0' }}
-                            labelStyle={{ color: '#94a3b8', marginBottom: '0.5rem' }}
+                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155' }}
+                            itemStyle={{ color: '#f8fafc' }}
+                            labelStyle={{ color: '#cbd5e1', marginBottom: '0.5rem' }}
                             labelFormatter={(label) => {
                                 if (typeof label !== 'string') return label;
                                 // Assume YYYY-MM format
