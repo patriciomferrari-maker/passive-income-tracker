@@ -4,75 +4,61 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const CEDEARS = [
-    { ticker: 'GLD', name: 'CEDEAR ETF SPDR GOLD TRUST' },
-    { ticker: 'AVGO', name: 'Broadcom' },
-    { ticker: 'NVDA', name: 'Nvidia Corporation' },
-    { ticker: 'AMD', name: 'Advanced Micro Devices' },
-    { ticker: 'VALE', name: 'Vale' },
-    { ticker: 'KO', name: 'The Coca Cola Company' },
-    { ticker: 'ADGO', name: 'Adecoagro' },
-    { ticker: 'ANF', name: 'Abercrombie & Fitch' },
-    { ticker: 'GOOGL', name: 'Alphabet' },
-    { ticker: 'SATL', name: 'Satellogic' },
-    { ticker: 'PBR', name: 'CEDEAR PETROLEO BRASILEIRO S.A.' },
-    { ticker: 'IBIT', name: 'CEDEAR ISHARES BITCOIN TR (IBIT)' },
-    { ticker: 'JMIA', name: 'Jumia Technologies Ag' },
-    { ticker: 'HMY', name: 'Harmony Gold Mining Company' },
-    { ticker: 'MSFT', name: 'Microsoft' },
-    { ticker: 'UNH', name: 'UnitedHealth Group' },
-    { ticker: 'B', name: 'CEDEAR BARRICK' },
-    { ticker: 'BITF', name: 'Bitfarms' },
-    { ticker: 'LAR', name: 'CEDEAR LITHIUM AMERICAS (ARGENTINA) CORP' },
-    { ticker: 'NU', name: 'CEDEAR NU HOLDINGS LTD/CAYMAN ISLANDS' },
-    { ticker: 'KGC', name: 'Kinross Gold Corp' },
-    { ticker: 'ADBE', name: 'Adobe Systems' },
-    { ticker: 'NFLX', name: 'Netflix' },
-    { ticker: 'AMZN', name: 'Amazon' },
-    { ticker: 'BABA', name: 'Alibaba Group Holding' },
-    { ticker: 'GE', name: 'CEDEAR GE AEROSPACE' },
-    { ticker: 'COIN', name: 'Coinbase Global' },
-    { ticker: 'BRKB', name: 'Berkshire Hathaway' },
-    { ticker: 'QQQ', name: 'Invesco Qqq Trust' },
-    { ticker: 'RGTI', name: 'CEDEAR RIGETTI COMPUTING (RGTI)' }, // Fixed case
-    { ticker: 'AAPL', name: 'Apple' },
-    { ticker: 'RIOT', name: 'CEDEAR RIOT PLATFORMS INC.' },
-    { ticker: 'GLOB', name: 'Globant' },
-    { ticker: 'SLV', name: 'CEDEAR ETF ISHARES SILVER TRUST (SLV)' },
-    { ticker: 'TQQQ', name: 'CEDEAR PROSHARES ULTRAPRO QQQ ETF' },
-    { ticker: 'MSTR', name: 'Microstrategy' },
-    { ticker: 'NKE', name: 'CEDEAR NIKE INC. ESC.' },
-    { ticker: 'MELI', name: 'Mercadolibre' },
-    { ticker: 'SPY', name: 'Spdr S&P 500' },
-    { ticker: 'HUT', name: 'Hut 8 Mining' },
-    { ticker: 'ETHA', name: 'CEDEAR ISHARES ETHEREUM TR ETF' },
-    { ticker: 'PLTR', name: 'CEDEAR PALANTIR TECHNOLOGIES INC' },
-    { ticker: 'STNE', name: 'CEDEAR STONECO LTD' },
-    { ticker: 'VIST', name: 'Vista Energy' },
-    { ticker: 'ORCL', name: 'CEDEAR ORACLE' },
-    { ticker: 'PAGS', name: 'CEDEAR PAGSEGURO DIGITAL LTD' },
-    { ticker: 'EWZ', name: 'Ishares Msci Brazil Cap' },
-    { ticker: 'TSLA', name: 'Tesla' },
-    { ticker: 'MU', name: 'Micron Technology' },
-    { ticker: 'META', name: 'Meta Platforms' }
+    { ticker: 'GLD', name: 'CEDEAR ETF SPDR GOLD TRUST', sector: 'Materials' },
+    { ticker: 'AVGO', name: 'Broadcom', sector: 'Technology' },
+    { ticker: 'NVDA', name: 'Nvidia Corporation', sector: 'Technology' },
+    { ticker: 'AMD', name: 'Advanced Micro Devices', sector: 'Technology' },
+    { ticker: 'VALE', name: 'Vale', sector: 'Materials' },
+    { ticker: 'KO', name: 'The Coca Cola Company', sector: 'Consumer Staples' },
+    { ticker: 'ADGO', name: 'Adecoagro', sector: 'Consumer Staples' },
+    { ticker: 'ANF', name: 'Abercrombie & Fitch', sector: 'Consumer Discretionary' },
+    { ticker: 'GOOGL', name: 'Alphabet', sector: 'Communication Services' },
+    { ticker: 'SATL', name: 'Satellogic', sector: 'Technology' },
+    { ticker: 'PBR', name: 'CEDEAR PETROLEO BRASILEIRO S.A.', sector: 'Energy' },
+    { ticker: 'IBIT', name: 'CEDEAR ISHARES BITCOIN TR (IBIT)', sector: 'Financials' },
+    { ticker: 'JMIA', name: 'Jumia Technologies Ag', sector: 'Consumer Discretionary' },
+    { ticker: 'HMY', name: 'Harmony Gold Mining Company', sector: 'Materials' },
+    { ticker: 'MSFT', name: 'Microsoft', sector: 'Technology' },
+    { ticker: 'UNH', name: 'UnitedHealth Group', sector: 'Health Care' },
+    { ticker: 'B', name: 'CEDEAR BARRICK', sector: 'Materials' },
+    { ticker: 'BITF', name: 'Bitfarms', sector: 'Technology' },
+    { ticker: 'LAR', name: 'CEDEAR LITHIUM AMERICAS (ARGENTINA) CORP', sector: 'Materials' },
+    { ticker: 'NU', name: 'CEDEAR NU HOLDINGS LTD/CAYMAN ISLANDS', sector: 'Financials' },
+    { ticker: 'KGC', name: 'Kinross Gold Corp', sector: 'Materials' },
+    { ticker: 'ADBE', name: 'Adobe Systems', sector: 'Technology' },
+    { ticker: 'NFLX', name: 'Netflix', sector: 'Communication Services' },
+    { ticker: 'AMZN', name: 'Amazon', sector: 'Consumer Discretionary' },
+    { ticker: 'BABA', name: 'Alibaba Group Holding', sector: 'Consumer Discretionary' },
+    { ticker: 'GE', name: 'CEDEAR GE AEROSPACE', sector: 'Industrials' },
+    { ticker: 'COIN', name: 'Coinbase Global', sector: 'Financials' },
+    { ticker: 'BRKB', name: 'Berkshire Hathaway', sector: 'Financials' },
+    { ticker: 'QQQ', name: 'Invesco Qqq Trust', sector: 'Technology' },
+    { ticker: 'RGTI', name: 'CEDEAR RIGETTI COMPUTING (RGTI)', sector: 'Technology' },
+    { ticker: 'AAPL', name: 'Apple', sector: 'Technology' },
+    { ticker: 'RIOT', name: 'CEDEAR RIOT PLATFORMS INC.', sector: 'Technology' },
+    { ticker: 'GLOB', name: 'Globant', sector: 'Technology' },
+    { ticker: 'SLV', name: 'CEDEAR ETF ISHARES SILVER TRUST (SLV)', sector: 'Materials' },
+    { ticker: 'TQQQ', name: 'CEDEAR PROSHARES ULTRAPRO QQQ ETF', sector: 'Technology' },
+    { ticker: 'MSTR', name: 'Microstrategy', sector: 'Technology' },
+    { ticker: 'NKE', name: 'CEDEAR NIKE INC. ESC.', sector: 'Consumer Discretionary' },
+    { ticker: 'MELI', name: 'Mercadolibre', sector: 'Consumer Discretionary' },
+    { ticker: 'SPY', name: 'Spdr S&P 500', sector: 'Financials' },
+    { ticker: 'HUT', name: 'Hut 8 Mining', sector: 'Technology' },
+    { ticker: 'ETHA', name: 'CEDEAR ISHARES ETHEREUM TR ETF', sector: 'Financials' },
+    { ticker: 'PLTR', name: 'CEDEAR PALANTIR TECHNOLOGIES INC', sector: 'Technology' },
+    { ticker: 'STNE', name: 'CEDEAR STONECO LTD', sector: 'Financials' },
+    { ticker: 'VIST', name: 'Vista Energy', sector: 'Energy' },
+    { ticker: 'ORCL', name: 'CEDEAR ORACLE', sector: 'Technology' },
+    { ticker: 'PAGS', name: 'CEDEAR PAGSEGURO DIGITAL LTD', sector: 'Financials' },
+    { ticker: 'EWZ', name: 'Ishares Msci Brazil Cap', sector: 'Financials' },
+    { ticker: 'TSLA', name: 'Tesla', sector: 'Consumer Discretionary' },
+    { ticker: 'MU', name: 'Micron Technology', sector: 'Technology' },
+    { ticker: 'META', name: 'Meta Platforms', sector: 'Communication Services' }
 ];
 
 async function main() {
     console.log('Starting CEDEAR seed...');
 
-    // Assuming context is for a specific user or global.
-    // The previous Investment model implies userId is required and ticker is unique per User.
-    // However, keeping an Asset Database separate from User Investments is cleaner.
-    // BUT valid schema `Investment` has `userId`.
-    // Wait, if I seed these, I must assign them to a user.
-    // Does the user want these as "Options" available to pick?
-    // If filtering by available assets, usually we query existing investments.
-    // But for a "Purchase", we might want to select from a catalog.
-    // The current `TransactionFormModal` fetches assets from `/api/investments/on`.
-    // Let's check that API. If it returns only what the user HAS, then we can't buy new ones easily.
-    // If it returns a global list, then we are good.
-    // Checking `app/api/investments/on/route.ts`...
-
-    // Find specific user
     const user = await prisma.user.findUnique({ where: { email: 'patriciomferrari@gmail.com' } });
     if (!user) throw new Error('User patriciomferrari@gmail.com not found');
 
@@ -92,7 +78,8 @@ async function main() {
                 name: item.name,
                 type: 'CEDEAR',
                 currency: 'ARS', // Default for CEDEAR
-                market: 'ARG'
+                market: 'ARG',
+                sector: item.sector
             },
             create: {
                 userId: user.id,
@@ -101,7 +88,8 @@ async function main() {
                 type: 'CEDEAR',
                 currency: 'ARS', // Default for CEDEAR
                 market: 'ARG',
-                frequency: 0 // Not applicable
+                frequency: 0, // Not applicable
+                sector: item.sector
             }
         });
         count++;

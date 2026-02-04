@@ -16,6 +16,7 @@ interface GlobalAsset {
     market: string;
     lastPrice: number;
     ratio: string | null;
+    sector: string | null;
     inPortfolio: boolean;
 }
 
@@ -178,6 +179,7 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
                                                 <tr className="border-b border-slate-800 text-xs uppercase text-slate-300 font-normal">
                                                     <th className="pb-3 pl-2">Ticker</th>
                                                     <th className="pb-3">Nombre</th>
+                                                    <th className="pb-3 text-center">Sector</th>
                                                     <th className="pb-3 text-center">Ratio</th>
                                                     <th className="pb-3 text-right">Precio</th>
                                                     <th className="pb-3 text-center">Moneda</th>
@@ -192,6 +194,13 @@ export function GlobalCatalogTab({ excludeMarket, includeMarket }: GlobalCatalog
                                                         </td>
                                                         <td className="py-3 text-slate-300 text-sm">
                                                             {asset.name}
+                                                        </td>
+                                                        <td className="py-3 text-center text-slate-400 text-xs">
+                                                            {asset.sector ? (
+                                                                <Badge variant="outline" className="border-slate-700 text-slate-400">
+                                                                    {asset.sector}
+                                                                </Badge>
+                                                            ) : '-'}
                                                         </td>
                                                         <td className="py-3 text-center text-slate-400 text-xs font-mono">
                                                             {asset.ratio || '-'}
