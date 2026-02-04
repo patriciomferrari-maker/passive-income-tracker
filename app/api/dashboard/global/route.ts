@@ -320,6 +320,18 @@ export async function GET() {
         let totalBankUSD = 0;
 
         bankOperations.forEach(op => {
+            // Filter out expired PLAZO_FIJO
+            if (op.type === 'PLAZO_FIJO' && op.startDate && op.durationDays) {
+                const maturityDate = new Date(op.startDate);
+                maturityDate.setDate(maturityDate.getDate() + op.durationDays);
+                // If matured before today (and typically money didn't return to account yet in this manual tracking logic?), 
+                // we should consider it 'Closed' for the Portfolio snapshot.
+                // User said: "Desestimar cerradas".
+                if (isBefore(maturityDate, startOfDay(today))) {
+                    return; // Skip expired
+                }
+            }
+
             let amountUSD = op.amount;
             if (op.currency === 'ARS') {
                 amountUSD = op.amount / exchangeRate;
