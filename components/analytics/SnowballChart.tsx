@@ -87,23 +87,29 @@ export function SnowballChart() {
                         <Legend />
 
 
+
                         {/* Reference lines for year separation */}
                         {data.map((entry, index) => {
                             if (entry.month.endsWith('-01')) {
                                 const year = entry.month.split('-')[0];
+                                const annualTotal = data
+                                    .filter(d => d.month.startsWith(year))
+                                    .reduce((sum, d) => sum + d.interest + d.dividends + d.pf, 0);
+
                                 return (
                                     <ReferenceLine
                                         key={`year-${year}`}
                                         x={entry.month}
                                         stroke="#334155"
                                         strokeDasharray="3 3"
-                                        label={{
-                                            position: 'insideTopLeft',
-                                            value: year,
-                                            fill: '#64748b',
-                                            fontSize: 12,
-                                            dy: 10
-                                        }}
+                                        label={({ viewBox }) => (
+                                            <text x={viewBox.x + 5} y={viewBox.y + 15} fontSize={12} className="fill-slate-500 font-medium">
+                                                {year}
+                                                <tspan x={viewBox.x + 5} dy="1.2em" fill="#10b981" fontWeight="bold">
+                                                    +{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(annualTotal)}
+                                                </tspan>
+                                            </text>
+                                        )}
                                     />
                                 );
                             }
