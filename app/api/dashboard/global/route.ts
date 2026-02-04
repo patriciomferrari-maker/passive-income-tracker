@@ -339,10 +339,15 @@ export async function GET() {
                 assetGroupMap.set('Caja de Seguridad', (assetGroupMap.get('Caja de Seguridad') || 0) + amountUSD);
                 totalCajaSeguridad += amountUSD;
             } else {
-                // For "OTRO" or undefined types, use the Alias
+                // For "OTRO" or undefined types, use the Alias (Consolidated for FCI)
                 const label = op.alias || 'Otros Banco';
-                assetGroupMap.set(label, (assetGroupMap.get(label) || 0) + amountUSD);
-                totalBankOther += amountUSD;
+                if (label.toUpperCase().includes('FCI')) {
+                    assetGroupMap.set('FCI', (assetGroupMap.get('FCI') || 0) + amountUSD);
+                    totalFCI += amountUSD;
+                } else {
+                    assetGroupMap.set(label, (assetGroupMap.get(label) || 0) + amountUSD);
+                    totalBankOther += amountUSD;
+                }
             }
         });
 
