@@ -193,7 +193,7 @@ export function CleaningTab() {
                                             type="monotone"
                                             dataKey="accumIPC"
                                             name="Inflación Acumulada"
-                                            stroke="#f97316"
+                                            stroke="#f43f5e"
                                             strokeDasharray="5 5"
                                             strokeWidth={2}
                                             dot={false}
@@ -203,7 +203,7 @@ export function CleaningTab() {
                                             type="monotone"
                                             dataKey="accumPriceGrowth"
                                             name="Ajuste Precio"
-                                            stroke="#10b981"
+                                            stroke="#3b82f6"
                                             strokeWidth={3}
                                             activeDot={{ r: 6 }}
                                         />
@@ -233,9 +233,9 @@ export function CleaningTab() {
                                     <th className="px-4 py-3 text-right">Precio Hora</th>
                                     <th className="px-4 py-3 text-right">Total Mes</th>
                                     <th className="px-4 py-3 text-right text-blue-400">Ajuste Mes %</th>
-                                    <th className="px-4 py-3 text-right text-emerald-400">Ajuste Acum %</th>
-                                    <th className="px-4 py-3 text-right text-orange-300">IPC Mes</th>
-                                    <th className="px-4 py-3 text-right text-orange-400">IPC Acum</th>
+                                    <th className="px-4 py-3 text-right text-blue-400">Ajuste Acum %</th>
+                                    <th className="px-4 py-3 text-right text-rose-400">IPC Mes</th>
+                                    <th className="px-4 py-3 text-right text-rose-500">IPC Acum</th>
                                     <th className="px-4 py-3 text-right font-bold">Delta IPC</th>
                                 </tr>
                             </thead>
@@ -254,13 +254,13 @@ export function CleaningTab() {
                                         <td className="px-4 py-3 text-right text-blue-400">
                                             {row.monthlyGrowth > 0 ? '+' : ''}{row.monthlyGrowth.toFixed(1)}%
                                         </td>
-                                        <td className="px-4 py-3 text-right text-emerald-400 font-medium">
+                                        <td className="px-4 py-3 text-right text-blue-400 font-medium">
                                             {row.accumPriceGrowth > 0 ? '+' : ''}{row.accumPriceGrowth.toFixed(1)}%
                                         </td>
-                                        <td className="px-4 py-3 text-right text-orange-300">
+                                        <td className="px-4 py-3 text-right text-rose-400">
                                             {row.ipcMonthly.toFixed(1)}%
                                         </td>
-                                        <td className="px-4 py-3 text-right text-orange-400 font-medium">
+                                        <td className="px-4 py-3 text-right text-rose-500 font-medium">
                                             {row.ipcAccum.toFixed(1)}%
                                         </td>
                                         <td className={`px-4 py-3 text-right font-bold ${row.delta >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
