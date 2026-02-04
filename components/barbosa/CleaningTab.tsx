@@ -186,6 +186,7 @@ export function CleaningTab() {
                                         <Tooltip
                                             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155' }}
                                             itemStyle={{ color: '#e2e8f0' }}
+                                            labelStyle={{ color: '#f8fafc', fontWeight: 'bold' }}
                                         />
                                         <Legend />
 
