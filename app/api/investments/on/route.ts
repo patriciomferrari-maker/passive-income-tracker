@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     try {
         const userId = await getUserId();
         const body = await request.json();
-        const { type, ticker, name, emissionDate, couponRate, frequency, maturityDate, amortization, amortizationSchedules, market } = body;
+        const { type, ticker, name, emissionDate, couponRate, frequency, maturityDate, amortization, amortizationSchedules, market, sector } = body;
 
         const targetMarket = market || 'ARG';
         // Currency Logic:
@@ -110,6 +110,7 @@ export async function POST(request: Request) {
                 type: type || 'ON',
                 market: targetMarket,
                 currency,
+                sector: sector || null,
                 emissionDate: emissionDate ? new Date(emissionDate) : null,
                 couponRate: couponRate ? parseFloat(couponRate) : null,
                 frequency: frequency ? parseInt(frequency) : null,

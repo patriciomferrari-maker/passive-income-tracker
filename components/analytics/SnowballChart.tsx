@@ -31,7 +31,7 @@ export function SnowballChart() {
     }, []);
 
     if (loading) return <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-blue-500" /></div>;
-    if (data.length === 0) return <div className="h-64 flex items-center justify-center text-slate-500">No hay datos suficientes</div>;
+    if (data.length === 0) return null;
 
     return (
         <div className="w-full h-[400px] bg-slate-900/50 p-4 rounded-xl border border-slate-800">

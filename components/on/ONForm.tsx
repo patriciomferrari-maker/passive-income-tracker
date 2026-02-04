@@ -20,6 +20,7 @@ export function ONForm({ onClose, onSave, initialData }: ONFormProps) {
     const [type, setType] = useState(initialData?.type || 'ON');
     const [ticker, setTicker] = useState(initialData?.ticker || '');
     const [name, setName] = useState(initialData?.name || '');
+    const [sector, setSector] = useState(initialData?.sector || '');
     const [emissionDate, setEmissionDate] = useState(
         initialData?.emissionDate ? format(new Date(initialData.emissionDate), 'yyyy-MM-dd') : ''
     );
@@ -61,6 +62,7 @@ export function ONForm({ onClose, onSave, initialData }: ONFormProps) {
                 type,
                 ticker: ticker.toUpperCase(),
                 name,
+                sector: sector || null,
                 emissionDate: isON ? emissionDate : null,
                 couponRate: isON ? parseFloat(couponRate) / 100 : null,
                 frequency: isON ? parseInt(frequency) : null,
@@ -161,6 +163,30 @@ export function ONForm({ onClose, onSave, initialData }: ONFormProps) {
                                     required
                                 />
                             </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">
+                                Sector (Opcional)
+                            </label>
+                            <select
+                                value={sector}
+                                onChange={(e) => setSector(e.target.value)}
+                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
+                            >
+                                <option value="">Seleccionar...</option>
+                                <option value="Energy">Energy (Energía)</option>
+                                <option value="Technology">Technology (Tecnología)</option>
+                                <option value="Financials">Financials (Finanzas)</option>
+                                <option value="Communication Services">Communication Services</option>
+                                <option value="Consumer Discretionary">Consumer Discretionary (Consumo Cíclico)</option>
+                                <option value="Consumer Staples">Consumer Staples (Consumo Básico)</option>
+                                <option value="Health Care">Health Care (Salud)</option>
+                                <option value="Industrials">Industrials (Industria)</option>
+                                <option value="Materials">Materials (Materiales)</option>
+                                <option value="Real Estate">Real Estate</option>
+                                <option value="Utilities">Utilities (Servicios Públicos)</option>
+                            </select>
                         </div>
 
                         {type === 'ON' && (

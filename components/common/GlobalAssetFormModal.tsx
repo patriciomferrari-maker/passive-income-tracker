@@ -11,10 +11,12 @@ interface GlobalAssetFormModalProps {
 }
 
 export default function GlobalAssetFormModal({ isOpen, onClose, onSuccess }: GlobalAssetFormModalProps) {
+
     const [ticker, setTicker] = useState('');
     const [name, setName] = useState('');
     const [type, setType] = useState('STOCK');
     const [market, setMarket] = useState('US');
+    const [sector, setSector] = useState('');
     const [loading, setLoading] = useState(false);
 
     if (!isOpen) return null;
@@ -34,7 +36,8 @@ export default function GlobalAssetFormModal({ isOpen, onClose, onSuccess }: Glo
                     name: name.trim(),
                     type,
                     market,
-                    currency
+                    currency,
+                    sector: sector || null
                 })
             });
 
@@ -46,6 +49,7 @@ export default function GlobalAssetFormModal({ isOpen, onClose, onSuccess }: Glo
                 // Reset form
                 setTicker('');
                 setName('');
+                setSector('');
             } else {
                 alert(`Error: ${data.error}`);
             }
@@ -118,6 +122,28 @@ export default function GlobalAssetFormModal({ isOpen, onClose, onSuccess }: Glo
                                     <option value="ON">Obligación Negociable</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-300">Sector (Opcional)</label>
+                            <select
+                                value={sector}
+                                onChange={(e) => setSector(e.target.value)}
+                                className="w-full p-2 rounded-md bg-slate-800 border border-slate-700 text-white"
+                            >
+                                <option value="">Seleccionar...</option>
+                                <option value="Energy">Energy (Energía)</option>
+                                <option value="Technology">Technology (Tecnología)</option>
+                                <option value="Financials">Financials (Finanzas)</option>
+                                <option value="Communication Services">Communication Services</option>
+                                <option value="Consumer Discretionary">Consumer Discretionary (Consumo Cíclico)</option>
+                                <option value="Consumer Staples">Consumer Staples (Consumo Básico)</option>
+                                <option value="Health Care">Health Care (Salud)</option>
+                                <option value="Industrials">Industrials (Industria)</option>
+                                <option value="Materials">Materials (Materiales)</option>
+                                <option value="Real Estate">Real Estate</option>
+                                <option value="Utilities">Utilities (Servicios Públicos)</option>
+                            </select>
                         </div>
 
                         <div className="flex gap-4 pt-4">
