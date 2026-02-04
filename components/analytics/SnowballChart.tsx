@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { Loader2 } from 'lucide-react';
 
 interface SnowballData {
@@ -85,6 +85,30 @@ export function SnowballChart() {
                             }}
                         />
                         <Legend />
+
+
+                        {/* Reference lines for year separation */}
+                        {data.map((entry, index) => {
+                            if (entry.month.endsWith('-01')) {
+                                const year = entry.month.split('-')[0];
+                                return (
+                                    <ReferenceLine
+                                        key={`year-${year}`}
+                                        x={entry.month}
+                                        stroke="#334155"
+                                        strokeDasharray="3 3"
+                                        label={{
+                                            position: 'insideTopLeft',
+                                            value: year,
+                                            fill: '#64748b',
+                                            fontSize: 12,
+                                            dy: 10
+                                        }}
+                                    />
+                                );
+                            }
+                            return null;
+                        })}
 
                         {/* Area de Acumulado (Total Snowball) */}
                         <Area
