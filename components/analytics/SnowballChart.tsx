@@ -53,7 +53,7 @@ export function SnowballChart() {
                             dataKey="month"
                             stroke="#94a3b8"
                             tick={{ fontSize: 12 }}
-                            tickFormatter={(val) => val.slice(2)} // '24-01'
+                            tickFormatter={(val) => (typeof val === 'string' ? val.slice(2) : val)}
                         />
                         <YAxis
                             stroke="#94a3b8"
@@ -63,7 +63,10 @@ export function SnowballChart() {
                         <Tooltip
                             contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }}
                             itemStyle={{ color: '#e2e8f0' }}
-                            formatter={(value: number) => [`$${value.toFixed(0)}`, '']}
+                            formatter={(value: any) => {
+                                const val = Number(value);
+                                return [isNaN(val) ? '$0' : `$${val.toFixed(0)}`, ''];
+                            }}
                         />
                         <Legend />
 

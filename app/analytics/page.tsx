@@ -4,6 +4,7 @@ import { SnowballChart } from '@/components/analytics/SnowballChart';
 import { SectorChart } from '@/components/analytics/SectorChart';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 export default function AnalyticsPage() {
     return (
@@ -23,7 +24,9 @@ export default function AnalyticsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Snowball - Full Width on Mobile, Half on Desktop */}
                     <div className="space-y-2">
-                        <SnowballChart />
+                        <ErrorBoundary name="SnowballChart">
+                            <SnowballChart />
+                        </ErrorBoundary>
                         <p className="text-xs text-slate-500 text-center px-4">
                             * Muestra intereses proyectados/cobrados de ONs y Plazos Fijos, más dividendos.
                         </p>
@@ -31,7 +34,9 @@ export default function AnalyticsPage() {
 
                     {/* Sectors */}
                     <div className="space-y-2">
-                        <SectorChart />
+                        <ErrorBoundary name="SectorChart">
+                            <SectorChart />
+                        </ErrorBoundary>
                         <p className="text-xs text-slate-500 text-center px-4">
                             * Exposición estimada por sector industrial (Energía, Tech, Real Estate, etc.) based en activos.
                         </p>

@@ -62,7 +62,10 @@ export function SectorChart() {
                         </Pie>
                         <Tooltip
                             contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff' }}
-                            formatter={(value: number) => `$${value.toFixed(0)}`}
+                            formatter={(value: any) => {
+                                const val = Number(value);
+                                return isNaN(val) ? '$0' : `$${val.toFixed(0)}`;
+                            }}
                         />
                         <Legend
                             layout="vertical"
