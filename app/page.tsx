@@ -361,6 +361,17 @@ export default function HomePage() {
                           />
                         )}
 
+                        {shouldShow('analytics') && (
+                          <DashboardCard
+                            title="Analítica Avanzada"
+                            description="Bola de Nieve y Sectores"
+                            icon="🧠"
+                            href="/analytics"
+                            enabled={true}
+                            trendColor="text-emerald-400"
+                          />
+                        )}
+
                         {/* Costa Card - Only show if specifically allowed OR legacy (showAll) */}
                         {(showAll || shouldShow('costa')) && (
                           <DashboardCard
