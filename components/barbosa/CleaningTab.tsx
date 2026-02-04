@@ -197,7 +197,8 @@ export function CleaningTab() {
                                             stroke="#f43f5e"
                                             strokeDasharray="5 5"
                                             strokeWidth={2}
-                                            dot={false}
+                                            dot={{ r: 4, fill: '#f43f5e' }}
+                                            label={{ position: 'top', fill: '#f43f5e', fontSize: 10, formatter: (val: any) => `${val}%` }}
                                         />
 
                                         <Line
@@ -207,6 +208,8 @@ export function CleaningTab() {
                                             stroke="#3b82f6"
                                             strokeWidth={3}
                                             activeDot={{ r: 6 }}
+                                            dot={{ r: 4, fill: '#3b82f6' }}
+                                            label={{ position: 'top', fill: '#3b82f6', fontSize: 10, fontWeight: 'bold', formatter: (val: any) => `${val}%` }}
                                         />
                                     </ComposedChart>
                                 </ResponsiveContainer>
