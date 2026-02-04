@@ -361,34 +361,7 @@ export function GlobalDashboardTab() {
             {/* ROW 1.5: Upcoming Events (Adaptive Flex) */}
             <div className="flex flex-wrap gap-6">
                 {/* 0. Next Maturity PF */}
-                {shouldShow('bank') && stats.summary.nextMaturitiesPF && stats.summary.nextMaturitiesPF.length > 0 && (
-                    <Card className="flex-1 min-w-[220px] bg-gradient-to-br from-cyan-950/40 to-slate-900 border-cyan-500/20 text-center">
-                        <CardHeader className="pb-2 flex flex-col items-center h-14 justify-center">
-                            <CardTitle className="text-slate-300 text-sm font-bold uppercase tracking-wide">
-                                Prox. Vto Plazo Fijo
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="h-[160px] flex flex-col items-center justify-between pt-0 pb-4">
-                            <>
-                                <div className="h-10 flex items-center justify-center">
-                                    <div className="text-3xl font-bold text-white">
-                                        {formatMoney(stats.summary.nextMaturitiesPF[0].amount)}
-                                    </div>
-                                </div>
-                                <div className="h-12 flex items-center justify-center w-full px-2">
-                                    <span className="text-cyan-300 font-medium text-sm leading-tight line-clamp-2">
-                                        Faltan {stats.summary.nextMaturitiesPF[0].daysLeft} días
-                                    </span>
-                                </div>
-                                <div className="h-10 flex items-center justify-center">
-                                    <div className="text-lg font-bold text-white bg-slate-800/80 px-6 py-1.5 rounded-full border border-slate-700 shadow-sm">
-                                        {formatDate(stats.summary.nextMaturitiesPF[0].date)}
-                                    </div>
-                                </div>
-                            </>
-                        </CardContent>
-                    </Card>
-                )}
+
 
                 {/* 1. Next Interest ON */}
                 {shouldShow('on') && stats.summary.nextInterestON && (
