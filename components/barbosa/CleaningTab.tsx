@@ -1,327 +1,265 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Plus, Save, TrendingUp } from 'lucide-react';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-    AreaChart,
-    Area,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer
-} from 'recharts';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ComposedChart, Bar } from 'recharts';
 
 export function CleaningTab() {
-    const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isOpen, setIsOpen] = useState(false);
+    const [data, setData] = useState<any>(null);
+    const [inputMonth, setInputMonth] = useState<string>((new Date().getMonth() + 1).toString());
+    const [inputYear, setInputYear] = useState<string>(new Date().getFullYear().toString());
+    const [inputPrice, setInputPrice] = useState<string>('');
+    const [inputHours, setInputHours] = useState<string>('4');
 
-    // Form State
-    const [formData, setFormData] = useState({
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
-        hoursPerWeek: 12,
-        weeklyValue: 0,
-        monthlyIncrease: 0,
-        legalHourlyRate: 0
-    });
+    const fetchData = () => {
+        setLoading(true);
+        fetch('/api/barbosa/cleaning')
+            .then(res => res.json())
+            .then(json => {
+                setData(json);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error(err);
+                setLoading(false);
+            });
+    };
 
     useEffect(() => {
         fetchData();
     }, []);
 
-    const fetchData = async () => {
-        try {
-            const res = await fetch('/api/barbosa/cleaning');
-            const json = await res.json();
-            setData(json);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleSave = async () => {
+        if (!inputPrice) {
+            alert('Ingresa el precio por hora');
+            return;
+        }
+
         try {
-            await fetch('/api/barbosa/cleaning', {
+            const res = await fetch('/api/barbosa/cleaning', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    month: parseInt(inputMonth),
+                    year: parseInt(inputYear),
+                    pricePerHour: parseFloat(inputPrice),
+                    hoursPerWeek: parseInt(inputHours)
+                })
             });
-            setIsOpen(false);
-            fetchData();
+
+            if (res.ok) {
+                // alert('Datos guardados');
+                fetchData(); // Refresh
+            } else {
+                alert('Error al guardar');
+            }
         } catch (error) {
-            console.error('Error saving', error);
+            alert('Error de conexión');
         }
     };
 
-    // Auto-calculate logic when opening modal or changing increase
-    useEffect(() => {
-        if (isOpen && data.length > 0) {
-            // Find most recent record to base calc
-            // Data is ordered desc by default from API? Yes.
-            const last = data[0];
-            if (last) {
-                // Predict next month
-                let nextMonth = last.month + 1;
-                let nextYear = last.year;
-                if (nextMonth > 12) { nextMonth = 1; nextYear++; }
+    if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-500" /></div>;
 
-                // If form is untouched (default 0), prefill
-                if (formData.weeklyValue === 0) {
-                    const base = last.weeklyValue;
-                    const newVal = base * (1 + (formData.monthlyIncrease / 100));
-                    setFormData(prev => ({
-                        ...prev,
-                        month: nextMonth,
-                        year: nextYear,
-                        hoursPerWeek: last.hoursPerWeek,
-                        weeklyValue: Math.round(newVal),
-                        legalHourlyRate: last.legalHourlyRate // Copy prev legal as baseline
-                    }));
-                }
-            }
-        }
-    }, [isOpen, formData.monthlyIncrease]);
+    const { chartData, rawData } = data || { chartData: [], rawData: [] };
+    const lastPoint = chartData.length > 0 ? chartData[chartData.length - 1] : null;
 
-    // Derived Metrics for Chart
-    const chartData = [...data].reverse().map(d => ({
-        label: `${d.month}/${d.year}`,
-        gapPercent: d.legalHourlyRate ? ((d.pricePerHour - d.legalHourlyRate) / d.legalHourlyRate) * 100 : 0,
-        myRate: d.pricePerHour,
-        legalRate: d.legalHourlyRate || 0
-    }));
+    // Determine Gap (Lag)
+    const gap = lastPoint ? ((lastPoint.pricePerHour - lastPoint.theoreticalPrice) / lastPoint.theoreticalPrice) * 100 : 0;
+    const isLagging = gap < -5; // If gap is worse than -5% (paid is 5% less than theoretical)
+    const isGood = gap >= -5;
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-white">Registro de Limpieza</h2>
-                <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    <DialogTrigger asChild>
-                        <Button className="bg-blue-600 hover:bg-blue-700">
-                            <Plus size={16} className="mr-2" />
-                            Nuevo Mes
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-slate-900 border-slate-800 text-white">
-                        <DialogHeader>
-                            <DialogTitle>Cargar Mes de Limpieza</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Mes</Label>
-                                    <Input
-                                        type="number"
-                                        value={formData.month}
-                                        onChange={e => setFormData({ ...formData, month: parseInt(e.target.value) })}
-                                        className="bg-slate-950 border-slate-800"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Año</Label>
-                                    <Input
-                                        type="number"
-                                        value={formData.year}
-                                        onChange={e => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                                        className="bg-slate-950 border-slate-800"
-                                    />
-                                </div>
-                            </div>
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                🧹 Personal de Limpieza
+            </h2>
 
-                            <div className="space-y-2">
-                                <Label>Horas Semanales</Label>
-                                <Input
-                                    type="number"
-                                    value={formData.hoursPerWeek}
-                                    onChange={e => setFormData({ ...formData, hoursPerWeek: parseInt(e.target.value) })}
-                                    className="bg-slate-950 border-slate-800"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Aumento Mensual (%)</Label>
-                                    <Input
-                                        type="number"
-                                        value={formData.monthlyIncrease}
-                                        onChange={e => {
-                                            const inc = parseFloat(e.target.value);
-                                            // Recalc weekly value based on PREV record if exists
-                                            // Ideally we'd store prevRecord in state, but simpler hack:
-                                            // If we assume user fills this first, they manually adjust Weekly Value later.
-                                            setFormData({ ...formData, monthlyIncrease: inc })
-                                        }}
-                                        className="bg-slate-950 border-slate-800"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Valor Semana (Pagado)</Label>
-                                    <Input
-                                        type="number"
-                                        value={formData.weeklyValue}
-                                        onChange={e => setFormData({ ...formData, weeklyValue: parseFloat(e.target.value) })}
-                                        className="bg-slate-950 border-slate-800 font-bold text-emerald-400"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Valor Hora (Según Ley/Referencias)</Label>
-                                <Input
-                                    type="number"
-                                    value={formData.legalHourlyRate}
-                                    onChange={e => setFormData({ ...formData, legalHourlyRate: parseFloat(e.target.value) })}
-                                    className="bg-slate-950 border-slate-800"
-                                />
-                            </div>
-
-                            <Button onClick={handleSave} className="w-full bg-emerald-600 hover:bg-emerald-700 mt-4">
-                                <Save className="mr-2 h-4 w-4" /> Guardar Registro
-                            </Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-            </div>
-
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="bg-slate-950 border-slate-800 lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="text-white text-sm">Diferencia vs Ley (%)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="h-[200px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={chartData}>
-                                    <defs>
-                                        <linearGradient id="colorGap" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-                                    <XAxis dataKey="label" stroke="#64748b" fontSize={12} />
-                                    <YAxis stroke="#64748b" fontSize={12} unit="%" />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }}
-                                        itemStyle={{ color: '#fff' }}
-                                    />
-                                    <Area type="monotone" dataKey="gapPercent" stroke="#10b981" fillOpacity={1} fill="url(#colorGap)" name="Diferencia %" />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* KPI Card */}
-                <Card className="bg-slate-950 border-slate-800">
-                    <CardContent className="p-6 flex flex-col justify-center h-full">
-                        <div className="mb-4">
-                            <p className="text-slate-400 text-sm upp">Último Valor Hora (Mío)</p>
-                            <p className="text-3xl font-bold text-white font-mono">
-                                {data[0]?.pricePerHour ? `$${Math.round(data[0].pricePerHour)}` : '-'}
+            {/* Insight Card */}
+            {lastPoint && lastPoint.pricePerHour && (
+                <div className={`p-4 rounded-xl border ${isLagging ? 'bg-red-950/30 border-red-800' : 'bg-emerald-950/30 border-emerald-800'}`}>
+                    <div className="flex items-start gap-3">
+                        {isLagging ? <AlertTriangle className="text-red-500 mt-1" /> : <CheckCircle className="text-emerald-500 mt-1" />}
+                        <div>
+                            <h3 className={`font-bold ${isLagging ? 'text-red-400' : 'text-emerald-400'}`}>
+                                {isLagging ? 'Desfasaje detectado' : 'Precio Actualizado'}
+                            </h3>
+                            <p className="text-slate-300 text-sm mt-1">
+                                Tu precio actual es <b>${lastPoint.pricePerHour.toLocaleString()}</b>.
+                                Según la inflación acumulada, deberías estar pagando <b>${Math.round(lastPoint.theoreticalPrice).toLocaleString()}</b>.
+                                Diferencia: <span className={gap > 0 ? 'text-emerald-400' : 'text-red-400'}>{gap > 0 ? '+' : ''}{Math.round(gap)}%</span>
                             </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Input Card */}
+                <Card className="bg-slate-950 border-slate-900 shadow-lg h-fit">
+                    <CardHeader>
+                        <CardTitle className="text-sm font-medium text-slate-400">Cargar Precio Hora</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="text-xs text-slate-500">Mes</label>
+                                <Select value={inputMonth} onValueChange={setInputMonth}>
+                                    <SelectTrigger className="bg-slate-900 border-slate-800 text-white">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                                            <SelectItem key={m} value={m.toString()}>{new Date(2024, m - 1).toLocaleString('es-ES', { month: 'long' })}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label className="text-xs text-slate-500">Año</label>
+                                <Select value={inputYear} onValueChange={setInputYear}>
+                                    <SelectTrigger className="bg-slate-900 border-slate-800 text-white">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="2024">2024</SelectItem>
+                                        <SelectItem value="2025">2025</SelectItem>
+                                        <SelectItem value="2026">2026</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div>
-                            <p className="text-slate-400 text-sm upp">Último Valor Hora (Ley)</p>
-                            <p className="text-xl font-bold text-slate-400 font-mono">
-                                {data[0]?.legalHourlyRate ? `$${Math.round(data[0].legalHourlyRate)}` : '-'}
-                            </p>
+                            <label className="text-xs text-slate-500">Precio por Hora ($)</label>
+                            <Input
+                                type="number"
+                                className="bg-slate-900 border-slate-800 text-white"
+                                value={inputPrice}
+                                onChange={e => setInputPrice(e.target.value)}
+                                placeholder="Ej: 3500"
+                            />
                         </div>
-                        {data[0]?.legalHourlyRate && (
-                            <div className="mt-4 pt-4 border-t border-slate-800">
-                                <span className={`text-lg font-bold ${data[0].pricePerHour > data[0].legalHourlyRate ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    {data[0].pricePerHour > data[0].legalHourlyRate ? '+' : ''}
-                                    {Math.round(((data[0].pricePerHour - data[0].legalHourlyRate) / data[0].legalHourlyRate) * 100)}%
-                                </span>
-                                <span className="text-slate-500 text-xs ml-2">vs Ley</span>
-                            </div>
-                        )}
+                        <div>
+                            <label className="text-xs text-slate-500">Horas Semanales</label>
+                            <Input
+                                type="number"
+                                className="bg-slate-900 border-slate-800 text-white"
+                                value={inputHours}
+                                onChange={e => setInputHours(e.target.value)}
+                            />
+                        </div>
+                        <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleSave}>
+                            Guardar
+                        </Button>
                     </CardContent>
                 </Card>
+
+                {/* Chart Section */}
+                <div className="lg:col-span-2">
+                    <Card className="bg-slate-950 border-slate-900 shadow-lg h-full">
+                        <CardHeader>
+                            <CardTitle className="text-slate-400">Evolución Precio vs Inflación</CardTitle>
+                        </CardHeader>
+                        <CardContent className="h-[300px]">
+                            {chartData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <ComposedChart data={chartData}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                        <XAxis
+                                            dataKey="period"
+                                            stroke="#475569"
+                                            tick={{ fontSize: 12 }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <YAxis
+                                            stroke="#475569"
+                                            tick={{ fontSize: 12 }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tickFormatter={(val) => `$${val}`}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155' }}
+                                            itemStyle={{ color: '#e2e8f0' }}
+                                        />
+                                        <Legend />
+
+                                        {/* Theoretical Price (Area/Line) */}
+                                        <Line
+                                            type="monotone"
+                                            dataKey="theoreticalPrice"
+                                            name="Precio Sugerido (IPC)"
+                                            stroke="#f59e0b"
+                                            strokeDasharray="5 5"
+                                            strokeWidth={2}
+                                            dot={false}
+                                        />
+
+                                        {/* Actual Price */}
+                                        <Line
+                                            type="monotone"
+                                            dataKey="pricePerHour"
+                                            name="Precio Pagado"
+                                            stroke="#10b981"
+                                            strokeWidth={3}
+                                            activeDot={{ r: 6 }}
+                                        />
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-slate-500">
+                                    Carga el primer mes para ver la evolución
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
 
-            {/* Data Table */}
-            <div className="border border-slate-800 rounded-lg overflow-hidden">
-                <table className="w-full text-sm text-left text-slate-300">
-                    <thead className="bg-slate-900 text-slate-400 uppercase font-bold text-xs">
-                        <tr>
-                            <th className="px-6 py-4">Mes</th>
-                            <th className="px-6 py-4 text-right">Valor Semana</th>
-                            <th className="px-6 py-4 text-center">Hs/Sem</th>
-                            <th className="px-6 py-4 text-right text-emerald-400">$/Hora (Mío)</th>
-                            <th className="px-6 py-4 text-right">$/Hora (Ley)</th>
-                            <th className="px-6 py-4 text-right">Diferencia</th>
-                            <th className="px-6 py-4 text-center">Aumento %</th>
-                            <th className="px-6 py-4 text-right">Total Pagado (Aprox)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 bg-slate-950">
-                        {data.length === 0 ? (
-                            <tr>
-                                <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
-                                    No hay registros cargados.
-                                </td>
-                            </tr>
-                        ) : (
-                            data.map((row) => (
-                                <tr key={row.id} className="hover:bg-slate-900/50">
-                                    <td className="px-6 py-4 font-medium text-white">
-                                        {row.month}/{row.year}
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-mono">
-                                        ${row.weeklyValue.toLocaleString()}
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        {row.hoursPerWeek}
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-mono text-emerald-400 font-bold">
-                                        ${Math.round(row.pricePerHour).toLocaleString()}
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-mono text-slate-400">
-                                        {row.legalHourlyRate ? `$${row.legalHourlyRate.toLocaleString()}` : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-mono">
-                                        {row.legalHourlyRate ? (
-                                            <span className={row.pricePerHour > row.legalHourlyRate ? 'text-emerald-500' : 'text-red-500'}>
-                                                {row.pricePerHour > row.legalHourlyRate ? '+' : ''}
-                                                ${Math.round(row.pricePerHour - row.legalHourlyRate).toLocaleString()}
-                                                <span className="text-xs opacity-70 ml-1">
-                                                    ({Math.round(((row.pricePerHour - row.legalHourlyRate) / row.legalHourlyRate) * 100)}%)
-                                                </span>
-                                            </span>
-                                        ) : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        {row.monthlyIncrease > 0 ? (
-                                            <span className="text-amber-500 font-bold">
-                                                +{row.monthlyIncrease}%
-                                            </span>
-                                        ) : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-mono text-slate-300">
-                                        ${(row.weeklyValue * 4).toLocaleString()}
-                                    </td>
+            {/* History Table */}
+            <Card className="bg-slate-950 border-slate-900 shadow-lg">
+                <CardHeader>
+                    <CardTitle className="text-sm font-medium text-slate-400">Historial</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-slate-400">
+                            <thead className="text-xs text-slate-500 uppercase bg-slate-900/50">
+                                <tr>
+                                    <th className="px-4 py-3">Periodo</th>
+                                    <th className="px-4 py-3 text-right">Precio Hora</th>
+                                    <th className="px-4 py-3 text-right">Horas/Sem</th>
+                                    <th className="px-4 py-3 text-right">Total/Semana</th>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                            </thead>
+                            <tbody>
+                                {rawData && rawData.map((row: any) => (
+                                    <tr key={row.id} className="border-b border-slate-800 hover:bg-slate-900/30">
+                                        <td className="px-4 py-3 font-medium text-white">
+                                            {new Date(row.year, row.month - 1).toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-emerald-400 font-bold">
+                                            ${row.pricePerHour.toLocaleString()}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            {row.hoursPerWeek} hs
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            ${(row.pricePerHour * row.hoursPerWeek).toLocaleString()}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }

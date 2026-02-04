@@ -9,7 +9,7 @@ import { useSession } from 'next-auth/react';
 
 // Tabs
 import { DashboardTab } from '@/components/barbosa/DashboardTab';
-// import { CleaningTab } from '@/components/barbosa/CleaningTab'; // Removed
+import { CleaningTab } from '@/components/barbosa/CleaningTab';
 import { CashflowTab } from '@/components/barbosa/CashflowTab';
 import { TransactionsTab } from '@/components/barbosa/TransactionsTab';
 import { SettingsTab } from '@/components/barbosa/SettingsTab';
@@ -32,6 +32,7 @@ export default function BarbosaPage() {
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'cashflow', label: 'Cashflow' },
         { id: 'dollars', label: 'Dólares' },
+        { id: 'cleaning', label: 'Personal' },
         { id: 'transactions', label: 'Carga' },
         { id: 'installments', label: 'Cuotas' },
         { id: 'recurrence', label: 'Recurrentes' },
@@ -80,7 +81,7 @@ export default function BarbosaPage() {
                 {/* Content */}
                 <div className="min-h-[500px]">
                     {activeTab === 'dashboard' && <DashboardTab startDate={startDate} />}
-                    {/* {activeTab === 'cleaning' && <CleaningTab />} */}
+                    {activeTab === 'cleaning' && <CleaningTab />}
                     {activeTab === 'cashflow' && <CashflowTab startDate={startDate} />}
                     {activeTab === 'dollars' && <DollarsTab />}
                     {activeTab === 'transactions' && <TransactionsTab />}

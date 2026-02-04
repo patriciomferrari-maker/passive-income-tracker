@@ -841,3 +841,87 @@ Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\patri\.gemini\antigra
 }
 
 Node.js v24.11.1
+[lun 02/02/2026 23:00:02,71] Starting Metrogas check... 
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\scripts\manual-metrogas-check.ts' imported from C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\
+    at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    at moduleResolve (node:internal/modules/esm/resolve:864:10)
+    at defaultResolve (node:internal/modules/esm/resolve:990:11)
+    at nextResolve (node:internal/modules/esm/hooks:785:28)
+    at resolveBase (file:///C:/Users/patri/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770084004932:2:3744)
+    at async resolveDirectory (file:///C:/Users/patri/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770084004932:2:4237)
+    at async resolve (file:///C:/Users/patri/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770084004932:2:5355)
+    at async nextResolve (node:internal/modules/esm/hooks:785:22)
+    at async AsyncLoaderHooksOnLoaderHookWorker.resolve (node:internal/modules/esm/hooks:271:24)
+    at async handleMessage (node:internal/modules/esm/worker:251:18) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///C:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/scripts/manual-metrogas-check.ts'
+}
+
+Node.js v24.11.1
+[mar 03/02/2026 11:00:02,41] Starting Metrogas check... 
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\scripts\manual-metrogas-check.ts' imported from C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\
+    at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    at moduleResolve (node:internal/modules/esm/resolve:864:10)
+    at defaultResolve (node:internal/modules/esm/resolve:990:11)
+    at nextResolve (node:internal/modules/esm/hooks:785:28)
+    at resolveBase (file:///C:/Users/patri/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770127203476:2:3744)
+    at async resolveDirectory (file:///C:/Users/patri/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770127203476:2:4237)
+    at async resolve (file:///C:/Users/patri/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770127203476:2:5355)
+    at async nextResolve (node:internal/modules/esm/hooks:785:22)
+    at async AsyncLoaderHooksOnLoaderHookWorker.resolve (node:internal/modules/esm/hooks:271:24)
+    at async handleMessage (node:internal/modules/esm/worker:251:18) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///C:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/scripts/manual-metrogas-check.ts'
+}
+
+Node.js v24.11.1
+[mar 03/02/2026 16:00:01,95] Starting Metrogas check... 
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\scripts\manual-metrogas-check.ts' imported from C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\
+    at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    at moduleResolve (node:internal/modules/esm/resolve:864:10)
+    at defaultResolve (node:internal/modules/esm/resolve:990:11)
+    at nextResolve (node:internal/modules/esm/hooks:785:28)
+    at resolveBase (file:///C:/Users/patri/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770145202852:2:3744)
+    at async resolveDirectory (file:///C:/Users/patri/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770145202852:2:4237)
+    at async resolve (file:///C:/Users/patri/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770145202852:2:5355)
+    at async nextResolve (node:internal/modules/esm/hooks:785:22)
+    at async AsyncLoaderHooksOnLoaderHookWorker.resolve (node:internal/modules/esm/hooks:271:24)
+    at async handleMessage (node:internal/modules/esm/worker:251:18) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///C:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/scripts/manual-metrogas-check.ts'
+}
+
+Node.js v24.11.1
+[mar 03/02/2026 23:00:02,80] Starting Metrogas check... 
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\scripts\manual-metrogas-check.ts' imported from C:\Users\patri\.gemini\antigravity\playground\passive_income_tracker\
+    at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    at moduleResolve (node:internal/modules/esm/resolve:864:10)
+    at defaultResolve (node:internal/modules/esm/resolve:990:11)
+    at nextResolve (node:internal/modules/esm/hooks:785:28)
+    at resolveBase (file:///C:/Users/patri/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770170405975:2:3744)
+    at async resolveDirectory (file:///C:/Users/patri/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770170405975:2:4237)
+    at async resolve (file:///C:/Users/patri/AppData/Local/npm-cache/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770170405975:2:5355)
+    at async nextResolve (node:internal/modules/esm/hooks:785:22)
+    at async AsyncLoaderHooksOnLoaderHookWorker.resolve (node:internal/modules/esm/hooks:271:24)
+    at async handleMessage (node:internal/modules/esm/worker:251:18) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///C:/Users/patri/.gemini/antigravity/playground/passive_income_tracker/scripts/manual-metrogas-check.ts'
+}
+
+Node.js v24.11.1
