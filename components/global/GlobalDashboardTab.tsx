@@ -231,7 +231,7 @@ export function GlobalDashboardTab() {
     const historyData = showValues ? (stats.history || []) : [];
     const compositionData = showValues ? (stats.composition || []).filter(filterComposition) : [{ name: 'Oculto', value: 1, fill: '#1e293b' }];
     // Consolidated Portfolio Data (Market + Bank)
-    const portfolioDistData = showValues ? (stats.portfolioDistribution || []) : [{ name: 'Oculto', value: 1 }];
+    const portfolioDistData = showValues ? (stats.portfolioDistribution || []).filter((item: any) => item.value > 0) : [{ name: 'Oculto', value: 1 }];
     const projectedData = showValues ? (stats.projected || []) : [];
 
     // Check if Bank history exists for Chart Rendering

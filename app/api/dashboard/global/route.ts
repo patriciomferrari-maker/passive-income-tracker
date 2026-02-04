@@ -336,15 +336,16 @@ export async function GET() {
                 assetGroupMap.set('Caja de Ahorro', (assetGroupMap.get('Caja de Ahorro') || 0) + amountUSD);
                 totalCajaAhorro += amountUSD;
             } else if (op.type === 'CAJA_SEGURIDAD') {
-                assetGroupMap.set('Caja de Seguridad', (assetGroupMap.get('Caja de Seguridad') || 0) + amountUSD);
-                totalCajaSeguridad += amountUSD;
-            } else {
                 // For "OTRO" or undefined types, use the Alias (Consolidated for FCI)
-                const label = op.alias || 'Otros Banco';
+                let label = op.alias || 'Otros Banco';
                 if (label.toUpperCase().includes('FCI')) {
                     assetGroupMap.set('FCI', (assetGroupMap.get('FCI') || 0) + amountUSD);
                     totalFCI += amountUSD;
                 } else {
+                    // Nomenclature fix: Prioritize instrument name
+                    if (label.toLowerCase().includes('caja fuerte')) {
+                        label = 'Caja Fuerte';
+                    }
                     assetGroupMap.set(label, (assetGroupMap.get(label) || 0) + amountUSD);
                     totalBankOther += amountUSD;
                 }
@@ -353,6 +354,7 @@ export async function GET() {
 
         const portfolioDistribution = Array.from(assetGroupMap.entries())
             .map(([name, value]) => ({ name, value }))
+            .filter(item => item.value > 1) // Filter out negligible values
             .sort((a, b) => b.value - a.value);
 
         // Map for easier lookup for specific categories if needed locally
