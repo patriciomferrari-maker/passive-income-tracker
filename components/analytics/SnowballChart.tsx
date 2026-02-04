@@ -63,9 +63,25 @@ export function SnowballChart() {
                         <Tooltip
                             contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }}
                             itemStyle={{ color: '#e2e8f0' }}
+                            labelStyle={{ color: '#94a3b8', marginBottom: '0.5rem' }}
+                            labelFormatter={(label) => {
+                                if (typeof label !== 'string') return label;
+                                // Assume YYYY-MM format
+                                const [year, month] = label.split('-');
+                                const date = new Date(parseInt(year), parseInt(month) - 1);
+                                return date.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+                            }}
                             formatter={(value: any) => {
                                 const val = Number(value);
-                                return [isNaN(val) ? '$0' : `$${val.toFixed(0)}`, ''];
+                                if (isNaN(val)) return ['$0', ''];
+                                return [
+                                    new Intl.NumberFormat('en-US', {
+                                        style: 'currency',
+                                        currency: 'USD',
+                                        maximumFractionDigits: 0,
+                                    }).format(val),
+                                    ''
+                                ];
                             }}
                         />
                         <Legend />

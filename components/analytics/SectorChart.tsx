@@ -64,7 +64,12 @@ export function SectorChart() {
                             contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff' }}
                             formatter={(value: any) => {
                                 const val = Number(value);
-                                return isNaN(val) ? '$0' : `$${val.toFixed(0)}`;
+                                if (isNaN(val)) return '$0';
+                                return new Intl.NumberFormat('en-US', {
+                                    style: 'currency',
+                                    currency: 'USD',
+                                    maximumFractionDigits: 0,
+                                }).format(val);
                             }}
                         />
                         <Legend
