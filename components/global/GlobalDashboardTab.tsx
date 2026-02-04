@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LabelList, Label, ReferenceLine } from 'recharts';
 import { TrendingUp, Wallet, ArrowUpRight, Eye, EyeOff, CalendarClock, HandCoins, Building2, Landmark, DollarSign, Calendar, Percent } from 'lucide-react';
+import { SnowballChart } from '@/components/analytics/SnowballChart';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 interface GlobalStats {
     summary: {
@@ -607,6 +609,13 @@ export function GlobalDashboardTab() {
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
+            </div>
+
+            {/* Snowball Chart Section */}
+            <div className="space-y-4">
+                <ErrorBoundary name="SnowballChart">
+                    <SnowballChart />
+                </ErrorBoundary>
             </div>
 
             {/* ROW 3: Portfolio Composition */}

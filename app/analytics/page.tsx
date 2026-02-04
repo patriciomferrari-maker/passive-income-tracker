@@ -1,6 +1,5 @@
 'use client';
 
-import { SnowballChart } from '@/components/analytics/SnowballChart';
 import { SectorChart } from '@/components/analytics/SectorChart';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -21,18 +20,8 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* Charts Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Snowball - Full Width on Mobile, Half on Desktop */}
-                    <div className="space-y-2">
-                        <ErrorBoundary name="SnowballChart">
-                            <SnowballChart />
-                        </ErrorBoundary>
-                        <p className="text-xs text-slate-500 text-center px-4">
-                            * Muestra intereses proyectados/cobrados de ONs y Plazos Fijos, más dividendos.
-                        </p>
-                    </div>
-
-                    {/* Sectors */}
+                <div className="grid grid-cols-1 gap-6">
+                    {/* Sectors - Full Width */}
                     <div className="space-y-2">
                         <ErrorBoundary name="SectorChart">
                             <SectorChart />
