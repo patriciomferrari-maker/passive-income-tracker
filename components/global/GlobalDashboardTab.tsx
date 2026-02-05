@@ -687,12 +687,26 @@ export function GlobalDashboardTab() {
                                         data={stats.sectorDistribution}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
+                                        innerRadius={40}
+                                        outerRadius={60}
                                         paddingAngle={2}
                                         dataKey="value"
-                                        label={({ name, percent }) => showValues ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
-                                        labelLine={true}
+                                        label={({ name, percent }) => {
+                                            if (!showValues || percent < 0.03) return '';
+                                            let displayName = name;
+                                            if (name === 'Consumer Discretionary') displayName = 'Cons. Disc.';
+                                            if (name === 'Consumer Staples') displayName = 'Staples';
+                                            if (name === 'Information Technology') displayName = 'Tech';
+                                            if (name === 'Communication Services') displayName = 'Comms';
+                                            if (name === 'Financials') displayName = 'Fin';
+                                            if (name === 'Health Care') displayName = 'Health';
+                                            if (name === 'Industrials') displayName = 'Ind';
+                                            if (name === 'Materials') displayName = 'Mat';
+                                            if (name === 'Real Estate') displayName = 'RE';
+                                            return `${displayName} ${(percent * 100).toFixed(0)}%`;
+                                        }}
+                                        style={{ fontSize: '9px', fontWeight: '500', fill: '#94a3b8' }}
+                                        labelLine={{ stroke: '#475569', strokeWidth: 1, length: 10 }}
                                     >
                                         {stats.sectorDistribution.map((entry: any, index: number) => (
                                             <Cell key={`cell-s-${index}`} fill={`hsl(${index * 45}, 70%, 50%)`} stroke="rgba(0,0,0,0)" />
