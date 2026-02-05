@@ -76,6 +76,10 @@ interface GlobalStats {
         name: string;
         value: number;
     }[];
+    sectorDistribution?: {
+        name: string;
+        value: number;
+    }[];
     debug?: { userId: string, raw: string | null };
 }
 
@@ -533,9 +537,9 @@ export function GlobalDashboardTab() {
             </div>
 
             {/* ROW 2: Bar Charts (History & Projection) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={`grid grid-cols-1 ${historyData.some(d => d.total > 0) && projectedData.some(d => d.total > 0) ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-6`}>
                 {/* History */}
-                {historyData.length > 0 && (
+                {historyData.some((h: any) => h.total > 1) && (
                     <Card className="bg-slate-950 border-slate-800">
                         <CardHeader className="text-center">
                             <CardTitle className="text-white">Ingresos Últimos 12 Meses</CardTitle>
@@ -570,45 +574,43 @@ export function GlobalDashboardTab() {
                 )}
 
                 {/* Projection */}
-                {/* Always render container if we have projection data structure, even if empty values, to avoid layout shift? 
-                    Actually, logic says "some(p => p.total > 0)". 
-                    If chart is "vacio" it might be because totals are 0. 
-                */}
-                <Card className="bg-slate-950 border-slate-800">
-                    <CardHeader className="text-center">
-                        <CardTitle className="text-white">Proyección 12 Meses</CardTitle>
-                        <CardDescription className="text-slate-400">Flujo de Fondos por Activo</CardDescription>
-                    </CardHeader>
-                    <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={projectedData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                                <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide={!showValues} />
-                                <YAxis
-                                    stroke="#94a3b8"
-                                    fontSize={12}
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickFormatter={(value) => `$${value}`}
-                                    hide={!showValues}
-                                    scale="sqrt"
-                                />
-                                {showValues && <Tooltip
-                                    cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#fff' }}
-                                    formatter={(value: number) => formatMoney(value)}
-                                    itemStyle={{ color: '#fff' }}
-                                />}
-                                {showValues && <Legend />}
-                                <Bar dataKey="ON" stackId="a" fill="#3b82f6" name="ONs" />
-                                <Bar dataKey="Treasury" stackId="a" fill="#8b5cf6" name="Treasuries" />
-                                <Bar dataKey="Rentals" stackId="a" fill="#10b981" name="Alquileres" />
-                                <Bar dataKey="PF" stackId="a" fill="#f59e0b" name="Plazo Fijo" />
-
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </CardContent>
-                </Card>
+                {projectedData.some((p: any) => p.total > 1) && (
+                    <Card className="bg-slate-950 border-slate-800">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-white">Proyección 12 Meses</CardTitle>
+                            <CardDescription className="text-slate-400">Flujo de Fondos por Activo</CardDescription>
+                        </CardHeader>
+                        <CardContent className="h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={projectedData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                                    <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide={!showValues} />
+                                    <YAxis
+                                        stroke="#94a3b8"
+                                        fontSize={12}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={(value) => `$${value}`}
+                                        hide={!showValues}
+                                        scale="sqrt"
+                                    />
+                                    {showValues && <Tooltip
+                                        cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#fff' }}
+                                        formatter={(value: number) => formatMoney(value)}
+                                        itemStyle={{ color: '#fff' }}
+                                    />}
+                                    <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                    <Bar dataKey="ON" stackId="a" fill="#3b82f6" name="ONs" />
+                                    <Bar dataKey="PF" stackId="a" fill="#f59e0b" name="Plazo Fijo" />
+                                    <Bar dataKey="Treasury" stackId="a" fill="#8b5cf6" name="Treasuries" />
+                                    <Bar dataKey="Rentals" stackId="a" fill="#10b981" name="Alquileres" />
+                                    <Bar dataKey="Installments" stackId="a" fill="#ef4444" name="Cuotas" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             {/* Snowball Chart Section */}
@@ -619,7 +621,7 @@ export function GlobalDashboardTab() {
             </div>
 
             {/* ROW 3: Portfolio Composition */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* 1. Portfolio Composition (Assets) */}
                 {(shouldShow('on') || shouldShow('treasury') || shouldShow('bank')) && portfolioDistData && portfolioDistData.length > 0 && (
                     <Card className="bg-slate-950 border-slate-800">
@@ -671,7 +673,44 @@ export function GlobalDashboardTab() {
                     </Card>
                 )}
 
-                {/* 2. Income Composition (Last Month) */}
+                {/* 2. Sector Distribution (NEW) */}
+                {stats.sectorDistribution && stats.sectorDistribution.length > 0 && (
+                    <Card className="bg-slate-950 border-slate-800">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-white">Diversificación por Sector</CardTitle>
+                            <CardDescription className="text-slate-400">Exposición Industrial</CardDescription>
+                        </CardHeader>
+                        <CardContent className="h-[350px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={stats.sectorDistribution}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={2}
+                                        dataKey="value"
+                                        label={({ name, percent }) => showValues ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
+                                        labelLine={true}
+                                    >
+                                        {stats.sectorDistribution.map((entry: any, index: number) => (
+                                            <Cell key={`cell-s-${index}`} fill={`hsl(${index * 45}, 70%, 50%)`} stroke="rgba(0,0,0,0)" />
+                                        ))}
+                                        <Tooltip
+                                            formatter={(value: number) => formatMoney(value)}
+                                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
+                                            itemStyle={{ color: '#fff' }}
+                                        />
+                                        {/* No Legend as requested */}
+                                    </Pie>
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* 3. Income Composition (Last Month) */}
                 {compositionData && compositionData.length > 0 && (
                     <Card className="bg-slate-950 border-slate-800">
                         <CardHeader className="text-center">

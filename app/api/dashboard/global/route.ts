@@ -373,6 +373,69 @@ export async function GET() {
         const portfolioMap = assetGroupMap;
 
 
+        // --- SECTOR DISTRIBUTION (Migrated from Analytics) ---
+        const sectorMap = new Map<string, number>();
+        const USD_ARS = exchangeRate; // Use the same exchange rate
+
+        // Process Investments (ONs, Treasuries)
+        investments.forEach(inv => {
+            const qty = inv.transactions.reduce((acc, t) => {
+                if (t.type === 'BUY') return acc + t.quantity;
+                if (t.type === 'SELL') return acc - t.quantity;
+                return acc;
+            }, 0);
+
+            if (qty > 0) {
+                const price = inv.lastPrice || 0;
+                let value = qty * price;
+                if (inv.currency === 'ARS') value /= USD_ARS;
+
+                // Sector Fallback
+                let sector = inv.sector;
+                if (!sector) {
+                    if (inv.type === 'ON') sector = 'Financials'; // Default or 'Corporate'
+                    else if (inv.type === 'TREASURY') sector = 'Government';
+                    else sector = 'Unclassified';
+                }
+                sectorMap.set(sector, (sectorMap.get(sector) || 0) + value);
+            }
+        });
+
+        // Process Global Assets (Wait, we need to fetch UserHoldings for this? We optimized earlier)
+        // We haven't fetched GlobalAsset holdings specifically for this calculation in this file yet.
+        // Let's rely on the previous logic or fetch them efficiently. 
+        // Actually, 'investments' table covers Manual Investments.
+        // 'UserHolding' table covers Global Assets (CEDEARs).
+        // We need to fetch UserHoldings to be complete.
+
+        const userHoldings = await prisma.userHolding.findMany({
+            where: { userId },
+            include: { asset: true, transactions: true }
+        });
+
+        userHoldings.forEach(holding => {
+            const qty = holding.transactions.reduce((acc, t) => {
+                if (t.type === 'BUY') return acc + t.quantity;
+                if (t.type === 'SELL') return acc - t.quantity;
+                return acc;
+            }, 0);
+
+            if (qty > 0) {
+                const price = holding.asset.lastPrice || 0;
+                let value = qty * price;
+                if (holding.asset.currency === 'ARS') value /= USD_ARS;
+
+                let sector = holding.asset.sector || 'Unclassified';
+                sectorMap.set(sector, (sectorMap.get(sector) || 0) + value);
+            }
+        });
+
+        const sectorDistribution = Array.from(sectorMap.entries())
+            .map(([name, value]) => ({ name, value }))
+            .filter(item => item.value > 10) // Filter negligible
+            .sort((a, b) => b.value - a.value);
+
+
         // --- PROJECTION CHART DATA (Grouped by Asset) ---
         // Query ALL cashflows for projection range
         const projectedCashflowsRaw = await prisma.cashflow.findMany({
@@ -635,6 +698,7 @@ export async function GET() {
             },
             bankComposition,
             portfolioDistribution,
+            sectorDistribution, // New Field
             history: historyWithAvg,
             composition,
             projected,
