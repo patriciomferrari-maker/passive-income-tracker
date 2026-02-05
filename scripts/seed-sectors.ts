@@ -1,74 +1,194 @@
-
 import { PrismaClient } from '@prisma/client';
+// @ts-ignore
+import fetch from 'node-fetch';
 
 const prisma = new PrismaClient();
 
-const ASSET_SECTORS: Record<string, string> = {
-    // Energy
-    'YPF': 'Energy', 'YPFD': 'Energy', 'VIST': 'Energy', 'PAMP': 'Energy', 'PBR': 'Energy', 'XOM': 'Energy', 'CVX': 'Energy', 'SHEL': 'Energy', 'TTE': 'Energy', 'BP': 'Energy',
-    // Technology
-    'AAPL': 'Technology', 'MSFT': 'Technology', 'NVDA': 'Technology', 'AMD': 'Technology', 'INTC': 'Technology', 'AVGO': 'Technology', 'QCOM': 'Technology', 'CSCO': 'Technology', 'ADBE': 'Technology', 'CRM': 'Technology', 'ORCL': 'Technology', 'IBM': 'Technology', 'TXN': 'Technology', 'NOW': 'Technology', 'UBER': 'Technology', 'SQ': 'Technology', 'PLTR': 'Technology', 'GLOB': 'Technology', 'SHOP': 'Technology', 'PANW': 'Technology', 'SNOW': 'Technology', 'CRWD': 'Technology', 'TEAM': 'Technology', 'ZM': 'Technology', 'DOCU': 'Technology',
-    // Financials
-    'GGAL': 'Financials', 'BMA': 'Financials', 'BBAR': 'Financials', 'SUPV': 'Financials', 'JPM': 'Financials', 'BAC': 'Financials', 'WFC': 'Financials', 'C': 'Financials', 'GS': 'Financials', 'MS': 'Financials', 'BLK': 'Financials', 'V': 'Financials', 'MA': 'Financials', 'AXP': 'Financials', 'PYPL': 'Financials', 'BRK.B': 'Financials', 'BRKB': 'Financials', 'NU': 'Financials',
-    // Communication Services
-    'GOOGL': 'Communication Services', 'GOOG': 'Communication Services', 'META': 'Communication Services', 'NFLX': 'Communication Services', 'DIS': 'Communication Services', 'TMUS': 'Communication Services', 'CMCSA': 'Communication Services', 'VZ': 'Communication Services', 'T': 'Communication Services', 'CHTR': 'Communication Services',
-    // Consumer Discretionary
-    'AMZN': 'Consumer Discretionary', 'TSLA': 'Consumer Discretionary', 'MELI': 'Consumer Discretionary', 'HD': 'Consumer Discretionary', 'MCD': 'Consumer Discretionary', 'NKE': 'Consumer Discretionary', 'SBUX': 'Consumer Discretionary', 'LOW': 'Consumer Discretionary', 'BKNG': 'Consumer Discretionary', 'TJX': 'Consumer Discretionary', 'JD': 'Consumer Discretionary', 'BABA': 'Consumer Discretionary', 'PDD': 'Consumer Discretionary',
-    // Consumer Staples
-    'KO': 'Consumer Staples', 'PEP': 'Consumer Staples', 'PG': 'Consumer Staples', 'WMT': 'Consumer Staples', 'COST': 'Consumer Staples', 'PM': 'Consumer Staples', 'MO': 'Consumer Staples', 'CL': 'Consumer Staples', 'EL': 'Consumer Staples', 'KMB': 'Consumer Staples',
-    // Health Care
-    'LLY': 'Health Care', 'UNH': 'Health Care', 'JNJ': 'Health Care', 'MRK': 'Health Care', 'ABBV': 'Health Care', 'PFE': 'Health Care', 'TMO': 'Health Care', 'DHR': 'Health Care', 'BMY': 'Health Care', 'AMGN': 'Health Care', 'GILD': 'Health Care', 'ISRG': 'Health Care', 'VRTX': 'Health Care', 'REGN': 'Health Care', 'ZTS': 'Health Care', 'CVS': 'Health Care',
-    // Industrials
-    'BA': 'Industrials', 'CAT': 'Industrials', 'GE': 'Industrials', 'HON': 'Industrials', 'UNP': 'Industrials', 'UPS': 'Industrials', 'DE': 'Industrials', 'LMT': 'Industrials', 'RTX': 'Industrials', 'MMM': 'Industrials', 'ADP': 'Industrials',
-    // Materials
-    'LIN': 'Materials', 'SCCO': 'Materials', 'VALE': 'Materials', 'RIO': 'Materials', 'BHP': 'Materials', 'FCX': 'Materials', 'NEM': 'Materials', 'SHW': 'Materials', 'APD': 'Materials', 'ECL': 'Materials', 'GOLD': 'Materials', 'HMY': 'Materials',
-    // Real Estate
-    'PLD': 'Real Estate', 'AMT': 'Real Estate', 'EQIX': 'Real Estate', 'CCI': 'Real Estate', 'PSA': 'Real Estate', 'O': 'Real Estate', 'SPG': 'Real Estate', 'WELL': 'Real Estate', 'DLR': 'Real Estate',
-    // Utilities
-    'NEE': 'Utilities', 'SO': 'Utilities', 'DUK': 'Utilities', 'D': 'Utilities', 'AEP': 'Utilities', 'EXC': 'Utilities',
-    // ETFs (Broad)
-    'SPY': 'Fondo Indexado', 'QQQ': 'Fondo Indexado', 'DIA': 'Fondo Indexado', 'IWM': 'Fondo Indexado', 'VOO': 'Fondo Indexado', 'IVV': 'Fondo Indexado', 'VTI': 'Fondo Indexado',
-    // Crypto
-    'BTC': 'Cripto', 'ETH': 'Cripto', 'IBIT': 'Cripto', 'ETHA': 'Cripto', 'BITF': 'Cripto', 'HUT': 'Cripto', 'RIOT': 'Cripto', 'COIN': 'Crypto'
+const SP500_URL = 'https://raw.githubusercontent.com/datasets/s-and-p-500-companies/master/data/constituents.csv';
+const CEDEARS_JSON_URL = 'https://raw.githubusercontent.com/ferminrp/google-sheets-argento/main/data/cedears.json';
+
+// Manual overrides and additions for non-S&P 500 companies (e.g. Argentine stocks, ETFs)
+const MANUAL_SECTORS: Record<string, string> = {
+    // Argentine ADRs
+    'MELI': 'Consumer Discretionary', // MercadoLibre
+    'GLOB': 'Information Technology', // Globant
+    'VIST': 'Energy', // Vista Energy
+    'YPF': 'Energy', // YPF
+    'PAMP': 'Utilities', // Pampa Energia
+    'GGAL': 'Financials', // Grupo Galicia
+    'BMA': 'Financials', // Banco Macro
+    'SUPV': 'Financials', // Grupo Supervielle
+    'BBAR': 'Financials', // BBVA Argentina
+    'TGS': 'Utilities', // Transportadora de Gas del Sur (Gas Utilities)
+    'CEPU': 'Utilities', // Central Puerto
+    'CRESY': 'Real Estate', // Cresud
+    'IRS': 'Real Estate', // IRSA
+    'EDN': 'Utilities', // Edenor
+    'LOMA': 'Materials', // Loma Negra
+    'TEO': 'Communication Services', // Telecom Argentina
+    'DESP': 'Consumer Discretionary', // Despegar
+    'BIOX': 'Materials', // Bioceres
+    'TX': 'Materials', // Ternium
+
+    // Popular ETFs
+    'SPY': 'ETF',
+    'QQQ': 'ETF',
+    'DIA': 'ETF',
+    'IWM': 'ETF',
+    'EEM': 'ETF',
+    'XLF': 'Financials',
+    'XLE': 'Energy',
+    'XLK': 'Information Technology',
+    'XLV': 'Health Care',
+    'XLI': 'Industrials',
+    'XLP': 'Consumer Staples',
+    'XLY': 'Consumer Discretionary',
+    'XLU': 'Utilities',
+    'XLB': 'Materials',
+    'XLRE': 'Real Estate',
+    'XLC': 'Communication Services',
+    'ARKK': 'ETF',
+    'GLD': 'Commodities',
+    'SLV': 'Commodities',
+    'EWZ': 'ETF', // Brazil
+    'EWW': 'ETF', // Mexico
+
+    // Others
+    'BABA': 'Consumer Discretionary', // Alibaba
+    'JD': 'Consumer Discretionary',
+    'BIDU': 'Communication Services',
+    'TSM': 'Information Technology', // TSMC
+    'RIO': 'Materials', // Rio Tinto
+    'VALE': 'Materials', // Vale
+    'PBR': 'Energy', // Petrobras
+    'ITUB': 'Financials', // Itau
+    'BBD': 'Financials', // Bradesco
+    'SHOP': 'Information Technology', // Shopify
+    'SQ': 'Financials', // Block
+    'SE': 'Consumer Discretionary', // Sea Limited
+    'SPOT': 'Communication Services', // Spotify
+    'UBER': 'Industrials', // Uber (GICS moved it recently/sometimes Discretionary, usually Industrials now)
+    'DASH': 'Consumer Discretionary',
+    'GME': 'Consumer Discretionary',
+    'AMC': 'Communication Services',
+    'COIN': 'Financials',
+    'MSTR': 'Information Technology',
 };
 
-async function main() {
-    console.log('Seeding Sectors...');
+async function fetchSp500Sectors(): Promise<Record<string, string>> {
+    console.log('Fetching S&P 500 data...');
+    const res = await fetch(SP500_URL);
+    const text = await res.text();
 
-    let updatedCount = 0;
+    const mapping: Record<string, string> = {};
+    const lines = text.split('\n');
 
-    for (const [ticker, sector] of Object.entries(ASSET_SECTORS)) {
-        // 1. Update Global Assets
-        const globalResult = await prisma.globalAsset.updateMany({
-            where: {
-                OR: [
-                    { ticker: ticker },
-                    { ticker: ticker + '.BA' } // Try with .BA suffix too if needed? Usually we store cleaner tickers
-                ]
-            },
-            data: { sector }
-        });
+    // Skip header (index 0)
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
 
-        // 2. Update Investments
-        const investResult = await prisma.investment.updateMany({
-            where: {
-                OR: [
-                    { ticker: ticker },
-                    { ticker: { startsWith: ticker + ' ' } } // In case of "AL30 5079"
-                ]
-            },
-            data: { sector }
-        });
+        // Simple CSV parse handle quotes roughly
+        // Symbol,Security,GICS Sector,...
+        const parts = line.split(',');
+        // If symbol has no quotes, it's parts[0]. GICS Sector is parts[2] usually.
+        // Assuming standard format without commas in Symbol or Sector names usually.
+        // Using a safer regex split if needed, but for now simple split might work for typical S&P 500 list
+        // Actually, "Industrial Conglomerates" has no comma using split is fine.
+        // "Saint Paul, Minnesota" has comma in later columns.
 
-        if (globalResult.count > 0 || investResult.count > 0) {
-            console.log(`Updated ${ticker} -> ${sector} (Global: ${globalResult.count}, Inv: ${investResult.count})`);
-            updatedCount += globalResult.count + investResult.count;
+        let symbol = parts[0];
+        let sector = parts[2];
+
+        if (symbol && sector) {
+            mapping[symbol] = sector;
         }
     }
-
-    console.log(`Finished. Total records updated: ${updatedCount}`);
+    return mapping;
 }
 
-main()
-    .catch(console.error)
-    .finally(async () => await prisma.$disconnect());
+async function fetchCedearsList(): Promise<string[]> {
+    console.log('Fetching CEDEARs list...');
+    const res = await fetch(CEDEARS_JSON_URL);
+    const json = await res.json() as any[];
+    return json.map((item: any) => item.Cedears); // "Cedears" key holds the ticker
+}
+
+async function main() {
+    try {
+        const sp500Mapping = await fetchSp500Sectors();
+        const cedearTickers = await fetchCedearsList();
+
+        console.log(`Loaded ${Object.keys(sp500Mapping).length} S&P 500 sectors.`);
+        console.log(`Loaded ${cedearTickers.length} CEDEAR tickers.`);
+
+        // specific hardcoded corrections or popular ones might not be in S&P 500
+        // Merge Manual > S&P 500
+        const sectorMap = { ...sp500Mapping, ...MANUAL_SECTORS };
+
+        let updatedCount = 0;
+
+        // 1. Update GlobalAsset table
+        // We iterate through all GlobalAssets in DB, or we can upsert from the CEDEAR list.
+        // Ideally we update what we have.
+        const globalAssets = await prisma.globalAsset.findMany();
+
+        console.log(`Processing ${globalAssets.length} GlobalAssets...`);
+
+        for (const asset of globalAssets) {
+            const ticker = asset.ticker;
+            const sector = sectorMap[ticker];
+
+            if (sector) {
+                if (asset.sector !== sector) {
+                    await prisma.globalAsset.update({
+                        where: { id: asset.id },
+                        data: { sector }
+                    });
+                    process.stdout.write('.');
+                    updatedCount++;
+                }
+            } else {
+                // console.log(`No sector found for ${ticker}`);
+            }
+        }
+        console.log(`\nUpdated ${updatedCount} GlobalAssets.`);
+
+        // 2. Update Investment table (User Holdings)
+        const investments = await prisma.investment.findMany({
+            where: { type: 'CEDEAR' } // Update only CEDEARs for now
+        });
+
+        updatedCount = 0;
+        console.log(`Processing ${investments.length} User Investments (CEDEARs)...`);
+
+        for (const inv of investments) {
+            const ticker = inv.ticker;
+            const sector = sectorMap[ticker];
+
+            if (sector) {
+                if (inv.sector !== sector) {
+                    await prisma.investment.update({
+                        where: { id: inv.id },
+                        data: { sector }
+                    });
+                    process.stdout.write('+');
+                    updatedCount++;
+                }
+            }
+        }
+        console.log(`\nUpdated ${updatedCount} Investments.`);
+
+        // Optional: Seed new CEDEARs from the JSON list if they don't exist?
+        // The user requirement was "Populate field 'sector' to assets global".
+        // It didn't explicitly say "Add all missing CEDEARs", but it's good practice to update the GlobalAsset catalog if they are missing.
+        // For now, I will stick to updating sectors on EXISTING assets to be safe and fast.
+
+    } catch (error) {
+        console.error('Error seeding sectors:', error);
+    } finally {
+        await prisma.$disconnect();
+    }
+}
+
+main();
