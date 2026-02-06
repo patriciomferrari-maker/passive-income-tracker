@@ -692,7 +692,7 @@ export function GlobalDashboardTab() {
                                         paddingAngle={2}
                                         dataKey="value"
                                         label={({ name, percent }) => {
-                                            if (!showValues || percent < 0.01) return ''; // Show > 1%
+                                            if (!showValues || percent < 0.01) return '';
                                             let displayName = name;
                                             if (name === 'Consumer Discretionary') displayName = 'Cons. Disc.';
                                             if (name === 'Consumer Staples') displayName = 'Staples';
@@ -707,27 +707,20 @@ export function GlobalDashboardTab() {
                                             if (name === 'Unclassified') displayName = 'Other';
                                             return `${displayName} ${(percent * 100).toFixed(0)}%`;
                                         }}
-                                        style={{ fontSize: '10px', fontWeight: '500', fill: '#e2e8f0' }} // Lighter text
+                                        style={{ fontSize: '10px', fontWeight: '500', fill: '#e2e8f0' }}
                                         labelLine={{ stroke: '#64748b', strokeWidth: 1 }}
                                     >
-                                        {stats.sectorDistribution.map((entry: any, index: number) => {
-                                            // Robust Palette
-                                            const COLORS = [
-                                                '#3b82f6', // Blue (Tech/Default)
-                                                '#10b981', // Emerald (Staples/Health)
-                                                '#f59e0b', // Amber (Fin/Ind)
-                                                '#ef4444', // Red (Materials)
-                                                '#8b5cf6', // Violet
-                                                '#ec4899', // Pink
-                                                '#06b6d4', // Cyan
-                                                '#6366f1', // Indigo
-                                                '#84cc16', // Lime
-                                                '#14b8a6', // Teal
-                                                '#f43f5e', // Rose
-                                                '#64748b', // Slate
-                                            ];
-                                            return <Cell key={`cell-s-${index}`} fill={COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0.1)" />;
-                                        })}
+                                        {stats.sectorDistribution.map((entry: any, index: number) => (
+                                            <Cell
+                                                key={`cell-s-${index}`}
+                                                fill={[
+                                                    '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+                                                    '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1',
+                                                    '#84cc16', '#14b8a6', '#f43f5e', '#64748b'
+                                                ][index % 12]}
+                                                stroke="rgba(0,0,0,0)"
+                                            />
+                                        ))}
                                         <Tooltip
                                             formatter={(value: number) => formatMoney(value)}
                                             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
