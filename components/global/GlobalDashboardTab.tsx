@@ -687,30 +687,47 @@ export function GlobalDashboardTab() {
                                         data={stats.sectorDistribution}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={40}
-                                        outerRadius={60}
+                                        innerRadius={45}
+                                        outerRadius={65}
                                         paddingAngle={2}
                                         dataKey="value"
                                         label={({ name, percent }) => {
-                                            if (!showValues || percent < 0.03) return '';
+                                            if (!showValues || percent < 0.01) return ''; // Show > 1%
                                             let displayName = name;
                                             if (name === 'Consumer Discretionary') displayName = 'Cons. Disc.';
                                             if (name === 'Consumer Staples') displayName = 'Staples';
                                             if (name === 'Information Technology') displayName = 'Tech';
                                             if (name === 'Communication Services') displayName = 'Comms';
-                                            if (name === 'Financials') displayName = 'Fin';
+                                            if (name === 'Financials') displayName = 'Fin.';
                                             if (name === 'Health Care') displayName = 'Health';
-                                            if (name === 'Industrials') displayName = 'Ind';
-                                            if (name === 'Materials') displayName = 'Mat';
+                                            if (name === 'Industrials') displayName = 'Ind.';
+                                            if (name === 'Materials') displayName = 'Mat.';
                                             if (name === 'Real Estate') displayName = 'RE';
+                                            if (name === 'Government') displayName = 'Gov';
+                                            if (name === 'Unclassified') displayName = 'Other';
                                             return `${displayName} ${(percent * 100).toFixed(0)}%`;
                                         }}
-                                        style={{ fontSize: '9px', fontWeight: '500', fill: '#94a3b8' }}
-                                        labelLine={{ stroke: '#475569', strokeWidth: 1, length: 10 }}
+                                        style={{ fontSize: '10px', fontWeight: '500', fill: '#e2e8f0' }} // Lighter text
+                                        labelLine={{ stroke: '#64748b', strokeWidth: 1 }}
                                     >
-                                        {stats.sectorDistribution.map((entry: any, index: number) => (
-                                            <Cell key={`cell-s-${index}`} fill={`hsl(${index * 45}, 70%, 50%)`} stroke="rgba(0,0,0,0)" />
-                                        ))}
+                                        {stats.sectorDistribution.map((entry: any, index: number) => {
+                                            // Robust Palette
+                                            const COLORS = [
+                                                '#3b82f6', // Blue (Tech/Default)
+                                                '#10b981', // Emerald (Staples/Health)
+                                                '#f59e0b', // Amber (Fin/Ind)
+                                                '#ef4444', // Red (Materials)
+                                                '#8b5cf6', // Violet
+                                                '#ec4899', // Pink
+                                                '#06b6d4', // Cyan
+                                                '#6366f1', // Indigo
+                                                '#84cc16', // Lime
+                                                '#14b8a6', // Teal
+                                                '#f43f5e', // Rose
+                                                '#64748b', // Slate
+                                            ];
+                                            return <Cell key={`cell-s-${index}`} fill={COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0.1)" />;
+                                        })}
                                         <Tooltip
                                             formatter={(value: number) => formatMoney(value)}
                                             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff' }}
