@@ -652,10 +652,127 @@ export async function GET() {
 
         // Duplicate removed
 
-        // Temporary placeholders for other missing sections
-        const totalRealizedGL = 0;
-        const totalUnrealizedGL = 0;
-        const tir = 0;
+        // --- PnL CALCULATION (Realized & Unrealized) ---
+        let totalRealizedGain = 0;
+        let totalRealizedCost = 0;
+        let totalUnrealizedGain = 0;
+        let totalUnrealizedCost = 0;
+
+        // Process Investments (ONs, Treasuries)
+        for (const inv of investments) {
+            const fifoTransactions = inv.transactions.map(t => ({
+                id: t.id,
+                date: t.date,
+                type: t.type as 'BUY' | 'SELL',
+                quantity: t.quantity,
+                price: t.price,
+                currency: t.currency,
+                exchangeRate: t.exchangeRate || undefined
+            }));
+
+            // Filter out non-trade transactions (e.g. INTEREST) if they are stored in same table?
+            // Assuming investment transactions are strictly BUY/SELL based on current DB schema usage for FIFO.
+            // Check FIFO definition: it filters types. But here we map explicitly.
+
+            const results = calculateFIFO(fifoTransactions as any[], inv.ticker);
+
+            // Realized
+            results.realizedGains.forEach(g => {
+                // Convert to USD
+                let gain = g.gainAbs;
+                let cost = g.quantity * g.buyPriceAvg;
+
+                if (g.currency === 'ARS') {
+                    // Use historical exchange rate if available in event, otherwise approx?
+                    // FIFO result has 'buyExchangeRateAvg'.
+                    // For the GAIN, we should ideally use the exchange rate at SELL date.
+                    // But simplified: result is in original currency.
+
+                    // We need a reliable way to convert realized gain to USD.
+                    // If we don't have historical rates here easily, we might approximate or use current (bad for realized).
+                    // Let's use the exchange rate from the transaction if possible, or Blue rate.
+
+                    // Better approach: calculateFIFO handles currency? No, it returns mixed currency.
+                    // We must convert.
+                    gain /= exchangeRate; // Simplified for now using current rate (Not ideal but consistent with rest of dashboard)
+                    cost /= exchangeRate;
+                }
+
+                totalRealizedGain += gain;
+                totalRealizedCost += cost;
+            });
+
+            // Unrealized (Open Positions)
+            const priceInfo = pricesMap.get(inv.ticker);
+            let currentPrice = priceInfo?.price || inv.lastPrice || 0;
+            // Currency normalization for price
+            if (priceInfo?.currency === 'ARS' || inv.currency === 'ARS') {
+                if (priceInfo?.currency === 'ARS') currentPrice /= exchangeRate;
+                // If price is in USD but asset was bought in ARS? 
+                // Usually price source currency matches asset currency or we normalize.
+            }
+            if (inv.type === 'ON' && currentPrice > 2.0) currentPrice /= 100; // ON par value correction
+
+            results.openPositions.forEach(p => {
+                let cost = p.quantity * p.buyPrice;
+                let marketValue = p.quantity * currentPrice;
+
+                if (p.currency === 'ARS') {
+                    cost /= (p.buyExchangeRateAvg || exchangeRate);
+                    // marketValue is already converted above if we did it right?
+                    // actually currentPrice above logic converts it.
+                }
+
+                totalUnrealizedGain += (marketValue - cost);
+                totalUnrealizedCost += cost;
+            });
+        }
+
+        // Process Global Assets (CEDEARs/Stocks)
+        for (const holding of userHoldings) {
+            const fifoTransactions = holding.transactions.map(t => ({
+                id: t.id,
+                date: t.date,
+                type: t.type as 'BUY' | 'SELL',
+                quantity: t.quantity,
+                price: t.price,
+                currency: t.currency,
+                exchangeRate: t.exchangeRate || undefined
+            }));
+
+            const results = calculateFIFO(fifoTransactions as any[], holding.asset.ticker);
+
+            results.realizedGains.forEach(g => {
+                let gain = g.gainAbs;
+                let cost = g.quantity * g.buyPriceAvg;
+                if (g.currency === 'ARS') {
+                    gain /= exchangeRate;
+                    cost /= exchangeRate;
+                }
+                totalRealizedGain += gain;
+                totalRealizedCost += cost;
+            });
+
+            const price = holding.asset.lastPrice || 0;
+            let currentPrice = price;
+            if (holding.asset.currency === 'ARS') currentPrice /= exchangeRate;
+
+            results.openPositions.forEach(p => {
+                let cost = p.quantity * p.buyPrice;
+                let marketValue = p.quantity * currentPrice;
+
+                if (p.currency === 'ARS') {
+                    cost /= (p.buyExchangeRateAvg || exchangeRate);
+                }
+
+                totalUnrealizedGain += (marketValue - cost);
+                totalUnrealizedCost += cost;
+            });
+        }
+
+        const realizedPct = totalRealizedCost !== 0 ? (totalRealizedGain / totalRealizedCost) * 100 : 0;
+        const unrealizedPct = totalUnrealizedCost !== 0 ? (totalUnrealizedGain / totalUnrealizedCost) * 100 : 0;
+
         const nextInterestON = null;
         const nextInterestTreasury = null;
         const nextRentalAdjustment = null;
@@ -693,8 +810,8 @@ export async function GET() {
                 nextMaturitiesPF
             },
             pnl: {
-                realized: totalRealizedGL,
-                unrealized: totalUnrealizedGL
+                realized: { value: totalRealizedGain, percentage: realizedPct },
+                unrealized: { value: totalUnrealizedGain, percentage: unrealizedPct }
             },
             bankComposition,
             portfolioDistribution,

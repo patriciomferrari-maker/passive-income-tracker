@@ -64,8 +64,8 @@ interface GlobalStats {
     };
     enabledSections: string[];
     pnl?: {
-        realized: number;
-        unrealized: number;
+        realized: { value: number, percentage: number };
+        unrealized: { value: number, percentage: number };
     };
     bankComposition?: {
         name: string;
@@ -363,6 +363,45 @@ export function GlobalDashboardTab() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* ROW 1.25: PnL (Realized/Unrealized) */}
+            {stats.pnl && (
+                <div className="flex flex-wrap gap-6">
+                    {/* Unrealized (Open) */}
+                    {(stats.pnl.unrealized.value !== 0) && (
+                        <Card className="flex-1 min-w-[300px] bg-slate-950/50 border-slate-800 ring-1 ring-slate-800/50 text-center flex flex-col items-center justify-center py-6">
+                            <CardTitle className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-2">
+                                Resultado No Realizado (Abiertas)
+                            </CardTitle>
+                            <div className="flex items-center gap-8">
+                                <span className={`text-2xl font-bold ${stats.pnl.unrealized.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {formatMoney(stats.pnl.unrealized.value)}
+                                </span>
+                                <span className={`text-xl font-medium ${stats.pnl.unrealized.percentage >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {stats.pnl.unrealized.percentage > 0 ? '+' : ''}{formatPercent(stats.pnl.unrealized.percentage / 100).replace('%', '')}%
+                                </span>
+                            </div>
+                        </Card>
+                    )}
+
+                    {/* Realized (Closed) */}
+                    {(stats.pnl.realized.value !== 0) && (
+                        <Card className="flex-1 min-w-[300px] bg-slate-950/50 border-slate-800 ring-1 ring-slate-800/50 text-center flex flex-col items-center justify-center py-6">
+                            <CardTitle className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-2">
+                                Resultado Realizado (Cerradas)
+                            </CardTitle>
+                            <div className="flex items-center gap-8">
+                                <span className={`text-2xl font-bold ${stats.pnl.realized.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {formatMoney(stats.pnl.realized.value)}
+                                </span>
+                                <span className={`text-xl font-medium ${stats.pnl.realized.percentage >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {stats.pnl.realized.percentage > 0 ? '+' : ''}{formatPercent(stats.pnl.realized.percentage / 100).replace('%', '')}%
+                                </span>
+                            </div>
+                        </Card>
+                    )}
+                </div>
+            )}
 
             {/* ROW 1.5: Upcoming Events (Adaptive Flex) */}
             <div className="flex flex-wrap gap-6">
