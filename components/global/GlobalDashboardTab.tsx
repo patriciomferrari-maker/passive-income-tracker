@@ -707,7 +707,7 @@ export function GlobalDashboardTab() {
                                             if (name === 'Unclassified') displayName = 'Other';
                                             return `${displayName} ${(percent * 100).toFixed(0)}%`;
                                         }}
-                                        style={{ fontSize: '10px', fontWeight: '500', fill: '#e2e8f0' }}
+                                        style={{ fontSize: '10px', fontWeight: '500' }}
                                         labelLine={{ stroke: '#64748b', strokeWidth: 1 }}
                                     >
                                         {stats.sectorDistribution.map((entry: any, index: number) => (
