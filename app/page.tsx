@@ -183,14 +183,28 @@ export default function HomePage() {
 
         {!loading && stats && !('error' in stats) && (
           <div className="max-w-4xl mx-auto space-y-12">
-            {/* Global Dashboard Access (Hero Card - Top) */}
-            <DashboardCard
-              title="Dashboard Global Consolidado"
-              description="Visión unificada de ingresos, evolución y vencimientos"
-              icon="📊"
-              href="/dashboard"
-              enabled={true}
-            />
+            {/* Global Dashboard Access (Hero Card - Top) - Only show if 2+ sections have data */}
+            {(() => {
+              const sections = stats.enabledSections || [];
+              // Check which sections actually have data
+              const sectionsWithData = sections.filter(section => {
+                if (section === 'on') return (stats.on?.totalInvested || 0) > 0;
+                if (section === 'treasury') return (stats.treasury?.totalInvested || 0) > 0;
+                if (section === 'rentals') return (stats.rentals?.totalValue || 0) > 0;
+                if (section === 'bank') return (stats.bank?.totalUSD || 0) > 0;
+                return false;
+              });
+
+              return sectionsWithData.length >= 2 ? (
+                <DashboardCard
+                  title="Dashboard Global Consolidado"
+                  description="Visión unificada de ingresos, evolución y vencimientos"
+                  icon="📊"
+                  href="/dashboard"
+                  enabled={true}
+                />
+              ) : null;
+            })()}
 
             {/* Portfolio Cards (Grid - Bottom) */}
             {stats && (
