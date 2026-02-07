@@ -761,6 +761,7 @@ export async function GET() {
         const unrealizedPct = totalUnrealizedCost !== 0 ? (totalUnrealizedGain / totalUnrealizedCost) * 100 : 0;
 
 
+        const tir = 0;
         const nextInterestON = null;
         const nextInterestTreasury = null;
         const nextRentalAdjustment = null;
