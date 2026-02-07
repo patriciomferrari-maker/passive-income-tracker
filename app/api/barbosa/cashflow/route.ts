@@ -218,8 +218,9 @@ export async function GET(req: NextRequest) {
         }
     });
 
-    // Track rent amounts for split calculation
-    const rentSplitAmounts: Record<string, number> = {}; // period -> total rent for split properties
+    // Track rent amounts for split calculation (separate income/expense by period)
+    const rentSplitIncome: Record<string, number> = {}; // period -> income from Soldado
+    const rentSplitExpense: Record<string, number> = {}; // period -> expense from Ayres
 
     rentalCashflows.forEach(cf => {
         const period = getPeriodKey(cf.date);
@@ -250,18 +251,23 @@ export async function GET(req: NextRequest) {
         const isAfterSplitStart = cfDate >= RENT_SPLIT_CONFIG.startDate;
 
         if (isSplitProperty && isAfterSplitStart) {
-            // For split calculation, we need the absolute amount (both income and expense contribute to split)
-            rentSplitAmounts[period] = (rentSplitAmounts[period] || 0) + Math.abs(amount);
+            // Track income and expense separately for net calculation
+            if (type === 'INCOME') {
+                rentSplitIncome[period] = (rentSplitIncome[period] || 0) + amount;
+            } else {
+                rentSplitExpense[period] = (rentSplitExpense[period] || 0) + amount;
+            }
         }
     });
 
     // --- RENT SPLIT CONTRIBUTION INJECTION ---
     // Only for the two users involved, and only from March 2026+
+    // Formula: (Expense - Income) × partner's percentage
     const isPatricio = userEmail === RENT_SPLIT_CONFIG.users.patricio.email;
     const isMelina = userEmail === RENT_SPLIT_CONFIG.users.melina.email;
 
     if (isPatricio || isMelina) {
-        const contributionCatName = 'Ajuste Alquileres';
+        const contributionCatName = 'Alquileres'; // Same category as rent
 
         // Determine contribution label based on which user is viewing
         const contributionSubName = isPatricio
@@ -273,11 +279,17 @@ export async function GET(req: NextRequest) {
             ? RENT_SPLIT_CONFIG.users.melina.percentage  // Patricio receives 25% from Melina
             : RENT_SPLIT_CONFIG.users.patricio.percentage; // Melina receives 75% from Patricio
 
-        Object.entries(rentSplitAmounts).forEach(([period, totalRent]) => {
-            const contributionAmount = Math.round(totalRent * contributionPercentage);
+        // Get all periods with rent data
+        const allPeriods = new Set([...Object.keys(rentSplitIncome), ...Object.keys(rentSplitExpense)]);
+
+        allPeriods.forEach(period => {
+            const income = rentSplitIncome[period] || 0;
+            const expense = rentSplitExpense[period] || 0;
+            const netRentBurden = expense - income; // Net rent position
+            const contributionAmount = Math.round(netRentBurden * contributionPercentage);
 
             if (contributionAmount > 0) {
-                // Init Category if needed
+                // Init Alquileres category if not exists (should exist from rental cashflows)
                 if (!structure['INCOME'][contributionCatName]) {
                     structure['INCOME'][contributionCatName] = {
                         total: {},
@@ -291,7 +303,7 @@ export async function GET(req: NextRequest) {
                     structure['INCOME'][contributionCatName].subs[contributionSubName] = {};
                 }
 
-                // Add contribution as income
+                // Add contribution as income under Alquileres
                 structure['INCOME'][contributionCatName].subs[contributionSubName][period] =
                     (structure['INCOME'][contributionCatName].subs[contributionSubName][period] || 0) + contributionAmount;
                 structure['INCOME'][contributionCatName].total[period] =
