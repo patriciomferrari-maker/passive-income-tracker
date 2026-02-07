@@ -395,145 +395,87 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
                 </div>
             )}
 
-            {/* Charts Row 1 */}
-            {((data?.upcomingPayments && Array.isArray(data.upcomingPayments) && data.upcomingPayments.length > 0) ||
-                (data?.portfolioBreakdown && Array.isArray(data.portfolioBreakdown) && data.portfolioBreakdown.length > 0)) && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:break-inside-avoid">
-                        {/* Upcoming Payments Chart */}
-                        {data.upcomingPayments.length > 0 && (
-                            <Card className={cardClass}>
-                                <CardHeader>
-                                    <CardTitle className="text-white print:text-slate-900">Pagos Futuros</CardTitle>
-                                    <CardDescription className="text-slate-300 print:text-slate-500">
-                                        Proyección mensual de cobros
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="h-[300px] w-full">
+            {/* Main Charts Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:break-inside-avoid">
+                {/* 1. Portfolio Breakdown */}
+                {data.portfolioBreakdown.length > 0 && (
+                    <Card className={cardClass}>
+                        <CardHeader>
+                            <CardTitle className="text-white print:text-slate-900">Composición del Portfolio</CardTitle>
+                            <CardDescription className="text-slate-300 print:text-slate-500">
+                                Distribución por {hasMultipleTypes ? 'Tipo y Activo' : 'Activo'}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className={`h-[300px] w-full grid ${hasMultipleTypes ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                {/* Type Distribution Chart (Only if multiple) */}
+                                {hasMultipleTypes && (
+                                    <div className="h-full border-r border-slate-800/50">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={chartDataArray} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" />
-                                                <XAxis
-                                                    dataKey="month"
-                                                    stroke="#e2e8f0"
-                                                    angle={-45}
-                                                    textAnchor="end"
-                                                    height={60}
-                                                    style={{ fill: '#e2e8f0', fontSize: '12px' }}
-                                                    hide={!showValues}
-                                                />
-                                                <YAxis
-                                                    stroke="#94a3b8"
-                                                    tickFormatter={(value) => `$${value.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-                                                    domain={[0, 'auto']}
-                                                    hide={!showValues}
-                                                />
+                                            <RechartsPieChart>
+                                                <Pie
+                                                    data={typeDistribution}
+                                                    dataKey="invested"
+                                                    nameKey="name"
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    outerRadius={65}
+                                                    innerRadius={40}
+                                                    label={showValues ? (entry: any) => `${entry.name}` : undefined}
+                                                    stroke="none"
+                                                >
+                                                    {typeDistribution.map((entry, index) => (
+                                                        <Cell key={`cell-type-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                                    ))}
+                                                </Pie>
+                                                {showValues && (
+                                                    <Tooltip
+                                                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
+                                                        itemStyle={{ color: '#e2e8f0' }}
+                                                        formatter={(value: number) => formatMoney(value)}
+                                                    />
+                                                )}
+                                            </RechartsPieChart>
+                                        </ResponsiveContainer>
+                                        <p className="text-[10px] text-center text-slate-500 uppercase tracking-widest mt-[-10px]">Por Tipo</p>
+                                    </div>
+                                )}
+
+                                {/* Ticker Distribution Chart */}
+                                <div className="h-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <RechartsPieChart>
+                                            <Pie
+                                                data={pieChartData}
+                                                dataKey="invested"
+                                                nameKey="ticker"
+                                                cx="50%"
+                                                cy="50%"
+                                                outerRadius={hasMultipleTypes ? 65 : 80}
+                                                label={showValues ? (entry: any) => `${entry.payload.ticker} (${entry.payload.percentage.toFixed(0)}%)` : undefined}
+                                                stroke="none"
+                                            >
+                                                {pieChartData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={PIE_COLORS[(index + (hasMultipleTypes ? 2 : 0)) % PIE_COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            {showValues && (
                                                 <Tooltip
                                                     contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
                                                     itemStyle={{ color: '#e2e8f0' }}
                                                     formatter={(value: number) => formatMoney(value)}
                                                 />
-                                                <Legend />
-                                                <Bar dataKey="Interés" stackId="a" fill="#22c55e" />
-                                                <Bar dataKey="Amortización" stackId="a" fill="#3b82f6">
-                                                    <LabelList
-                                                        dataKey="Total"
-                                                        position="top"
-                                                        formatter={(value: any) => showValues ? `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ''}
-                                                        style={{ fill: '#fff', fontSize: '11px', fontWeight: 'bold' }}
-                                                    />
-                                                </Bar>
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        {/* Portfolio Breakdown */}
-                        {data.portfolioBreakdown.length > 0 && (
-                            <Card className={cardClass}>
-                                <CardHeader>
-                                    <CardTitle className="text-white print:text-slate-900">Composición del Portfolio</CardTitle>
-                                    <CardDescription className="text-slate-300 print:text-slate-500">
-                                        Distribución por {hasMultipleTypes ? 'Tipo y Activo' : 'Activo'}
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className={`h-[300px] w-full grid ${hasMultipleTypes ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                                        {/* Type Distribution Chart (Only if multiple) */}
-                                        {hasMultipleTypes && (
-                                            <div className="h-full border-r border-slate-800/50">
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <RechartsPieChart>
-                                                        <Pie
-                                                            data={typeDistribution}
-                                                            dataKey="invested"
-                                                            nameKey="name"
-                                                            cx="50%"
-                                                            cy="50%"
-                                                            outerRadius={65}
-                                                            innerRadius={40}
-                                                            label={showValues ? (entry: any) => `${entry.name}` : undefined}
-                                                            stroke="none"
-                                                        >
-                                                            {typeDistribution.map((entry, index) => (
-                                                                <Cell key={`cell-type-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                                                            ))}
-                                                        </Pie>
-                                                        {showValues && (
-                                                            <Tooltip
-                                                                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                                                itemStyle={{ color: '#e2e8f0' }}
-                                                                formatter={(value: number) => formatMoney(value)}
-                                                            />
-                                                        )}
-                                                    </RechartsPieChart>
-                                                </ResponsiveContainer>
-                                                <p className="text-[10px] text-center text-slate-500 uppercase tracking-widest mt-[-10px]">Por Tipo</p>
-                                            </div>
-                                        )}
-
-                                        {/* Ticker Distribution Chart */}
-                                        <div className="h-full">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <RechartsPieChart>
-                                                    <Pie
-                                                        data={pieChartData}
-                                                        dataKey="invested"
-                                                        nameKey="ticker"
-                                                        cx="50%"
-                                                        cy="50%"
-                                                        outerRadius={hasMultipleTypes ? 65 : 80}
-                                                        label={showValues ? (entry: any) => `${entry.payload.ticker} (${entry.payload.percentage.toFixed(0)}%)` : undefined}
-                                                        stroke="none"
-                                                    >
-                                                        {pieChartData.map((entry, index) => (
-                                                            <Cell key={`cell-${index}`} fill={PIE_COLORS[(index + (hasMultipleTypes ? 2 : 0)) % PIE_COLORS.length]} />
-                                                        ))}
-                                                    </Pie>
-                                                    {showValues && (
-                                                        <Tooltip
-                                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                                            itemStyle={{ color: '#e2e8f0' }}
-                                                            formatter={(value: number) => formatMoney(value)}
-                                                        />
-                                                    )}
-                                                </RechartsPieChart>
-                                            </ResponsiveContainer>
-                                            {hasMultipleTypes && <p className="text-[10px] text-center text-slate-500 uppercase tracking-widest mt-[-10px]">Por Activo</p>}
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
+                                            )}
+                                        </RechartsPieChart>
+                                    </ResponsiveContainer>
+                                    {hasMultipleTypes && <p className="text-[10px] text-center text-slate-500 uppercase tracking-widest mt-[-10px]">Por Activo</p>}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
 
-
-            {/* Charts Row 2: Value Comparison & TIR */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:break-inside-avoid">
-                {/* Sector Distribution */}
+                {/* 2. Sector Distribution */}
                 {data.sectorDistribution && data.sectorDistribution.length > 0 && (
                     <Card className={cardClass}>
                         <CardHeader>
@@ -554,7 +496,7 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
                     </Card>
                 )}
 
-                {/* TIR Comparison */}
+                {/* 3. TIR Comparison */}
                 {tirChartData.length > 0 && (
                     <Card className={cardClass}>
                         <CardHeader>
@@ -593,6 +535,57 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
                                         <Legend />
                                         <Bar dataKey="purchaseTir" name="Tu TIR" fill="#10b981" radius={[4, 4, 0, 0]} />
                                         <Bar dataKey="marketTir" name="TIR Mercado" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* 4. Upcoming Payments Chart */}
+                {data.upcomingPayments.length > 0 && (
+                    <Card className={cardClass}>
+                        <CardHeader>
+                            <CardTitle className="text-white print:text-slate-900">Pagos Futuros</CardTitle>
+                            <CardDescription className="text-slate-300 print:text-slate-500">
+                                Proyección mensual de cobros
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={chartDataArray} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" />
+                                        <XAxis
+                                            dataKey="month"
+                                            stroke="#e2e8f0"
+                                            angle={-45}
+                                            textAnchor="end"
+                                            height={60}
+                                            style={{ fill: '#e2e8f0', fontSize: '12px' }}
+                                            hide={!showValues}
+                                        />
+                                        <YAxis
+                                            stroke="#94a3b8"
+                                            tickFormatter={(value) => `$${value.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                                            domain={[0, 'auto']}
+                                            hide={!showValues}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
+                                            itemStyle={{ color: '#e2e8f0' }}
+                                            formatter={(value: number) => formatMoney(value)}
+                                        />
+                                        <Legend />
+                                        <Bar dataKey="Interés" stackId="a" fill="#22c55e" />
+                                        <Bar dataKey="Amortización" stackId="a" fill="#3b82f6">
+                                            <LabelList
+                                                dataKey="Total"
+                                                position="top"
+                                                formatter={(value: any) => showValues ? `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ''}
+                                                style={{ fill: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                                            />
+                                        </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
