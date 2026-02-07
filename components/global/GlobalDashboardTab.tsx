@@ -185,6 +185,31 @@ export function GlobalDashboardTab() {
 
     if (!stats) return <div className="text-center py-20 text-slate-400">No se pudieron cargar los datos.</div>;
 
+    // Hide consolidated dashboard if user has 1 section or less, or if no sections have data
+    const sectionsWithData = stats.enabledSections?.filter(section => {
+        if (section === 'on') return (stats.composition?.find(c => c.name === 'Cartera Argentina')?.value || 0) > 0;
+        if (section === 'treasury') return (stats.composition?.find(c => c.name === 'Cartera USA')?.value || 0) > 0;
+        if (section === 'rentals') return (stats.composition?.find(c => c.name === 'Alquileres')?.value || 0) > 0;
+        if (section === 'bank') return (stats.summary?.totalBankUSD || 0) > 0;
+        return false;
+    }) || [];
+
+    if (sectionsWithData.length < 2) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <div className="text-slate-400 text-lg">El dashboard consolidado muestra datos de múltiples secciones.</div>
+                <div className="text-slate-500 text-sm">
+                    {sectionsWithData.length === 0
+                        ? 'Aún no tenés inversiones cargadas en ninguna sección.'
+                        : 'Habilitá y cargá datos en más secciones para ver estadísticas consolidadas.'}
+                </div>
+                <a href="/" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors mt-4">
+                    Volver al Inicio
+                </a>
+            </div>
+        );
+    }
+
     const formatMoney = (amount: number, currency = 'USD') => {
         if (!showValues) return '****';
         return currency === 'USD'
