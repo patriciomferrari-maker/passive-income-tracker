@@ -146,6 +146,30 @@ export async function GET() {
         });
         const exchangeRate = blueRate?.value || 1100; // Fallback
 
+        // Fetch Historical Rates (TC_USD_ARS) for PnL Accuracy
+        const historicalRates = await prisma.economicIndicator.findMany({
+            where: { type: 'TC_USD_ARS' },
+            select: { date: true, value: true }
+        });
+        const ratesMap = new Map<string, number>();
+        historicalRates.forEach(r => {
+            ratesMap.set(format(r.date, 'yyyy-MM-dd'), r.value);
+        });
+
+        const getHistoricalRate = (date: Date) => {
+            const key = format(date, 'yyyy-MM-dd');
+            if (ratesMap.has(key)) return ratesMap.get(key)!;
+
+            // Simple lookback fallback (up to 7 days)
+            const d = new Date(date);
+            for (let i = 0; i < 7; i++) {
+                d.setDate(d.getDate() - 1);
+                const k = format(d, 'yyyy-MM-dd');
+                if (ratesMap.has(k)) return ratesMap.get(k)!;
+            }
+            return exchangeRate; // Fallback to current blue if completely missing (not ideal but safe)
+        };
+
         // Re-process PF Maturities to USD if needed (History is usually USD)
         // We will do a simple conversion for 'Bank' history line using CURRENT rate if historical rate missing?
         // Ideally we'd use historical rate, but for quick fix:
@@ -661,49 +685,55 @@ export async function GET() {
         try {
             // Process Investments (ONs, Treasuries)
             for (const inv of investments) {
-                const fifoTransactions = inv.transactions.map(t => ({
-                    id: t.id,
-                    date: t.date,
-                    type: t.type as 'BUY' | 'SELL',
-                    quantity: t.quantity,
-                    price: t.price,
-                    currency: t.currency,
-                    // Remove t.exchangeRate access as it doesn't exist on Prisma model
-                    exchangeRate: undefined
-                }));
+                const fifoTransactions = inv.transactions.map(t => {
+                    let price = t.price;
+                    let quantity = t.quantity;
+
+                    // Normalize to USD using Historical Rate
+                    if (t.currency === 'ARS') {
+                        const rate = getHistoricalRate(t.date);
+                        // Avoid division by zero
+                        if (rate > 0) {
+                            price = t.price / rate;
+                        }
+                    }
+
+                    return {
+                        id: t.id,
+                        date: t.date,
+                        type: t.type as 'BUY' | 'SELL',
+                        quantity: quantity,
+                        price: price,
+                        currency: 'USD', // Normalized
+                        exchangeRate: undefined
+                    };
+                });
 
                 const results = calculateFIFO(fifoTransactions as any[], inv.ticker);
 
                 // Realized
                 results.realizedGains.forEach(g => {
-                    let gain = g.gainAbs;
-                    let cost = g.quantity * g.buyPriceAvg;
-
-                    if (g.currency === 'ARS') {
-                        gain /= exchangeRate;
-                        cost /= exchangeRate;
-                    }
-
-                    totalRealizedGain += gain;
-                    totalRealizedCost += cost;
+                    // Result is already in USD
+                    totalRealizedGain += g.gainAbs;
+                    totalRealizedCost += (g.quantity * g.buyPriceAvg);
                 });
 
                 // Unrealized (Open Positions)
                 const priceInfo = pricesMap.get(inv.ticker);
                 let currentPrice = priceInfo?.price || inv.lastPrice || 0;
 
+                // Determine Current Price in USD
                 if (priceInfo?.currency === 'ARS' || inv.currency === 'ARS') {
-                    if (priceInfo?.currency === 'ARS') currentPrice /= exchangeRate;
+                    if (priceInfo?.currency === 'ARS') currentPrice /= exchangeRate; // Use Current Blue for Valuation
+                    else if (inv.currency === 'ARS') currentPrice /= exchangeRate;
                 }
+
+                // Heuristic for ONs (Parity vs Price)
                 if (inv.type === 'ON' && currentPrice > 2.0) currentPrice /= 100;
 
                 results.openPositions.forEach(p => {
-                    let cost = p.quantity * p.buyPrice;
-                    let marketValue = p.quantity * currentPrice;
-
-                    if (p.currency === 'ARS') {
-                        cost /= (p.buyExchangeRateAvg || exchangeRate);
-                    }
+                    let cost = p.quantity * p.buyPrice; // Already in USD
+                    let marketValue = p.quantity * currentPrice; // In USD
 
                     totalUnrealizedGain += (marketValue - cost);
                     totalUnrealizedCost += cost;
@@ -712,40 +742,46 @@ export async function GET() {
 
             // Process Global Assets (CEDEARs/Stocks)
             for (const holding of userHoldings) {
-                const fifoTransactions = holding.transactions.map(t => ({
-                    id: t.id,
-                    date: t.date,
-                    type: t.type as 'BUY' | 'SELL',
-                    quantity: t.quantity,
-                    price: t.price,
-                    currency: t.currency,
-                    exchangeRate: undefined
-                }));
+                const fifoTransactions = holding.transactions.map(t => {
+                    let price = t.price;
+                    // Normalize to USD
+                    if (t.currency === 'ARS') {
+                        const rate = getHistoricalRate(t.date);
+                        if (rate > 0) price = t.price / rate;
+                    }
+
+                    return {
+                        id: t.id,
+                        date: t.date,
+                        type: t.type as 'BUY' | 'SELL',
+                        quantity: t.quantity,
+                        price: price,
+                        currency: 'USD', // Normalized
+                        exchangeRate: undefined
+                    };
+                });
 
                 const results = calculateFIFO(fifoTransactions as any[], holding.asset.ticker);
 
                 results.realizedGains.forEach(g => {
-                    let gain = g.gainAbs;
-                    let cost = g.quantity * g.buyPriceAvg;
-                    if (g.currency === 'ARS') {
-                        gain /= exchangeRate;
-                        cost /= exchangeRate;
-                    }
-                    totalRealizedGain += gain;
-                    totalRealizedCost += cost;
+                    totalRealizedGain += g.gainAbs;
+                    totalRealizedCost += (g.quantity * g.buyPriceAvg);
                 });
 
                 const price = holding.asset.lastPrice || 0;
                 let currentPrice = price;
+                // Convert Current Price to USD using Current Rate
                 if (holding.asset.currency === 'ARS') currentPrice /= exchangeRate;
 
-                results.openPositions.forEach(p => {
-                    let cost = p.quantity * p.buyPrice;
-                    let marketValue = p.quantity * currentPrice;
+                // ON/Bond heuristic for Global Assets too
+                if ((holding.asset.type === 'ON' || holding.asset.type === 'CORPORATE_BOND') && currentPrice > 2.0) {
+                    currentPrice /= 100;
+                }
 
-                    if (p.currency === 'ARS') {
-                        cost /= (p.buyExchangeRateAvg || exchangeRate);
-                    }
+
+                results.openPositions.forEach(p => {
+                    let cost = p.quantity * p.buyPrice; // USD
+                    let marketValue = p.quantity * currentPrice; // USD
 
                     totalUnrealizedGain += (marketValue - cost);
                     totalUnrealizedCost += cost;
