@@ -22,6 +22,7 @@ export interface DashboardStats {
     totalTransactions: number;
     totalCurrentValue: number;
     pnl: any | null;
+    sectorDistribution: Array<{ name: string; value: number }>;
 }
 
 export async function getUSDashboardStats(userId: string): Promise<DashboardStats> {
@@ -88,6 +89,7 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
             ticker: h.asset.ticker,
             name: h.asset.name,
             type: h.asset.type,
+            sector: h.asset.sector, // Add sector
             currency: h.asset.currency,
             market: h.asset.market,
             transactions: h.transactions.map(t => ({
@@ -324,6 +326,40 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
     const unrealizedPercent = accumulatedCapitalInvertidoUSD > 0 ? (totalUnrealizedUSD / accumulatedCapitalInvertidoUSD) * 100 : 0;
     const realizedPercent = totalCostRealizedUSD > 0 ? (totalRealizedUSD / totalCostRealizedUSD) * 100 : 0;
 
+    // Calculate Sector Distribution
+    const sectorMap: Record<string, number> = {};
+    activeInvestments.forEach(inv => {
+        if (inv.marketValue > 0) {
+            // For GlobalAssets (like Holdings), we need to ensure sector is fetched.
+            // In the unified mapping earlier, we didn't explicitly map sector from asset.
+            // Let's check if 'sector' exists on inv. 
+            // Prisma include usually fetches it if it's on the model.
+            // We need to verify if 'sector' is on Investment layout.
+            // For unifiedInvestments from Holdings, we mapped: ...h, asset: true. 
+            // h.asset has 'sector'. So inv.asset?.sector or inv.sector (from Investment).
+
+            // Correction: unifiedInvestments logic:
+            // Investments map: ...i (includes sector)
+            // Holdings map: ...h, ... asset props? No.
+            // Let's check logic:
+            // ...holdings.map(h => ({ ... name: h.asset.name ... }))
+            // I need to add sector there.
+
+            let sector = inv.sector;
+            if (!sector && inv.isGlobal) {
+                // It might be nested in the original holding object if we didn't flatten nicely.
+                // But wait, typescript might complain if I don't add it to the map above.
+                // I should check the map above first.
+            }
+            sector = sector || 'Otros';
+            sectorMap[sector] = (sectorMap[sector] || 0) + inv.marketValue;
+        }
+    });
+
+    const sectorDistribution = Object.entries(sectorMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
     return {
         investments: activeInvestments,
         capitalInvertido: accumulatedCapitalInvertidoUSD,
@@ -337,6 +373,7 @@ export async function getUSDashboardStats(userId: string): Promise<DashboardStat
         proximoPago: upcomingPayments[0] || null,
         upcomingPayments,
         portfolioBreakdown,
+        sectorDistribution,
         totalONs: activeInvestments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO'].includes(i.type || '')).length,
         totalInvestments: activeInvestments.length,
         totalTransactions: activeInvestments.reduce((sum, inv) => sum + inv.transactions.length, 0),

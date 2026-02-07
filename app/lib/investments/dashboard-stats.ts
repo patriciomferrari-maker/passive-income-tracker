@@ -22,6 +22,7 @@ export interface DashboardStats {
     totalTransactions: number;
     totalCurrentValue: number;
     pnl: any | null;
+    sectorDistribution: Array<{ name: string; value: number }>;
 }
 
 export async function getONDashboardStats(userId: string): Promise<DashboardStats> {
@@ -425,6 +426,19 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
     const unrealizedPercent = accumulatedCapitalInvertidoUSD > 0 ? (totalUnrealizedUSD / accumulatedCapitalInvertidoUSD) * 100 : 0;
     const realizedPercent = totalCostRealizedUSD > 0 ? (totalRealizedUSD / totalCostRealizedUSD) * 100 : 0;
 
+    // Calculate Sector Distribution
+    const sectorMap: Record<string, number> = {};
+    investmentsWithMetrics.forEach(inv => {
+        if (inv.marketValue > 0) {
+            const sector = inv.sector || 'Otros';
+            sectorMap[sector] = (sectorMap[sector] || 0) + inv.marketValue;
+        }
+    });
+
+    const sectorDistribution = Object.entries(sectorMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
     return {
         investments: investmentsWithMetrics,
         capitalInvertido: accumulatedCapitalInvertidoUSD, // Normalized USD Cost Basis from OPEN POSITIONS
@@ -438,6 +452,7 @@ export async function getONDashboardStats(userId: string): Promise<DashboardStat
         proximoPago: upcomingPayments[0] || null,
         upcomingPayments,
         portfolioBreakdown,
+        sectorDistribution,
         totalONs: investments.filter(i => ['ON', 'CORPORATE_BOND', 'TREASURY', 'BONO', 'SOVEREIGN_BOND'].includes(i.type || '')).length,
         totalInvestments: investments.length,
         totalTransactions: investments.reduce((sum, inv) => sum + inv.transactions.length, 0),

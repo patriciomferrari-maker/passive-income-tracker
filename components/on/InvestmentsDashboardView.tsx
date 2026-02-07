@@ -6,6 +6,7 @@ import { TrendingUp, DollarSign, Calendar, Percent, PieChart, Wallet, ArrowUpRig
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LabelList, Scatter, ScatterChart, ZAxis, Line, LineChart } from 'recharts';
+import { SectorChart } from '@/components/charts/SectorChart';
 
 export interface DashboardData {
     capitalInvertido: number;
@@ -49,6 +50,7 @@ export interface DashboardData {
         unrealizedPercent: number;
         hasEquity: boolean;
     } | null;
+    sectorDistribution?: Array<{ name: string; value: number }>;
 }
 
 const COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
@@ -528,145 +530,173 @@ export function InvestmentsDashboardView({ data, showValues, onTogglePrivacy, hi
                     </div>
                 )}
 
-            {/* Charts Row 2: Value Comparison & TIR */}
-            <div className="grid grid-cols-1 gap-6 print:break-inside-avoid">
-                {/* TIR Comparison */}
-                {tirChartData.length > 0 && (
-                    <Card className={cardClass}>
-                        <CardHeader>
-                            <CardTitle className="text-white print:text-slate-900 flex items-center gap-2">
-                                <Percent className="h-5 w-5 text-blue-500" />
-                                TIR: Compra vs Mercado
-                            </CardTitle>
-                            <CardDescription className="text-slate-300 print:text-slate-500">
-                                Comparación por activo
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="h-[350px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={tirChartData.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                                        <XAxis
-                                            dataKey="ticker"
-                                            stroke="#e2e8f0"
-                                            style={{ fontSize: '11px' }}
-                                        />
-                                        <YAxis
-                                            stroke="#94a3b8"
-                                            tickFormatter={(value) => `${value}%`}
-                                            domain={[0, 'auto']}
-                                            hide={!showValues}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                            itemStyle={{ color: '#e2e8f0' }}
-                                            formatter={(value: number, name: string) => {
-                                                if (!showValues) return ['****', name];
-                                                return [`${value.toFixed(2)}%`, name];
-                                            }}
-                                        />
-                                        <Legend />
-                                        <Bar dataKey="purchaseTir" name="Tu TIR" fill="#10b981" radius={[4, 4, 0, 0]} />
-                                        <Bar dataKey="marketTir" name="TIR Mercado" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
-            {/* Summary Stats moved or integrated? Let's keep them if they fit. */}
-            {/* Performance Indicators (Only for Fixed Income) */}
-            {data.totalONs > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-800 print:border-slate-300">
-                    <div className="text-center">
-                        <div className="text-xs text-slate-400 print:text-slate-600 mb-1">Mejor que Mercado</div>
-                        <div className="text-lg font-bold text-green-400 print:text-green-700">
-                            {Array.isArray(tirChartData) ? tirChartData.filter(d => d.better).length : 0} / {Array.isArray(tirChartData) ? tirChartData.length : 0}
-                        </div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-xs text-slate-400 print:text-slate-600 mb-1">Alpha Promedio</div>
-                        <div className="text-lg font-bold text-white print:text-slate-900">
-                            {showValues && tirChartData.length > 0 ? `+${(tirChartData.reduce((sum, d) => sum + d.diff, 0) / tirChartData.length).toFixed(1)}%` : '****'}
-                        </div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-xs text-slate-400 print:text-slate-600 mb-1">TIR Promedio</div>
-                        <div className="text-lg font-bold text-white print:text-slate-900">
-                            {showValues && tirChartData.length > 0 ? `${(tirChartData.reduce((sum, d) => sum + d.purchaseTir, 0) / tirChartData.length).toFixed(1)}%` : '****'}
-                        </div>
-                    </div>
+                        )}
+        </div>
+    )
+}
+
+{/* Charts Row 2: Value Comparison & TIR */ }
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:break-inside-avoid">
+    {/* Sector Distribution */}
+    {data.sectorDistribution && data.sectorDistribution.length > 0 && (
+        <Card className={cardClass}>
+            <CardHeader>
+                <CardTitle className="text-white print:text-slate-900">Composición por Sector</CardTitle>
+                <CardDescription className="text-slate-300 print:text-slate-500">
+                    Diversificación de la cartera
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="h-[300px] w-full">
+                    <SectorChart
+                        data={data.sectorDistribution}
+                        showValues={showValues}
+                        formatMoney={formatMoney}
+                    />
                 </div>
-            )}
+            </CardContent>
+        </Card>
+    )}
+
+    {/* TIR Comparison */}
+    {tirChartData.length > 0 && (
+        <Card className={cardClass}>
+            <CardHeader>
+                <CardTitle className="text-white print:text-slate-900 flex items-center gap-2">
+                    <Percent className="h-5 w-5 text-blue-500" />
+                    TIR: Compra vs Mercado
+                </CardTitle>
+                <CardDescription className="text-slate-300 print:text-slate-500">
+                    Comparación por activo
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={tirChartData.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                            <XAxis
+                                dataKey="ticker"
+                                stroke="#e2e8f0"
+                                style={{ fontSize: '11px' }}
+                            />
+                            <YAxis
+                                stroke="#94a3b8"
+                                tickFormatter={(value) => `${value}%`}
+                                domain={[0, 'auto']}
+                                hide={!showValues}
+                            />
+                            <Tooltip
+                                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
+                                itemStyle={{ color: '#e2e8f0' }}
+                                formatter={(value: number, name: string) => {
+                                    if (!showValues) return ['****', name];
+                                    return [`${value.toFixed(2)}%`, name];
+                                }}
+                            />
+                            <Legend />
+                            <Bar dataKey="purchaseTir" name="Tu TIR" fill="#10b981" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="marketTir" name="TIR Mercado" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </CardContent>
+        </Card>
+    )}
+</div>
+{/* Summary Stats moved or integrated? Let's keep them if they fit. */ }
+{/* Performance Indicators (Only for Fixed Income) */ }
+{
+    data.totalONs > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-800 print:border-slate-300">
+            <div className="text-center">
+                <div className="text-xs text-slate-400 print:text-slate-600 mb-1">Mejor que Mercado</div>
+                <div className="text-lg font-bold text-green-400 print:text-green-700">
+                    {Array.isArray(tirChartData) ? tirChartData.filter(d => d.better).length : 0} / {Array.isArray(tirChartData) ? tirChartData.length : 0}
+                </div>
+            </div>
+            <div className="text-center">
+                <div className="text-xs text-slate-400 print:text-slate-600 mb-1">Alpha Promedio</div>
+                <div className="text-lg font-bold text-white print:text-slate-900">
+                    {showValues && tirChartData.length > 0 ? `+${(tirChartData.reduce((sum, d) => sum + d.diff, 0) / tirChartData.length).toFixed(1)}%` : '****'}
+                </div>
+            </div>
+            <div className="text-center">
+                <div className="text-xs text-slate-400 print:text-slate-600 mb-1">TIR Promedio</div>
+                <div className="text-lg font-bold text-white print:text-slate-900">
+                    {showValues && tirChartData.length > 0 ? `${(tirChartData.reduce((sum, d) => sum + d.purchaseTir, 0) / tirChartData.length).toFixed(1)}%` : '****'}
+                </div>
+            </div>
+        </div>
+    )
+}
 
 
-            {/* Upcoming Payments Timeline */}
-            {
-                data.upcomingPayments.length > 0 && (
-                    <Card className={cardClass}>
-                        <CardHeader>
-                            <CardTitle className="text-white print:text-slate-900">Próximos Pagos</CardTitle>
-                            <CardDescription className="text-slate-300 print:text-slate-500">
-                                Cronograma detallado de cobros
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        {/* Totals Row */}
-                                        <tr className="bg-white/5 border-b border-white/10 print:bg-slate-100 print:border-slate-300">
-                                            <th className="text-left py-3 px-4 text-slate-300 print:text-slate-700 font-bold">TOTALES</th>
-                                            <th className="text-left py-3 px-4 text-slate-300 print:text-slate-700 font-medium"></th>
-                                            <th className="text-left py-3 px-4 text-slate-300 print:text-slate-700 font-medium"></th>
-                                            <th className="text-right py-3 px-4 text-slate-300 print:text-slate-700 font-bold font-mono text-lg">
-                                                {formatMoney(paymentTotals.totalAmount)}
-                                            </th>
-                                        </tr>
-                                        <tr className="border-b border-white/10 print:border-slate-300">
-                                            <th className="text-left py-3 px-4 text-slate-300 print:text-slate-600 font-medium">Fecha</th>
-                                            <th className="text-left py-3 px-4 text-slate-300 print:text-slate-600 font-medium">Ticker</th>
-                                            <th className="text-left py-3 px-4 text-slate-300 print:text-slate-600 font-medium">Concepto</th>
-                                            <th className="text-right py-3 px-4 text-slate-300 print:text-slate-600 font-medium">Monto</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {Array.isArray(data.upcomingPayments) && data.upcomingPayments.map((payment, idx) => (
-                                            <tr key={idx} className="border-b border-white/5 hover:bg-white/5 print:border-slate-200">
-                                                <td className="py-3 px-4 text-white print:text-slate-900">
-                                                    {(() => {
-                                                        try {
-                                                            return payment.date ? format(new Date(payment.date), 'dd/MM/yyyy') : '-';
-                                                        } catch (e) {
-                                                            return '-';
-                                                        }
-                                                    })()}
-                                                </td>
-                                                <td className="py-3 px-4 text-white print:text-slate-900 font-medium">
-                                                    {payment.ticker}
-                                                </td>
-                                                <td className="py-3 px-4 text-white print:text-slate-900">
-                                                    <span className={`px-2 py-1 rounded text-xs mr-2 ${payment.type === 'INTEREST'
-                                                        ? 'bg-green-500/20 text-green-300 print:text-green-700 print:bg-green-100'
-                                                        : 'bg-blue-500/20 text-blue-300 print:text-blue-700 print:bg-blue-100'
-                                                        }`}>
-                                                        {payment.type === 'INTEREST' ? 'INTERÉS' : 'AMORTIZACIÓN'}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 px-4 text-white print:text-slate-900 text-right font-mono">
-                                                    {formatMoney(payment.amount)}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )
-            }
+{/* Upcoming Payments Timeline */ }
+{
+    data.upcomingPayments.length > 0 && (
+        <Card className={cardClass}>
+            <CardHeader>
+                <CardTitle className="text-white print:text-slate-900">Próximos Pagos</CardTitle>
+                <CardDescription className="text-slate-300 print:text-slate-500">
+                    Cronograma detallado de cobros
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead>
+                            {/* Totals Row */}
+                            <tr className="bg-white/5 border-b border-white/10 print:bg-slate-100 print:border-slate-300">
+                                <th className="text-left py-3 px-4 text-slate-300 print:text-slate-700 font-bold">TOTALES</th>
+                                <th className="text-left py-3 px-4 text-slate-300 print:text-slate-700 font-medium"></th>
+                                <th className="text-left py-3 px-4 text-slate-300 print:text-slate-700 font-medium"></th>
+                                <th className="text-right py-3 px-4 text-slate-300 print:text-slate-700 font-bold font-mono text-lg">
+                                    {formatMoney(paymentTotals.totalAmount)}
+                                </th>
+                            </tr>
+                            <tr className="border-b border-white/10 print:border-slate-300">
+                                <th className="text-left py-3 px-4 text-slate-300 print:text-slate-600 font-medium">Fecha</th>
+                                <th className="text-left py-3 px-4 text-slate-300 print:text-slate-600 font-medium">Ticker</th>
+                                <th className="text-left py-3 px-4 text-slate-300 print:text-slate-600 font-medium">Concepto</th>
+                                <th className="text-right py-3 px-4 text-slate-300 print:text-slate-600 font-medium">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {Array.isArray(data.upcomingPayments) && data.upcomingPayments.map((payment, idx) => (
+                                <tr key={idx} className="border-b border-white/5 hover:bg-white/5 print:border-slate-200">
+                                    <td className="py-3 px-4 text-white print:text-slate-900">
+                                        {(() => {
+                                            try {
+                                                return payment.date ? format(new Date(payment.date), 'dd/MM/yyyy') : '-';
+                                            } catch (e) {
+                                                return '-';
+                                            }
+                                        })()}
+                                    </td>
+                                    <td className="py-3 px-4 text-white print:text-slate-900 font-medium">
+                                        {payment.ticker}
+                                    </td>
+                                    <td className="py-3 px-4 text-white print:text-slate-900">
+                                        <span className={`px-2 py-1 rounded text-xs mr-2 ${payment.type === 'INTEREST'
+                                            ? 'bg-green-500/20 text-green-300 print:text-green-700 print:bg-green-100'
+                                            : 'bg-blue-500/20 text-blue-300 print:text-blue-700 print:bg-blue-100'
+                                            }`}>
+                                            {payment.type === 'INTEREST' ? 'INTERÉS' : 'AMORTIZACIÓN'}
+                                        </span>
+                                    </td>
+                                    <td className="py-3 px-4 text-white print:text-slate-900 text-right font-mono">
+                                        {formatMoney(payment.amount)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
 
         </div >
     );
