@@ -1,12 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserId } from '@/app/lib/auth-helper';
+import { auth } from '@/auth';
 
 export const dynamic = 'force-dynamic';
+
+// Rent Split Configuration (starting March 2026)
+const RENT_SPLIT_CONFIG = {
+    startDate: new Date('2026-03-01'),
+    users: {
+        patricio: { email: 'paato.ferrari@hotmail.com', percentage: 0.75 },
+        melina: { email: 'melina.llozano@gmail.com', percentage: 0.25 }
+    },
+    // Properties that participate in the split (by name)
+    properties: ['Soldado', 'Ayres']
+};
 
 export async function GET(req: NextRequest) {
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Get user email for rent split logic
+    const session = await auth();
+    const userEmail = session?.user?.email;
 
     const searchParams = req.nextUrl.searchParams;
     const mode = searchParams.get('mode') || 'YEAR'; // 'YEAR' or 'LAST_12'
@@ -202,6 +218,9 @@ export async function GET(req: NextRequest) {
         }
     });
 
+    // Track rent amounts for split calculation
+    const rentSplitAmounts: Record<string, number> = {}; // period -> total rent for split properties
+
     rentalCashflows.forEach(cf => {
         const period = getPeriodKey(cf.date);
         const amount = Math.round(cf.amountARS || 0);
@@ -223,7 +242,63 @@ export async function GET(req: NextRequest) {
 
         structure[type][catName].subs[subName][period] = (structure[type][catName].subs[subName][period] || 0) + amount;
         structure[type][catName].total[period] = (structure[type][catName].total[period] || 0) + amount;
+
+        // Track rent for split calculation (only for split properties, from March 2026+)
+        const propertyName = cf.contract.property.name || '';
+        const cfDate = new Date(cf.date);
+        const isSplitProperty = RENT_SPLIT_CONFIG.properties.some(p => propertyName.includes(p));
+        const isAfterSplitStart = cfDate >= RENT_SPLIT_CONFIG.startDate;
+
+        if (isSplitProperty && isAfterSplitStart) {
+            // For split calculation, we need the absolute amount (both income and expense contribute to split)
+            rentSplitAmounts[period] = (rentSplitAmounts[period] || 0) + Math.abs(amount);
+        }
     });
+
+    // --- RENT SPLIT CONTRIBUTION INJECTION ---
+    // Only for the two users involved, and only from March 2026+
+    const isPatricio = userEmail === RENT_SPLIT_CONFIG.users.patricio.email;
+    const isMelina = userEmail === RENT_SPLIT_CONFIG.users.melina.email;
+
+    if (isPatricio || isMelina) {
+        const contributionCatName = 'Ajuste Alquileres';
+
+        // Determine contribution label based on which user is viewing
+        const contributionSubName = isPatricio
+            ? 'Contribución Melina (25%)'
+            : 'Contribución Patricio (75%)';
+
+        // Calculate contribution percentage (what the OTHER person contributes)
+        const contributionPercentage = isPatricio
+            ? RENT_SPLIT_CONFIG.users.melina.percentage  // Patricio receives 25% from Melina
+            : RENT_SPLIT_CONFIG.users.patricio.percentage; // Melina receives 75% from Patricio
+
+        Object.entries(rentSplitAmounts).forEach(([period, totalRent]) => {
+            const contributionAmount = Math.round(totalRent * contributionPercentage);
+
+            if (contributionAmount > 0) {
+                // Init Category if needed
+                if (!structure['INCOME'][contributionCatName]) {
+                    structure['INCOME'][contributionCatName] = {
+                        total: {},
+                        totalStatistical: {},
+                        subs: {},
+                        subsStatistical: {}
+                    };
+                }
+
+                if (!structure['INCOME'][contributionCatName].subs[contributionSubName]) {
+                    structure['INCOME'][contributionCatName].subs[contributionSubName] = {};
+                }
+
+                // Add contribution as income
+                structure['INCOME'][contributionCatName].subs[contributionSubName][period] =
+                    (structure['INCOME'][contributionCatName].subs[contributionSubName][period] || 0) + contributionAmount;
+                structure['INCOME'][contributionCatName].total[period] =
+                    (structure['INCOME'][contributionCatName].total[period] || 0) + contributionAmount;
+            }
+        });
+    }
 
     return NextResponse.json({
         year: paramYear,
@@ -233,3 +308,4 @@ export async function GET(req: NextRequest) {
         rates: monthlyExchangeRates
     });
 }
+
