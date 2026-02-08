@@ -167,11 +167,17 @@ export async function runEconomicUpdates() {
 
         if (ipcCount > 0) {
             await regenerateAllCashflows();
+
+            // Check for contract adjustments when new IPC data is available
+            console.log('📧 Checking for contract adjustments after IPC update...');
+            const { checkContractAdjustments } = await import('@/app/lib/contract-helper');
+            await checkContractAdjustments();
         }
         results.ipc = { status: 'success', count: ipcCount, error: null };
     } catch (e) {
         results.ipc = { status: 'failed', count: 0, error: e instanceof Error ? e.message : String(e) };
     }
+
 
     // 3. Update Dollar
     try {
