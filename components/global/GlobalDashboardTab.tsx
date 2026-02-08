@@ -185,21 +185,20 @@ export function GlobalDashboardTab() {
 
     if (!stats) return <div className="text-center py-20 text-slate-400">No se pudieron cargar los datos.</div>;
 
-    // Hide consolidated dashboard if user has 1 section or less, or if no sections have data
-    const sectionsWithData = stats.enabledSections?.filter(section => {
-        if (section === 'on') return (stats.composition?.find(c => c.name === 'Cartera Argentina')?.value || 0) > 0;
-        if (section === 'treasury') return (stats.composition?.find(c => c.name === 'Cartera USA')?.value || 0) > 0;
-        if (section === 'rentals') return (stats.composition?.find(c => c.name === 'Alquileres')?.value || 0) > 0;
-        if (section === 'bank') return (stats.summary?.totalBankUSD || 0) > 0;
-        return false;
-    }) || [];
+    // Hide consolidated dashboard if user has less than 2 sections with actual data
+    let sectionsWithData = 0;
+    if ((stats.composition?.find(c => c.name === 'Cartera Argentina')?.value || 0) > 0) sectionsWithData++;
+    if ((stats.composition?.find(c => c.name === 'Cartera USA')?.value || 0) > 0) sectionsWithData++;
+    if ((stats.composition?.find(c => c.name === 'Alquileres')?.value || 0) > 0) sectionsWithData++;
+    if ((stats.summary?.totalBankUSD || 0) > 0) sectionsWithData++;
+    if ((stats.summary?.totalDebtsUSD || 0) > 0) sectionsWithData++;
 
-    if (sectionsWithData.length < 2) {
+    if (sectionsWithData < 2) {
         return (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <div className="text-slate-400 text-lg">El dashboard consolidado muestra datos de múltiples secciones.</div>
                 <div className="text-slate-500 text-sm">
-                    {sectionsWithData.length === 0
+                    {sectionsWithData === 0
                         ? 'Aún no tenés inversiones cargadas en ninguna sección.'
                         : 'Habilitá y cargá datos en más secciones para ver estadísticas consolidadas.'}
                 </div>

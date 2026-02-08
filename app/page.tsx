@@ -185,17 +185,15 @@ export default function HomePage() {
           <div className="max-w-4xl mx-auto space-y-12">
             {/* Global Dashboard Access (Hero Card - Top) - Only show if 2+ sections have data */}
             {(() => {
-              const sections = stats.enabledSections || [];
-              // Check which sections actually have data
-              const sectionsWithData = sections.filter(section => {
-                if (section === 'on') return (stats.on?.totalInvested || 0) > 0;
-                if (section === 'treasury') return (stats.treasury?.totalInvested || 0) > 0;
-                if (section === 'rentals') return (stats.rentals?.totalValue || 0) > 0;
-                if (section === 'bank') return (stats.bank?.totalUSD || 0) > 0;
-                return false;
-              });
+              // Check which sections actually have data (regardless of enabledSections setting)
+              let sectionsWithData = 0;
+              if ((stats.on?.totalInvested || 0) > 0) sectionsWithData++;
+              if ((stats.treasury?.totalInvested || 0) > 0) sectionsWithData++;
+              if ((stats.rentals?.totalValue || 0) > 0) sectionsWithData++;
+              if ((stats.bank?.totalUSD || 0) > 0) sectionsWithData++;
+              if ((stats.debts?.count || 0) > 0) sectionsWithData++;
 
-              return sectionsWithData.length >= 2 ? (
+              return sectionsWithData >= 2 ? (
                 <DashboardCard
                   title="Dashboard Global Consolidado"
                   description="Visión unificada de ingresos, evolución y vencimientos"
