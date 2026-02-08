@@ -53,6 +53,11 @@ export async function POST(request: Request) {
 
             await regenerateAllCashflows();
 
+            // Check for contract adjustments immediately after manual IPC entry
+            console.log('📧 Checking for contract adjustments after manual IPC bulk entry...');
+            const { checkContractAdjustments } = await import('@/app/lib/contract-helper');
+            await checkContractAdjustments();
+
             return NextResponse.json({ created: results.length, message: `Processed ${results.length} records` });
         } else {
             // Single entry
@@ -74,6 +79,11 @@ export async function POST(request: Request) {
             });
 
             await regenerateAllCashflows();
+
+            // Check for contract adjustments immediately after manual IPC entry
+            console.log('📧 Checking for contract adjustments after manual IPC entry...');
+            const { checkContractAdjustments } = await import('@/app/lib/contract-helper');
+            await checkContractAdjustments();
 
             return NextResponse.json(indicator);
         }
