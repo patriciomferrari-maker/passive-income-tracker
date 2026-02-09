@@ -37,29 +37,36 @@ export async function checkContractAdjustments() {
             const lastRent = contract.rentalCashflows[0]?.amountARS || contract.initialRent;
 
             // Fetch IPC values for the adjustment period
-            // For a quarterly adjustment (frequency=3) in February, we need: Dec, Jan, Feb
-            // We want the last N complete months (where N = frequency)
+            // For a quarterly adjustment (frequency=3) in February:
+            // - We need the PREVIOUS 3 months: December, January, February
+            // - NOT: November, December, January
             const frequency = contract.adjustmentFrequency;
 
-            // Calculate the start of the period: N months ago from today
-            // If today is Feb 8, 2026, and frequency is 3:
-            // - Start: December 1, 2025
-            // - End: February 28/29, 2026
-            const periodStart = new Date(today.getFullYear(), today.getMonth() - frequency, 1);
-            const periodEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day of current month
+            // Calculate the start month: (frequency - 1) months AGO
+            // Examples:
+            // - If in February (month 1) with quarterly (3): start = Feb - (3-1) = Feb - 2 = December
+            // - If in May (month 4) with quarterly (3): start = May - 2 = March
+            const startMonth = today.getMonth() - (frequency - 1);
+            const startYear = today.getFullYear();
 
-            console.log(`📅 Fetching IPC from ${periodStart.toLocaleDateString('es-AR')} to ${periodEnd.toLocaleDateString('es-AR')}`);
+            // Get first day of start month
+            const periodStart = new Date(startYear, startMonth, 1);
 
-            const ipcValues = await prisma.economicIndicator.findMany({
-                where: {
-                    type: 'IPC',
-                    date: {
-                        gte: periodStart,
-                        lte: periodEnd
-                    }
-                },
-                orderBy: { date: 'asc' }
-            });
+            // Get last day of current month
+            const periodEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+            console.log(`📅 Adjustment period: ${periodStart.toLocaleDateString('es-AR')} to ${periodEnd.toLocaleDateString('es-AR')}`);
+
+            // Fetch IPC values - use DISTINCT on year-month to avoid duplicates
+            const ipcValues = await prisma.$queryRaw<Array<{ date: Date, value: number }>>`
+                SELECT DISTINCT ON (EXTRACT(YEAR FROM date), EXTRACT(MONTH FROM date))
+                    date, value
+                FROM "EconomicIndicator"
+                WHERE type = 'IPC'
+                    AND date >= ${periodStart}::date
+                    AND date <= ${periodEnd}::date
+                ORDER BY EXTRACT(YEAR FROM date), EXTRACT(MONTH FROM date), date DESC
+            `;
 
             if (ipcValues.length === 0) {
                 console.log(`⏳ No IPC data yet for ${contract.property.name}`);
