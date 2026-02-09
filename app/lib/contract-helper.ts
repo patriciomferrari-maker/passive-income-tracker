@@ -37,14 +37,26 @@ export async function checkContractAdjustments() {
             const lastRent = contract.rentalCashflows[0]?.amountARS || contract.initialRent;
 
             // Fetch IPC values for the adjustment period
+            // For a quarterly adjustment (frequency=3) in February, we need: Dec, Jan, Feb
+            // We want the last N complete months (where N = frequency)
             const frequency = contract.adjustmentFrequency;
-            const limitDate = new Date(today);
-            limitDate.setMonth(limitDate.getMonth() - frequency);
+
+            // Calculate the start of the period: N months ago from today
+            // If today is Feb 8, 2026, and frequency is 3:
+            // - Start: December 1, 2025
+            // - End: February 28/29, 2026
+            const periodStart = new Date(today.getFullYear(), today.getMonth() - frequency, 1);
+            const periodEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day of current month
+
+            console.log(`📅 Fetching IPC from ${periodStart.toLocaleDateString('es-AR')} to ${periodEnd.toLocaleDateString('es-AR')}`);
 
             const ipcValues = await prisma.economicIndicator.findMany({
                 where: {
                     type: 'IPC',
-                    date: { gte: limitDate, lt: today }
+                    date: {
+                        gte: periodStart,
+                        lte: periodEnd
+                    }
                 },
                 orderBy: { date: 'asc' }
             });
