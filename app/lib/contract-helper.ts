@@ -70,9 +70,10 @@ export async function checkContractAdjustments() {
             const periodStart = new Date(startYear, startMonth, 1);
 
             // Get last day of PREVIOUS month (not current month, since current month's IPC isn't available yet)
-            const periodEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+            // Set to END of day (23:59:59) to include IPC values stored at noon UTC
+            const periodEnd = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999);
 
-            console.log(`📅 IPC period for adjustment: ${periodStart.toLocaleDateString('es-AR')} to ${periodEnd.toLocaleDateString('es-AR')}`)
+            console.log(`📅 IPC period for adjustment: ${periodStart.toLocaleDateString('es-AR')} to ${periodEnd.toLocaleDateString('es-AR')}`);
 
             // Fetch IPC values - use DISTINCT on year-month to avoid duplicates
             const ipcValues = await prisma.$queryRaw<Array<{ date: Date, value: number }>>`
