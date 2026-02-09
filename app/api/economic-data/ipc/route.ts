@@ -61,11 +61,15 @@ export async function POST(request: Request) {
             return NextResponse.json({ created: results.length, message: `Processed ${results.length} records` });
         } else {
             // Single entry
+            const ipcDate = new Date(date);
+            // Force Noon UTC to avoid timezone shifts (same as bulk upload)
+            ipcDate.setUTCHours(12, 0, 0, 0);
+
             const indicator = await prisma.economicIndicator.upsert({
                 where: {
                     type_date: {
                         type: 'IPC',
-                        date: new Date(date)
+                        date: ipcDate
                     }
                 },
                 update: {
@@ -73,7 +77,7 @@ export async function POST(request: Request) {
                 },
                 create: {
                     type: 'IPC',
-                    date: new Date(date),
+                    date: ipcDate,
                     value: parseFloat(value)
                 }
             });
