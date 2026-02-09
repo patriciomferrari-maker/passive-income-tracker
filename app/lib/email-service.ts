@@ -95,8 +95,8 @@ export async function sendContractAdjustmentAlert(contractData: any) {
     <div style="max-width: 560px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
         
         <!-- Header -->
-        <div style="background-color: #1e293b; padding: 32px; text-align: center; border-bottom: 4px solid #f59e0b;">
-            <div style="display: inline-block; padding: 4px 12px; background-color: rgba(245, 158, 11, 0.2); border-radius: 20px; color: #fbbf24; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px;">
+        <div style="background-color: #1e293b; padding: 32px; text-align: center; border-bottom: 4px solid #0ea5e9;">
+            <div style="display: inline-block; padding: 4px 12px; background-color: rgba(14, 165, 233, 0.2); border-radius: 20px; color: #38bdf8; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px;">
                 🏠 AJUSTE DE ALQUILER
             </div>
             <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">${propertyName}</h1>
@@ -119,8 +119,8 @@ export async function sendContractAdjustmentAlert(contractData: any) {
 
             <!-- IPC Table -->
             <div style="margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-                <div style="background-color: #fef3c7; padding: 12px 16px; border-bottom: 1px solid #fcd34d;">
-                    <h3 style="margin: 0; color: #92400e; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                <div style="background-color: #e0f2fe; padding: 12px 16px; border-bottom: 1px solid #7dd3fc;">
+                    <h3 style="margin: 0; color: #0c4a6e; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
                         📊 Índice IPC - Período de Ajuste
                     </h3>
                 </div>
@@ -128,12 +128,12 @@ export async function sendContractAdjustmentAlert(contractData: any) {
                     <tbody>
                         ${ipcRows}
                     </tbody>
-                    <tfoot style="background-color: #fef3c7; border-top: 2px solid #fcd34d;">
+                    <tfoot style="background-color: #e0f2fe; border-top: 2px solid #7dd3fc;">
                         <tr>
-                            <td style="padding: 14px 16px; color: #92400e; font-weight: 700; font-size: 13px; text-transform: uppercase;">
+                            <td style="padding: 14px 16px; color: #0c4a6e; font-weight: 700; font-size: 13px; text-transform: uppercase;">
                                 IPC Acumulado
                             </td>
-                            <td style="padding: 14px 16px; text-align: right; color: #92400e; font-weight: 700; font-family: monospace; font-size: 18px;">
+                            <td style="padding: 14px 16px; text-align: right; color: #0c4a6e; font-weight: 700; font-family: monospace; font-size: 18px;">
                                 ${percentage}%
                             </td>
                         </tr>
