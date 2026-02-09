@@ -144,7 +144,7 @@ export async function sendContractAdjustmentAlert(contractData: any) {
             <!-- New Rent -->
             <div style="background: linear-gradient(135deg, #059669 0%, #047857 100%); padding: 24px; border-radius: 8px; text-align: center; margin-bottom: 24px;">
                 <div style="color: rgba(255,255,255,0.8); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-                    ✅ Nuevo Valor Sugerido
+                    ✅ Nuevo Valor de Alquiler
                 </div>
                 <div style="color: #ffffff; font-size: 32px; font-weight: 700; margin-top: 8px; font-family: monospace;">
                     ${formatCurrency(newRent)}
