@@ -31,10 +31,25 @@ export async function checkContractAdjustments() {
 
         // Check if this month is an adjustment month (e.g. Month 3, 6, 9, 12...)
         if (monthsPassed > 0 && monthsPassed % contract.adjustmentFrequency === 0) {
-            console.log(`📌 Adjustment month for ${contract.property.name}: ${monthsPassed} months passed`);
+            console.log(`📌 ✅ Adjustment month for ${contract.property.name}: ${monthsPassed} months passed`);
 
-            // Get latest rent
-            const lastRent = contract.rentalCashflows[0]?.amountARS || contract.initialRent;
+            // Get the rent from the PREVIOUS adjustment period
+            // For a quarterly adjustment in February, we need the rent from November (3 months ago)
+            // NOT the most recent cashflow which might be from a future projected month
+            const periodStartDate = new Date(today.getFullYear(), today.getMonth() - (contract.adjustmentFrequency - 1), 1);
+
+            // Find the cashflow at or just before the period start
+            const lastAdjustmentCashflow = await prisma.rentalCashflow.findFirst({
+                where: {
+                    contractId: contract.id,
+                    date: { lte: periodStartDate }
+                },
+                orderBy: { date: 'desc' }
+            });
+
+            const lastRent = lastAdjustmentCashflow?.amountARS || contract.initialRent;
+
+            console.log(`   Last rent (from ${periodStartDate.toLocaleDateString('es-AR')} or before): $${lastRent}`);
 
             // Fetch IPC values for the adjustment period
             // For a quarterly adjustment (frequency=3) in February:
