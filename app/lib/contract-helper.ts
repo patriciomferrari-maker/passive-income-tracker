@@ -34,43 +34,45 @@ export async function checkContractAdjustments() {
             console.log(`📌 ✅ Adjustment month for ${contract.property.name}: ${monthsPassed} months passed`);
 
             // Get the rent from the PREVIOUS adjustment period
-            // For a quarterly adjustment in February, we need the rent from November (3 months ago)
+            // For a quarterly adjustment in February, the last adjustment was in November (3 months ago)
             // NOT the most recent cashflow which might be from a future projected month
-            const periodStartDate = new Date(today.getFullYear(), today.getMonth() - (contract.adjustmentFrequency - 1), 1);
+            const previousAdjustmentDate = new Date(today.getFullYear(), today.getMonth() - contract.adjustmentFrequency, 1);
 
-            // Find the cashflow at or just before the period start
+            // Find the cashflow at or just before the previous adjustment
             const lastAdjustmentCashflow = await prisma.rentalCashflow.findFirst({
                 where: {
                     contractId: contract.id,
-                    date: { lte: periodStartDate }
+                    date: { lte: previousAdjustmentDate }
                 },
                 orderBy: { date: 'desc' }
             });
 
             const lastRent = lastAdjustmentCashflow?.amountARS || contract.initialRent;
 
-            console.log(`   Last rent (from ${periodStartDate.toLocaleDateString('es-AR')} or before): $${lastRent}`);
+            console.log(`   Last rent (from ${previousAdjustmentDate.toLocaleDateString('es-AR')} or before): $${lastRent}`);
 
             // Fetch IPC values for the adjustment period
+            // CRITICAL: Adjustment in February uses Nov-Dec-Jan IPC (the N PREVIOUS months)
+            // Because January's IPC is published IN February, not before it
             // For a quarterly adjustment (frequency=3) in February:
-            // - We need the PREVIOUS 3 months: December, January, February
-            // - NOT: November, December, January
+            // - We need: November, December, January (the 3 months BEFORE February)
+            // - NOT: December, January, February (February IPC doesn't exist yet in Feb)
             const frequency = contract.adjustmentFrequency;
 
-            // Calculate the start month: (frequency - 1) months AGO
+            // Calculate the start: N months BEFORE current month
             // Examples:
-            // - If in February (month 1) with quarterly (3): start = Feb - (3-1) = Feb - 2 = December
-            // - If in May (month 4) with quarterly (3): start = May - 2 = March
-            const startMonth = today.getMonth() - (frequency - 1);
+            // - If in February (month 1) with quarterly (3): start = Feb - 3 = November
+            // - If in May (month 4) with quarterly (3): start = May - 3 = February
+            const startMonth = today.getMonth() - frequency;
             const startYear = today.getFullYear();
 
             // Get first day of start month
             const periodStart = new Date(startYear, startMonth, 1);
 
-            // Get last day of current month
-            const periodEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            // Get last day of PREVIOUS month (not current month, since current month's IPC isn't available yet)
+            const periodEnd = new Date(today.getFullYear(), today.getMonth(), 0);
 
-            console.log(`📅 Adjustment period: ${periodStart.toLocaleDateString('es-AR')} to ${periodEnd.toLocaleDateString('es-AR')}`);
+            console.log(`📅 IPC period for adjustment: ${periodStart.toLocaleDateString('es-AR')} to ${periodEnd.toLocaleDateString('es-AR')}`)
 
             // Fetch IPC values - use DISTINCT on year-month to avoid duplicates
             const ipcValues = await prisma.$queryRaw<Array<{ date: Date, value: number }>>`
@@ -87,6 +89,13 @@ export async function checkContractAdjustments() {
                 console.log(`⏳ No IPC data yet for ${contract.property.name}`);
                 continue;
             }
+
+            console.log(`   Found ${ipcValues.length} IPC values for period:`);
+            ipcValues.forEach(ipc => {
+                const date = new Date(ipc.date);
+                const formatted = date.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+                console.log(`   - ${formatted}: ${ipc.value}%`);
+            });
 
             // Build monthly IPC data with formatted month names
             const ipcMonths = ipcValues.map(ipc => {
