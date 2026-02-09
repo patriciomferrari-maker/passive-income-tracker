@@ -43,10 +43,18 @@ interface IPCMonthData {
 }
 
 export async function sendContractAdjustmentAlert(contractData: any) {
-    if (!process.env.RESEND_API_KEY) return;
+    if (!process.env.RESEND_API_KEY) {
+        console.warn('⚠️ RESEND_API_KEY not configured - email will not be sent');
+        return;
+    }
 
     try {
-        const { tenantName, propertyName, oldRent, newRent, percentage, adjustmentDate, ipcMonths } = contractData;
+        const { tenantName, propertyName, oldRent, newRent, percentage, adjustmentDate, ipcMonths, ownerEmail } = contractData;
+
+        if (!ownerEmail) {
+            console.error('❌ [Email] No owner email provided for contract adjustment alert');
+            return;
+        }
 
         const formatCurrency = (val: number) => new Intl.NumberFormat('es-AR', {
             style: 'currency',
@@ -74,7 +82,7 @@ export async function sendContractAdjustmentAlert(contractData: any) {
 
         await resend.emails.send({
             from: 'Passive Income <alerts@resend.dev>',
-            to: ['patri.ferrari@gmail.com'],
+            to: [ownerEmail],
             subject: `🏠 Ajuste Alquiler: ${propertyName}`,
             html: `
 <!DOCTYPE html>
@@ -168,8 +176,9 @@ export async function sendContractAdjustmentAlert(contractData: any) {
 </html>
             `
         });
-        console.log(`[Email] Sent contract alert for ${propertyName}`);
+        console.log(`✅ [Email] Sent contract alert for ${propertyName} to ${ownerEmail}`);
     } catch (error) {
-        console.error('[Email] Failed to send contract alert:', error);
+        console.error(`❌ [Email] Failed to send contract alert for ${propertyName}:`, error);
+        console.error('[Email] Error details:', JSON.stringify(error, null, 2));
     }
 }

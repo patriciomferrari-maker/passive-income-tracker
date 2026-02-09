@@ -90,7 +90,8 @@ export async function checkContractAdjustments() {
                 newRent: newRent,
                 percentage: percentage,
                 adjustmentDate: today.toLocaleDateString('es-AR'),
-                ipcMonths: ipcMonths
+                ipcMonths: ipcMonths,
+                ownerEmail: contract.property.user.email
             });
         }
     }
