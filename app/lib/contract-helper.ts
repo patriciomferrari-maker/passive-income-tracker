@@ -59,14 +59,22 @@ export async function checkContractAdjustments() {
             // - NOT: December, January, February (February IPC doesn't exist yet in Feb)
             const frequency = contract.adjustmentFrequency;
 
-            // Calculate the start: N months BEFORE current month
-            // Examples:
-            // - If in February (month 1) with quarterly (3): start = Feb - 3 = November
-            // - If in May (month 4) with quarterly (3): start = May - 3 = February
-            const startMonth = today.getMonth() - frequency;
+            // Calculate the period correctly:
+            // - Current month (Feb) doesn't have IPC yet
+            // - So we use PREVIOUS month (Jan) as the END
+            // - And go back 'frequency' months from there for the START
+            //
+            // Example for February with quarterly (3):
+            // - End: January (month before current)
+            // - Start: January - 3 + 1 = November (3 months including Jan)
+            // - Period: Nov, Dec, Jan ✅
+            //
+            // The formula: (prevMonth - frequency + 1) gives us the start month
+            const prevMonth = today.getMonth() - 1; // January = 0
+            const startMonth = prevMonth - frequency + 1; // 0 - 3 + 1 = -2 → Nov 2025
             const startYear = today.getFullYear();
 
-            // Get first day of start month
+            // Get first day of start month  
             const periodStart = new Date(startYear, startMonth, 1);
 
             // Get last day of PREVIOUS month (not current month, since current month's IPC isn't available yet)

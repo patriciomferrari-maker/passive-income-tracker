@@ -134,7 +134,8 @@ export async function saveBCRAData(data: BCRAData[]) {
                         where: { id: existing.id },
                         data: {
                             value: item.value,
-                            ...(item.interannualValue !== undefined && { interannualValue: item.interannualValue })
+                            ...(item.interannualValue !== undefined && { interannualValue: item.interannualValue }),
+                            isManual: false // Mark as automatic/scraper
                         }
                     });
                     updated++;
@@ -147,7 +148,8 @@ export async function saveBCRAData(data: BCRAData[]) {
                         type: item.type,
                         date: item.date,
                         value: item.value,
-                        interannualValue: item.interannualValue
+                        interannualValue: item.interannualValue,
+                        isManual: false // Mark as automatic/scraper
                     }
                 });
                 created++;

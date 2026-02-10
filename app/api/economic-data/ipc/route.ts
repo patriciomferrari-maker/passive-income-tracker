@@ -25,26 +25,50 @@ export async function POST(request: Request) {
 
         if (bulk && Array.isArray(bulk)) {
             // Bulk upload
-            // Bulk upload using transaction to allow updates (upsert)
-            const operations = bulk.map((item: any) => {
-                const date = new Date(item.date);
+            // Prepare data for bulk upload, ensuring dates are correctly formatted and marked as manual
+            const parsedData = bulk.map((item: any) => {
+                const d = new Date(item.date);
                 // Force Noon UTC to avoid timezone shifts (consistency with other endpoints)
-                date.setUTCHours(12, 0, 0, 0);
+                d.setUTCHours(12, 0, 0, 0);
+                return {
+                    date: d,
+                    value: parseFloat(item.value)
+                };
+            });
 
-                return prisma.economicIndicator.upsert({
-                    where: {
-                        type_date: {
-                            type: 'IPC',
-                            date: date
+            // Check for existing entries first to prevent manual duplicates
+            const months = parsedData.map(item => ({
+                year: item.date.getFullYear(),
+                month: item.date.getMonth()
+            }));
+
+            const existing = await prisma.economicIndicator.findMany({
+                where: {
+                    type: 'IPC',
+                    OR: months.map(m => ({
+                        date: {
+                            gte: new Date(m.year, m.month, 1),
+                            lt: new Date(m.year, m.month + 1, 1)
                         }
-                    },
-                    update: {
-                        value: parseFloat(item.value)
-                    },
-                    create: {
+                    }))
+                }
+            });
+
+            if (existing.length > 0) {
+                const existingMonths = existing.map(e => {
+                    const d = new Date(e.date);
+                    return `${d.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}`;
+                }).join(', ');
+                throw new Error(`Ya existen entradas IPC para: ${existingMonths}. Elimínalas primero para actualizarlas.`);
+            }
+
+            const operations = parsedData.map(item => {
+                return prisma.economicIndicator.create({
+                    data: {
                         type: 'IPC',
-                        date: date,
-                        value: parseFloat(item.value)
+                        date: item.date,
+                        value: item.value,
+                        isManual: true // Mark as manual entry
                     }
                 });
             });
@@ -61,24 +85,42 @@ export async function POST(request: Request) {
             return NextResponse.json({ created: results.length, message: `Processed ${results.length} records` });
         } else {
             // Single entry
-            const ipcDate = new Date(date);
-            // Force Noon UTC to avoid timezone shifts (same as bulk upload)
-            ipcDate.setUTCHours(12, 0, 0, 0);
+            // CRITICAL: Parse date correctly to avoid timezone issues
+            // Extract year, month, day from the input date string
+            const inputDate = new Date(date);
+            const year = inputDate.getFullYear();
+            const month = inputDate.getMonth(); // 0-indexed
+            const day = inputDate.getDate();
 
-            const indicator = await prisma.economicIndicator.upsert({
+            // Create date in UTC at noon to match bulk upload behavior
+            // This ensures consistency regardless of user's timezone
+            const ipcDate = new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+
+            // Check if entry already exists for this month
+            const startOfMonth = new Date(ipcDate.getFullYear(), ipcDate.getMonth(), 1);
+            const endOfMonth = new Date(ipcDate.getFullYear(), ipcDate.getMonth() + 1, 1);
+
+            const existing = await prisma.economicIndicator.findFirst({
                 where: {
-                    type_date: {
-                        type: 'IPC',
-                        date: ipcDate
+                    type: 'IPC',
+                    date: {
+                        gte: startOfMonth,
+                        lt: endOfMonth
                     }
-                },
-                update: {
-                    value: parseFloat(value)
-                },
-                create: {
+                }
+            });
+
+            if (existing) {
+                const monthYear = ipcDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+                throw new Error(`Ya existe una entrada IPC para ${monthYear}. Elimínala primero para actualizarla.`);
+            }
+
+            const indicator = await prisma.economicIndicator.create({
+                data: {
                     type: 'IPC',
                     date: ipcDate,
-                    value: parseFloat(value)
+                    value: parseFloat(value),
+                    isManual: true
                 }
             });
 

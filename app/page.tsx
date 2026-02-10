@@ -286,6 +286,12 @@ export default function HomePage() {
                         {shouldShow('debts') && (() => {
                           const owedToMe = stats.debts?.owedToMe || 0;
                           const iOwe = stats.debts?.iOwe || 0;
+
+                          // If no debts (either direction), do not show the card
+                          if (owedToMe === 0 && iOwe === 0) {
+                            return null;
+                          }
+
                           const hasBoth = owedToMe > 0 && iOwe > 0;
                           const onlyOwedToMe = owedToMe > 0 && iOwe === 0;
                           const onlyIOwe = iOwe > 0 && owedToMe === 0;

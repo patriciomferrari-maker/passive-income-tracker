@@ -146,22 +146,9 @@ export async function runEconomicUpdates() {
         for (const item of ipcData) {
             const date = new Date(item.year, item.month - 1, 1);
 
-            // Check if manual exists before overwriting? 
-            // The constraint @@unique([type, date]) handles uniqueness.
-            // But we need to respect "isManual" flag.
-            // Let's rely on upsertIPC or check explicitly.
-            // For now, to keep it simple and safe, we can check if it's manual.
-            const existing = await prisma.economicIndicator.findUnique({
-                where: { type_date: { type: 'IPC', date: new Date(Date.UTC(item.year, item.month - 1, 1)) } }
-            });
-
-            if (existing && existing.isManual) {
-                console.log(`Skipping manual IPC for ${item.year}-${item.month}`);
-                continue;
-            }
-
-            // Using upsertIPC handles normalization.
-            await upsertIPC(date, item.value);
+            // Allow automatic scrapers to overwrite manual entries
+            // This is the intended behavior per user request
+            await upsertIPC(date, item.value, false); // isManual = false for automatic
             ipcCount++;
         }
 
