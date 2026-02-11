@@ -212,10 +212,35 @@ export function DebtsDashboardTab({ showValues = true }: TabProps) {
         );
     };
 
+    const hasOwedToMe = data.owedToMe && (
+        (data.owedToMe.debtors && data.owedToMe.debtors.length > 0) ||
+        (data.owedToMe.totals && (data.owedToMe.totals.USD?.lent > 0 || data.owedToMe.totals.ARS?.lent > 0))
+    );
+
+    const hasIOwe = data.iOwe && (
+        (data.iOwe.creditors && data.iOwe.creditors.length > 0) ||
+        (data.iOwe.totals && (data.iOwe.totals.USD?.lent > 0 || data.iOwe.totals.ARS?.lent > 0))
+    );
+
+    if (!hasOwedToMe && !hasIOwe) {
+        return (
+            <div className="text-center py-16">
+                <div className="bg-slate-900/50 inline-block p-6 rounded-full mb-4">
+                    <HandCoins size={48} className="text-slate-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-300 mb-2">No tienes deudas registradas</h3>
+                <p className="text-slate-500 max-w-md mx-auto">
+                    No hay registros de dinero que debas ni dinero que te deban.
+                    Puedes registrar un nuevo movimiento en la pestaña "Registrar Movimiento".
+                </p>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-12">
             {/* Deudas a Cobrar (OWED_TO_ME) */}
-            {renderSection(
+            {hasOwedToMe && renderSection(
                 '💰 Deudas a Cobrar (Me Deben)',
                 <HandCoins size={24} className="text-blue-500" />,
                 data.owedToMe.totals,
@@ -225,11 +250,13 @@ export function DebtsDashboardTab({ showValues = true }: TabProps) {
                 COLOR_PENDING_BLUE
             )}
 
-            {/* Divider */}
-            <div className="border-t border-slate-800 my-8"></div>
+            {/* Divider - only show if BOTH sections are visible */}
+            {hasOwedToMe && hasIOwe && (
+                <div className="border-t border-slate-800 my-8"></div>
+            )}
 
             {/* Deudas que Tengo (I_OWE) */}
-            {renderSection(
+            {hasIOwe && renderSection(
                 '💸 Deudas que Tengo (Yo Debo)',
                 <Wallet size={24} className="text-red-500" />,
                 data.iOwe.totals,
@@ -240,4 +267,5 @@ export function DebtsDashboardTab({ showValues = true }: TabProps) {
             )}
         </div>
     );
+
 }
