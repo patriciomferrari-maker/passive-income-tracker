@@ -186,6 +186,53 @@ export async function runEconomicUpdates() {
                 where: { type: 'TC_USD_ARS', date: { gte: dayStart, lte: dayEnd } }
             });
 
+            // ALERT LOGIC: Check for sharp changes (>3%)
+            // Get the MOST RECENT value before this one to compare
+            const previousParams = {
+                where: {
+                    type: 'TC_USD_ARS',
+                    date: { lt: dayStart }
+                },
+                orderBy: { date: 'desc' } as const
+            };
+            const previous = await prisma.economicIndicator.findFirst(previousParams);
+
+            if (previous && previous.value > 0) {
+                const variation = ((item.avg - previous.value) / previous.value) * 100;
+                if (Math.abs(variation) >= 3) {
+                    // Find user to notify (using first user or hardcoded main user)
+                    // Optimizing to not fetch user every loop if possible, but for cron it's fine
+                    const userToNotify = await prisma.user.findFirst();
+
+                    if (userToNotify) {
+                        // Check if we already alerted for this specific date/value to avoid spam
+                        const alreadyAlerted = await prisma.notification.findFirst({
+                            where: {
+                                userId: userToNotify.id,
+                                title: { contains: 'Dólar Blue' },
+                                createdAt: { gte: dayStart, lte: dayEnd }
+                            }
+                        });
+
+                        if (!alreadyAlerted) {
+                            const emoji = variation > 0 ? '🚀' : '📉';
+                            const action = variation > 0 ? 'subió' : 'bajó';
+
+                            await prisma.notification.create({
+                                data: {
+                                    userId: userToNotify.id,
+                                    title: `${emoji} Alerta Dólar Blue: ${variation > 0 ? '+' : ''}${variation.toFixed(1)}%`,
+                                    message: `El Dólar Blue ${action} de $${previous.value} a $${item.avg}. Compra: $${item.buy} - Venta: $${item.sell}.`,
+                                    type: variation > 0 ? 'WARNING' : 'INFO',
+                                    isRead: false
+                                }
+                            });
+                            console.log(`🔔 Dollar alert created: ${variation.toFixed(1)}% change`);
+                        }
+                    }
+                }
+            }
+
             if (existing) {
                 await prisma.economicIndicator.update({
                     where: { id: existing.id },
@@ -242,7 +289,63 @@ export async function runEconomicUpdates() {
         results.splits = { status: 'failed', error: e instanceof Error ? e.message : String(e) };
     }
 
-    // 7. Update CEDEAR Dividends
+    // 7. Check Bank Investment Maturities (Plazo Fijo)
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const activePFs = await prisma.bankOperation.findMany({
+            where: {
+                type: 'PLAZO_FIJO',
+                startDate: { not: null },
+                durationDays: { not: null }
+            },
+            include: { user: true }
+        });
+
+        let maturityCount = 0;
+
+        for (const pf of activePFs) {
+            if (!pf.startDate || !pf.durationDays) continue;
+
+            const maturityDate = new Date(pf.startDate);
+            maturityDate.setDate(maturityDate.getDate() + pf.durationDays);
+            maturityDate.setHours(0, 0, 0, 0);
+
+            // Check if maturity is TODAY
+            if (maturityDate.getTime() === today.getTime()) {
+                // Check if already notified
+                const existingNotif = await prisma.notification.findFirst({
+                    where: {
+                        userId: pf.userId,
+                        title: { contains: 'Vencimiento Plazo Fijo' },
+                        message: { contains: pf.alias || 'Plazo Fijo' },
+                        createdAt: { gte: today }
+                    }
+                });
+
+                if (!existingNotif) {
+                    await prisma.notification.create({
+                        data: {
+                            userId: pf.userId,
+                            title: '💰 Vencimiento Plazo Fijo',
+                            message: `Tu Plazo Fijo${pf.alias ? ` (${pf.alias})` : ''} por $${pf.amount.toLocaleString()} vence hoy.`,
+                            type: 'SUCCESS',
+                            link: '/bank-investments',
+                            isRead: false
+                        }
+                    });
+                    maturityCount++;
+                    console.log(`🔔 Bank Maturity notification created for user ${pf.userId}`);
+                }
+            }
+        }
+        results.maturity = { status: 'success', notified: maturityCount, error: null };
+    } catch (e) {
+        results.maturity = { status: 'failed', error: e instanceof Error ? e.message : String(e) };
+    }
+
+    // 8. Update CEDEAR Dividends
     try {
         const { scrapeComafiDividends, extractDetailsFromPdf } = await import('@/app/lib/scrapers/comafi-dividends');
         const { sendDividendAlert } = await import('@/app/lib/email-service');

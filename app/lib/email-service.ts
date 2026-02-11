@@ -1,5 +1,6 @@
 
 import { Resend } from 'resend';
+import { prisma } from '@/lib/prisma';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -32,8 +33,28 @@ export async function sendDividendAlert(ticker: string, company: string, eventNa
             `
         });
         console.log(`[Email] Sent alert for ${ticker}`);
+
+        // Create In-App Notification
+        // Find user by email to associate notification
+        const user = await prisma.user.findFirst({
+            where: { email: 'patri.ferrari@gmail.com' } // Using the same email as the alert
+        });
+
+        if (user) {
+            await prisma.notification.create({
+                data: {
+                    userId: user.id,
+                    title: `💰 Dividendo: ${ticker}`,
+                    message: `${company} anunció un nuevo dividendo.${amountUSD ? ` Estimado: USD ${amountUSD}/acción.` : ''}`,
+                    type: 'SUCCESS',
+                    link: pdfUrl, // Link to the official document
+                    isRead: false
+                }
+            });
+            console.log(`🔔 In-app notification created for ${ticker}`);
+        }
     } catch (error) {
-        console.error('[Email] Failed to send:', error);
+        console.error('[Email/Notification] Failed to process:', error);
     }
 }
 
