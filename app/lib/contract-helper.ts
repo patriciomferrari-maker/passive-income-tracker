@@ -143,8 +143,27 @@ export async function checkContractAdjustments() {
                 percentage: percentage,
                 adjustmentDate: today.toLocaleDateString('es-AR'),
                 ipcMonths: ipcMonths,
-                ownerEmail: contract.property.user.email
+                ownerEmail: contract.property.user?.email
             });
+
+            // Create In-App Notification
+            if (contract.property.userId) {
+                try {
+                    await prisma.notification.create({
+                        data: {
+                            userId: contract.property.userId,
+                            title: `🏠 Ajuste de Alquiler: ${contract.property.name}`,
+                            message: `El alquiler se ha ajustado de $${lastRent.toLocaleString('es-AR')} a $${newRent.toLocaleString('es-AR')} (+${percentage}%).`,
+                            type: 'INFO',
+                            link: '/alquileres', // Redirect to rentals page
+                            isRead: false
+                        }
+                    });
+                    console.log(`🔔 In-app notification created for ${contract.property.name}`);
+                } catch (error) {
+                    console.error('❌ Failed to create in-app notification:', error);
+                }
+            }
         }
     }
 }
